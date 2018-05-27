@@ -5,7 +5,7 @@ Pure Rust Enclave && Untrusted in Rust.
 
 ### Prerequisites
 
-
+* [Intel SPID](https://software.intel.com/en-us/articles/certificate-requirements-for-intel-attestation-services) - Register to get an Unlinkable certificate + SPID (FOR REMOTE ATTESTATION ONLY)
 * [RUST-SGX-SDK](https://github.com/baidu/rust-sgx-sdk/blob/master/documents/sgxtime.md) - follow the instalation rules
 * clone this repo into /some/path/enigma-core
 * run docker 
