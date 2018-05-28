@@ -1,0 +1,3 @@
+[submodule "sputnikvm"]
+	path = sputnikvm
+	url = git@github.com:enigmampc/sputnikvm.git
