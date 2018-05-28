@@ -1,3 +1,6 @@
 [submodule "sputnikvm"]
 	path = sputnikvm
 	url = git@github.com:enigmampc/sputnikvm.git
+[submodule "thirdparties/etcommon-rs"]
+	path = thirdparties/etcommon-rs
+	url = git@github.com:enigmampc/etcommon-rs.git
