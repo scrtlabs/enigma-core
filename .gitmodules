@@ -4,3 +4,6 @@
 [submodule "thirdparties/etcommon-rs"]
 	path = thirdparties/etcommon-rs
 	url = git@github.com:enigmampc/etcommon-rs.git
+[submodule "thirdparties/libsecp256k1-rs"]
+	path = thirdparties/libsecp256k1-rs
+	url = git@github.com:enigmampc/libsecp256k1-rs.git
