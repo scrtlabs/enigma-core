@@ -9,7 +9,7 @@ use std::path;
 use std::env;
 
 // enigma modules 
-mod esgx;
+pub mod esgx;
         
 #[allow(unused_variables, unused_mut)]
 fn main() { 
@@ -23,9 +23,11 @@ fn main() {
             return;
         },
     };
-    // test quote 
-    let encoded_quote = esgx::equote::test_quote(&enclave);
-    println!("{}",encoded_quote );
+    // listen on port :X 
+    // dispatch reques => dispatcher 
+    // dispatcher => run command 
+    // return result => async 
+
 
     enclave.destroy();
 }
