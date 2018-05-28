@@ -15,6 +15,3 @@ sgx_types = { path = "/root/sgx/sgx_types" }
 sgx_tstd = { path = "/root/sgx/sgx_tstd" }
 sgx_trts = {path = "/root/sgx/sgx_trts"}
 sgx_tse = { path = "/root/sgx/sgx_tse"}
-# no real reason added while debugging create_report
-sgx_tdh = {path = "/root/sgx/sgx_tdh"}      
-sgx_tservice = {path = "/root/sgx/sgx_tservice"}
