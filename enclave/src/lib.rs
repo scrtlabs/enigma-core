@@ -44,6 +44,9 @@ extern crate sgx_tdh;
 extern crate sgx_tservice;
 extern crate sgx_trts;
 
+extern crate ring;
+extern crate secp256k1;
+
 use sgx_trts::*;
 use sgx_tservice::*;
 use sgx_types::*;
