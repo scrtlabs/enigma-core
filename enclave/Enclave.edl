@@ -34,8 +34,10 @@ enclave {
     from "sgx_stdio.edl" import *;
     from "sgx_backtrace.edl" import *;
     from "sgx_tstdc.edl" import *;
-    /* extra */
+    
+    /* data structures */
     include "sgx_key_exchange.h"
+
     trusted {
         /* define ECALLs here. */
         public sgx_status_t ecall_create_report( [in] const sgx_target_info_t * target_info ,[out]  sgx_report_t * report);

@@ -1,20 +1,9 @@
-extern crate sgx_types;
-extern crate sgx_urts;
 use sgx_types::*;
-
 use sgx_urts::SgxEnclave;
-
 use std::io::{Read, Write};
 use std::fs;
 use std::path;
 use std::env;
-
-
-// extern crate base64;
-// use base64::{encode, decode};
-// use marker::ContiguousMemory;
-//extern crate libc;
-//use libc::malloc;
 use std::slice;
 
 static ENCLAVE_FILE: &'static str = "enclave.signed.so";
