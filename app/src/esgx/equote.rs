@@ -89,3 +89,31 @@ pub fn test_quote(enclave : &SgxEnclave) -> String{
         };
         encode(&theQuote)
 }
+
+
+// unit tests 
+
+ #[cfg(test)]  
+ mod test {
+    use esgx::general::init_enclave;
+    use esgx::equote::test_quote;
+     #[test]
+     fn test_produce_quote(){ 
+            // initiate the enclave 
+            let enclave = match init_enclave() {
+            Ok(r) => {
+                println!("[+] Init Enclave Successful {}!", r.geteid());
+                r
+            },
+            Err(x) => {
+                println!("[-] Init Enclave Failed {}!", x.as_str());
+                return;
+            },
+        };
+        // produce a quote 
+        let tested_encoded_quote = test_quote(&enclave);
+        let real_encoded_quote =String::from("AgAAAMoKAAAGAAUAAAAAAD3bM4vVLuMUsB8eTh6E6Kp/E1RY66uLmOMIjzfQyezNAgT/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAAHkrLX2+Ejdwyr3mxSRVN4gQ2NSPUr49XUfhnZjsXdXYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABzZXJldAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBqAIAAIg3Q+ks8tnXkrRX3WHTxiqDsbCiRdxFazBXzI2erE7N9EHAbI5p9wT+n3u51CNLoMwMFG422D96pYy5eb8gbEU3cFYTSQvwAONCSRuwkWTD5rDd5s3syLvXVC7iEWCsW9AIhlvGHvDo8YnYZxC360VZALP7WCUQUut0/FaTvMrx12KjveO4Q8iO1OTBBPXLBJTbeym+xU8xOInQZiROb/fImVUzgJBF079FZJGDVgql/FXUqvk6MVn1MullKLDuDPOQRwahHbNRbNK6kfpbIwhzMvwg/chvRLWBltSohjERvwmHLKUlj9rKPFTZLmxkFcMgdRAGOLfsgvf3VB2p9xZOASqbYVUCg2gXiUwWyL6thjZoED1PPeLaolzE5TpF3LOgCoa3cAeaPVwpzWgBAABngaRt6sjL/wvcMJRVnaL7R85Uld7a0HxoEI6gXP3WHJ0yN64nTZHs/7QSjpC21IzVUbacNFtR+WurGOUM3+beJQKOdCnGyZAreK2gt/IDmoRLNP9pNfRHM3aiUgdaQOsT9r8Dn15KMxsVC0E463A4EqOCzBgsMfRNoODo7yHXcMKqEPbnqSM7HT3WmkWIaFG6g6WifLvTMomt6MRWYIPHdn0BP+a7Q0qtzZuPPD/DUGrd9JelARsPkUmmPuv25mFj25SOyepcrDbv4ZD7KO0GcX8Xwsgrc28+Yn5gyN32WnODPtC7Nl0ASp8Oh7qv8UEHg2SaSRBnxXlgycSF/8uikZiQzV26dCG9bIlDG4a9tgGNv09f9GQft4WmpmIlXzwMnAauaRZudK2seSPpMwHECSzeIy6Y+mcix3Q42NPg5j78gqDpEfAjTTyL02EcAr3nswtEYRwH/wEtp68T6PXWebRbaVIl26jPYfD3K92lCZBXn72hGJkA");
+        enclave.destroy();
+        assert_eq!(real_encoded_quote, tested_encoded_quote);
+     }
+ }
