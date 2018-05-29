@@ -40,5 +40,13 @@ pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_repo
 #[no_mangle]
 pub extern "C" fn ecall_create_report_with_key(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
     // TODO:: get the sign(pk,sk) 
-    quote_t::create_report_with_data(&targetInfo ,real_report,&secret)
+    //quote_t::create_report_with_data(&targetInfo ,real_report,&secret)
+    sgx_status_t::SGX_SUCCESS
 }
+
+#[no_mangle]
+pub extern "C" fn ecall_seal_data() -> sgx_status_t {
+    
+    sgx_status_t::SGX_SUCCESS
+}
+

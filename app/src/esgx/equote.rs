@@ -38,9 +38,7 @@ use std::slice;
 
 #[allow(unused_variables, unused_mut)]
 pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
-     let mut retval = sgx_status_t::SGX_SUCCESS; 
-    // test 2 
-
+        let mut retval = sgx_status_t::SGX_SUCCESS; 
         let mut stat = sgx_status_t::SGX_SUCCESS; 
     
         let mut targetInfo = sgx_target_info_t::default();
@@ -51,7 +49,6 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
         };
         // create report
         let mut report = sgx_report_t::default(); 
-        let mut retval : sgx_status_t = sgx_status_t::SGX_SUCCESS;
         stat = unsafe {
             ecall_create_report(enclave.geteid(),&mut retval,&targetInfo,&mut report)
         };

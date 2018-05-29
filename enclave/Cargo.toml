@@ -23,6 +23,7 @@ rev = "v1.0.0"
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
 
+# quote 
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tse]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
@@ -35,3 +36,13 @@ rev = "v1.0.0"
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tservice]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
+
+# sealing testing not all required. 
+[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tseal]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+# delete rand 
+[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_rand]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+# end of sealing 
