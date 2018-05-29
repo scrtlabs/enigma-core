@@ -34,5 +34,11 @@ mod quote_t;
 
 #[no_mangle]
 pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
-    quote_t::create_report_t(&targetInfo ,real_report)
+    let secret = String::from("Isan");
+    quote_t::create_report_with_data(&targetInfo ,real_report,&secret)
+}
+#[no_mangle]
+pub extern "C" fn ecall_create_report_with_key(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
+    // TODO:: get the sign(pk,sk) 
+    quote_t::create_report_with_data(&targetInfo ,real_report,&secret)
 }

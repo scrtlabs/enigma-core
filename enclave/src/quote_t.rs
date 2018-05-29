@@ -22,25 +22,25 @@ use std::vec::Vec;
 use std::io::{self, Write};
 use std::slice;
 
+// extra_data size (limit to 64)
+static REPORT_DATA_SIZE : usize = 64;
 
 #[no_mangle]
-pub extern "C" fn create_report_t(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
+pub extern "C" fn create_report_with_data(target_info: &sgx_target_info_t , out_report: &mut sgx_report_t , extra_data : & String ) -> sgx_status_t {
     let reportDataSize : usize = 64;
     let mut report_data = sgx_report_data_t::default();
-    // secret data to be attached with the report.
-    for i in 0..reportDataSize{
-        report_data.d[i] = 1;
-    }
-    report_data.d[0] = 's' as u8;
-    report_data.d[1] = 'e' as u8;
-    report_data.d[2] = 'r' as u8;
-    report_data.d[3] = 'e' as u8;
-    report_data.d[4] = 't' as u8;
 
-    let mut finalReport : sgx_report_t;
-    let mut report = match rsgx_create_report(&targetInfo, &report_data) {
+    // secret data to be attached with the report.
+    if extra_data.len() > REPORT_DATA_SIZE{
+        return sgx_status_t::SGX_ERROR_INVALID_PARAMETER
+    }
+
+    for (i,c) in extra_data.chars().enumerate(){
+        report_data.d[i] = c as u8;                
+    }
+    let mut report = match rsgx_create_report(&target_info, &report_data) {
         Ok(r) =>{
-           *real_report = r;
+           *out_report = r;
             sgx_status_t::SGX_SUCCESS
         },
         Err(r) =>{
