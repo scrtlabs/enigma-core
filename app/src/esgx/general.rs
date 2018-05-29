@@ -6,7 +6,7 @@ use std::path;
 use std::env;
 use std::slice;
 
-static ENCLAVE_FILE: &'static str = "enclave.signed.so";
+static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 
 

@@ -29,4 +29,4 @@ fn main() {
     let mut encoded = esgx::equote::produce_quote(&enclave, &spid);
     println!("{}",encoded );
     enclave.destroy();
-}
+}   
