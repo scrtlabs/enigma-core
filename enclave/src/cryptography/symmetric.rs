@@ -9,11 +9,10 @@ use std::option::Option;
 
 static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 
-pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: Option<[u8; 12]>) -> Vec<u8> {
-
+pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Vec<u8> {
     let mut iv: [u8; 12];
     match _iv {
-        Some(x) => {iv = x;},
+        Some(x) => {iv = *x;},
         None => {
             iv = [0; 12];
             let r = SystemRandom::new();
@@ -35,7 +34,7 @@ pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: Option<[u8; 12]>) -> Vec<u8> 
     in_out
 }
 
-pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) {
+pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Vec<u8>{
     let enc_key = digest::digest(&digest::SHA256, &key);
     let aes_decrypt = aead::OpeningKey::new(&AES_MODE, enc_key.as_ref()).unwrap();
     let additional_data: [u8; 0] = [];
@@ -49,4 +48,30 @@ pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) {
 
     let decrypted_data = aead::open_in_place(&aes_decrypt, &iv, &additional_data, 0, &mut ciphertext).expect(&"AES decryption failed");
     println!("Decrypted: {:?}",String::from_utf8_lossy(decrypted_data));
+    let result = decrypted_data.to_vec();
+    result
+}
+
+#[cfg(test)]
+mod tests {
+    use cryptography::symmetric::*;
+    use common::utils_t::{ToHex, FromHex};
+
+    #[test]
+    fn test_encryption() {
+        let key = b"EnigmaMPC";
+        let msg = b"This Is Enigma".to_vec();
+        let iv = Some( [0,1,2,3,4,5,6,7,8,9,10,11,12] );
+        let result = encrypt(&msg, key, &iv);
+        println!("{:?}", result.to_hex());
+        assert_eq!(result.to_hex(), "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b");
+    }
+
+    #[test]
+    fn test_decryption() {
+        let encrypted_data = "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b";
+        let key = b"EnigmaMPC";
+        let result = decrypt(&encrypted_data.from_hex().unwrap(), key);
+        assert_eq!(result, b"This Is Enigma".to_vec());
+    }
 }
