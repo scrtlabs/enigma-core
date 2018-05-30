@@ -81,6 +81,7 @@ Enclave_EDL_Files := enclave/Enclave_t.c enclave/Enclave_t.h app/Enclave_u.c app
 ######## APP Settings ########
 
 App_Rust_Flags := --release
+App_Rust_Flags += $(if $(JOBS),-j$(JOBS), )
 App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
@@ -140,7 +141,7 @@ $(App_Enclave_u_Object): app/Enclave_u.o
 	cp $(App_Enclave_u_Object) ./lib
 
 $(App_Name): $(App_Enclave_u_Object)
-	@cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
+	cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 	@echo "Cargo  =>  $@"
 	cp $(App_Rust_Path)/app ./bin
 
