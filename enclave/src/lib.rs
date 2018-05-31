@@ -13,8 +13,6 @@ extern crate sgx_tstd as std;
 
 extern crate sgx_types;
 extern crate sgx_tse;
-extern crate sgx_tdh;   
-extern crate sgx_tservice;
 extern crate sgx_trts;
 extern crate sputnikvm;
 extern crate hexutil;
@@ -24,9 +22,7 @@ extern crate sputnikvm_network_classic;
 
 
 use sgx_trts::*;
-use sgx_tservice::*;
 use sgx_types::*;
-use sgx_tdh::*;
 use sgx_tse::*;
 //use core::ptr;
 use std::ptr;
