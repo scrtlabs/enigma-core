@@ -16,7 +16,10 @@ extern crate sgx_tse;
 extern crate sgx_tdh;   
 extern crate sgx_tservice;
 extern crate sgx_trts;
-
+// sealing 
+extern crate sgx_tseal;
+extern crate sgx_rand;
+//
 use sgx_trts::*;
 use sgx_tservice::*;
 use sgx_types::*;
@@ -28,7 +31,9 @@ use std::string::String;
 use std::vec::Vec;
 use std::io::{self, Write};
 use std::slice;
+
 mod quote_t;
+mod storage_t;
 
 
 
@@ -44,9 +49,41 @@ pub extern "C" fn ecall_create_report_with_key(targetInfo: &sgx_target_info_t , 
     sgx_status_t::SGX_SUCCESS
 }
 
+
+#[allow(unused_variables, unused_mut)]
 #[no_mangle]
-pub extern "C" fn ecall_seal_data() -> sgx_status_t {
-    
-    sgx_status_t::SGX_SUCCESS
+pub extern "C" fn ecall_test_seal_unseal() {
+
+   //storage_t::test_seal_unseal();
+   let shit = [0;32];
+    // seal 
+   let mut final_sealed_log = storage_t::seal_key(&shit);
+   // unseal 
+   let result = match storage_t::unseal_key(final_sealed_log){
+       Some(unsealed) =>{
+           true
+       },
+       None =>{
+           false
+       },
+   };
+   println!("Result from unseal {}", result );
+//     let res = match storage_t::seal_key(&shit) {
+//        Some(sealed_log) => {
+//         println!("I got the log !!! {:?}",sealed_log );
+//         final_sealed_log = sealed_log;
+//         true
+//        },
+//        None =>{
+//            println!("Error!!!!!!!" );
+//            false
+//        },
+//    };
+
+//    // unseal 
+//    if res == true {
+//        storage_t::unseal_key(&mut final_sealed_log);
+//    }
 }
+
 

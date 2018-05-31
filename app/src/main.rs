@@ -10,6 +10,11 @@ use std::env;
 // enigma modules 
 pub mod esgx;
         
+
+extern {
+    pub fn ecall_test_seal_unseal(eid: sgx_enclave_id_t );
+}
+        
 #[allow(unused_variables, unused_mut)]
 fn main() { 
     
@@ -28,5 +33,7 @@ fn main() {
     let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
     let mut encoded = esgx::equote::produce_quote(&enclave, &spid);
     println!("{}",encoded );
+    unsafe {ecall_test_seal_unseal(enclave.geteid());};
+    
     enclave.destroy();
 }   
