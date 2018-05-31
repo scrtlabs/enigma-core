@@ -9,6 +9,7 @@ use std::env;
 
 // enigma modules 
 pub mod esgx;
+pub mod evm_u;
         
 #[allow(unused_variables, unused_mut)]
 fn main() { 
@@ -29,4 +30,4 @@ fn main() {
     let mut encoded = esgx::equote::produce_quote(&enclave, &spid);
     println!("{}",encoded );
     enclave.destroy();
-}   
+}
