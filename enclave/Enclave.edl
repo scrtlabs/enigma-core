@@ -41,5 +41,8 @@ enclave {
     trusted {
         /* define ECALLs here. */
         public sgx_status_t ecall_create_report( [in] const sgx_target_info_t * target_info ,[out]  sgx_report_t * report);
+	public sgx_status_t ecall_evm([in, size=code_len] const uint8_t* code, size_t code_len,
+	                              [in, size=data_len] const uint8_t* data, size_t data_len,
+	                              [out, size=32] uint8_t* output, [out] uint8_t* vm_status, [out] uint32_t* result_length);
     };
 };

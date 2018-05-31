@@ -10,7 +10,6 @@ crate-type = ["staticlib"]
 [features]
 default = []
 
-
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
@@ -35,3 +34,9 @@ rev = "v1.0.0"
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tservice]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
+
+[dependencies]
+sputnikvm = { path = "../sputnikvm", default-features = false }
+etcommon-hexutil = {path = "../thirdparties/etcommon-rs/hexutil", default-features = false}
+etcommon-bigint = {path = "../thirdparties/etcommon-rs/bigint", default-features = false, features = ["rlp"] }
+sputnikvm-network-classic = { path = "../sputnikvm/network/classic", default-features = false }
