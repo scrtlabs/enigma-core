@@ -1,15 +1,16 @@
+#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
-use core::str::FromStr;
+extern crate sgx_tstd as std;
+
+use std::str::FromStr;
 use bigint::{Gas, Address, U256, M256, H256};
-use sgx_types::*;
-use std::slice;
-use std::string::String;
 use sputnikvm::{HeaderParams, Context, VM, VMStatus, AccountCommitment, RequireError, SeqContextVM};
-use alloc::rc::Rc;
-use alloc::boxed::Box;
-use alloc::Vec;
+use std::rc::Rc;
+use std::boxed::Box;
+use std::vec::Vec;
 use sputnikvm_network_classic::MainnetFrontierPatch;
-use core::ops::DerefMut;
+use std::ops::DerefMut;
 
 fn handle_fire_without_rpc(vm: &mut VM) {
     loop {

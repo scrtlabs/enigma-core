@@ -17,14 +17,11 @@ extern crate sgx_trts;
 extern crate sputnikvm;
 extern crate hexutil;
 extern crate bigint;
-extern crate alloc;
 extern crate sputnikvm_network_classic;
-
 
 use sgx_trts::*;
 use sgx_types::*;
 use sgx_tse::*;
-//use core::ptr;
 use std::ptr;
 use std::string::String;
 use std::vec::Vec;
@@ -35,12 +32,25 @@ mod quote_t;
 mod evm_t;
 use evm_t::call_sputnikvm;
 use hexutil::read_hex;
-use core::str::from_utf8;
-
+use std::str::from_utf8;
 
 #[no_mangle]
 pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
-    quote_t::create_report_t(&targetInfo ,real_report)
+    let secret = String::from("Isan");
+    quote_t::create_report_with_data(&targetInfo ,real_report,&secret)
+}
+
+#[no_mangle]
+pub extern "C" fn ecall_create_report_with_key(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
+    // TODO:: get the sign(pk,sk) 
+    //quote_t::create_report_with_data(&targetInfo ,real_report,&secret)
+    sgx_status_t::SGX_SUCCESS
+}
+
+#[no_mangle]
+pub extern "C" fn ecall_seal_data() -> sgx_status_t {
+    
+    sgx_status_t::SGX_SUCCESS
 }
 
 #[no_mangle]
@@ -56,9 +66,10 @@ pub extern "C" fn ecall_evm(code: *const u8, code_len: usize, data: *const u8, d
     *result_len = s.len();
 
     *vm_status = res.0;
-    unsafe{
+    unsafe {
         ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
     }
     sgx_status_t::SGX_SUCCESS
 }
+
 
