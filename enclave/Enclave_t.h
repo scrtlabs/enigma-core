@@ -18,6 +18,7 @@ extern "C" {
 
 sgx_status_t ecall_create_report(const sgx_target_info_t* target_info, sgx_report_t* report);
 void ecall_test_seal_unseal();
+sgx_status_t ecall_seal_key(uint8_t* sealed_log_out);
 void t_global_init_ecall(uint64_t id, const uint8_t* path, size_t len);
 void t_global_exit_ecall();
 

@@ -24,6 +24,11 @@ typedef struct ms_ecall_create_report_t {
 	sgx_report_t* ms_report;
 } ms_ecall_create_report_t;
 
+typedef struct ms_ecall_seal_key_t {
+	sgx_status_t ms_retval;
+	uint8_t* ms_sealed_log_out;
+} ms_ecall_seal_key_t;
+
 typedef struct ms_t_global_init_ecall_t {
 	uint64_t ms_id;
 	uint8_t* ms_path;
@@ -176,6 +181,46 @@ static sgx_status_t SGX_CDECL sgx_ecall_test_seal_unseal(void* pms)
 	return status;
 }
 
+static sgx_status_t SGX_CDECL sgx_ecall_seal_key(void* pms)
+{
+	CHECK_REF_POINTER(pms, sizeof(ms_ecall_seal_key_t));
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+	ms_ecall_seal_key_t* ms = SGX_CAST(ms_ecall_seal_key_t*, pms);
+	sgx_status_t status = SGX_SUCCESS;
+	uint8_t* _tmp_sealed_log_out = ms->ms_sealed_log_out;
+	size_t _len_sealed_log_out = sizeof(*_tmp_sealed_log_out);
+	uint8_t* _in_sealed_log_out = NULL;
+
+	CHECK_UNIQUE_POINTER(_tmp_sealed_log_out, _len_sealed_log_out);
+
+	//
+	// fence after pointer checks
+	//
+	sgx_lfence();
+
+	if (_tmp_sealed_log_out != NULL && _len_sealed_log_out != 0) {
+		_in_sealed_log_out = (uint8_t*)malloc(_len_sealed_log_out);
+		if (_in_sealed_log_out == NULL) {
+			status = SGX_ERROR_OUT_OF_MEMORY;
+			goto err;
+		}
+
+		memcpy(_in_sealed_log_out, _tmp_sealed_log_out, _len_sealed_log_out);
+	}
+
+	ms->ms_retval = ecall_seal_key(_in_sealed_log_out);
+err:
+	if (_in_sealed_log_out) {
+		memcpy(_tmp_sealed_log_out, _in_sealed_log_out, _len_sealed_log_out);
+		free(_in_sealed_log_out);
+	}
+
+	return status;
+}
+
 static sgx_status_t SGX_CDECL sgx_t_global_init_ecall(void* pms)
 {
 	CHECK_REF_POINTER(pms, sizeof(ms_t_global_init_ecall_t));
@@ -224,12 +269,13 @@ static sgx_status_t SGX_CDECL sgx_t_global_exit_ecall(void* pms)
 
 SGX_EXTERNC const struct {
 	size_t nr_ecall;
-	struct {void* ecall_addr; uint8_t is_priv;} ecall_table[4];
+	struct {void* ecall_addr; uint8_t is_priv;} ecall_table[5];
 } g_ecall_table = {
-	4,
+	5,
 	{
 		{(void*)(uintptr_t)sgx_ecall_create_report, 0},
 		{(void*)(uintptr_t)sgx_ecall_test_seal_unseal, 0},
+		{(void*)(uintptr_t)sgx_ecall_seal_key, 0},
 		{(void*)(uintptr_t)sgx_t_global_init_ecall, 0},
 		{(void*)(uintptr_t)sgx_t_global_exit_ecall, 0},
 	}
@@ -237,23 +283,23 @@ SGX_EXTERNC const struct {
 
 SGX_EXTERNC const struct {
 	size_t nr_ocall;
-	uint8_t entry_table[13][4];
+	uint8_t entry_table[13][5];
 } g_dyn_entry_table = {
 	13,
 	{
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
-		{0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
+		{0, 0, 0, 0, 0, },
 	}
 };
 

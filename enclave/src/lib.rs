@@ -49,41 +49,33 @@ pub extern "C" fn ecall_create_report_with_key(targetInfo: &sgx_target_info_t , 
     sgx_status_t::SGX_SUCCESS
 }
 
+#[allow(unused_variables, unused_mut)]
+#[no_mangle]
+pub extern "C" fn ecall_test_seal_unseal() {    
+   //input 
+    let mut data = storage_t::SecretKeyStorage::default();
+    data.version = 0x1234;
+    for i in 0..32{
+        data.data[i] = 'i' as u8;
+    }
+   // output 
+   let mut sealed_log_arr:[u8;storage_t::SEAL_LOG_SIZE] = [0;storage_t::SEAL_LOG_SIZE];
+   storage_t::seal_key(&data,&mut sealed_log_arr);
+   let udata =  storage_t::unseal_key(&mut sealed_log_arr);
+   println!("unsealed data = {:?}", udata);   
+}
 
 #[allow(unused_variables, unused_mut)]
 #[no_mangle]
-pub extern "C" fn ecall_test_seal_unseal() {
-
-   //storage_t::test_seal_unseal();
-   let shit = [0;32];
-    // seal 
-   let mut final_sealed_log = storage_t::seal_key(&shit);
-   // unseal 
-   let result = match storage_t::unseal_key(final_sealed_log){
-       Some(unsealed) =>{
-           true
-       },
-       None =>{
-           false
-       },
-   };
-   println!("Result from unseal {}", result );
-//     let res = match storage_t::seal_key(&shit) {
-//        Some(sealed_log) => {
-//         println!("I got the log !!! {:?}",sealed_log );
-//         final_sealed_log = sealed_log;
-//         true
-//        },
-//        None =>{
-//            println!("Error!!!!!!!" );
-//            false
-//        },
-//    };
-
-//    // unseal 
-//    if res == true {
-//        storage_t::unseal_key(&mut final_sealed_log);
-//    }
+pub extern "C" fn ecall_seal_key(sealed_log_out : &mut [u8])->sgx_status_t{    
+    println!("getting here ok ok ok ok {:?}",sealed_log_out );
+   //mock key input 
+    let mut data = storage_t::SecretKeyStorage::default();
+    data.version = 0x1234;
+    for i in 0..32{
+        data.data[i] = 'i' as u8;
+    }
+   // output 
+   storage_t::seal_key(&data,sealed_log_out);
+   sgx_status_t::SGX_SUCCESS
 }
-
-

@@ -1,4 +1,3 @@
-//#![crate_name = "sealdatasampleenclave"]
 #![crate_type = "staticlib"]
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
@@ -7,81 +6,57 @@
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 
-use sgx_types::{sgx_status_t, sgx_sealed_data_t};
+use sgx_types::{sgx_status_t, sgx_sealed_data_t,sgx_attributes_t};
+use sgx_types::*;
 use sgx_types::marker::ContiguousMemory;
 use sgx_tseal::{SgxSealedData};
+use sgx_tseal::*;
 
-static SEALING_KEY_SIZE : usize = 32;
+pub const SEALING_KEY_SIZE : usize = 32;
+pub const SEAL_LOG_SIZE: usize = 2048;
+
 #[derive(Copy, Clone, Default, Debug)]
-
 pub struct SecretKeyStorage {
-    version :u32, 
-    data: [u8; 32],
+    pub version :u32, 
+    pub data: [u8; SEALING_KEY_SIZE],
 }
-
 unsafe impl ContiguousMemory for SecretKeyStorage {}
 
-pub fn seal_key2(clear_key : &[u8;32]) -> Option<* mut sgx_sealed_data_t>{
 
-    let mut data = SecretKeyStorage{version:0, data: *clear_key};
+/*
+param: the_data : clear text to be sealed 
+param: sealed_log_out : the output of the sealed data 
+*/
+//safe seal 
+pub fn seal_key(the_data : &SecretKeyStorage ,sealed_log_out : &mut [u8]){
     let additional : [u8;0] = [0_u8; 0];
-    let sealed_data = SgxSealedData::<SecretKeyStorage>::seal_data(&additional, &data).unwrap();
+    let attribute_mask = sgx_attributes_t{flags: 0xfffffffffffffff3, xfrm: 0};
+    let sealed_data = SgxSealedData::<SecretKeyStorage>::seal_data_ex(
+        0x0001, //key policy 
+        attribute_mask,
+        0, //misc mask 
+        &additional,
+        &the_data)
+        .unwrap();
     // to sealed_log -> 
     let mut sealed_log_arr:[u8;2048] = [0;2048];
-    let sealed_log = sealed_log_arr.as_mut_ptr();
-    let sealed_log_size : u32 = 2048;
-    to_sealed_log(&sealed_data, sealed_log, sealed_log_size)
+    let sealed_log = sealed_log_out.as_mut_ptr();
+    let sealed_log_size : usize = 2048;
+    let opt = to_sealed_log(&sealed_data, sealed_log, sealed_log_size as u32);
 }
-
-// Some(SecretKeyStorage)
-// None
-pub fn unseal_key(sealed_log: * mut u8) -> Option<SecretKeyStorage> {
-    let sealed_log_size : u32 = 2048;
-    let sealed_data = from_sealed_log::<SecretKeyStorage>(sealed_log, sealed_log_size).unwrap();
+/*
+param: sealed_log_in : the encrypted blob 
+param: udata : the SecreyKeyStorage (clear text)
+*/
+// unseal key 
+pub fn unseal_key(sealed_log_in : &mut [u8])-> SecretKeyStorage{
+    let sealed_log_size : usize = SEAL_LOG_SIZE;
+    let sealed_log = sealed_log_in.as_mut_ptr();
+    let sealed_data = from_sealed_log::<SecretKeyStorage>(sealed_log, sealed_log_size as u32).unwrap();
     let unsealed_data = sealed_data.unseal_data().unwrap();
-    let udata = unsealed_data.get_decrypt_txt();
-    Some(*udata)
-}
+    let mut udata = unsealed_data.get_decrypt_txt();
+    *udata
 
-// delete 
-
-
-pub fn seal_key(clear_key : &[u8;32]) -> * mut u8 {
-
-    let mut data = SecretKeyStorage{version:0, data: *clear_key};
-    let additional : [u8;0] = [0_u8; 0];
-    let sealed_data = SgxSealedData::<SecretKeyStorage>::seal_data(&additional, &data).unwrap();
-    // to sealed_log -> 
-    let mut sealed_log_arr:[u8;2048] = [0;2048];
-    let sealed_log = sealed_log_arr.as_mut_ptr();
-    let sealed_log_size : u32 = 2048;
-    to_sealed_log(&sealed_data, sealed_log, sealed_log_size);
-    sealed_log
-}
-
-
-///
-pub fn test_seal_unseal(){
-    // create data 
-    let mut data = SecretKeyStorage::default();
-    data.version = 0x1234;
-    for i in 0..32{
-        data.data[i] = 'i' as u8;
-    }
-    println!("pre-sealing data = {:?}",data);
-    let additional : [u8;0] = [0_u8; 0];
-    let sealed_data = SgxSealedData::<SecretKeyStorage>::seal_data(&additional, &data).unwrap();
-    // to sealed_log -> 
-    let mut sealed_log_arr:[u8;2048] = [0;2048];
-    let sealed_log = sealed_log_arr.as_mut_ptr();
-    let sealed_log_size : u32 = 2048;
-    let opt = to_sealed_log(&sealed_data, sealed_log, sealed_log_size);
-    // done sealing. 
-    // unsealing: 
-    let sealed_data = from_sealed_log::<SecretKeyStorage>(sealed_log, sealed_log_size).unwrap();
-    let unsealed_data = sealed_data.unseal_data().unwrap();
-    let udata = unsealed_data.get_decrypt_txt();
-    println!(" unsealed data = {:?}", udata);
 }
 
 fn to_sealed_log<T: Copy + ContiguousMemory>(sealed_data: &SgxSealedData<T>, sealed_log: * mut u8, sealed_log_size: u32) -> Option<* mut sgx_sealed_data_t> {
