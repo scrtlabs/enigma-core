@@ -44,7 +44,7 @@ enclave {
 
         /* sealing => in test mode currently */
         public void ecall_test_seal_unseal();
-        public sgx_status_t ecall_seal_key([in,out] uint8_t * sealed_log_out);
+        public sgx_status_t ecall_seal_key([in,out, size=sealed_log_size] uint8_t * sealed_log_out,uint32_t sealed_log_size );
     
     };
 };
