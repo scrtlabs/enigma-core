@@ -68,7 +68,6 @@ pub extern "C" fn ecall_test_seal_unseal() {
 #[allow(unused_variables, unused_mut)]
 #[no_mangle]
 pub extern "C" fn ecall_seal_key(sealed_log_out : &mut [u8])->sgx_status_t{    
-    println!("getting here ok ok ok ok {:?}",sealed_log_out );
    //mock key input 
     let mut data = storage_t::SecretKeyStorage::default();
     data.version = 0x1234;
@@ -78,4 +77,14 @@ pub extern "C" fn ecall_seal_key(sealed_log_out : &mut [u8])->sgx_status_t{
    // output 
    storage_t::seal_key(&data,sealed_log_out);
    sgx_status_t::SGX_SUCCESS
+}
+
+
+// TODO:: main question => return struct ?? 
+#[allow(unused_variables, unused_mut)]
+#[no_mangle]
+pub extern "C" fn ecall_unseal_key(sealed_log_in : &mut [u8])->sgx_status_t{    
+    let unsealed_data = storage_t::unseal_key(sealed_log_in);
+    println!("Unseal key {:? }",unsealed_data );
+    sgx_status_t::SGX_SUCCESS
 }

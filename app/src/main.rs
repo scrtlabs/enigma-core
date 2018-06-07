@@ -9,15 +9,7 @@ use std::env;
 
 // enigma modules 
 pub mod esgx;
-        
 
-extern {
-    pub fn ecall_test_seal_unseal(eid: sgx_enclave_id_t );
-}
-extern {
-    //pub fn ecall_seal_key(eid : sgx_enclave_id_t, retval: *mut sgx_status_t, sealed_log_out :*mut ::uint8_t )->sgx_status_t ;
-    pub fn ecall_seal_key(eid : sgx_enclave_id_t, retval: *mut sgx_status_t,sealed_log_out : &mut [u8],sealed_log_size: u32)->sgx_status_t;    
-}
 #[allow(unused_variables, unused_mut)]
 fn main() { 
     
@@ -45,11 +37,13 @@ fn main() {
 
     let mut ret = sgx_status_t::SGX_SUCCESS;
     let mut sealed_log_result:[u8;2048] = [0;2048];
-    unsafe{
-        ecall_seal_key(enclave.geteid(),&mut ret,&mut sealed_log_result, 2048);
-    }
-    //     for c in sealed_log_result.iter(){
-    //     println!("ronen {:?}", c);
-    // }
+    // seal 
+    ret = unsafe{
+        esgx::estorage::ecall_seal_key(enclave.geteid(),&mut ret,&mut sealed_log_result, 2048)
+    };
+    // unseal 
+    ret = unsafe{
+       esgx::estorage::ecall_unseal_key(enclave.geteid(), &mut ret , &mut sealed_log_result , 2048)
+    };
     enclave.destroy();
 }   
