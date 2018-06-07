@@ -36,14 +36,14 @@ fn main() {
     //unsafe {ecall_test_seal_unseal(enclave.geteid());};
 
     let mut ret = sgx_status_t::SGX_SUCCESS;
-    let mut sealed_log_result:[u8;2048] = [0;2048];
+    let mut sealed_log_result:[u8;esgx::estorage::SEAL_LOG_SIZE] = [0;esgx::estorage::SEAL_LOG_SIZE];
     // seal 
     ret = unsafe{
-        esgx::estorage::ecall_seal_key(enclave.geteid(),&mut ret,&mut sealed_log_result, 2048)
+        esgx::estorage::ecall_seal_key(enclave.geteid(),&mut ret,&mut sealed_log_result, esgx::estorage::SEAL_LOG_SIZE)
     };
     // unseal 
     ret = unsafe{
-       esgx::estorage::ecall_unseal_key(enclave.geteid(), &mut ret , &mut sealed_log_result , 2048)
+       esgx::estorage::ecall_unseal_key(enclave.geteid(), &mut ret , &mut sealed_log_result , esgx::estorage::SEAL_LOG_SIZE)
     };
     enclave.destroy();
 }   
