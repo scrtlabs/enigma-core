@@ -32,11 +32,11 @@
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
-
-
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
+#[macro_use]
+extern crate sgx_tunittest;
 
 extern crate sgx_types;
 extern crate sgx_tse;
@@ -46,6 +46,10 @@ extern crate sgx_trts;
 
 extern crate ring;
 extern crate secp256k1;
+extern crate tiny_keccak;
+
+pub mod common;
+pub mod cryptography;
 
 use sgx_trts::*;
 use sgx_tservice::*;
@@ -53,11 +57,14 @@ use sgx_types::*;
 use sgx_tdh::*;
 use sgx_tse::*;
 use core::ptr;
+use common::utils_t::{ToHex, FromHex};
 
 use std::string::String;
 use std::vec::Vec;
 use std::io::{self, Write};
 use std::slice;
+use std::fmt::LowerHex;
+use cryptography::symmetric::*;
 
 #[no_mangle]
 pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
@@ -85,5 +92,24 @@ pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_repo
         },
     };
     sgx_status_t::SGX_SUCCESS
+}
+
+pub mod tests {
+//    #[macro_use]
+    extern crate sgx_tunittest;
+//    #[macro_use]
+    extern crate sgx_tstd as std;
+    use sgx_tunittest::*;
+    use std::vec::Vec;
+    use std::string::String;
+    use cryptography::assymetric::tests::*;
+
+    #[no_mangle]
+    pub extern "C" fn ecall_run_tests() {
+        rsgx_unit_tests!(
+        test_signing
+    );
+
+    }
 }
 

@@ -31,3 +31,13 @@ fn main() {
 
     enclave.destroy();
 }
+
+#[cfg(test)]
+mod tests {
+    extern { fn ecall_run_tests(); }
+    #[test]
+    pub fn test_enclave_internal() {
+        unsafe { ecall_run_tests(); }
+    }
+
+}

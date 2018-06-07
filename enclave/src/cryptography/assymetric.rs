@@ -63,5 +63,19 @@ impl KeyPair {
         returnvalue.push(v + 27);
         returnvalue
     }
+}
 
+pub mod tests {
+    extern crate sgx_tunittest;
+    use cryptography::assymetric::*;
+
+    pub fn test_signing() {
+        let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
+        let k1 = KeyPair::from_slice(&_priv);
+        let msg = b"EnigmaMPC";
+        let sig = k1.sign(msg);
+        assert_eq!(sig, [103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28].to_vec());
+
+
+    }
 }
