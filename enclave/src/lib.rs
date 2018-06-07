@@ -64,7 +64,6 @@ use std::vec::Vec;
 use std::io::{self, Write};
 use std::slice;
 use std::fmt::LowerHex;
-use cryptography::symmetric::*;
 
 #[no_mangle]
 pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
@@ -107,7 +106,8 @@ pub mod tests {
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
         rsgx_unit_tests!(
-        test_signing
+        test_signing,
+        test_ecdh
     );
 
     }
