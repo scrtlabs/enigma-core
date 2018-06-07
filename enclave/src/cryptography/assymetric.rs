@@ -24,6 +24,13 @@ impl KeyPair {
         keys
     }
 
+    pub fn from_slice(privkey: &[u8; 32]) -> KeyPair {
+        let _priv = SecretKey::parse(&privkey).unwrap();
+        let _pub = PublicKey::from_secret_key(&_priv);
+        let keys = KeyPair{privkey: _priv, pubkey: _pub};
+        keys
+    }
+
     pub fn get_aes_key(&self, pubk: &PublicKey) -> Vec<u8> {
         let shared = SharedSecret::new(&pubk, &self.privkey).unwrap();
         let sharedkey = shared.as_ref().to_vec();
@@ -50,11 +57,10 @@ impl KeyPair {
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
         let result = secp256k1::sign(&message_to_sign, &self.privkey);
         let (sig, recovery) = result.unwrap();
-        let v: u8 = recovery.into() + 27;
+        let v: u8 = recovery.into();
 
         let mut returnvalue = sig.serialize().to_vec();
-        returnvalue.push(v);
-        println!("{:?}", &returnvalue[..]);
+        returnvalue.push(v + 27);
         returnvalue
     }
 
