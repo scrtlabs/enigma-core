@@ -3,6 +3,10 @@ use secp256k1::{PublicKey, SecretKey, SharedSecret};
 use tiny_keccak::Keccak;
 use sgx_trts::trts::rsgx_read_rand;
 use std::string::String;
+use common::utils_t::{ToHex, FromHex, Keccak256};
+
+use std::str;
+use std::vec::Vec;
 
 #[derive(Debug)]
 pub struct KeyPair {
@@ -20,23 +24,38 @@ impl KeyPair {
         keys
     }
 
-    pub fn get_aes_key(&self, pubk: &PublicKey) -> [u8; 32] {
+    pub fn get_aes_key(&self, pubk: &PublicKey) -> Vec<u8> {
         let shared = SharedSecret::new(&pubk, &self.privkey).unwrap();
-        let mut sharedkey: [u8;32] = [0;32];
-        for i in 0..shared.as_ref().len()-1 {
-            sharedkey[i] = shared.as_ref()[i];
-        }
+        let sharedkey = shared.as_ref().to_vec();
         sharedkey
     }
 
-    pub fn sign(&self, message: &[u8]) -> (secp256k1::Signature, secp256k1::RecoveryId) {
-        let mut keccak256 = Keccak::new_sha3_256();
-        keccak256.update(&message);
-        let mut hashresult: [u8; 32]= [0; 32];
-        keccak256.finalize(&mut hashresult);
-        let message_to_sign = secp256k1::Message::parse(&hashresult);
+    /// Sign a message using the Private Key.
+    /// # Examples
+    /// Simple Message signing:
+    /// ```
+    /// let keys = cryptography::assymetric::KeyPair::new();
+    /// let msg = b"Sign this";
+    /// let sig = keys.sign(&msg);
+    /// ```
+    ///
+    /// The function returns a 65 bytes slice that contains:
+    /// 1. 32 Bytes, ECDSA `r` variable.
+    /// 2. 32 Bytes ECDSA `s` variable.
+    /// 3. 1 Bytes ECDSA `v` variable aligned to the right for Ethereum compatibility
+    pub fn sign(&self, message: &[u8]) -> Vec<u8> {
+        let hashed_msg = message.keccak256();
+        println!("the hash in hex: {:?}", &hashed_msg.to_hex());
+        println!("the hash in array: {:?}", &hashed_msg);
+        let message_to_sign = secp256k1::Message::parse(&hashed_msg);
         let result = secp256k1::sign(&message_to_sign, &self.privkey);
-        result.unwrap()
+        let (sig, recovery) = result.unwrap();
+        let v: u8 = recovery.into() + 27;
+
+        let mut returnvalue = sig.serialize().to_vec();
+        returnvalue.push(v);
+        println!("{:?}", &returnvalue[..]);
+        returnvalue
     }
 
 }
