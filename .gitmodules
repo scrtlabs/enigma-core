@@ -8,3 +8,6 @@
 [submodule "thirdparties/libsecp256k1-rs"]
 	path = thirdparties/libsecp256k1-rs
 	url = git@github.com:enigmampc/libsecp256k1-rs.git
+[submodule "thirdparties/ethabi"]
+	path = thirdparties/ethabi
+	url = git@github.com:enigmampc/ethabi.git
