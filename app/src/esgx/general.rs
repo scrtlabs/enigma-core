@@ -5,14 +5,14 @@ use std::fs;
 use std::path;
 use std::env;
 use std::slice;
+use std::io;
 
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
-
+pub static ENCLAVE_DIR: &'static str = ".enigma";
 
 
 pub fn init_enclave() -> SgxResult<SgxEnclave> {
-    
     let mut launch_token: sgx_launch_token_t = [0; 1024];
     let mut launch_token_updated: i32 = 0;
     // Step 1: try to retrieve the launch token saved by last transaction 
@@ -32,7 +32,19 @@ pub fn init_enclave() -> SgxResult<SgxEnclave> {
         }
     };
 
-    let token_file: path::PathBuf = home_dir.join(ENCLAVE_TOKEN);;
+    // Step : try to create a .enigma folder for storing all the files 
+    // Create a directory, returns `io::Result<()>`
+    let storage_path = home_dir.join(ENCLAVE_DIR);    
+    match fs::create_dir(&storage_path) {
+        Err(why) => {
+            println!("[-] Create .enigma folder => {:?}", why.kind());
+        },
+        Ok(_) => {
+        },
+    };
+
+    //let token_file: path::PathBuf = home_dir.join(ENCLAVE_TOKEN);;
+    let token_file: path::PathBuf = storage_path.join(ENCLAVE_TOKEN);;
     if use_token == true {
         match fs::File::open(&token_file) {
             Err(_) => {
@@ -74,6 +86,5 @@ pub fn init_enclave() -> SgxResult<SgxEnclave> {
             },
         }
     }
-
     Ok(enclave)
 }

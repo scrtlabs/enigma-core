@@ -39,11 +39,11 @@ fn main() {
     let mut sealed_log_result:[u8;esgx::estorage::SEAL_LOG_SIZE] = [0;esgx::estorage::SEAL_LOG_SIZE];
     // seal 
     ret = unsafe{
-        esgx::estorage::ecall_seal_key(enclave.geteid(),&mut ret,&mut sealed_log_result, esgx::estorage::SEAL_LOG_SIZE)
+        esgx::estorage::ecall_seal_key(enclave.geteid(),&mut ret,&mut sealed_log_result, esgx::estorage::SEAL_LOG_SIZE as u32)
     };
     // unseal 
     ret = unsafe{
-       esgx::estorage::ecall_unseal_key(enclave.geteid(), &mut ret , &mut sealed_log_result , esgx::estorage::SEAL_LOG_SIZE)
+       esgx::estorage::ecall_unseal_key(enclave.geteid(), &mut ret , &mut sealed_log_result , esgx::estorage::SEAL_LOG_SIZE as u32)
     };
     enclave.destroy();
 }   

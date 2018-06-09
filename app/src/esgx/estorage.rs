@@ -8,6 +8,8 @@ use std::path;
 use std::env;
 use std::ptr;
 
+use esgx;
+
 pub const SEALING_KEY_SIZE : usize = 32;
 pub const SEAL_LOG_SIZE: usize = 2048;
 
@@ -27,9 +29,14 @@ extern {
 }
 
 /* file utils */ 
-
+fn printShit(){
+    println!("{}",esgx::general::ENCLAVE_DIR );
+}
 // save sealed_log to file
 
+pub fn save_sealed_log(){
+    
+}
 //check if log exists 
 
 //load sealog_log from file
