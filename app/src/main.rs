@@ -6,9 +6,27 @@ use std::io::{Read, Write};
 use std::fs;
 use std::path;
 use std::env;
+use std::vec;
 
 // enigma modules 
 pub mod esgx;
+
+// write and read from files 
+use std::fs::File;
+use std::io::prelude::*;
+
+fn write(sealed_log_in : & [u8])->std::io::Result<()>{
+    let mut file = File::create("foo.txt")?;
+    file.write_all(sealed_log_in)?;
+    Ok(())
+}
+
+fn read(sealed_log_in : &mut [u8])-> std::io::Result<()>{
+    let mut file = File::open("foo.txt")?;
+    file.read(sealed_log_in)?;
+     Ok(())
+}
+
 
 #[allow(unused_variables, unused_mut)]
 fn main() { 
@@ -25,25 +43,15 @@ fn main() {
             return;
         },
     };
+    
     // quote test 
-
     // let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
     // let mut encoded = esgx::equote::produce_quote(&enclave, &spid);
     // println!("{}",encoded );
-    
+
     // sealing test 
-
-    //unsafe {ecall_test_seal_unseal(enclave.geteid());};
-
-    let mut ret = sgx_status_t::SGX_SUCCESS;
-    let mut sealed_log_result:[u8;esgx::estorage::SEAL_LOG_SIZE] = [0;esgx::estorage::SEAL_LOG_SIZE];
-    // seal 
-    ret = unsafe{
-        esgx::estorage::ecall_seal_key(enclave.geteid(),&mut ret,&mut sealed_log_result, esgx::estorage::SEAL_LOG_SIZE as u32)
-    };
-    // unseal 
-    ret = unsafe{
-       esgx::estorage::ecall_unseal_key(enclave.geteid(), &mut ret , &mut sealed_log_result , esgx::estorage::SEAL_LOG_SIZE as u32)
-    };
+    // ret = unsafe {
+    //     esgx::estorage::ecall_test_sealing_storage_key(enclave.geteid(), &mut ret)
+    // };
     enclave.destroy();
 }   

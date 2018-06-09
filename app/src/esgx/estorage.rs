@@ -7,7 +7,10 @@ use std::fs;
 use std::path;
 use std::env;
 use std::ptr;
-
+// write and read from files 
+use std::fs::File;
+use std::io::prelude::*;
+// enigma modules
 use esgx;
 
 pub const SEALING_KEY_SIZE : usize = 32;
@@ -15,30 +18,11 @@ pub const SEAL_LOG_SIZE: usize = 2048;
 
 use std::slice;
 
+
 // test method => to be deleted 
 extern {
-    pub fn ecall_test_seal_unseal(eid: sgx_enclave_id_t );
-}
-// seal
-extern {
-    pub fn ecall_seal_key(eid : sgx_enclave_id_t, retval: *mut sgx_status_t,sealed_log_out : &mut [u8],sealed_log_size: u32)->sgx_status_t;    
-}
-// unseal 
-extern {
-    pub fn ecall_unseal_key(eid : sgx_enclave_id_t, retval: *mut sgx_status_t,sealed_log_in : &mut [u8],sealed_log_size: u32)->sgx_status_t;    
+    pub fn ecall_test_sealing_storage_key(eid: sgx_enclave_id_t, retval: *mut sgx_status_t)->sgx_status_t;
 }
 
-/* file utils */ 
-fn printShit(){
-    println!("{}",esgx::general::ENCLAVE_DIR );
-}
-// save sealed_log to file
-
-pub fn save_sealed_log(){
-    
-}
-//check if log exists 
-
-//load sealog_log from file
 
 

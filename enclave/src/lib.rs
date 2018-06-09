@@ -35,8 +35,6 @@ use std::slice;
 mod quote_t;
 mod storage_t;
 
-
-
 #[no_mangle]
 pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
     let secret = String::from("Isan");
@@ -51,40 +49,7 @@ pub extern "C" fn ecall_create_report_with_key(targetInfo: &sgx_target_info_t , 
 
 #[allow(unused_variables, unused_mut)]
 #[no_mangle]
-pub extern "C" fn ecall_test_seal_unseal() {    
-   //input 
-    let mut data = storage_t::SecretKeyStorage::default();
-    data.version = 0x1234;
-    for i in 0..32{
-        data.data[i] = 'i' as u8;
-    }
-   // output 
-   let mut sealed_log_arr:[u8;storage_t::SEAL_LOG_SIZE] = [0;storage_t::SEAL_LOG_SIZE];
-   storage_t::seal_key(&data,&mut sealed_log_arr);
-   let udata =  storage_t::unseal_key(&mut sealed_log_arr);
-   println!("unsealed data = {:?}", udata);   
-}
-
-#[allow(unused_variables, unused_mut)]
-#[no_mangle]
-pub extern "C" fn ecall_seal_key(sealed_log_out : &mut [u8])->sgx_status_t{    
-   //mock key input 
-    let mut data = storage_t::SecretKeyStorage::default();
-    data.version = 0x1234;
-    for i in 0..32{
-        data.data[i] = 'i' as u8;
-    }
-   // output 
-   storage_t::seal_key(&data,sealed_log_out);
-   sgx_status_t::SGX_SUCCESS
-}
-
-
-// TODO:: main question => return struct ?? 
-#[allow(unused_variables, unused_mut)]
-#[no_mangle]
-pub extern "C" fn ecall_unseal_key(sealed_log_in : &mut [u8])->sgx_status_t{    
-    let unsealed_data = storage_t::unseal_key(sealed_log_in);
-    println!("Unseal key {:? }",unsealed_data );
+pub extern "C" fn ecall_test_sealing_storage_key()->sgx_status_t{    
+    storage_t::test_full_sealing_storage();
     sgx_status_t::SGX_SUCCESS
 }
