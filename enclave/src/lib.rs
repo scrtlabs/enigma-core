@@ -44,7 +44,6 @@ use std::vec::Vec;
 use std::io::{self, Write};
 use std::slice;
 
-mod evm_t;
 use evm_t::call_sputnikvm;
 use hexutil::read_hex;
 use std::str::from_utf8;
