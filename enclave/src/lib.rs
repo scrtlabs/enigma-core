@@ -16,6 +16,10 @@ extern crate sgx_tunittest;
 extern crate sgx_types;
 extern crate sgx_tse;
 extern crate sgx_trts;
+// sealing
+extern crate sgx_tseal;
+extern crate sgx_rand;
+
 extern crate sputnikvm;
 extern crate hexutil;
 extern crate bigint;
@@ -25,8 +29,11 @@ extern crate ring;
 extern crate secp256k1;
 extern crate tiny_keccak;
 
-pub mod common;
-pub mod cryptography;
+mod common;
+mod cryptography;
+mod storage_t;
+mod quote_t;
+mod evm_t;
 
 use sgx_trts::*;
 use sgx_types::*;
@@ -36,7 +43,6 @@ use std::string::String;
 use std::vec::Vec;
 use std::io::{self, Write};
 use std::slice;
-mod quote_t;
 
 mod evm_t;
 use evm_t::call_sputnikvm;
@@ -56,9 +62,10 @@ pub extern "C" fn ecall_create_report_with_key(targetInfo: &sgx_target_info_t , 
     sgx_status_t::SGX_SUCCESS
 }
 
+#[allow(unused_variables, unused_mut)]
 #[no_mangle]
-pub extern "C" fn ecall_seal_data() -> sgx_status_t {
-
+pub extern "C" fn ecall_test_sealing_storage_key()->sgx_status_t{
+    storage_t::test_full_sealing_storage();
     sgx_status_t::SGX_SUCCESS
 }
 

@@ -6,6 +6,7 @@ use std::io::{Read, Write};
 use std::fs;
 use std::path;
 use std::env;
+use std::vec;
 
 // enigma modules 
 pub mod esgx;
@@ -26,9 +27,16 @@ fn main() {
             return;
         },
     };
-    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
-    let mut encoded = esgx::equote::produce_quote(&enclave, &spid);
-    println!("{}",encoded );
+    
+    // quote test 
+    // let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
+    // let mut encoded = esgx::equote::produce_quote(&enclave, &spid);
+    // println!("{}",encoded );
+
+    // sealing test 
+    // ret = unsafe {
+    //     esgx::estorage::ecall_test_sealing_storage_key(enclave.geteid(), &mut ret)
+    // };
     enclave.destroy();
 }
 

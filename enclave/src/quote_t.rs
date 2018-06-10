@@ -1,14 +1,13 @@
-
 //#![crate_name = "helloworldsampleenclave"]
-#![crate_type = "staticlib"]
+//#![crate_type = "staticlib"]
 
-#![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
+//#![cfg_attr(not(target_env = "sgx"), no_std)]
+//#![cfg_attr(target_env = "sgx", feature(rustc_private))]
 
 
 
-#[cfg(not(target_env = "sgx"))]
-#[macro_use]
+//#[cfg(not(target_env = "sgx"))]
+//#[macro_use]
 
 use sgx_trts::*;
 //use sgx_tservice::*;
@@ -38,6 +37,7 @@ pub extern "C" fn create_report_with_data(target_info: &sgx_target_info_t , out_
     for (i,c) in extra_data.chars().enumerate(){
         report_data.d[i] = c as u8;                
     }
+
     let mut report = match rsgx_create_report(&target_info, &report_data) {
         Ok(r) =>{
            *out_report = r;
