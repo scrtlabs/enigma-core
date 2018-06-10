@@ -10,7 +10,6 @@ crate-type = ["staticlib"]
 [features]
 default = []
 
-
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
@@ -37,6 +36,11 @@ rev = "v1.0.0"
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
 
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_alloc]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+
 # sealing testing not all required. 
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tseal]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
@@ -45,4 +49,10 @@ rev = "v1.0.0"
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_rand]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
-# end of sealing 
+# end of sealing
+
+[dependencies]
+etcommon-hexutil = {path = "../thirdparties/etcommon-rs/hexutil", default-features = false}
+etcommon-bigint = {path = "../thirdparties/etcommon-rs/bigint", default-features = false, features = ["rlp"] }
+sputnikvm-network-classic = { path = "../sputnikvm/network/classic", default-features = false }
+sputnikvm = { path = "../sputnikvm", default-features = false }

@@ -10,24 +10,8 @@ use std::vec;
 
 // enigma modules 
 pub mod esgx;
-
-// write and read from files 
-use std::fs::File;
-use std::io::prelude::*;
-
-fn write(sealed_log_in : & [u8])->std::io::Result<()>{
-    let mut file = File::create("foo.txt")?;
-    file.write_all(sealed_log_in)?;
-    Ok(())
-}
-
-fn read(sealed_log_in : &mut [u8])-> std::io::Result<()>{
-    let mut file = File::open("foo.txt")?;
-    file.read(sealed_log_in)?;
-     Ok(())
-}
-
-
+pub mod evm_u;
+        
 #[allow(unused_variables, unused_mut)]
 fn main() { 
     
@@ -54,4 +38,4 @@ fn main() {
     //     esgx::estorage::ecall_test_sealing_storage_key(enclave.geteid(), &mut ret)
     // };
     enclave.destroy();
-}   
+}

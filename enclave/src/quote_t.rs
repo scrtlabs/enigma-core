@@ -10,11 +10,11 @@
 //#[macro_use]
 
 use sgx_trts::*;
-use sgx_tservice::*;
+//use sgx_tservice::*;
 use sgx_types::*;
-use sgx_tdh::*;
+//use sgx_tdh::*;
 use sgx_tse::*;
-use core::ptr;
+//use core::ptr;
 
 use std::string::String;
 use std::vec::Vec;
