@@ -1,7 +1,6 @@
-
-extern crate base64;
 extern crate sgx_types;
 extern crate sgx_urts;
+extern crate base64;
 use sgx_types::*;
 use std::io::{Read, Write};
 use std::fs;
@@ -10,9 +9,13 @@ use std::env;
 
 // enigma modules 
 pub mod esgx;
-        
+pub mod evm_u;
+
 #[allow(unused_variables, unused_mut)]
 fn main() { 
+
+    /* this is an example of initiating an enclave */
+
     let enclave = match esgx::general::init_enclave() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
@@ -23,12 +26,9 @@ fn main() {
             return;
         },
     };
-    // listen on port :X 
-    // dispatch reques => dispatcher 
-    // dispatcher => run command 
-    // return result => async 
-
-
+    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
+    let mut encoded = esgx::equote::produce_quote(&enclave, &spid);
+    println!("{}",encoded );
     enclave.destroy();
 }
 

@@ -13,6 +13,10 @@ default = []
 [dependencies]
 libsecp256k1 = { path = "../thirdparties/libsecp256k1-rs" }
 ring = { path = "../thirdparties/ring" }
+etcommon-hexutil = {path = "../thirdparties/etcommon-rs/hexutil", default-features = false}
+etcommon-bigint = {path = "../thirdparties/etcommon-rs/bigint", default-features = false, features = ["rlp"] }
+sputnikvm-network-classic = { path = "../sputnikvm/network/classic", default-features = false }
+sputnikvm = { path = "../sputnikvm", default-features = false }
 tiny-keccak = "1.4.1"
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_types]
@@ -27,6 +31,7 @@ rev = "v1.0.0"
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
 
+# quote
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tse]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
@@ -39,6 +44,21 @@ rev = "v1.0.0"
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tservice]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
+
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_alloc]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+
+# sealing testing not all required.
+[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tseal]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+# delete rand
+[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_rand]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+# end of sealing
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tunittest]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
