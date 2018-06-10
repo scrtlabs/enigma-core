@@ -9,8 +9,10 @@ use std::env;
 use std::vec;
 
 // enigma modules 
-pub mod esgx;
-pub mod evm_u;
+mod esgx;
+mod evm_u;
+
+use esgx::general;
 
 #[allow(unused_variables, unused_mut)]
 fn main() { 
@@ -33,13 +35,28 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    extern { fn ecall_run_tests(); }
+    use esgx::general;
+    use esgx::general::init_enclave;
+    use sgx_types::*;
+    extern { fn ecall_run_tests(eid: sgx_enclave_id_t); }
+
     #[test]
     pub fn test_enclave_internal() {
-        unsafe { ecall_run_tests(); }
+        // initiate the enclave
+        let enclave = match init_enclave() {
+            Ok(r) => {
+                println!("[+] Init Enclave Successful {}!", r.geteid());
+                r
+            },
+            Err(x) => {
+                println!("[-] Init Enclave Failed {}!", x.as_str());
+                assert_eq!(0,1);
+                return;
+            },
+        };
+        let mut ret : sgx_status_t = sgx_status_t::SGX_SUCCESS;
+        unsafe { ecall_run_tests(enclave.geteid());}
+        assert_eq!(ret,sgx_status_t::SGX_SUCCESS);
+        enclave.destroy();
     }
-
 }
-
-
-
