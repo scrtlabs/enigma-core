@@ -25,4 +25,31 @@ extern {
 }
 
 
+ #[cfg(test)]  
+ mod test {
+    use esgx::general::init_enclave;
+    use esgx::estorage::ecall_test_sealing_storage_key;
+    use sgx_types::*;
+     #[test]
+     fn test_produce_quote(){ 
+            // initiate the enclave 
+            let enclave = match init_enclave() {
+                Ok(r) => {
+                    println!("[+] Init Enclave Successful {}!", r.geteid());
+                    r
+                },
+                Err(x) => {
+                    println!("[-] Init Enclave Failed {}!", x.as_str());
+                    assert_eq!(0,1);
+                    return;
+                },
+            };
 
+        let mut ret : sgx_status_t = sgx_status_t::SGX_SUCCESS;
+         ret = unsafe {
+            ecall_test_sealing_storage_key(enclave.geteid(),&mut ret)
+         };
+        assert_eq!(ret,sgx_status_t::SGX_SUCCESS);
+        enclave.destroy();
+     }
+ }
