@@ -6,13 +6,11 @@
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 
-
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 #[macro_use]
 extern crate sgx_tunittest;
-
 extern crate sgx_types;
 extern crate sgx_tse;
 extern crate sgx_trts;
@@ -20,17 +18,19 @@ extern crate sgx_trts;
 extern crate sgx_tseal;
 extern crate sgx_rand;
 
+#[macro_use]
+extern crate lazy_static;
+
 extern crate sputnikvm;
 extern crate hexutil;
 extern crate bigint;
 extern crate sputnikvm_network_classic;
-
 extern crate ring;
 extern crate secp256k1;
 extern crate tiny_keccak;
 
 mod common;
-mod cryptography;
+mod cryptography_t;
 mod storage_t;
 mod quote_t;
 mod evm_t;
@@ -38,20 +38,24 @@ mod evm_t;
 use sgx_trts::*;
 use sgx_types::*;
 use sgx_tse::*;
+
 use std::ptr;
 use std::string::String;
 use std::vec::Vec;
 use std::io::{self, Write};
 use std::slice;
-
-use evm_t::call_sputnikvm;
-use hexutil::read_hex;
 use std::str::from_utf8;
+
+use hexutil::read_hex;
+use evm_t::call_sputnikvm;
+use cryptography_t::assymetric;
+use common::utils_t::{ToHex, FromHex};
 
 #[no_mangle]
 pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
-    let secret = String::from("Isan");
-    quote_t::create_report_with_data(&targetInfo ,real_report,&secret)
+    lazy_static! { static ref SIGNINING_KEY: assymetric::KeyPair = assymetric::KeyPair::new(); };
+    println!("{:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
+    quote_t::create_report_with_data(&targetInfo ,real_report,&SIGNINING_KEY.get_pubkey())
 }
 
 #[no_mangle]
@@ -63,7 +67,7 @@ pub extern "C" fn ecall_create_report_with_key(targetInfo: &sgx_target_info_t , 
 
 #[allow(unused_variables, unused_mut)]
 #[no_mangle]
-pub extern "C" fn ecall_test_sealing_storage_key()->sgx_status_t{
+pub extern "C" fn ecall_test_sealing_storage_key() -> sgx_status_t{
     storage_t::test_full_sealing_storage();
     sgx_status_t::SGX_SUCCESS
 }
@@ -95,7 +99,7 @@ pub mod tests {
     use sgx_tunittest::*;
     use std::vec::Vec;
     use std::string::String;
-    use cryptography::assymetric::tests::*;
+    use cryptography_t::assymetric::tests::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
