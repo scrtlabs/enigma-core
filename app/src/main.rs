@@ -13,10 +13,10 @@ mod esgx;
 mod evm_u;
 
 use esgx::general;
+use esgx::equote;
 
 #[allow(unused_variables, unused_mut)]
-fn main() { 
-
+fn main() {
     /* this is an example of initiating an enclave */
 
     // let enclave = match esgx::general::init_enclave() {
@@ -38,7 +38,7 @@ mod tests {
     use esgx::general;
     use esgx::general::init_enclave;
     use sgx_types::*;
-    extern { fn ecall_run_tests(eid: sgx_enclave_id_t); }
+    extern { fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t; }
 
     #[test]
     pub fn test_enclave_internal() {
@@ -54,8 +54,7 @@ mod tests {
                 return;
             },
         };
-        let mut ret : sgx_status_t = sgx_status_t::SGX_SUCCESS;
-        unsafe { ecall_run_tests(enclave.geteid());}
+        let ret = unsafe { ecall_run_tests(enclave.geteid()) };
         assert_eq!(ret,sgx_status_t::SGX_SUCCESS);
         enclave.destroy();
     }
