@@ -48,6 +48,11 @@ use evm_t::call_sputnikvm;
 use hexutil::read_hex;
 use std::str::from_utf8;
 
+
+/* this function is called every time the enclave is loaded */
+
+
+
 #[no_mangle]
 pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
     let secret = String::from("Isan");
