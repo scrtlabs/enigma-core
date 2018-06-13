@@ -1,7 +1,9 @@
 # Enigma Core library 
 
 Pure Rust Enclave && Untrusted in Rust. 
+Core is part of the Enigma node software stack. The Core component as it's name suggests is responsible for the core operations. The core includes Remote Attestation (SGX SDK), Cryptography and the Ethereum EVM.
 
+## Getting Started
 
 ### Prerequisites
 
@@ -34,3 +36,59 @@ cd bin/
 ```
 ./app
 ```
+
+
+### Installing
+
+TBD  
+
+
+## Running the tests
+
+* Build the project 
+```
+make
+``` 
+```
+cd app/
+```
+Run the tests (no std)
+```
+cargo test
+```
+Run the test (with std)
+```
+cargo test -- --nocapture
+```
+## Deployment
+
+
+## Built With
+
+TBD
+
+## Contributing
+
+TBD 
+
+## Versioning
+
+TBD 
+
+## Troubleshooting
+* Error while building with make 
+```
+error[E0463]: can't find crate for `std`
+  --> /root/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/sgx_tunittest/../../sgx_tunittest/src/lib.rs:88:1
+```
+* Temp Solution: 
+```
+rm -rf /root/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/
+```
+## Authors
+
+* **Enigma Team** - [enigma](https://enigma.co/)
+
+## License
+
+TBD
