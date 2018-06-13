@@ -10,15 +10,21 @@ impl ClientHandler {
 
         let v: Value = serde_json::from_str(msg)?;
         if v["type"] == "execvm"{
-            println!("execvm!!! call {} at the number {}", v["name"], v["phones"][0]);    
+            println!("[Server] execvm command");    
+            // get the EVM inputs 
+            // make an ecall to encrypt+compute 
+            // serialize the result 
+            // send 
         }else if v["type"] == "pubkey"{
-            println!("quote!!! call {} at the number {}", v["name"], v["phones"][0]);    
+            // ecall a quote + key 
+            // send 
+            println!("[Server] pubkeycmd ");    
         }else{
-            println!("unkown command from client !!  no type");    
+            println!("[Server] unkown command ");    
         }
         
         thread::sleep(Duration::from_millis(1000));
-        responder.send(b"World", 0).unwrap();
+        responder.send(b"Ack", 0).unwrap();
         Ok(())  
     }
 }
