@@ -1,12 +1,17 @@
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate base64;
+// networking apt install libzmq3-dev
+extern crate zmq; 
+extern crate serde_json;
+
 use sgx_types::*;
 use std::io::{Read, Write};
 use std::fs;
 use std::path;
 use std::env;
 use std::vec;
+
 
 // enigma modules 
 mod esgx;
