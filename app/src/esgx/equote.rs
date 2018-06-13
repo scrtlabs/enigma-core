@@ -9,13 +9,15 @@ use std::path;
 use std::env;
 use std::ptr;
 use base64::{encode, decode};
-
 use std::slice;
+use std::ffi::{CString, CStr};
+use std::os::raw::c_char;
+use esgx::general;
 
 
 #[link(name = "sgx_tservice")] extern {
-    fn ecall_create_report(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, targetInfo : *const sgx_target_info_t,
-     report: *mut sgx_report_t) -> sgx_status_t ;
+    pub fn ecall_create_report(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, targetInfo : *const sgx_target_info_t,
+                               report: *mut sgx_report_t, home_ptr: *const u8, home_len: usize) -> sgx_status_t ;
 }
 #[link(name = "sgx_uae_service")] extern {
     pub fn sgx_init_quote(p_target_info: * mut sgx_target_info_t, p_gid: * mut sgx_epid_group_id_t) -> sgx_status_t;
@@ -51,8 +53,11 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
 
     // create report
     let mut report = sgx_report_t::default();
+    let _home = general::storage_dir();
+    let home = _home.to_str().unwrap();
     stat = unsafe {
-        ecall_create_report(enclave.geteid(), &mut retval, &targetInfo, &mut report)
+        ecall_create_report(enclave.geteid(), &mut retval, &targetInfo,
+                            &mut report ,home.as_ptr() as * const u8, home.len())
     };
     // calc quote size
     let mut quoteSize : u32= 0;

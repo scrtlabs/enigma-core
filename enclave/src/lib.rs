@@ -45,16 +45,38 @@ use std::vec::Vec;
 use std::io::{self, Write};
 use std::slice;
 use std::str::from_utf8;
+use std::string::ToString;
+use std::ffi::{CString, CStr};
+use std::os::raw::c_char;
+use std::path;
 
 use hexutil::read_hex;
 use evm_t::call_sputnikvm;
 use cryptography_t::assymetric;
 use common::utils_t::{ToHex, FromHex};
+use storage_t::SecretKeyStorage;
 
 #[no_mangle]
-pub extern "C" fn ecall_create_report(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
+pub extern "C" fn ecall_create_report( targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t,
+                                       home_ptr: *const u8, home_len: usize) -> sgx_status_t {
+
+    // TODO: Check if the file already exists, if so load keys.
+    // TODO: Or maybe the untrusted should verify it because there's no need to regenerate a key?
     lazy_static! { static ref SIGNINING_KEY: assymetric::KeyPair = assymetric::KeyPair::new(); };
     println!("{:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
+    let data = storage_t::SecretKeyStorage {version: 0x1, data: SIGNINING_KEY.get_privkey()};
+    let mut output: [u8; storage_t::SEAL_LOG_SIZE] = [0; storage_t::SEAL_LOG_SIZE];
+    data.seal_key(&mut output);
+
+    let _home_path = unsafe { slice::from_raw_parts(home_ptr, home_len) };
+    let home_path = from_utf8(_home_path).unwrap();
+
+    let mut seal_file = path::PathBuf::from(home_path);
+    seal_file.push("keypair.sealed");
+    let file = seal_file.to_str().unwrap();
+    println!("Home: {:?}", file);
+    storage_t::save_sealed_key(file, &output);
+
     quote_t::create_report_with_data(&targetInfo ,real_report,&SIGNINING_KEY.get_pubkey())
 }
 
