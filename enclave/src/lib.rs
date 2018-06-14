@@ -57,7 +57,7 @@ use common::utils_t::{ToHex, FromHex};
 use storage_t::SecretKeyStorage;
 
 #[no_mangle]
-pub extern "C" fn ecall_create_report( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t,
+pub extern "C" fn registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t,
                                        home_ptr: *const u8, home_len: usize) -> sgx_status_t {
 
     // TODO: Check if the file already exists, if so load keys.
