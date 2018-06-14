@@ -56,6 +56,11 @@ use cryptography_t::assymetric;
 use common::utils_t::{ToHex, FromHex};
 use storage_t::SecretKeyStorage;
 
+
+/* this function is called every time the enclave is loaded */
+
+
+
 #[no_mangle]
 pub extern "C" fn registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t,
                                        home_ptr: *const u8, home_len: usize) -> sgx_status_t {
