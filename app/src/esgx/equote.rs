@@ -114,8 +114,12 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
         };
         // produce a quote 
         // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
-        let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
+        // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0
+        let spid = String::from("68A8730E9ABF1829EA3F7A66321E84D0");
         let tested_encoded_quote = produce_quote(&enclave, &spid);
+        println!("-------------------------" );
+        println!("{}",tested_encoded_quote);
+        println!("-------------------------" );
         enclave.destroy();
         assert!(tested_encoded_quote.len() > 0);
         //assert_eq!(real_encoded_quote, tested_encoded_quote);

@@ -4,6 +4,12 @@ extern crate base64;
 // networking apt install libzmq3-dev
 extern crate zmq; 
 extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+
+use zmq::*;
+use serde_json::*;
 
 use sgx_types::*;
 use std::io::{Read, Write};
@@ -16,9 +22,12 @@ use std::vec;
 // enigma modules 
 mod esgx;
 mod evm_u;
+mod networking;
 
 use esgx::general;
 use esgx::equote;
+use networking::surface_server;
+use networking::constants;
 
 #[allow(unused_variables, unused_mut)]
 fn main() {
@@ -34,10 +43,12 @@ fn main() {
             return;
         },
     };
-//    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
-    let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
-    let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
-    println!("{:?}", &tested_encoded_quote);
+    // server test 
+    let mut server = surface_server::Server::new(constants::CONNECTION_STR);
+    println!("about to launch server..." );
+    server.run();
+    println!("server is DEAD X_X" );
+    //end server test 
     enclave.destroy();
 }
 

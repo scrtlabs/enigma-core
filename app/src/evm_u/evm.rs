@@ -10,8 +10,10 @@ use std::path;
 use std::env;
 use std::fs::File;
 use std::iter::FromIterator;
-
 use esgx;
+// #[derive(Serialize, Deserialize, Debug)] for ToServerEvm
+use serde_json;
+
 
 extern {
     fn ecall_evm(eid: sgx_enclave_id_t,
@@ -36,12 +38,6 @@ pub struct FromServerEvm{
     callback :      String,
 }
 
-// this is the result from the evm computation that will be send to the server and propagated to surface. 
-pub struct ToServerEvm{
-    result : String, 
-    signature : String,
-}
-
 impl FromServerEvm {
      pub fn new(_bytecode:String,_callable:String,_callableArgs:String,_preprocessor:String,_callback:String) -> Self {
         FromServerEvm {
@@ -54,10 +50,23 @@ impl FromServerEvm {
     }
 }   
 
+// this is the result from the evm computation that will be send to the server and propagated to surface. 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct ToServerEvm{
+    result : String, 
+    signature : String,
+}
+
 
 // this function is called by the the server componenet upon an execevm command from surface
-pub fn exec_evm(FromServerEvm evm_input)-> Option<ToServerEvm>{
-    ToServerEvm{result:String::from(""), signature :String::from("")}
+pub fn exec_evm(evm_input: FromServerEvm )-> Option<ToServerEvm>{
+    println!("recieved from the client => " );
+    println!("bytecode : {}",evm_input.bytecode );
+    println!("callable : {}",evm_input.callable );
+    println!("callableArgs : {}",evm_input.callableArgs );
+    println!("callback : {}",evm_input.callback );
+    println!("preprocessor : {}",evm_input.preprocessor );
+    Some(ToServerEvm{result:String::from("the evm result :o"), signature :String::from("the evm signature :o")})
 }
 
 // This should be changed
