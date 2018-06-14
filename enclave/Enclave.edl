@@ -51,7 +51,7 @@ enclave {
 	                                  [out, size=32] uint8_t* output, [out] uint8_t* vm_status, [out] uint32_t* result_length);
 
         /* unsealing/sealing => in test mode currently */
-        public sgx_status_t ecall_test_sealing_storage_key();
+        // public sgx_status_t ecall_test_sealing_storage_key();
     };
     untrusted{
 

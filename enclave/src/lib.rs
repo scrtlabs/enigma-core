@@ -57,7 +57,7 @@ use common::utils_t::{ToHex, FromHex};
 use storage_t::SecretKeyStorage;
 
 #[no_mangle]
-pub extern "C" fn ecall_create_report( targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t,
+pub extern "C" fn ecall_create_report( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t,
                                        home_ptr: *const u8, home_len: usize) -> sgx_status_t {
 
     // TODO: Check if the file already exists, if so load keys.
@@ -77,22 +77,16 @@ pub extern "C" fn ecall_create_report( targetInfo: &sgx_target_info_t , real_rep
     println!("Home: {:?}", file);
     storage_t::save_sealed_key(file, &output);
 
-    quote_t::create_report_with_data(&targetInfo ,real_report,&SIGNINING_KEY.get_pubkey())
+    quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
 }
 
-#[no_mangle]
-pub extern "C" fn ecall_create_report_with_key(targetInfo: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
-    // TODO:: get the sign(pk,sk)
-    //quote_t::create_report_with_data(&targetInfo ,real_report,&secret)
-    sgx_status_t::SGX_SUCCESS
-}
 
-#[allow(unused_variables, unused_mut)]
-#[no_mangle]
-pub extern "C" fn ecall_test_sealing_storage_key() -> sgx_status_t{
-    storage_t::test_full_sealing_storage();
-    sgx_status_t::SGX_SUCCESS
-}
+//#[allow(unused_variables, unused_mut)]
+//#[no_mangle]
+//pub extern "C" fn ecall_test_sealing_storage_key() -> sgx_status_t{
+//    storage_t::test_full_sealing_storage();
+//    sgx_status_t::SGX_SUCCESS
+//}
 
 #[no_mangle]
 pub extern "C" fn ecall_evm(code: *const u8, code_len: usize, data: *const u8, data_len: usize, output: *mut u8, vm_status: &mut u8, result_len: &mut usize) -> sgx_status_t {
@@ -122,10 +116,12 @@ pub mod tests {
     use std::vec::Vec;
     use std::string::String;
     use cryptography_t::assymetric::tests::*;
+    use storage_t::tests::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
         rsgx_unit_tests!(
+        test_full_sealing_storage,
         test_signing,
         test_ecdh
     );

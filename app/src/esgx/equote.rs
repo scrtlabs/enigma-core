@@ -16,7 +16,7 @@ use esgx::general;
 
 
 #[link(name = "sgx_tservice")] extern {
-    pub fn ecall_create_report(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, targetInfo : *const sgx_target_info_t,
+    pub fn ecall_create_report(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
                                report: *mut sgx_report_t, home_ptr: *const u8, home_len: usize) -> sgx_status_t ;
 }
 #[link(name = "sgx_uae_service")] extern {

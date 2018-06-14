@@ -107,30 +107,35 @@ pub fn load_sealed_key(path : &String , sealed_key : &mut [u8]){
 }
 
 
-/* Test functions */
-pub fn test_full_sealing_storage(){
-    use storage_t::SecretKeyStorage;
-    // generate mock data 
-    let mut data = SecretKeyStorage::default();
-    data.version = 0x1234;
-    for i in 0..32{
-        data.data[i] = 'i' as u8;
+pub mod tests {
+    use storage_t::*;
+    use std::untrusted::fs::*;
+
+    /* Test functions */
+    pub fn test_full_sealing_storage() {
+        // generate mock data
+        let mut data = SecretKeyStorage::default();
+        data.version = 0x1234;
+        for i in 0..32{
+            data.data[i] = 'i' as u8;
+        }
+        // seal data
+        let mut sealed_log_in:[u8;SEAL_LOG_SIZE] = [0;SEAL_LOG_SIZE];
+        data.seal_key(&mut sealed_log_in);
+        // save sealed_log to file
+        let p = String::from("seal_test.sealed");
+        save_sealed_key( &p, &sealed_log_in);
+        // load sealed_log from file
+        let mut sealed_log_out:[u8;SEAL_LOG_SIZE] = [0;SEAL_LOG_SIZE];
+        load_sealed_key( &p, &mut sealed_log_out);
+        // unseal data
+        let unsealed_data = SecretKeyStorage::unseal_key(&mut sealed_log_out);
+        println!("unsealed data => {:?}",unsealed_data );
+        // compare data
+        assert_eq!(data.data,unsealed_data.data);
+        // delete the file
+        let f = remove_file(&p);
+        assert!(f.is_ok());
     }
-    // seal data 
-    let mut sealed_log_in:[u8;SEAL_LOG_SIZE] = [0;SEAL_LOG_SIZE];
-    data.seal_key(&mut sealed_log_in);
-    // save sealed_log to file 
-    let p = String::from("seal_test.sealed");
-    save_sealed_key( &p, &sealed_log_in);
-    // load sealed_log from file 
-    let mut sealed_log_out:[u8;SEAL_LOG_SIZE] = [0;SEAL_LOG_SIZE];
-    load_sealed_key( &p, &mut sealed_log_out);
-    // unseal data
-    let unsealed_data = SecretKeyStorage::unseal_key(&mut sealed_log_out);
-    println!("unsealed data => {:?}",unsealed_data );
-    // compare data 
-    assert_eq!(data.data,unsealed_data.data);
-    // delete the file 
-    let f = remove_file(&p);
-    assert!(f.is_ok());
 }
+

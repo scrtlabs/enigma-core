@@ -19,18 +19,21 @@ use esgx::equote;
 fn main() {
     /* this is an example of initiating an enclave */
 
-    // let enclave = match esgx::general::init_enclave() {
-    //     Ok(r) => {
-    //         println!("[+] Init Enclave Successful {}!", r.geteid());
-    //         r
-    //     },
-    //     Err(x) => {
-    //         println!("[-] Init Enclave Failed {}!", x.as_str());
-    //         return;
-    //     },
-    // };
-
-    //    enclave.destroy();
+    let enclave = match esgx::general::init_enclave() {
+        Ok(r) => {
+            println!("[+] Init Enclave Successful {}!", r.geteid());
+            r
+        },
+        Err(x) => {
+            println!("[-] Init Enclave Failed {}!", x.as_str());
+            return;
+        },
+    };
+//    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
+    let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
+    let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
+    println!("{:?}", &tested_encoded_quote);
+    enclave.destroy();
 }
 
 #[cfg(test)]
