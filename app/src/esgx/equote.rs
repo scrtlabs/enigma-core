@@ -13,7 +13,8 @@ use std::slice;
 use std::ffi::{CString, CStr};
 use std::os::raw::c_char;
 use esgx::general;
-
+// #[derive(Serialize, Deserialize, Debug)] for GetRegisterResult
+use serde_json;
 
 #[link(name = "sgx_tservice")] extern {
     pub fn registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
@@ -36,6 +37,15 @@ use esgx::general;
                          p_qe_report: * mut sgx_report_t,
                          p_quote: * mut sgx_quote_t,
                          quote_size: ::uint32_t) -> sgx_status_t;
+}
+
+// this struct is returned during the process registration back to the surface.
+// quote: the base64 encoded quote 
+// pub_key : the clear text public key for ecdsa signing and registration
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetRegisterResult{
+    pub quote : String, 
+    pub pub_key : String,
 }
 
 #[allow(unused_variables, unused_mut)]

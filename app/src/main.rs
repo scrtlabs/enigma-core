@@ -43,12 +43,7 @@ fn main() {
             return;
         },
     };
-    // server test 
-    let mut server = surface_server::Server::new(constants::CONNECTION_STR);
-    println!("about to launch server..." );
-    server.run();
-    println!("server is DEAD X_X" );
-    //end server test 
+
     enclave.destroy();
 }
 

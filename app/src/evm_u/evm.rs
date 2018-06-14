@@ -59,6 +59,7 @@ pub struct ToServerEvm{
 
 
 // this function is called by the the server componenet upon an execevm command from surface
+// very likely that this functions will require an SgxEnclave object.
 pub fn exec_evm(evm_input: FromServerEvm )-> Option<ToServerEvm>{
     println!("recieved from the client => " );
     println!("bytecode : {}",evm_input.bytecode );

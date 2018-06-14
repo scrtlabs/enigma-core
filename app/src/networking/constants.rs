@@ -15,4 +15,6 @@ impl<'a> From<&'a str> for Command {
 }
 // the server connection string 
 pub const CONNECTION_STR: &'static str = "tcp://*:5555";
+// isan's SPID 
+pub const SPID: &'static str = "3DDB338BD52EE314B01F1E4E1E84E8AA";
 
