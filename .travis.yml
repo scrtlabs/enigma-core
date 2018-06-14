@@ -8,6 +8,9 @@ matrix:
     - rust: nightly
   fast_finish: true
 cache: cargo
+env: 
+  - TEST_DIR=app
+  - TEST_DIR=enclave
 script:
-  - cargo build --verbose --all
-  - cargo test --verbose --all
+  - cd $TEST_DIR && cargo build --verbose --all
+  - cd $TEST_DIR && cargo test --verbose --all
