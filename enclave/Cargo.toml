@@ -18,6 +18,7 @@ etcommon-bigint = {path = "../thirdparties/etcommon-rs/bigint", default-features
 sputnikvm-network-classic = { path = "../sputnikvm/network/classic", default-features = false }
 sputnikvm = { path = "../sputnikvm", default-features = false }
 tiny-keccak = "1.4.1"
+lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
 
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"

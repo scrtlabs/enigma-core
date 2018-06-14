@@ -41,7 +41,8 @@ enclave {
 
     trusted {
 
-        public sgx_status_t ecall_create_report( [in] const sgx_target_info_t * target_info ,[out]  sgx_report_t * report);
+        public sgx_status_t registration_quote([in] const sgx_target_info_t * target_info ,[out]  sgx_report_t * report,
+                                                [in, size=home_len] const uint8_t* home_ptr, size_t home_len);
 
         public void ecall_run_tests();
 
@@ -50,7 +51,7 @@ enclave {
 	                                  [out, size=32] uint8_t* output, [out] uint8_t* vm_status, [out] uint32_t* result_length);
 
         /* unsealing/sealing => in test mode currently */
-        public sgx_status_t ecall_test_sealing_storage_key();
+        // public sgx_status_t ecall_test_sealing_storage_key();
     };
     untrusted{
 

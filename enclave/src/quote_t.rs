@@ -25,18 +25,19 @@ use std::slice;
 static REPORT_DATA_SIZE : usize = 64;
 
 #[no_mangle]
-pub extern "C" fn create_report_with_data(target_info: &sgx_target_info_t , out_report: &mut sgx_report_t , extra_data : & String ) -> sgx_status_t {
+pub extern "C" fn create_report_with_data(target_info: &sgx_target_info_t , out_report: &mut sgx_report_t , extra_data : &[u8] ) -> sgx_status_t {
     let reportDataSize : usize = 64;
     let mut report_data = sgx_report_data_t::default();
 
     // secret data to be attached with the report.
-    if extra_data.len() > REPORT_DATA_SIZE{
+    if extra_data.len() > REPORT_DATA_SIZE {
         return sgx_status_t::SGX_ERROR_INVALID_PARAMETER
     }
 
-    for (i,c) in extra_data.chars().enumerate(){
-        report_data.d[i] = c as u8;                
-    }
+    report_data.d[..extra_data.len()].copy_from_slice(extra_data);
+//    for (i,c) in extra_data.chars().enumerate(){
+//        report_data.d[i] = c as u8;
+//    }
 
     let mut report = match rsgx_create_report(&target_info, &report_data) {
         Ok(r) =>{

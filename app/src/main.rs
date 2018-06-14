@@ -18,24 +18,27 @@ mod esgx;
 mod evm_u;
 
 use esgx::general;
+use esgx::equote;
 
 #[allow(unused_variables, unused_mut)]
-fn main() { 
-
+fn main() {
     /* this is an example of initiating an enclave */
 
-    // let enclave = match esgx::general::init_enclave() {
-    //     Ok(r) => {
-    //         println!("[+] Init Enclave Successful {}!", r.geteid());
-    //         r
-    //     },
-    //     Err(x) => {
-    //         println!("[-] Init Enclave Failed {}!", x.as_str());
-    //         return;
-    //     },
-    // };
-
-    //    enclave.destroy();
+    let enclave = match esgx::general::init_enclave() {
+        Ok(r) => {
+            println!("[+] Init Enclave Successful {}!", r.geteid());
+            r
+        },
+        Err(x) => {
+            println!("[-] Init Enclave Failed {}!", x.as_str());
+            return;
+        },
+    };
+//    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
+    let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
+    let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
+    println!("{:?}", &tested_encoded_quote);
+    enclave.destroy();
 }
 
 #[cfg(test)]
@@ -43,7 +46,7 @@ mod tests {
     use esgx::general;
     use esgx::general::init_enclave;
     use sgx_types::*;
-    extern { fn ecall_run_tests(eid: sgx_enclave_id_t); }
+    extern { fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t; }
 
     #[test]
     pub fn test_enclave_internal() {
@@ -59,8 +62,7 @@ mod tests {
                 return;
             },
         };
-        let mut ret : sgx_status_t = sgx_status_t::SGX_SUCCESS;
-        unsafe { ecall_run_tests(enclave.geteid());}
+        let ret = unsafe { ecall_run_tests(enclave.geteid()) };
         assert_eq!(ret,sgx_status_t::SGX_SUCCESS);
         enclave.destroy();
     }
