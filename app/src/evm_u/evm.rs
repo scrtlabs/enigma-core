@@ -56,8 +56,8 @@ impl FromServerEvm {
 
 
 // this function is called by the the server componenet upon an execevm command from surface
-pub fn exec_evm(FromServerEvm evm_input)-> Option<ToServerEvm>{
-    ToServerEvm{result:String::from(""), signature :String::from("")}
+pub fn exec_evm( evm_input : FromServerEvm)-> Option<ToServerEvm>{
+    Some(ToServerEvm{result:String::from(""), signature :String::from("")})
 }
 
 // This should be changed
