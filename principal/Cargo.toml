@@ -1,0 +1,9 @@
+[package]
+name = "principal"
+version = "0.1.0"
+authors = ["Frederic Fortier <fredfortier@gmail.com>"]
+
+[dependencies]
+web3 = { git = "https://github.com/tomusdrw/rust-web3" }
+rustc-hex = "1.0.0"
+config = "0.8"
