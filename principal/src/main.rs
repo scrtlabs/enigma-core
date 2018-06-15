@@ -1,35 +1,48 @@
-extern crate principal;
-extern crate web3;
-
-use web3::Web3;
-use principal::Ledger;
-use principal::EpochGen;
-use std::sync::Arc;
-
-trait Emittable {
-    fn new() -> Self;
-    fn emit_epoch(&self, block: usize);
-}
-
-impl Emittable for EpochGen {
-    fn new() -> Self {
-        EpochGen {}
-    }
-
-    fn emit_epoch(&self, block: usize) {
-        println!("emitting epoch: {}", block);
-    }
-}
+//extern crate rustc_hex;
+//extern crate web3;
+//extern crate config;
+//
+//use std::str;
+//use std::collections::HashMap;
+//use std::fs::File;
+//use std::io::Read;
+//use web3::futures::Future;
+//use web3::contract::{Contract, Options};
+//use web3::types::{Address, H160, U256};
+//use rustc_hex::FromHex;
 
 fn main() {
-    /// TODO: externalize to config
-    let (eloop, http) = web3::transports::Http::new("http://localhost:9545")
-        .expect("unable to create Web3 HTTP provider");
-    let w3 = web3::Web3::new(http);
 
-    let ledger = Ledger::new(w3);
-    let eg = EpochGen::new();
-
-    let epoch_generator = Arc::new(eg);
-    ledger.watch_blocks(eloop, epoch_generator, 3);
+//    let app_config = read_config();
+//    // Print out our settings (as a HashMap)
+//    let key = String::from("enigma_path");
+//    let filename = app_config.get(&key).unwrap();
+//    println!("{:?}", filename);
+//
+//    let address_key = String::from("enigma_address");
+//    let accounts = web3.eth().accounts().wait().unwrap();
+//    let account = accounts[0];
+//    println!("the accounts: {:?}", account);
+//
+//    let mut f = File::open(filename).expect("file not found");
+//
+//    let mut buffer = vec![0; 10];
+//    f.read_to_end(&mut buffer).unwrap();
+////        .expect("something went wrong reading the file");
+//
+////    let mut buffer = String::new();
+////    f.read_to_string(&mut buffer).unwrap();
+////    println!("the buffer: {:?}", buffer);
+////
+////    // Accessing existing contract
+//    println!("the contract address: {:?}", contract_address);
+//    let contract = Contract::from_json(
+//        web3.eth(),
+//        contract_address,
+//        &buffer,
+//    ).unwrap();
+////
+////    let result = contract.query("balanceOf", (my_account, ), None, Options::default(), None);
+////    let balance_of: U256 = result.wait().unwrap();
+////    assert_eq!(balance_of, 1_000_000.into());
 }
