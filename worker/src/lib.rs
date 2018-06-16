@@ -8,12 +8,10 @@ use web3::Web3;
 use web3::transports::Http;
 use web3::types::Address;
 use web3::contract::Contract;
-use serde_json::Value;
-use web3::types::H256;
-use web3::types::U256;
+use serde_json::{Value};
 
-pub fn select_worker(seed: U256, taskId: H256, blockNumber: U256) -> Address {
-    /// TODO: config parameter
+pub fn select_worker(seed: usize, taskId: &str, blockNumber: usize) -> Address
+{
     let worker: Address = "9fbda871d559710256a2502a2517b794b482db40"
         .parse()
         .expect("unable to parse worker address");
@@ -22,15 +20,18 @@ pub fn select_worker(seed: U256, taskId: H256, blockNumber: U256) -> Address {
 }
 
 
-pub struct EnigmaContract {
+pub struct EnigmaContract
+{
     w3: Web3<Http>,
     contract: Contract<Http>,
     account: Address,
 }
 
 /// For operations on the Enigma contract deployed on Ethereum
-impl EnigmaContract {
-    pub fn new(w3: Web3<Http>, address: &str, path: &str, account: &str) -> Self {
+impl EnigmaContract
+{
+    pub fn new(w3: Web3<Http>, address: &str, path: &str, account: &str) -> Self
+    {
         let contract_address: Address = address
             .parse()
             .expect("unable to parse contract address");
@@ -44,7 +45,8 @@ impl EnigmaContract {
     }
 
     /// Fetch the Enigma contract deployed on Ethereum using an HTTP Web3 provider
-    fn deployed(w3: &Web3<Http>, address: Address, path: &str) -> Contract<Http> {
+    fn deployed(w3: &Web3<Http>, address: Address, path: &str) -> Contract<Http>
+    {
         let mut f = File::open(path)
             .expect("file not found");
 
@@ -72,7 +74,8 @@ impl EnigmaContract {
 
     /// Call the register transactional method of the Enigma contract
     /// Method signature: function register(bytes32 url, address signer, string quote)
-    pub fn register(&self, url: &str, signer: &str, quote: &str) -> String {
+    pub fn register(&self, url: &str, signer: &str, quote: &str) -> String
+    {
 //        self.contract.call("register", (self.account,), self.account, Option::default());
         String::from("register")
     }
@@ -81,9 +84,9 @@ impl EnigmaContract {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use web3::api::Web3;
 
-    fn setup() -> (web3::transports::EventLoopHandle, Web3<Http>) {
+    fn setup() -> (web3::transports::EventLoopHandle, Web3<Http>)
+    {
         let (_eloop, http) = web3::transports::Http::new("http://localhost:9545")
             .expect("unable to create Web3 HTTP provider");
         let w3 = web3::Web3::new(http);
@@ -91,7 +94,8 @@ mod tests {
     }
 
     #[test]
-    fn it_registers() {
+    fn it_registers()
+    {
         let (_, w3) = setup();
 
         let contract = EnigmaContract::new(
@@ -105,13 +109,6 @@ mod tests {
         let quote = "some big blog of text";
         let tx = contract.register(url, signer, quote);
         assert!(tx.len() > 0);
-    }
-
-    #[test]
-    fn it_selects_worker() {
-        let seed = U256::from(100);
-        let w3 = Web3{ transport: () };
-        let taskId = w3.sha3(b"test");
     }
 }
 
