@@ -1,0 +1,394 @@
+[
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "workerIndex",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "name": "workers",
+    "outputs": [
+      {
+        "name": "url",
+        "type": "bytes32"
+      },
+      {
+        "name": "signer",
+        "type": "address"
+      },
+      {
+        "name": "quote",
+        "type": "string"
+      },
+      {
+        "name": "balance",
+        "type": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint256"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "address"
+      },
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "tasks",
+    "outputs": [
+      {
+        "name": "callable",
+        "type": "string"
+      },
+      {
+        "name": "callableArgs",
+        "type": "bytes"
+      },
+      {
+        "name": "callback",
+        "type": "string"
+      },
+      {
+        "name": "worker",
+        "type": "address"
+      },
+      {
+        "name": "sig",
+        "type": "bytes"
+      },
+      {
+        "name": "reward",
+        "type": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "constant": true,
+    "inputs": [],
+    "name": "engToken",
+    "outputs": [
+      {
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "name": "_tokenAddress",
+        "type": "address"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "name": "url",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "signer",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_success",
+        "type": "bool"
+      }
+    ],
+    "name": "Register",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "_success",
+        "type": "bool"
+      }
+    ],
+    "name": "Logout",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "name": "sig",
+        "type": "bytes"
+      },
+      {
+        "indexed": false,
+        "name": "hash",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "name": "workerAddr",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "bytecode",
+        "type": "bytes"
+      },
+      {
+        "indexed": false,
+        "name": "_success",
+        "type": "bool"
+      }
+    ],
+    "name": "ValidateSig",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "name": "secretContract",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "worker",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "name": "sig",
+        "type": "bytes"
+      },
+      {
+        "indexed": false,
+        "name": "reward",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "_success",
+        "type": "bool"
+      }
+    ],
+    "name": "CommitResults",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "name": "callingContract",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "name": "taskId",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "callable",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "name": "callableArgs",
+        "type": "bytes"
+      },
+      {
+        "indexed": false,
+        "name": "callback",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "name": "fee",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "name": "preprocessors",
+        "type": "bytes32[]"
+      },
+      {
+        "indexed": false,
+        "name": "_success",
+        "type": "bool"
+      }
+    ],
+    "name": "ComputeTask",
+    "type": "event"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "url",
+        "type": "bytes32"
+      },
+      {
+        "name": "signer",
+        "type": "address"
+      },
+      {
+        "name": "quote",
+        "type": "string"
+      }
+    ],
+    "name": "register",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "payable": true,
+    "stateMutability": "payable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [],
+    "name": "logout",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "secretContract",
+        "type": "address"
+      },
+      {
+        "name": "callable",
+        "type": "string"
+      },
+      {
+        "name": "callableArgs",
+        "type": "bytes"
+      },
+      {
+        "name": "callback",
+        "type": "string"
+      },
+      {
+        "name": "fee",
+        "type": "uint256"
+      },
+      {
+        "name": "preprocessors",
+        "type": "bytes32[]"
+      }
+    ],
+    "name": "compute",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "secretContract",
+        "type": "address"
+      },
+      {
+        "name": "taskId",
+        "type": "uint256"
+      },
+      {
+        "name": "data",
+        "type": "bytes"
+      },
+      {
+        "name": "sig",
+        "type": "bytes"
+      }
+    ],
+    "name": "commitResults",
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint8"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]
