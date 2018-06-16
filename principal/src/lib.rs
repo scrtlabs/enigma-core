@@ -12,14 +12,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Trying to make this an abstraction so the implementation can be externalized but
 /// I'm not having any luck passing a Trait to Arc
-pub trait Emittable
+trait Emittable
 {
     fn new() -> Self;
     fn emit_epoch(&self, block: usize);
 }
-
 pub struct EpochGen {}
-
 impl Emittable for EpochGen
 {
     fn new() -> Self
