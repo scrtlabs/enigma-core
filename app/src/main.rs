@@ -14,6 +14,8 @@ mod evm_u;
 
 use esgx::general;
 use esgx::equote;
+pub use esgx::general::ocall_get_home;
+
 
 #[allow(unused_variables, unused_mut)]
 fn main() {
