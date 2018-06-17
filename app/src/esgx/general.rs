@@ -6,11 +6,20 @@ use std::path;
 use std::env;
 use std::slice;
 use std::io;
+use std::ptr;
 
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 pub static ENCLAVE_DIR: &'static str = ".enigma";
 
+
+#[no_mangle]
+pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
+    let path = storage_dir();
+    let path_str = path.to_str().unwrap();
+    unsafe { ptr::copy_nonoverlapping(path_str.as_ptr(), output, path_str.len()); }
+    *result_len = path_str.len();
+}
 
 pub fn storage_dir()-> path::PathBuf{
     let mut home_dir = path::PathBuf::new();
@@ -81,11 +90,11 @@ pub fn init_enclave() -> SgxResult<SgxEnclave> {
     // Debug Support: set 2nd parameter to 1 
     let debug = 1;
     let mut misc_attr = sgx_misc_attribute_t {secs_attr: sgx_attributes_t { flags:0, xfrm:0}, misc_select:0};
-    let enclave = try!(SgxEnclave::create(ENCLAVE_FILE, 
+    let enclave = SgxEnclave::create(ENCLAVE_FILE,
                                           debug, 
                                           &mut launch_token,
                                           &mut launch_token_updated,
-                                          &mut misc_attr));
+                                          &mut misc_attr)?;
     
     // Step 3: save the launch token if it is updated 
     if use_token == true && launch_token_updated != 0 {

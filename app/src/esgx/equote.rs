@@ -17,7 +17,7 @@ use esgx::general;
 use serde_json;
 
 #[link(name = "sgx_tservice")] extern {
-    pub fn registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
+    pub fn ecall_get_registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
                                report: *mut sgx_report_t, home_ptr: *const u8, home_len: usize) -> sgx_status_t ;
 }
 #[link(name = "sgx_uae_service")] extern {
@@ -66,7 +66,7 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
     let _home = general::storage_dir();
     let home = _home.to_str().unwrap();
     stat = unsafe {
-        registration_quote(enclave.geteid(), &mut retval, &target_info,
+        ecall_get_registration_quote(enclave.geteid(), &mut retval, &target_info,
                             &mut report ,home.as_ptr() as * const u8, home.len())
     };
     // calc quote size
@@ -75,7 +75,6 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
         sgx_calc_quote_size(std::ptr::null(), 0, &mut quote_size)
     };
     // get the actual quote
-    let SGX_UNLINKABLE_SIGNATURE :u32 = 0;
     let quote_type = sgx_quote_sign_type_t::SGX_UNLINKABLE_SIGNATURE;
     let v: Vec<u8> = spid.as_bytes().chunks(2).map(|buf|
         u8::from_str_radix(std::str::from_utf8(buf).unwrap(), 16).unwrap()

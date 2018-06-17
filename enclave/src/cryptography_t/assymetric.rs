@@ -34,6 +34,7 @@ impl KeyPair {
     }
 
     pub fn get_aes_key(&self, pubk: &PublicKey) -> Vec<u8> {
+        // TODO: Maybe accept a slice [u8; 64] and add 0x04, and then make the PublicKey obj.
         let shared = SharedSecret::new(&pubk, &self.privkey).unwrap();
         let sharedkey = shared.as_ref().to_vec();
         sharedkey

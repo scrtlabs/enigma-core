@@ -41,7 +41,7 @@ enclave {
 
     trusted {
 
-        public sgx_status_t registration_quote([in] const sgx_target_info_t * target_info ,[out]  sgx_report_t * report,
+        public sgx_status_t ecall_get_registration_quote([in] const sgx_target_info_t * target_info ,[out]  sgx_report_t * report,
                                                 [in, size=home_len] const uint8_t* home_ptr, size_t home_len);
 
         public void ecall_run_tests();
@@ -52,8 +52,12 @@ enclave {
 
         /* unsealing/sealing => in test mode currently */
         // public sgx_status_t ecall_test_sealing_storage_key();
+
+
+        public void ecall_get_signing_pubkey([out] uint8_t arr[64]);
     };
-    untrusted{
+    untrusted {
+        void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);
 
     };
 };

@@ -6,7 +6,6 @@
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 use sgx_types::{sgx_status_t, sgx_sealed_data_t,sgx_attributes_t};
-use sgx_types::*;
 use sgx_types::marker::ContiguousMemory;
 use sgx_tseal::{SgxSealedData};
 use sgx_tseal::*;
@@ -55,13 +54,21 @@ impl SecretKeyStorage {
     /// unseal key
     /// param: sealed_log_in : the encrypted blob
     /// param: udata : the SecreyKeyStorage (clear text)
-    pub fn unseal_key(sealed_log_in: &mut [u8]) -> SecretKeyStorage {
+    pub fn unseal_key(sealed_log_in: &mut [u8]) -> Option<SecretKeyStorage> {
         let sealed_log_size: usize = SEAL_LOG_SIZE;
         let sealed_log = sealed_log_in.as_mut_ptr();
-        let sealed_data = from_sealed_log::<SecretKeyStorage>(sealed_log, sealed_log_size as u32).unwrap();
-        let unsealed_data = sealed_data.unseal_data().unwrap();
-        let mut udata = unsealed_data.get_decrypt_txt();
-        *udata
+        let sealed_data = from_sealed_log::<SecretKeyStorage>(sealed_log, sealed_log_size as u32)?;
+        let unsealed_result = sealed_data.unseal_data();
+        match unsealed_result {
+            Ok(unsealed_data) => {
+                let mut udata = unsealed_data.get_decrypt_txt();
+                return Some(*udata)
+            }
+            Err(err) => {
+                if err == sgx_status_t::SGX_ERROR_MAC_MISMATCH { return None }
+                else { panic!(err) }
+            }
+        }
     }
 }
 
@@ -129,7 +136,7 @@ pub mod tests {
         let mut sealed_log_out:[u8;SEAL_LOG_SIZE] = [0;SEAL_LOG_SIZE];
         load_sealed_key( &p, &mut sealed_log_out);
         // unseal data
-        let unsealed_data = SecretKeyStorage::unseal_key(&mut sealed_log_out);
+        let unsealed_data = SecretKeyStorage::unseal_key(&mut sealed_log_out).unwrap();
         println!("unsealed data => {:?}",unsealed_data );
         // compare data
         assert_eq!(data.data,unsealed_data.data);
