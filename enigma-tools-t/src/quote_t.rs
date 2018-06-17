@@ -32,4 +32,7 @@ pub fn create_report_with_data(target_info: &sgx_target_info_t , out_report: &mu
         },
     };
     sgx_status_t::SGX_SUCCESS
+
 }
+
+

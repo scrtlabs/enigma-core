@@ -13,7 +13,8 @@ use std::slice;
 use std::ffi::{CString, CStr};
 use std::os::raw::c_char;
 use esgx::general;
-
+// #[derive(Serialize, Deserialize, Debug)] for GetRegisterResult
+use serde_json;
 
 #[link(name = "sgx_tservice")] extern {
     pub fn ecall_get_registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
@@ -36,6 +37,15 @@ use esgx::general;
                          p_qe_report: * mut sgx_report_t,
                          p_quote: * mut sgx_quote_t,
                          quote_size: ::uint32_t) -> sgx_status_t;
+}
+
+// this struct is returned during the process registration back to the surface.
+// quote: the base64 encoded quote 
+// pub_key : the clear text public key for ecdsa signing and registration
+#[derive(Serialize, Deserialize, Debug)]
+pub struct GetRegisterResult{
+    pub quote : String, 
+    pub pub_key : String,
 }
 
 #[allow(unused_variables, unused_mut)]
@@ -113,8 +123,12 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
         };
         // produce a quote 
         // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
-        let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
+        // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0
+        let spid = String::from("68A8730E9ABF1829EA3F7A66321E84D0");
         let tested_encoded_quote = produce_quote(&enclave, &spid);
+        println!("-------------------------" );
+        println!("{}",tested_encoded_quote);
+        println!("-------------------------" );
         enclave.destroy();
         assert!(tested_encoded_quote.len() > 0);
         //assert_eq!(real_encoded_quote, tested_encoded_quote);

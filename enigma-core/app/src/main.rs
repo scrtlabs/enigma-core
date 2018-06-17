@@ -1,6 +1,16 @@
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate base64;
+// networking apt install libzmq3-dev
+extern crate zmq; 
+extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+
+use zmq::*;
+use serde_json::*;
+
 use sgx_types::*;
 use std::io::{Read, Write};
 use std::fs;
@@ -8,15 +18,22 @@ use std::path;
 use std::env;
 use std::vec;
 
+
 // enigma modules 
 mod esgx;
 mod evm_u;
+mod networking;
 
 use esgx::general;
 use esgx::equote;
+
+use networking::surface_server;
+use networking::constants;
+
 pub use esgx::general::ocall_get_home;
 
 extern { fn ecall_get_signing_pubkey(eid: sgx_enclave_id_t, pubkey: &mut [u8; 64]) -> sgx_status_t; }
+
 
 #[allow(unused_variables, unused_mut)]
 fn main() {
