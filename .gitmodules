@@ -1,5 +1,5 @@
 [submodule "sputnikvm"]
-	path = sputnikvm
+	path = thirdparties/sputnikvm
 	url = git@github.com:enigmampc/sputnikvm.git
 	branch = develop
 [submodule "thirdparties/etcommon-rs"]
