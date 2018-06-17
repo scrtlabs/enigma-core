@@ -107,6 +107,17 @@ cd root/enigma-core/enigma-core/bin
 ```
 ./app
 ```
+### Testing with the Surface server
+
+This is the server that accept commands from the surface component. 
+Currently its unit-test is #[ignored] simply because testing it requires manually sending requests and watching the output. 
+For now there's a compatible [Python client provided](https://github.com/enigmampc/enigma-core/tree/develop/enigma-core/app/tests/surface_listener),
+the unit-test can be found [here](https://github.com/enigmampc/enigma-core/blob/246dc727f3e5d54ffe039b0b880b7bfecbcd1d8e/enigma-core/app/src/networking/surface_server.rs#L152).
+
+Running this test will require to 
+* comment out #[ignore]
+*running the tests with -- --nocapture
+*using the Python client that mimics surface.
 
 ### Installing
 
