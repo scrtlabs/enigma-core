@@ -27,6 +27,39 @@ struct EvmInput {
     data: String,
 }
 
+// this is the input after its being parsed from the server (originally came from surface)
+pub struct FromServerEvm{
+    bytecode :      String,
+    callable :      String, 
+    callableArgs :  String, 
+    preprocessor :  String,
+    callback :      String,
+}
+
+// this is the result from the evm computation that will be send to the server and propagated to surface. 
+pub struct ToServerEvm{
+    result : String, 
+    signature : String,
+}
+
+impl FromServerEvm {
+     pub fn new(_bytecode:String,_callable:String,_callableArgs:String,_preprocessor:String,_callback:String) -> Self {
+        FromServerEvm {
+            bytecode : _bytecode,
+            callable : _callable, 
+            callableArgs : _callableArgs, 
+            preprocessor : _preprocessor,
+            callback : _callback,
+        }
+    }
+}   
+
+
+// this function is called by the the server componenet upon an execevm command from surface
+pub fn exec_evm( evm_input : FromServerEvm)-> Option<ToServerEvm>{
+    Some(ToServerEvm{result:String::from(""), signature :String::from("")})
+}
+
 // This should be changed
 // the length of the result returned by EVM should be checked in advance
 const MAX_EVM_RESULT: usize = 1000000;
