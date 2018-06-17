@@ -14,7 +14,10 @@ pub struct ClientHandler{}
 
 impl ClientHandler {
     // public function to handle the surface requests 
-    pub fn handle(&self, enclave : &SgxEnclave,responder : &zmq::Socket,msg :& str) -> Result<(), Error> {
+    pub fn handle(&self, enclave : &SgxEnclave,responder : &zmq::Socket,msg :& str) -> Result<(bool), Error> {
+        
+        let mut keep_running : bool = true;
+
         let v: Value = serde_json::from_str(msg)?;
 
         let cmd : constants::Command = v["cmd"].as_str().unwrap().into();
@@ -29,6 +32,11 @@ impl ClientHandler {
                 println!("Enclave quote : {}", result);
                 result
             },
+            constants::Command::Stop=>{
+                  keep_running = false;
+                  let result = self.handle_stop().unwrap();
+                  result
+            },
             constants::Command::Unknown =>{
                 println!("[Server] unkown command ");    
                 String::from("")
@@ -36,7 +44,16 @@ impl ClientHandler {
         };
         thread::sleep(Duration::from_millis(1000));
         responder.send_str(&result, 0).unwrap();
-        Ok(())  
+        Ok((keep_running))  
+    }
+    fn handle_stop(&self)->  Result<(String), Error>{   
+        // serialize the response
+        let str_result = serde_json::to_string(&constants::StopServer{
+            errored : false,
+            reason : String::from("stop request."),
+        }).unwrap();
+        // send 
+        Ok(str_result)
     }
     // private function : handle execevm cmd 
     fn handle_execevm(&self,responder : &zmq::Socket, msg : Value)-> Result<(String), Error>{
@@ -53,10 +70,12 @@ impl ClientHandler {
     fn handle_get_register(&self,enclave: &SgxEnclave,responder : &zmq::Socket,msg : Value)->  Result<(String), Error>{   
         // ecall a quote + key 
         let encoded_quote = equote::produce_quote(enclave, &constants::SPID.to_owned());
+        // ecall get the clear text public signing key 
+        let pub_signing_key = equote::get_register_signing_key(enclave).unwrap();
         // serialize the result 
         let str_result = serde_json::to_string(&equote::GetRegisterResult{
             quote:encoded_quote, 
-            pub_key: String::from("ecdsa pub key") })
+            pub_key: pub_signing_key })
             .unwrap();
         // send 
         Ok(str_result)
@@ -94,12 +113,23 @@ impl<'a> Server<'a>{
             enclave : enclave,
         }
     }
+
     pub fn run(& mut self){
         let mut msg = zmq::Message::new().unwrap();
         loop {
             println!("[+] Server awaiting connection..." );
             self.responder.recv(&mut msg, 0).unwrap();
-            let result = self.handler.handle(&self.enclave,&self.responder,&msg.as_str().expect("[-] Err in ClientHandler.handle()"));
+            match self.handler.handle(&self.enclave,&self.responder,&msg.as_str().expect("[-] Err in ClientHandler.handle()")){
+                Ok(keep_running) =>{
+                    if !keep_running{
+                        println!("[+] Server shutting down... ");    
+                        break;
+                    }
+                },
+                Err(e)=>{
+                    println!("[-] Server Err : {:?}",e);
+                }
+            }
         }
     }
 }
@@ -113,6 +143,10 @@ impl<'a> Server<'a>{
     use esgx::general::init_enclave;
     use networking::surface_server;
     use networking::constants;
+    use std::thread;
+
+    // can be tested with a client /app/tests/surface_listener/surface_client.pu
+    // network message defitnitions can be found in /app/tests/surface_listener/message_type.definition
      #[test]
      #[ignore]
      fn test_run_server(){ 
@@ -133,6 +167,7 @@ impl<'a> Server<'a>{
             let mut server = surface_server::Server::new(constants::CONNECTION_STR, &enclave);
             server.run();
         }
+        
         // destroy the enclave 
         enclave.destroy();
      }

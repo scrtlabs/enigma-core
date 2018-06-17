@@ -38,6 +38,10 @@ use serde_json;
                          p_quote: * mut sgx_quote_t,
                          quote_size: ::uint32_t) -> sgx_status_t;
 }
+extern { 
+    fn ecall_get_signing_pubkey(eid: sgx_enclave_id_t, pubkey: &mut [u8; 64]) -> sgx_status_t; 
+}
+
 
 // this struct is returned during the process registration back to the surface.
 // quote: the base64 encoded quote 
@@ -100,6 +104,26 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
     encode(&the_quote)
 }
 
+
+// wrapper function for getting the enclave public sign key (the one attached with produce_quote()) 
+// TODO:: replace the error type in the Result once established
+// FYI,
+
+pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,&'static str>{
+    let mut pub_key: [u8; 64] = [0; 64];
+    let status =  unsafe {
+         ecall_get_signing_pubkey(enclave.geteid(), &mut pub_key) 
+    };
+    if status == sgx_status_t::SGX_SUCCESS{
+        let hex_key = pub_key.iter().fold(String::new(), |mut s, v| {
+                    s.push_str(&format!("{:x}", v));
+                    s
+        });
+        Ok(hex_key)         
+    }else{
+        Err("[-] Error get_register_signing_key()")
+    }
+}
 
 // unit tests 
 

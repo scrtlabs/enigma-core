@@ -50,13 +50,14 @@ fn main() {
         },
     };
 //    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
-    let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
-    let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
-    println!("{:?}", &tested_encoded_quote);
+    // let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
+    // let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
+    // println!("{:?}", &tested_encoded_quote);
 
-    let mut pubme: [u8; 64] = [0; 64];
-    unsafe {ecall_get_signing_pubkey(enclave.geteid(), &mut pubme)};
-    println!("Returned Pub: {:?}", &pubme[..]);
+    // let mut pubme: [u8; 64] = [0; 64];
+    // unsafe {ecall_get_signing_pubkey(enclave.geteid(), &mut pubme)};
+    // println!("Returned Pub: {:?}", &pubme[..]);
+
     enclave.destroy();
 }
 
