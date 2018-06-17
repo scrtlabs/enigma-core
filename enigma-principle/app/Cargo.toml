@@ -1,0 +1,17 @@
+[package]
+name = "enigma_principle_app"
+version = "1.0.0"
+authors = ["Enigma <support@enigma.co>"]
+build = "build.rs"
+
+[dependencies]
+base64 = "0.9.1"
+libc = "0.2.41"
+
+[dependencies.sgx_types]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+
+[dependencies.sgx_urts]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
