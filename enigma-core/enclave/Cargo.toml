@@ -11,8 +11,6 @@ crate-type = ["staticlib"]
 default = []
 
 [dependencies]
-libsecp256k1 = { path = "../../thirdparties/libsecp256k1-rs" }
-#ring = { path = "../../thirdparties/ring" }
 etcommon-hexutil = {path = "../../thirdparties/etcommon-rs/hexutil", default-features = false}
 etcommon-bigint = {path = "../../thirdparties/etcommon-rs/bigint", default-features = false, features = ["rlp"] }
 sputnikvm-network-classic = { path = "../../thirdparties/sputnikvm/network/classic", default-features = false }
