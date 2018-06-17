@@ -116,8 +116,15 @@ the unit-test can be found [here](https://github.com/enigmampc/enigma-core/blob/
 
 Running this test will require to 
 * comment out #[ignore]
-*running the tests with -- --nocapture
-*using the Python client that mimics surface.
+* running the tests with -- --nocapture
+* using the Python client that mimics surface.
+
+### Principle Node 
+
+Has a seperate [trsuted + untrusted](https://github.com/enigmampc/enigma-core/tree/develop/enigma-principle). 
+There is a 100% code [resue](https://github.com/enigmampc/enigma-core/tree/develop/enigma-tools-t)
+
+TBD
 
 ### Installing
 
