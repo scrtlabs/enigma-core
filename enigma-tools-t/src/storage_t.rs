@@ -1,8 +1,3 @@
-//#![crate_type = "staticlib"]
-//
-//#![cfg_attr(not(target_env = "sgx"), no_std)]
-//#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 use sgx_types::{sgx_status_t, sgx_sealed_data_t,sgx_attributes_t};

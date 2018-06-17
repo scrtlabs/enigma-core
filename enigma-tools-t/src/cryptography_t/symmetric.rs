@@ -54,7 +54,7 @@ pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Vec<u8>{
 
 #[cfg(test)]
 mod tests {
-    use cryptography::symmetric::*;
+    use cryptography_t::symmetric::*;
     use common::utils_t::{ToHex, FromHex};
 
     #[test]
