@@ -34,6 +34,7 @@ mod cryptography_t;
 mod storage_t;
 mod quote_t;
 mod evm_t;
+mod ocalls_t;
 
 use sgx_trts::*;
 use sgx_types::*;
@@ -42,13 +43,14 @@ use sgx_tse::*;
 use std::ptr;
 use std::string::String;
 use std::vec::Vec;
-use std::io::{self, Write};
+use std::io::{self, Write, Read};
 use std::slice;
 use std::str::from_utf8;
 use std::string::ToString;
 use std::ffi::{CString, CStr};
 use std::os::raw::c_char;
 use std::path;
+use std::untrusted::fs::{File, remove_file};
 
 use hexutil::read_hex;
 use evm_t::call_sputnikvm;
@@ -56,34 +58,62 @@ use cryptography_t::assymetric;
 use common::utils_t::{ToHex, FromHex};
 use storage_t::SecretKeyStorage;
 
-
-/* this function is called every time the enclave is loaded */
-
+lazy_static! { static ref SIGNINING_KEY: assymetric::KeyPair = get_sealed_keys(); }
 
 
 #[no_mangle]
-pub extern "C" fn registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t,
+pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t,
                                        home_ptr: *const u8, home_len: usize) -> sgx_status_t {
-
-    // TODO: Check if the file already exists, if so load keys.
-    // TODO: Or maybe the untrusted should verify it because there's no need to regenerate a key?
-    lazy_static! { static ref SIGNINING_KEY: assymetric::KeyPair = assymetric::KeyPair::new(); };
-    println!("{:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
-    let data = storage_t::SecretKeyStorage {version: 0x1, data: SIGNINING_KEY.get_privkey()};
-    let mut output: [u8; storage_t::SEAL_LOG_SIZE] = [0; storage_t::SEAL_LOG_SIZE];
-    data.seal_key(&mut output);
-
-    let _home_path = unsafe { slice::from_raw_parts(home_ptr, home_len) };
-    let home_path = from_utf8(_home_path).unwrap();
-
-    let mut seal_file = path::PathBuf::from(home_path);
-    seal_file.push("keypair.sealed");
-    let file = seal_file.to_str().unwrap();
-    println!("Home: {:?}", file);
-    storage_t::save_sealed_key(file, &output);
-
+    println!("Generating Report with: {:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
     quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
 }
+
+pub fn get_sealed_keys() -> assymetric::KeyPair {
+    // Get Home path via Ocall
+    let mut path_buf = ocalls_t::get_home_path();
+    path_buf.push("keypair.sealed");
+    let sealed_path = path_buf.to_str().unwrap();
+
+
+    // Open the file
+    match File::open(sealed_path) {
+        Ok(mut file) => {
+            let mut sealed:[u8;storage_t::SEAL_LOG_SIZE] = [0;storage_t::SEAL_LOG_SIZE];
+            let result = file.read(&mut sealed);
+            match SecretKeyStorage::unseal_key(&mut sealed) {
+                // If the data is unsealed correctly return this KeyPair.
+                Some(unsealed_data) => {
+                    println!("Succeeded reading key from file");
+                    return assymetric::KeyPair::from_slice(&unsealed_data.data);
+                },
+                // If the data couldn't get unsealed remove the file.
+                None => {
+                    println!("Failed reading file, Removing");
+                    remove_file(sealed_path)
+                }
+            };
+        },
+
+        Err(err) => {
+            if err.kind() == io::ErrorKind::PermissionDenied { panic!("No Permissions for: {}", sealed_path) }
+        }
+    }
+
+    // Generate a new Keypair and seal it.
+    let keypair = assymetric::KeyPair::new();
+    let data = storage_t::SecretKeyStorage {version: 0x1, data: keypair.get_privkey()};
+    let mut output: [u8; storage_t::SEAL_LOG_SIZE] = [0; storage_t::SEAL_LOG_SIZE];
+    data.seal_key(&mut output);
+    storage_t::save_sealed_key(&sealed_path, &output);
+    println!("Generated a new key");
+
+    keypair
+}
+
+//#[no_mangle]
+//pub extern "C" fn ecall_get_signing_pubkey() -> [u8; 64] {
+//
+//}
 
 
 //#[allow(unused_variables, unused_mut)]
