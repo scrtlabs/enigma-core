@@ -85,7 +85,7 @@ impl KeyPair {
 }
 
 pub mod tests {
-    extern crate sgx_tunittest;
+//    extern crate sgx_tunittest;
     use cryptography_t::assymetric::*;
 
     pub fn test_signing() {

@@ -25,14 +25,15 @@ extern crate sputnikvm;
 extern crate hexutil;
 extern crate bigint;
 extern crate sputnikvm_network_classic;
-extern crate ring;
-extern crate secp256k1;
-extern crate tiny_keccak;
-
-mod common;
-mod cryptography_t;
-mod storage_t;
-mod quote_t;
+extern crate enigma_tools_t;
+//extern crate ring;
+//extern crate secp256k1;
+//extern crate tiny_keccak;
+//
+//mod common;
+//mod cryptography_t;
+//mod storage_t;
+//mod quote_t;
 mod evm_t;
 mod ocalls_t;
 
@@ -54,9 +55,12 @@ use std::untrusted::fs::{File, remove_file};
 
 use hexutil::read_hex;
 use evm_t::call_sputnikvm;
-use cryptography_t::assymetric;
-use common::utils_t::{ToHex, FromHex};
-use storage_t::SecretKeyStorage;
+
+use enigma_tools_t::cryptography_t::assymetric;
+use enigma_tools_t::common::utils_t::{ToHex, FromHex};
+use enigma_tools_t::storage_t;
+use enigma_tools_t::quote_t;
+
 
 lazy_static! { static ref SIGNINING_KEY: assymetric::KeyPair = get_sealed_keys(); }
 
@@ -80,7 +84,7 @@ fn get_sealed_keys() -> assymetric::KeyPair {
         Ok(mut file) => {
             let mut sealed:[u8;storage_t::SEAL_LOG_SIZE] = [0;storage_t::SEAL_LOG_SIZE];
             let result = file.read(&mut sealed);
-            match SecretKeyStorage::unseal_key(&mut sealed) {
+            match storage_t::SecretKeyStorage::unseal_key(&mut sealed) {
                 // If the data is unsealed correctly return this KeyPair.
                 Some(unsealed_data) => {
                     println!("Succeeded reading key from file");
@@ -143,16 +147,17 @@ pub extern "C" fn ecall_evm(code: *const u8, code_len: usize, data: *const u8, d
 }
 
 pub mod tests {
-//    #[macro_use]
     extern crate sgx_tunittest;
-//    #[macro_use]
     extern crate sgx_tstd as std;
+    extern crate enigma_tools_t;
+
     use sgx_tunittest::*;
     use std::vec::Vec;
     use std::string::String;
-    use cryptography_t::assymetric::tests::*;
-    use storage_t::tests::*;
+    use enigma_tools_t::cryptography_t::assymetric::tests::*;
+    use enigma_tools_t::storage_t::tests::*;
 
+    // TODO: Fix the tests.
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
         rsgx_unit_tests!(

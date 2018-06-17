@@ -1,20 +1,6 @@
-//#![crate_name = "helloworldsampleenclave"]
-//#![crate_type = "staticlib"]
-
-//#![cfg_attr(not(target_env = "sgx"), no_std)]
-//#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
-
-
-//#[cfg(not(target_env = "sgx"))]
-//#[macro_use]
-
 use sgx_trts::*;
-//use sgx_tservice::*;
 use sgx_types::*;
-//use sgx_tdh::*;
 use sgx_tse::*;
-//use core::ptr;
 
 use std::string::String;
 use std::vec::Vec;
