@@ -1,3 +1,4 @@
+# inherit the baidu sdk image
 FROM baiduxlab/sgx-rust:1.0.0
 
 MAINTAINER enigmampc
