@@ -1,18 +1,9 @@
 extern crate base64;
 use std;
-use sgx_types::*;
+use sgx_types::*; // Too many things to import
 use sgx_urts::SgxEnclave;
-use std::*;
-use std::io::{Read, Write};
-use std::fs;
-use std::path;
-use std::env;
-use std::ptr;
-use base64::{encode, decode};
-use std::slice;
-use std::ffi::{CString, CStr};
-use std::os::raw::c_char;
-use esgx::general;
+use base64::encode;
+
 
 
 #[link(name = "sgx_tservice")] extern {

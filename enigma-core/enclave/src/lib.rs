@@ -88,14 +88,6 @@ pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
     pubkey.clone_from_slice(&SIGNINING_KEY.get_pubkey());
 }
 
-
-//#[allow(unused_variables, unused_mut)]
-//#[no_mangle]
-//pub extern "C" fn ecall_test_sealing_storage_key() -> sgx_status_t{
-//    storage_t::test_full_sealing_storage();
-//    sgx_status_t::SGX_SUCCESS
-//}
-
 #[no_mangle]
 pub extern "C" fn ecall_evm(code: *const u8, code_len: usize, data: *const u8, data_len: usize, output: *mut u8, vm_status: &mut u8, result_len: &mut usize) -> sgx_status_t {
     let code_slice = unsafe { slice::from_raw_parts(code, code_len) };

@@ -1,10 +1,9 @@
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate base64;
-use sgx_types::*;
 // enigma modules
 mod esgx;
-
+use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use esgx::equote;
 pub use esgx::general::ocall_get_home;

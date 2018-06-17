@@ -50,9 +50,6 @@ enclave {
 	                                  [in, size=data_len] const uint8_t* data, size_t data_len,
 	                                  [out, size=32] uint8_t* output, [out] uint8_t* vm_status, [out] uint32_t* result_length);
 
-        /* unsealing/sealing => in test mode currently */
-        // public sgx_status_t ecall_test_sealing_storage_key();
-
 
         public void ecall_get_signing_pubkey([out] uint8_t arr[64]);
     };

@@ -25,22 +25,8 @@ extern crate enigma_tools_t;
 
 mod ocalls_t;
 
-use sgx_trts::*;
-use sgx_types::*;
-use sgx_tse::*;
+use sgx_types::{sgx_status_t, sgx_target_info_t, sgx_report_t};
 use sgx_trts::trts::rsgx_read_rand;
-
-use std::ptr;
-use std::string::String;
-use std::vec::Vec;
-use std::io::{self, Write, Read};
-use std::slice;
-use std::str::from_utf8;
-use std::string::ToString;
-use std::ffi::{CString, CStr};
-use std::os::raw::c_char;
-use std::path;
-use std::untrusted::fs::{File, remove_file};
 
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::assymetric;
