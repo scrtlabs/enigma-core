@@ -52,6 +52,9 @@ enclave {
 
         /* unsealing/sealing => in test mode currently */
         // public sgx_status_t ecall_test_sealing_storage_key();
+
+
+        public void ecall_get_signing_pubkey([out] uint8_t arr[64]);
     };
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);

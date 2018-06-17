@@ -68,12 +68,12 @@ pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t 
     quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
 }
 
-pub fn get_sealed_keys() -> assymetric::KeyPair {
+fn get_sealed_keys() -> assymetric::KeyPair {
     // Get Home path via Ocall
     let mut path_buf = ocalls_t::get_home_path();
+    // add the filename to the path: `keypair.sealed`
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
-
 
     // Open the file
     match File::open(sealed_path) {
@@ -110,10 +110,10 @@ pub fn get_sealed_keys() -> assymetric::KeyPair {
     keypair
 }
 
-//#[no_mangle]
-//pub extern "C" fn ecall_get_signing_pubkey() -> [u8; 64] {
-//
-//}
+#[no_mangle]
+pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
+    pubkey.clone_from_slice(&SIGNINING_KEY.get_pubkey());
+}
 
 
 //#[allow(unused_variables, unused_mut)]

@@ -14,6 +14,6 @@ pub fn get_home_path() -> path::PathBuf{
     unsafe { ocall_get_home(home_slice.as_mut_ptr(), &mut result_len); }
     let home_str = str::from_utf8(&home_slice[..result_len]).unwrap();
     println!("Back from Ocall: {}", &home_str);
-    // add the filename to it `keypair.sealed`
+
     path::PathBuf::from(home_str)
 }
