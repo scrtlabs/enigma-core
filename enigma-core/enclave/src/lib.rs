@@ -56,13 +56,14 @@ use std::untrusted::fs::{File, remove_file};
 use hexutil::read_hex;
 use evm_t::call_sputnikvm;
 
+use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::assymetric;
 use enigma_tools_t::common::utils_t::{ToHex, FromHex};
 use enigma_tools_t::storage_t;
 use enigma_tools_t::quote_t;
 
 
-lazy_static! { static ref SIGNINING_KEY: assymetric::KeyPair = get_sealed_keys(); }
+lazy_static! { static ref SIGNINING_KEY: assymetric::KeyPair = get_sealed_keys_wrapper(); }
 
 
 #[no_mangle]
@@ -72,46 +73,14 @@ pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t 
     quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
 }
 
-fn get_sealed_keys() -> assymetric::KeyPair {
+fn get_sealed_keys_wrapper() -> assymetric::KeyPair {
     // Get Home path via Ocall
     let mut path_buf = ocalls_t::get_home_path();
     // add the filename to the path: `keypair.sealed`
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
 
-    // Open the file
-    match File::open(sealed_path) {
-        Ok(mut file) => {
-            let mut sealed:[u8;storage_t::SEAL_LOG_SIZE] = [0;storage_t::SEAL_LOG_SIZE];
-            let result = file.read(&mut sealed);
-            match storage_t::SecretKeyStorage::unseal_key(&mut sealed) {
-                // If the data is unsealed correctly return this KeyPair.
-                Some(unsealed_data) => {
-                    println!("Succeeded reading key from file");
-                    return assymetric::KeyPair::from_slice(&unsealed_data.data);
-                },
-                // If the data couldn't get unsealed remove the file.
-                None => {
-                    println!("Failed reading file, Removing");
-                    remove_file(sealed_path)
-                }
-            };
-        },
-
-        Err(err) => {
-            if err.kind() == io::ErrorKind::PermissionDenied { panic!("No Permissions for: {}", sealed_path) }
-        }
-    }
-
-    // Generate a new Keypair and seal it.
-    let keypair = assymetric::KeyPair::new();
-    let data = storage_t::SecretKeyStorage {version: 0x1, data: keypair.get_privkey()};
-    let mut output: [u8; storage_t::SEAL_LOG_SIZE] = [0; storage_t::SEAL_LOG_SIZE];
-    data.seal_key(&mut output);
-    storage_t::save_sealed_key(&sealed_path, &output);
-    println!("Generated a new key");
-
-    keypair
+    cryptography_t::get_sealed_keys(&sealed_path)
 }
 
 #[no_mangle]
