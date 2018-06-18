@@ -28,7 +28,7 @@ rev = "v1.0.0"
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
 
-# sealing testing not all required.
+# sealing 
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tseal]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
