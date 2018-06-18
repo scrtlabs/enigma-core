@@ -22,6 +22,7 @@ impl Emittable for EpochGen {
 }
 
 fn main() {
+    /// TODO: externalize to config
     let (eloop, http) = web3::transports::Http::new("http://localhost:9545")
         .expect("unable to create Web3 HTTP provider");
     let w3 = web3::Web3::new(http);
