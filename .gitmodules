@@ -1,17 +1,10 @@
 [submodule "sputnikvm"]
-	path = sputnikvm
+	path = thirdparties/sputnikvm
 	url = git@github.com:enigmampc/sputnikvm.git
 	branch = develop
 [submodule "thirdparties/etcommon-rs"]
 	path = thirdparties/etcommon-rs
 	url = git@github.com:enigmampc/etcommon-rs.git
-[submodule "thirdparties/libsecp256k1-rs"]
-	path = thirdparties/libsecp256k1-rs
-	url = git@github.com:enigmampc/libsecp256k1-rs.git
-[submodule "thirdparties/ring"]
-	path = thirdparties/ring
-	url = git@github.com:enigmampc/ring.git
-	branch = sgx-0.12.1
 [submodule "thirdparties/ethabi"]
 	path = thirdparties/ethabi
 	url = git@github.com:enigmampc/ethabi.git

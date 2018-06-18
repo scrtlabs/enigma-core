@@ -1,0 +1,46 @@
+Commands that can be sent to core from surface: 
+TBD:: error responses 
+
+1) getregister
+
+To enigma-core: 
+
+{
+	"cmd" : "getregister",
+}
+
+From enigma-core:
+{
+	'quote': '...',  // base64 string 
+	'pub_key': '...', // hex string 
+}
+
+2) execevm
+
+To enigma-core:
+{
+	"cmd" : "execevm",
+	"bytecode" :"the evm bytecode",
+	"callable" : "callable(uint,address[],...)", 
+	"callableArgs" :"the callable args", // as RLP str encoded 
+	"preprocessor": "rand()",
+	"callback": "callback(uint,address[],...)"
+}
+From enigma-core 
+{
+	'signature': 'the evm signature', 
+	'result': 'the evm result'
+}
+
+3) close code and stop the server 
+
+To enigma-core:
+{
+	'cmd' : 'stop',
+}
+
+From enigma-core 
+{
+	'reason': 'stop request.', 
+	'errored': False
+}
