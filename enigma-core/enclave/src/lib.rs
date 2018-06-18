@@ -46,7 +46,7 @@ use std::path;
 use std::untrusted::fs::{File, remove_file};
 
 use hexutil::read_hex;
-use evm_t::call_sputnikvm;
+use evm_t::evm_t::call_sputnikvm;
 
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;

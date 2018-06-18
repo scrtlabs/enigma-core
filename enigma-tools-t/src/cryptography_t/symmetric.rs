@@ -1,6 +1,5 @@
 use tiny_keccak::Keccak;
 use secp256k1::{PublicKey, SecretKey, SharedSecret};
-use ring::digest;
 use ring::aead;
 use ring::rand::{SystemRandom, SecureRandom};
 use std::string::String;
@@ -21,8 +20,8 @@ pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Vec<u8>
     }
     let additional_data: [u8; 0] = [];
 
-    let enc_key = digest::digest(&digest::SHA256, &key);
-    let aes_encrypt = aead::SealingKey::new(&AES_MODE, enc_key.as_ref()).unwrap();
+//    let enc_key = digest::digest(&digest::SHA256, &key);
+    let aes_encrypt = aead::SealingKey::new(&AES_MODE, key).unwrap();
 
     let mut in_out = message.clone();
     let tag_size = AES_MODE.tag_len();
@@ -35,8 +34,8 @@ pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Vec<u8>
 }
 
 pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Vec<u8>{
-    let enc_key = digest::digest(&digest::SHA256, &key);
-    let aes_decrypt = aead::OpeningKey::new(&AES_MODE, enc_key.as_ref()).unwrap();
+//    let enc_key = digest::digest(&digest::SHA256, &key);
+    let aes_decrypt = aead::OpeningKey::new(&AES_MODE, key).unwrap();
     let additional_data: [u8; 0] = [];
     let mut ciphertext = cipheriv.clone();
     let mut iv: [u8; 12] = [0; 12];
@@ -50,6 +49,7 @@ pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Vec<u8>{
 }
 
 pub mod tests {
+    use ring::digest;
     use cryptography_t::symmetric::*;
     use common::utils_t::{ToHex, FromHex};
     use sgx_trts::trts::rsgx_read_rand;
@@ -67,18 +67,19 @@ pub mod tests {
     }
 
     pub fn test_encryption() {
-        let key = b"EnigmaMPC";
+        let key = digest::digest(&digest::SHA256, b"EnigmaMPC");
         let msg = b"This Is Enigma".to_vec();
         let iv = Some( [0,1,2,3,4,5,6,7,8,9,10,11] );
-        let result = encrypt(&msg, key, &iv);
+        let result = encrypt(&msg, key.as_ref(), &iv);
 //        println!("{:?}", result.to_hex());
         assert_eq!(result.to_hex(), "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b");
+
     }
 
     pub fn test_decryption() {
         let encrypted_data = "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b";
-        let key = b"EnigmaMPC";
-        let result = decrypt(&encrypted_data.from_hex().unwrap(), key);
+        let key = digest::digest(&digest::SHA256, b"EnigmaMPC");
+        let result = decrypt(&encrypted_data.from_hex().unwrap(), key.as_ref());
         assert_eq!(result, b"This Is Enigma".to_vec());
     }
 }

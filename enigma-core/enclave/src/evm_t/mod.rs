@@ -2,6 +2,7 @@ pub mod evm_t;
 
 
 pub mod preprocessor{
+    use std::vec::Vec;
     use sgx_trts::trts::rsgx_read_rand;
     // TODO: Implement Errors
     fn run(pre_sig: &str) -> Vec<u8> {
@@ -10,7 +11,6 @@ pub mod preprocessor{
             _ => panic!()
         }
     }
-    
     fn rand() -> Vec<u8> {
         let mut r: [u8; 16] = [0; 16];
         match rsgx_read_rand(&mut r) {
