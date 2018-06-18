@@ -13,6 +13,8 @@ default = []
 [dependencies]
 lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
 enigma-tools-t = {path = "../../enigma-tools-t"}
+failure = "0.1.1"
+failure_derive="0.1.1"
 
 [dependencies.sputnikvm-network-classic]
 git = "https://github.com/enigmampc/sputnikvm.git"
