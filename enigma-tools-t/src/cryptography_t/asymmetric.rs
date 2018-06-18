@@ -60,7 +60,7 @@ impl KeyPair {
     /// # Examples
     /// Simple Message signing:
     /// ```
-    /// let keys = cryptography_t::assymetric::KeyPair::new();
+    /// let keys = cryptography_t::asymmetric::KeyPair::new();
     /// let msg = b"Sign this";
     /// let sig = keys.sign(&msg);
     /// ```
@@ -85,8 +85,7 @@ impl KeyPair {
 }
 
 pub mod tests {
-//    extern crate sgx_tunittest;
-    use cryptography_t::assymetric::*;
+    use cryptography_t::asymmetric::*;
 
     pub fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];

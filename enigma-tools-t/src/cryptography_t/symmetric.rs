@@ -43,32 +43,39 @@ pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Vec<u8>{
     for _i in (0..iv.len()).rev() {
         iv[_i] = ciphertext.pop().unwrap();
     }
-    println!("CipherText: {:?}", ciphertext);
     println!("{:?}", iv);
-
     let decrypted_data = aead::open_in_place(&aes_decrypt, &iv, &additional_data, 0, &mut ciphertext).expect(&"AES decryption failed");
-    println!("Decrypted: {:?}",String::from_utf8_lossy(decrypted_data));
     let result = decrypted_data.to_vec();
     result
 }
 
-#[cfg(test)]
-mod tests {
+pub mod tests {
     use cryptography_t::symmetric::*;
     use common::utils_t::{ToHex, FromHex};
+    use sgx_trts::trts::rsgx_read_rand;
+    use sgx_types::sgx_status_t;
 
-    #[test]
-    fn test_encryption() {
+    pub fn test_rand_encrypt_decrypt() {
+        let mut rand_seed: [u8; 1072] = [0; 1072];
+        rsgx_read_rand(&mut rand_seed).unwrap();
+        let key = &rand_seed[..32];
+        let mut iv: [u8; 12] = [0; 12];
+        iv.clone_from_slice(&rand_seed[32..44]);
+        let msg = rand_seed[44..1068].to_vec();
+        let ciphertext = encrypt(&msg, key, &Some(iv));
+        assert_eq!(msg, decrypt(&ciphertext, &key));
+    }
+
+    pub fn test_encryption() {
         let key = b"EnigmaMPC";
         let msg = b"This Is Enigma".to_vec();
-        let iv = Some( [0,1,2,3,4,5,6,7,8,9,10,11,12] );
+        let iv = Some( [0,1,2,3,4,5,6,7,8,9,10,11] );
         let result = encrypt(&msg, key, &iv);
-        println!("{:?}", result.to_hex());
+//        println!("{:?}", result.to_hex());
         assert_eq!(result.to_hex(), "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b");
     }
 
-    #[test]
-    fn test_decryption() {
+    pub fn test_decryption() {
         let encrypted_data = "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b";
         let key = b"EnigmaMPC";
         let result = decrypt(&encrypted_data.from_hex().unwrap(), key);

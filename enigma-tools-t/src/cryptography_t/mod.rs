@@ -1,4 +1,4 @@
-pub mod assymetric;
+pub mod asymmetric;
 pub mod symmetric;
 
 use storage_t;
@@ -6,7 +6,7 @@ use std::untrusted::fs::{File, remove_file};
 use std::io::{Read, ErrorKind};
 
 
-pub fn get_sealed_keys(sealed_path: &str) -> assymetric::KeyPair {
+pub fn get_sealed_keys(sealed_path: &str) -> asymmetric::KeyPair {
     // Open the file
     match File::open(sealed_path) {
         Ok(mut file) => {
@@ -16,7 +16,7 @@ pub fn get_sealed_keys(sealed_path: &str) -> assymetric::KeyPair {
                 // If the data is unsealed correctly return this KeyPair.
                 Some(unsealed_data) => {
                     println!("Succeeded reading key from file");
-                    return assymetric::KeyPair::from_slice(&unsealed_data.data);
+                    return asymmetric::KeyPair::from_slice(&unsealed_data.data);
                 },
                 // If the data couldn't get unsealed remove the file.
                 None => {
@@ -31,7 +31,7 @@ pub fn get_sealed_keys(sealed_path: &str) -> assymetric::KeyPair {
     }
 
     // Generate a new Keypair and seal it.
-    let keypair = assymetric::KeyPair::new();
+    let keypair = asymmetric::KeyPair::new();
     let data = storage_t::SecretKeyStorage {version: 0x1, data: keypair.get_privkey()};
     let mut output: [u8; storage_t::SEAL_LOG_SIZE] = [0; storage_t::SEAL_LOG_SIZE];
     data.seal_key(&mut output);

@@ -29,13 +29,13 @@ use sgx_types::{sgx_status_t, sgx_target_info_t, sgx_report_t};
 use sgx_trts::trts::rsgx_read_rand;
 
 use enigma_tools_t::cryptography_t;
-use enigma_tools_t::cryptography_t::assymetric;
+use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::common::utils_t::{ToHex, FromHex};
 use enigma_tools_t::storage_t;
 use enigma_tools_t::quote_t;
 
 
-lazy_static! { static ref SIGNINING_KEY: assymetric::KeyPair = get_sealed_keys_wrapper(); }
+lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
 
 #[no_mangle]
@@ -44,7 +44,7 @@ pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t 
     quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
 }
 
-fn get_sealed_keys_wrapper() -> assymetric::KeyPair {
+fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     // Get Home path via Ocall
     let mut path_buf = ocalls_t::get_home_path();
     // add the filename to the path: `keypair.sealed`
@@ -94,7 +94,7 @@ pub mod tests {
     use sgx_tunittest::*;
     use std::vec::Vec;
     use std::string::String;
-    use enigma_tools_t::cryptography_t::assymetric::tests::*;
+    use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
 
     #[no_mangle]
