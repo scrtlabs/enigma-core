@@ -18,6 +18,7 @@ extern crate sgx_trts;
 extern crate sgx_tseal;
 extern crate sgx_rand;
 
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -26,6 +27,7 @@ extern crate hexutil;
 extern crate bigint;
 extern crate sputnikvm_network_classic;
 extern crate enigma_tools_t;
+
 //extern crate ring;
 //extern crate secp256k1;
 //extern crate tiny_keccak;
@@ -36,6 +38,7 @@ extern crate enigma_tools_t;
 //mod quote_t;
 mod evm_t;
 mod ocalls_t;
+
 
 use sgx_trts::*;
 use sgx_types::*;

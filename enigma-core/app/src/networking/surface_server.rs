@@ -1,6 +1,6 @@
 use zmq;
 use serde_json;
-use serde_json::{Value, Error};
+use serde_json::{Value};
 use std::thread;
 use std::time::Duration;
 use evm_u::evm;
@@ -9,6 +9,9 @@ use networking::constants;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
+//failure 
+use failure::Error;
+use failure::err_msg;
 
 pub struct ClientHandler{}
 
@@ -71,7 +74,7 @@ impl ClientHandler {
         // ecall a quote + key 
         let encoded_quote = equote::produce_quote(enclave, &constants::SPID.to_owned());
         // ecall get the clear text public signing key 
-        let pub_signing_key = equote::get_register_signing_key(enclave).unwrap();
+        let pub_signing_key = equote::get_register_signing_key(enclave)?;
         // serialize the result 
         let str_result = serde_json::to_string(&equote::GetRegisterResult{
             quote:encoded_quote, 

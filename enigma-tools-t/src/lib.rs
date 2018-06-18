@@ -12,6 +12,10 @@ extern crate ring;
 extern crate tiny_keccak;
 extern crate secp256k1;
 
+// errors 
+// extern crate failure;
+// #[macro_use] extern crate failure_derive;
+
 pub mod cryptography_t;
 pub mod common;
 pub mod quote_t;

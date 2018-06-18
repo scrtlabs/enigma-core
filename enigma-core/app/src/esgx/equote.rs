@@ -1,4 +1,3 @@
-extern crate base64;
 use std;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
@@ -12,9 +11,16 @@ use base64::{encode, decode};
 use std::slice;
 use std::ffi::{CString, CStr};
 use std::os::raw::c_char;
+
 use esgx::general;
+use common_u::errors;
+
+use failure::Error;
+use failure::err_msg;
+
 // #[derive(Serialize, Deserialize, Debug)] for GetRegisterResult
 use serde_json;
+
 
 #[link(name = "sgx_tservice")] extern {
     pub fn ecall_get_registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
@@ -59,7 +65,7 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
 
     let mut target_info = sgx_target_info_t::default();
     let mut gid = sgx_epid_group_id_t::default();
-
+    //let err = errors::ProduceQuoteErr{status:sgx_status_t::SGX_SUCCESS, message : String::from("hola")};
     // create quote
     stat = unsafe{
         sgx_init_quote(&mut target_info ,&mut gid)
@@ -109,7 +115,7 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
 // TODO:: replace the error type in the Result once established
 // FYI,
 
-pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,&'static str>{
+pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,Error>{
     let mut pub_key: [u8; 64] = [0; 64];
     let status =  unsafe {
          ecall_get_signing_pubkey(enclave.geteid(), &mut pub_key) 
@@ -121,7 +127,8 @@ pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,&'static s
         });
         Ok(hex_key)         
     }else{
-        Err("[-] Error get_register_signing_key()")
+        Err(errors::ProduceQuoteErr{status:status, 
+        message : String::from("error in get_register_signing_key")}.into())
     }
 }
 

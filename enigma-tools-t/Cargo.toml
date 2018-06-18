@@ -1,12 +1,14 @@
 [package]
 name = "enigma-tools-t"
 version = "0.1.0"
-authors = ["Elichai Turkel <elichai@enigma.co>"]
+authors = ["mr_signer <satoshi@enigma.co>"]
 description = "Tools used by the trusted part of the Enigma core and Principal node."
 [dependencies]
 tiny-keccak = "1.4.1"
 libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
-
+# errors handling 
+#failure = "0.1.1"
+#failure_derive="0.1.1"
 
 [dependencies.ring]
 git = "https://github.com/enigmampc/ring.git"

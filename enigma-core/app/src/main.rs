@@ -4,6 +4,11 @@ extern crate base64;
 // networking apt install libzmq3-dev
 extern crate zmq; 
 extern crate serde_json;
+// errors 
+extern crate failure;
+#[macro_use] extern crate failure_derive;
+
+
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -23,7 +28,9 @@ use std::vec;
 mod esgx;
 mod evm_u;
 mod networking;
+mod common_u;
 
+use common_u::errors;
 use esgx::general;
 use esgx::equote;
 
@@ -52,7 +59,6 @@ fn main() {
     // let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
     // let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
     // println!("{:?}", &tested_encoded_quote);
-
     enclave.destroy();
 }
 
@@ -78,6 +84,7 @@ mod tests {
             },
         };
         let ret = unsafe { ecall_run_tests(enclave.geteid()) };
+        
         assert_eq!(ret,sgx_status_t::SGX_SUCCESS);
         enclave.destroy();
     }

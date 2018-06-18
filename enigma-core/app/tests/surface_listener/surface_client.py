@@ -5,7 +5,7 @@ import json
 context = zmq.Context()
 socket = context.socket(zmq.REQ)
 
-socket.connect('tcp://127.0.0.1:5551')
+socket.connect('tcp://127.0.0.1:5552')
 
 # request worker evm computation 
 evm_data = json.dumps({
