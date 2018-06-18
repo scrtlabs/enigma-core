@@ -26,14 +26,6 @@ extern crate hexutil;
 extern crate bigint;
 extern crate sputnikvm_network_classic;
 extern crate enigma_tools_t;
-//extern crate ring;
-//extern crate secp256k1;
-//extern crate tiny_keccak;
-//
-//mod common;
-//mod cryptography_t;
-//mod storage_t;
-//mod quote_t;
 mod evm_t;
 mod ocalls_t;
 
