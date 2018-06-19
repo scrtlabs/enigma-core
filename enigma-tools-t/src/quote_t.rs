@@ -1,11 +1,6 @@
-//use sgx_trts::*;
 use sgx_types::*;
 use sgx_tse::*;
 
-//use std::string::String;
-//use std::vec::Vec;
-//use std::io::{self, Write};
-//use std::slice;
 
 // extra_data size (limit to 64)
 static REPORT_DATA_SIZE : usize = 64;

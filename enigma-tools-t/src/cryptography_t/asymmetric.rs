@@ -1,8 +1,6 @@
 use secp256k1;
 use secp256k1::{PublicKey, SecretKey, SharedSecret};
-//use tiny_keccak::Keccak;
 use sgx_trts::trts::rsgx_read_rand;
-//use std::string::String;
 use common::utils_t::{ToHex, Keccak256};
 
 //use std::str;

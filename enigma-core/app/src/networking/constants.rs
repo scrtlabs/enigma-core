@@ -1,6 +1,4 @@
 #![allow(dead_code,unused_assignments,unused_variables)]
-// #[derive(Serialize, Deserialize, Debug)] for StopServer
-//use serde_json;
 
 pub enum Command {
     Execevm, // execute evm bytecode 

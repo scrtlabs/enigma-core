@@ -1,7 +1,6 @@
 use ring::digest;
 use ring::aead;
 use ring::rand::{SystemRandom, SecureRandom};
-//use std::string::String;
 use std::vec::Vec;
 use std::option::Option;
 

@@ -31,10 +31,7 @@ extern crate enigma_tools_t;
 mod evm_t;
 mod ocalls_t;
 
-
-//use sgx_trts::*;
 use sgx_types::*;
-//use sgx_tse::*;
 
 use std::ptr;
 

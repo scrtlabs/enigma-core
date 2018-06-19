@@ -1,17 +1,12 @@
 #[cfg(not(target_env = "sgx"))]
-//#[macro_use]
 use sgx_types::{sgx_status_t, sgx_sealed_data_t,sgx_attributes_t};
 use sgx_types::marker::ContiguousMemory;
 use sgx_tseal::{SgxSealedData};
-//use sgx_tseal::*;
-// file storage
-//use std::sgxfs::{self, SgxFile};
 use std::untrusted::fs::File;
 use std::untrusted::fs::remove_file;
 use std::io::{Read, Write};
 use std::string::*;
-//use std::path;
-//use std::env;
+
 
 
 pub const SEALING_KEY_SIZE : usize = 32;

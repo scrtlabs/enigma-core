@@ -4,8 +4,6 @@ use std::io::{Read, Write};
 use std::fs;
 use std::path;
 use std::env;
-//use std::slice;
-//use std::io;
 use std::ptr;
 
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
