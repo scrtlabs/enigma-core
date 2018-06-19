@@ -1,10 +1,10 @@
 [package]
-name = "Helloworldsampleenclave"
+name = "enigmacoreenclave"
 version = "0.9.8"
-authors = ["Baidu"]
+authors = ["Enigma"]
 
 [lib]
-name = "helloworldsampleenclave"
+name = "enigmacoreenclave"
 crate-type = ["staticlib"]
 
 [features]

@@ -38,7 +38,7 @@ all: $(Rust_Enclave_Name)
 $(Rust_Enclave_Name): $(Rust_Enclave_Files)
 ifeq ($(XARGO_SGX), 1)
 	RUST_TARGET_PATH=$(shell pwd) xargo build --target x86_64-unknown-linux-sgx $(CARGO_FLAGS)
-	cp ./target/x86_64-unknown-linux-sgx/release/libhelloworldsampleenclave.a ../lib/libenclave.a
+	cp ./target/x86_64-unknown-linux-sgx/release/libenigmacoreenclave.a ../lib/libenclave.a
 else
 	cargo build $(CARGO_FLAGS)
 	cp ./target/release/libenigma_principle_enclave.a ../lib/libenclave.a

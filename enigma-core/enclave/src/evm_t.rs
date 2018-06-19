@@ -1,8 +1,3 @@
-#![cfg_attr(not(target_env = "sgx"), no_std)]
-#![cfg_attr(target_env = "sgx", feature(rustc_private))]
-
-extern crate sgx_tstd as std;
-
 use std::str::FromStr;
 use bigint::{Gas, Address, U256, M256, H256};
 use sputnikvm::{HeaderParams, Context, VM, VMStatus, AccountCommitment, RequireError, SeqContextVM};

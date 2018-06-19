@@ -5,19 +5,10 @@ extern crate sgx_urts;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
-//use std::io::{Read, Write, BufReader, BufRead};
-//use std::fs;
-//use std::path;
-//use std::env;
-//use std::fs::File;
 use std::iter::FromIterator;
-//use esgx;
-// #[derive(Serialize, Deserialize, Debug)] for ToServerEvm
-//use serde_json;
 //failure 
 use common_u::errors;
 use failure::Error;
-//use failure::err_msg;
 
 extern {
     fn ecall_evm(eid: sgx_enclave_id_t,
@@ -122,15 +113,12 @@ pub mod tests {
     #![allow(dead_code,unused_assignments,unused_variables)]
     use esgx;
     use std::fs::File;
-    use std::io::{Read, Write, BufReader, BufRead};
-    use std::fs;
-    use std::path;
-    use std::env;
+    use std::io::{ BufReader, BufRead};
     use evm_u::evm;
 
     fn read_input_from_file(path: &str) -> evm::EvmInput {
         println!("Path {}", path);
-        let mut file = match File::open(&path) {
+        let file = match File::open(&path) {
             // The `description` method of `io::Error` returns a string that
             // describes the error
             Err(why) => panic!("couldn't open {}: {}", path,

@@ -1,6 +1,4 @@
 #![allow(dead_code,unused_assignments,unused_variables)]
-//use failure::Error;
-//use failure::err_msg;
 use sgx_types::*;
 
 // error while requesting to produce a quote (registration)

@@ -3,15 +3,8 @@ use std;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::*;
-//use std::io::{Read, Write};
-//use std::fs;
-//use std::path;
-//use std::env;
-//use std::ptr;
 use base64::{encode};
-//use std::slice;
-//use std::ffi::{CString, CStr};
-//use std::os::raw::c_char;
+
 
 use esgx::general;
 use common_u::errors;
@@ -19,13 +12,9 @@ use common_u::errors;
 use failure::Error;
 
 
-// #[derive(Serialize, Deserialize, Debug)] for GetRegisterResult
-//use serde_json;
-
-
 #[link(name = "sgx_tservice")] extern {
     pub fn ecall_get_registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
-                               report: *mut sgx_report_t, home_ptr: *const u8, home_len: usize) -> sgx_status_t ;
+                               report: *mut sgx_report_t) -> sgx_status_t ;
 }
 
 #[link(name = "sgx_uae_service")] extern {
@@ -82,7 +71,7 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> Result<String,Err
     let home = _home.to_str().unwrap();
     stat = unsafe {
         ecall_get_registration_quote(enclave.geteid(), &mut retval, &target_info,
-                            &mut report ,home.as_ptr() as * const u8, home.len())
+                            &mut report)
     };
     // calc quote size
     let mut quote_size : u32= 0;

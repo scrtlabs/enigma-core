@@ -1,5 +1,3 @@
-//use tiny_keccak::Keccak;
-//use secp256k1::{PublicKey, SecretKey, SharedSecret};
 use ring::digest;
 use ring::aead;
 use ring::rand::{SystemRandom, SecureRandom};
@@ -9,6 +7,7 @@ use std::option::Option;
 
 static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 
+//TODO:: error handling return a result/match 
 pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Vec<u8> {
     let mut iv: [u8; 12];
     match _iv {
@@ -16,7 +15,10 @@ pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Vec<u8>
         None => {
             iv = [0; 12];
             let r = SystemRandom::new();
-            r.fill(&mut iv);
+            match r.fill(&mut iv){
+                Ok(_v)=>{},
+                Err(_e)=>{},
+            };
         }
     }
     let additional_data: [u8; 0] = [];
@@ -29,7 +31,7 @@ pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Vec<u8>
     for _ in 0..tag_size {
         in_out.push(0);
     }
-    let seal_size = aead::seal_in_place(&aes_encrypt, &iv, &additional_data, &mut in_out, tag_size).expect(&"AES encryption failed");
+    aead::seal_in_place(&aes_encrypt, &iv, &additional_data, &mut in_out, tag_size).expect(&"AES encryption failed");
     in_out.append(&mut iv.to_vec());
     in_out
 }

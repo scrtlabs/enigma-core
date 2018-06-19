@@ -19,7 +19,11 @@ impl KeyPair {
     pub fn new() -> KeyPair {
         let mut me: [u8; 32] = [0; 32];
         // TODO: Check if needs to check the random is within the curve.
-        rsgx_read_rand(&mut me);
+        // TODO:: return result and error handling
+        match rsgx_read_rand(&mut me){
+            Ok(_v)=>{},
+            Err(_e)=>{},
+        };
         let _priv = SecretKey::parse(&me).unwrap();
         let _pub = PublicKey::from_secret_key(&_priv);
         let keys = KeyPair{privkey: _priv, pubkey: _pub};

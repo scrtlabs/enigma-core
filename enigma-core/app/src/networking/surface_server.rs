@@ -2,17 +2,13 @@
 use zmq;
 use serde_json;
 use serde_json::{Value};
-//use std::thread;
-//use std::time::Duration;
 use evm_u::evm;
 use esgx::equote;
 use networking::constants;
-//use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
 //failure 
 use failure::Error;
-//use failure::err_msg;
 
 
 pub struct ClientHandler{}
@@ -159,7 +155,6 @@ impl<'a> Server<'a>{
     use esgx::general::init_enclave;
     use networking::surface_server;
     use networking::constants;
-    use std::thread;
 
     // can be tested with a client /app/tests/surface_listener/surface_client.pu
     // network message defitnitions can be found in /app/tests/surface_listener/message_type.definition
