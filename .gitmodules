@@ -1,10 +1,10 @@
 [submodule "sputnikvm"]
 	path = thirdparties/sputnikvm
-	url = git@github.com:enigmampc/sputnikvm.git
+	url = https://github.com/enigmampc/sputnikvm.git
 	branch = develop
 [submodule "thirdparties/etcommon-rs"]
 	path = thirdparties/etcommon-rs
-	url = git@github.com:enigmampc/etcommon-rs.git
+	url = https://github.com/enigmampc/etcommon-rs.git
 [submodule "thirdparties/ethabi"]
 	path = thirdparties/ethabi
-	url = git@github.com:enigmampc/ethabi.git
+	url = https://github.com/enigmampc/ethabi.git
