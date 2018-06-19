@@ -5,6 +5,8 @@
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
+#![feature(slice_concat_ext)]
+
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -28,6 +30,11 @@ extern crate bigint;
 extern crate sputnikvm_network_classic;
 extern crate enigma_tools_t;
 
+#[macro_use]
+extern crate error_chain;
+extern crate rustc_hex as hex;
+extern crate ethabi;
+extern crate rlp;
 mod evm_t;
 mod ocalls_t;
 
@@ -39,7 +46,7 @@ use std::slice;
 use std::str::from_utf8;
 
 use hexutil::read_hex;
-use evm_t::call_sputnikvm;
+use evm_t::evm::call_sputnikvm;
 
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
