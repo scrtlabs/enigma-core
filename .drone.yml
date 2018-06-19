@@ -1,0 +1,9 @@
+pipeline:
+  build:
+    image: enigmampc/enigma-core:0.0.1
+    devices:
+      - "/dev/isgx:/dev/isgx"
+    commands: 
+      - /opt/intel/sgxpsw/aesm/aesm_service
+      - . /opt/sgxsdk/environment && . /root/.cargo/env && RUSTFLAGS=-Awarnings make
+      - cd app && cargo test
