@@ -1,9 +1,9 @@
-use tiny_keccak::Keccak;
-use secp256k1::{PublicKey, SecretKey, SharedSecret};
+//use tiny_keccak::Keccak;
+//use secp256k1::{PublicKey, SecretKey, SharedSecret};
 use ring::digest;
 use ring::aead;
 use ring::rand::{SystemRandom, SecureRandom};
-use std::string::String;
+//use std::string::String;
 use std::vec::Vec;
 use std::option::Option;
 
@@ -53,7 +53,7 @@ pub mod tests {
     use cryptography_t::symmetric::*;
     use common::utils_t::{ToHex, FromHex};
     use sgx_trts::trts::rsgx_read_rand;
-    use sgx_types::sgx_status_t;
+    //use sgx_types::sgx_status_t;
 
     pub fn test_rand_encrypt_decrypt() {
         let mut rand_seed: [u8; 1072] = [0; 1072];

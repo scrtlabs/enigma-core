@@ -1,17 +1,19 @@
+#![allow(dead_code)]
 use zmq;
 use serde_json;
 use serde_json::{Value};
-use std::thread;
-use std::time::Duration;
+//use std::thread;
+//use std::time::Duration;
 use evm_u::evm;
 use esgx::equote;
 use networking::constants;
-use sgx_types::*;
+//use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
 //failure 
 use failure::Error;
-use failure::err_msg;
+//use failure::err_msg;
+
 
 pub struct ClientHandler{}
 
@@ -26,12 +28,12 @@ impl ClientHandler {
         let cmd : constants::Command = v["cmd"].as_str().unwrap().into();
         let result = match cmd {
             constants::Command::Execevm =>{
-                let result = self.handle_execevm(responder, v.clone()).unwrap();
+                let result = self.handle_execevm(v.clone()).unwrap();
                 println!("EVM Output result : {}",result );
                 result
             },
             constants::Command::GetRegister =>{
-                let result = self.handle_get_register(enclave, responder,  v.clone()).unwrap();
+                let result = self.handle_get_register(enclave).unwrap();
                 println!("Enclave quote : {}", result);
                 result
             },
@@ -41,14 +43,24 @@ impl ClientHandler {
                   result
             },
             constants::Command::Unknown =>{
-                println!("[Server] unkown command ");    
-                String::from("")
+                println!("[-] Server unkown command ");    
+                let result = self.handle_unkown(v.clone())?;
+                result
             },
         };
-        thread::sleep(Duration::from_millis(1000));
         responder.send_str(&result, 0).unwrap();
-        Ok((keep_running))  
+        Ok(keep_running)  
     }
+    fn handle_unkown(&self ,  msg : Value) -> Result<(String),Error>{
+        let str_result = serde_json::to_string(
+            &constants::UnkownCmd{
+                errored: false,
+                received : msg["cmd"].to_string(),
+            }
+        )?;
+        Ok(str_result)
+    }
+    // private function : handle stop (shutdown server) cmd
     fn handle_stop(&self)->  Result<(String), Error>{   
         // serialize the response
         let str_result = serde_json::to_string(&constants::StopServer{
@@ -59,24 +71,25 @@ impl ClientHandler {
         Ok(str_result)
     }
     // private function : handle execevm cmd 
-    fn handle_execevm(&self,responder : &zmq::Socket, msg : Value)-> Result<(String), Error>{
+    fn handle_execevm(&self, msg : Value)-> Result<(String), Error>{
             // get the EVM inputs 
             let evm_input = self.unwrap_execevm(msg);
             // make an ecall to encrypt+compute 
-            let result : evm::ToServerEvm = evm::exec_evm(evm_input).unwrap();
+            let result : evm::EvmResponse = evm::exec_evm(evm_input)?;
             // serialize the result 
             let str_result = serde_json::to_string(&result).unwrap();
             // send 
-        Ok((str_result))
+        Ok(str_result)
     }
     // private function : handle getregister
-    fn handle_get_register(&self,enclave: &SgxEnclave,responder : &zmq::Socket,msg : Value)->  Result<(String), Error>{   
+    fn handle_get_register(&self,enclave: &SgxEnclave)->  Result<(String), Error>{   
         // ecall a quote + key 
-        let encoded_quote = equote::produce_quote(enclave, &constants::SPID.to_owned());
+        let encoded_quote = equote::produce_quote(enclave, &constants::SPID.to_owned())?;
         // ecall get the clear text public signing key 
         let pub_signing_key = equote::get_register_signing_key(enclave)?;
         // serialize the result 
         let str_result = serde_json::to_string(&equote::GetRegisterResult{
+            errored:false,
             quote:encoded_quote, 
             pub_key: pub_signing_key })
             .unwrap();
@@ -84,11 +97,11 @@ impl ClientHandler {
         Ok(str_result)
     }
     // private function : turn all JSON values to strings
-    fn unwrap_execevm(&self, msg : Value) -> evm::FromServerEvm {
-        evm::FromServerEvm::new(
+    fn unwrap_execevm(&self, msg : Value) -> evm::EvmRequest {
+        evm::EvmRequest::new(
         msg["bytecode"].as_str().unwrap().to_string(),
         msg["callable"].as_str().unwrap().to_string(), 
-        msg["callableArgs"].as_str().unwrap().to_string(), 
+        msg["callable_args"].as_str().unwrap().to_string(), 
         msg["preprocessor"].as_str().unwrap().to_string(), 
         msg["callback"].as_str().unwrap().to_string())
     }
@@ -106,7 +119,7 @@ impl<'a> Server<'a>{
     pub fn new(conn_str: &str, enclave: &'a SgxEnclave) -> Server<'a> {
         let ctx = zmq::Context::new();
         // Maybe this doesn't need to be mut?
-        let mut rep = ctx.socket(zmq::REP).unwrap();
+        let rep = ctx.socket(zmq::REP).unwrap();
         rep.bind(conn_str).unwrap();
         let client_handler = ClientHandler{};
         Server {
@@ -151,7 +164,7 @@ impl<'a> Server<'a>{
     // can be tested with a client /app/tests/surface_listener/surface_client.pu
     // network message defitnitions can be found in /app/tests/surface_listener/message_type.definition
      #[test]
-     //#[ignore]
+     #[ignore]
      fn test_run_server(){ 
             // initiate the enclave 
             let enclave = match init_enclave() {

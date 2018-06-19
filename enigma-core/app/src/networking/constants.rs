@@ -1,5 +1,6 @@
+#![allow(dead_code,unused_assignments,unused_variables)]
 // #[derive(Serialize, Deserialize, Debug)] for StopServer
-use serde_json;
+//use serde_json;
 
 pub enum Command {
     Execevm, // execute evm bytecode 
@@ -26,6 +27,12 @@ pub struct StopServer{
     pub reason  : String,
 }
 
+// this message is sent back to surface upon recieving an unkown command 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UnkownCmd{
+    pub errored : bool,
+    pub received : String,
+}
 // the server connection string 
 pub const CONNECTION_STR: &'static str = "tcp://*:5552";
 

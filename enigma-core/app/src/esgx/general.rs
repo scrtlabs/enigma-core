@@ -4,8 +4,8 @@ use std::io::{Read, Write};
 use std::fs;
 use std::path;
 use std::env;
-use std::slice;
-use std::io;
+//use std::slice;
+//use std::io;
 use std::ptr;
 
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
@@ -23,7 +23,7 @@ pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
 
 pub fn storage_dir()-> path::PathBuf{
     let mut home_dir = path::PathBuf::new();
-    let success = match env::home_dir() {
+    match env::home_dir() {
         Some(path) => {
             println!("[+] Home dir is {}", path.display());
             home_dir = path;
@@ -43,11 +43,11 @@ pub fn init_enclave() -> SgxResult<SgxEnclave> {
     //         if there is no token, then create a new one.
     // 
     // try to get the token saved in $HOME */
-    let mut home_dir = path::PathBuf::new();
+    //let mut home_dir = path::PathBuf::new();
     let use_token = match env::home_dir() {
         Some(path) => {
             println!("[+] Home dir is {}", path.display());
-            home_dir = path;
+            //home_dir = path;
             true
         },
         None => {

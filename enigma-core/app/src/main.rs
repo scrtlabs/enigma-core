@@ -13,15 +13,15 @@ extern crate failure;
 extern crate serde_derive;
 extern crate serde;
 
-use zmq::*;
-use serde_json::*;
+//use zmq::*;
+//use serde_json::*;
 
 use sgx_types::*;
-use std::io::{Read, Write};
-use std::fs;
-use std::path;
-use std::env;
-use std::vec;
+//use std::io::{Read, Write};
+//use std::fs;
+//use std::path;
+//use std::env;
+//use std::vec;
 
 
 // enigma modules 
@@ -30,12 +30,12 @@ mod evm_u;
 mod networking;
 mod common_u;
 
-use common_u::errors;
-use esgx::general;
-use esgx::equote;
+//use common_u::errors;
+//use esgx::general;
+//use esgx::equote;
 
-use networking::surface_server;
-use networking::constants;
+//use networking::surface_server;
+//use networking::constants;
 
 pub use esgx::general::ocall_get_home;
 
