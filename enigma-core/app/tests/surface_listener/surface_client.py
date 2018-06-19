@@ -12,7 +12,7 @@ evm_data = json.dumps({
                     "cmd" : "execevm",
                     "bytecode" :"the evm bytecode",
                     "callable" : "the evm callable",
-                    "callableArgs" :"the callable args",
+                    "callable_args" :"the callable args",
                     "preprocessor": "rand() preprocessor",
                     "callback": "callback(stuff...)"
                   })
@@ -25,7 +25,7 @@ stop_data = json.dumps({
 					"cmd" : "stop",
 				})
 #send 
-socket.send_string(register_data)
+socket.send_string(evm_data)
 #read
 from_server = socket.recv_json()
 print('got from server {}'.format(from_server))

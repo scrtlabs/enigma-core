@@ -11,6 +11,7 @@ To enigma-core:
 
 From enigma-core:
 {
+	'errored' : False,
 	'quote': '...',  // base64 string 
 	'pub_key': '...', // hex string 
 }
@@ -22,12 +23,13 @@ To enigma-core:
 	"cmd" : "execevm",
 	"bytecode" :"the evm bytecode",
 	"callable" : "callable(uint,address[],...)", 
-	"callableArgs" :"the callable args", // as RLP str encoded 
+	"callable_args" :"the callable args", // as RLP str encoded 
 	"preprocessor": "rand()",
 	"callback": "callback(uint,address[],...)"
 }
 From enigma-core 
 {
+	'errored' : False,
 	'signature': 'the evm signature', 
 	'result': 'the evm result'
 }
@@ -44,3 +46,18 @@ From enigma-core
 	'reason': 'stop request.', 
 	'errored': False
 }
+
+4) unkown command request + response 
+
+To enigma-core 
+{
+	'cmd' : 'some unkown command',
+}
+
+From enigma-core 
+{
+	'received': '"some unkown command"', 
+	'errored': False
+}
+
+
