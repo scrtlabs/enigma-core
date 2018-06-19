@@ -5,5 +5,5 @@ pipeline:
       - "/dev/isgx:/dev/isgx"
     commands: 
       - /opt/intel/sgxpsw/aesm/aesm_service
-      - . /opt/sgxsdk/environment && . /root/.cargo/env && RUSTFLAGS=-Awarnings make
+      - . /opt/sgxsdk/environment && . /root/.cargo/env && cd enigma-core && RUSTFLAGS=-Awarnings make
       - cd app && cargo test
