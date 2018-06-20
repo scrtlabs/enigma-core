@@ -125,7 +125,6 @@ pub mod tests {
     use super::{EvmRequest,EvmInput};
 
     fn read_input_from_file(path: &str) -> evm::EvmInput {
-        println!("Path {}", path);
         let file = match File::open(&path) {
             // The `description` method of `io::Error` returns a string that
             // describes the error
@@ -156,7 +155,7 @@ pub mod tests {
         let evm_input = EvmRequest {
             bytecode:"606060405260043610603f576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff168063ef9fc50b146044575b600080fd5b3415604e57600080fd5b606b60048080359060200190919080359060200190919050506081565b6040518082815260200191505060405180910390f35b600080828401905080915050929150505600a165627a7a72305820be9168caee2bd3045c4563ce44f698916986a5ad7b2148f91a35093d31d7211b0029".to_string(),
             callable: "addNumbers(uint,uint)".to_string(),
-            callable_args: "".to_string(),
+            callable_args: "f878b83a36373031663638663939343534623433633734373566616534613265613862376630303030313032303330343035303630373038303930613062b83a36343833333235643331323733613333633865626137353236646365666561636337303030313032303330343035303630373038303930613062".to_string(),
             preprocessor: "".to_string(),
             callback : "".to_string(),
         };
