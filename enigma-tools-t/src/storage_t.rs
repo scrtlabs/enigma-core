@@ -1,17 +1,12 @@
 #[cfg(not(target_env = "sgx"))]
-#[macro_use]
 use sgx_types::{sgx_status_t, sgx_sealed_data_t,sgx_attributes_t};
 use sgx_types::marker::ContiguousMemory;
 use sgx_tseal::{SgxSealedData};
-use sgx_tseal::*;
-// file storage
-use std::sgxfs::{self, SgxFile};
 use std::untrusted::fs::File;
 use std::untrusted::fs::remove_file;
 use std::io::{Read, Write};
 use std::string::*;
-use std::path;
-use std::env;
+
 
 
 pub const SEALING_KEY_SIZE : usize = 32;
@@ -43,7 +38,7 @@ impl SecretKeyStorage {
         //    let mut sealed_log_arr:[u8;2048] = [0;2048];
         let sealed_log = sealed_log_out.as_mut_ptr();
         let sealed_log_size: usize = 2048;
-        let opt = to_sealed_log(&sealed_data, sealed_log, sealed_log_size as u32);
+        to_sealed_log(&sealed_data, sealed_log, sealed_log_size as u32);
     }
 
     /// unseal key
@@ -111,7 +106,7 @@ pub fn load_sealed_key(path : &String , sealed_key : &mut [u8]){
 
 pub mod tests {
     use storage_t::*;
-    use std::untrusted::fs::*;
+    //use std::untrusted::fs::*;
 
     /* Test functions */
     pub fn test_full_sealing_storage() {

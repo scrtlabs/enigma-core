@@ -1,10 +1,12 @@
 
-#![crate_name = "helloworldsampleenclave"]
+#![crate_name = "enigmacoreenclave"]
 #![crate_type = "staticlib"]
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
+#![feature(slice_concat_ext)]
+
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -18,6 +20,7 @@ extern crate sgx_trts;
 extern crate sgx_tseal;
 extern crate sgx_rand;
 
+
 #[macro_use]
 extern crate lazy_static;
 
@@ -26,32 +29,28 @@ extern crate hexutil;
 extern crate bigint;
 extern crate sputnikvm_network_classic;
 extern crate enigma_tools_t;
+
+#[macro_use]
+extern crate error_chain;
+extern crate rustc_hex as hex;
+extern crate ethabi;
+extern crate rlp;
 mod evm_t;
 mod ocalls_t;
 
-use sgx_trts::*;
 use sgx_types::*;
-use sgx_tse::*;
 
 use std::ptr;
-use std::string::String;
-use std::vec::Vec;
-use std::io::{self, Write, Read};
+
 use std::slice;
 use std::str::from_utf8;
-use std::string::ToString;
-use std::ffi::{CString, CStr};
-use std::os::raw::c_char;
-use std::path;
-use std::untrusted::fs::{File, remove_file};
 
 use hexutil::read_hex;
-use evm_t::evm_t::call_sputnikvm;
+use evm_t::evm::call_sputnikvm;
 
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::common::utils_t::{ToHex, FromHex};
-use enigma_tools_t::storage_t;
+use enigma_tools_t::common::utils_t::{ToHex};
 use enigma_tools_t::quote_t;
 
 
@@ -59,8 +58,7 @@ lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_w
 
 
 #[no_mangle]
-pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t,
-                                       home_ptr: *const u8, home_len: usize) -> sgx_status_t {
+pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
     println!("Generating Report with: {:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
     quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
 }
@@ -89,7 +87,7 @@ pub extern "C" fn ecall_evm(code: *const u8, code_len: usize, data: *const u8, d
     let data = read_hex(from_utf8(data_slice).unwrap()).unwrap();
 
     let mut res = call_sputnikvm(code, data);
-    let mut s: &mut [u8] = &mut res.1[..];
+    let s: &mut [u8] = &mut res.1[..];
     *result_len = s.len();
 
     *vm_status = res.0;

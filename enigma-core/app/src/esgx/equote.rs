@@ -1,28 +1,26 @@
-extern crate base64;
+#![allow(dead_code,unused_assignments)]
 use std;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::*;
-use std::io::{Read, Write};
-use std::fs;
-use std::path;
-use std::env;
-use std::ptr;
-use base64::{encode, decode};
-use std::slice;
-use std::ffi::{CString, CStr};
-use std::os::raw::c_char;
+use base64::{encode};
+
+
 use esgx::general;
-// #[derive(Serialize, Deserialize, Debug)] for GetRegisterResult
-use serde_json;
+use common_u::errors;
+//errors 
+use failure::Error;
+
 
 #[link(name = "sgx_tservice")] extern {
     pub fn ecall_get_registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
-                               report: *mut sgx_report_t, home_ptr: *const u8, home_len: usize) -> sgx_status_t ;
+                               report: *mut sgx_report_t) -> sgx_status_t ;
 }
+
 #[link(name = "sgx_uae_service")] extern {
     pub fn sgx_init_quote(p_target_info: * mut sgx_target_info_t, p_gid: * mut sgx_epid_group_id_t) -> sgx_status_t;
 }
+
 #[link(name = "sgx_uae_service")] extern {
     pub fn sgx_calc_quote_size(p_sig_rl: * const ::uint8_t, sig_rl_size: ::uint32_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;        
 }
@@ -38,6 +36,7 @@ use serde_json;
                          p_quote: * mut sgx_quote_t,
                          quote_size: ::uint32_t) -> sgx_status_t;
 }
+
 extern { 
     fn ecall_get_signing_pubkey(eid: sgx_enclave_id_t, pubkey: &mut [u8; 64]) -> sgx_status_t; 
 }
@@ -48,18 +47,19 @@ extern {
 // pub_key : the clear text public key for ecdsa signing and registration
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetRegisterResult{
+    pub errored : bool,
     pub quote : String, 
     pub pub_key : String,
 }
 
+// TODO:: handle stat return with error handling 
 #[allow(unused_variables, unused_mut)]
-pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
+pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> Result<String,Error>{
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let mut stat = sgx_status_t::SGX_SUCCESS;
 
     let mut target_info = sgx_target_info_t::default();
     let mut gid = sgx_epid_group_id_t::default();
-
     // create quote
     stat = unsafe{
         sgx_init_quote(&mut target_info ,&mut gid)
@@ -71,7 +71,7 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
     let home = _home.to_str().unwrap();
     stat = unsafe {
         ecall_get_registration_quote(enclave.geteid(), &mut retval, &target_info,
-                            &mut report ,home.as_ptr() as * const u8, home.len())
+                            &mut report)
     };
     // calc quote size
     let mut quote_size : u32= 0;
@@ -85,31 +85,30 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
     ).collect();
     let mut arr = [0; 16];
     arr.copy_from_slice(&v);
-    let mut finalSPID : sgx_spid_t = sgx_spid_t {id:arr };
+    let mut final_spid : sgx_spid_t = sgx_spid_t {id:arr };
     let mut the_quote = vec![0u8; quote_size as usize].into_boxed_slice();
     let nonce =  sgx_quote_nonce_t::default();;
-    let mut qeReport = sgx_report_t::default();
+    let mut qe_report = sgx_report_t::default();
 
     stat = unsafe {
         sgx_get_quote(&report,
         quote_type ,
-        &finalSPID,
+        &final_spid,
         &nonce,
         std::ptr::null(),
         0,
-        &mut qeReport,
+        &mut qe_report,
         the_quote.as_mut_ptr() as *mut sgx_quote_t,
         quote_size )
     };
-    encode(&the_quote)
+    let encoded_quote= encode(&the_quote);
+    Ok(encoded_quote)
 }
 
 
 // wrapper function for getting the enclave public sign key (the one attached with produce_quote()) 
 // TODO:: replace the error type in the Result once established
-// FYI,
-
-pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,&'static str>{
+pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,Error>{
     let mut pub_key: [u8; 64] = [0; 64];
     let status =  unsafe {
          ecall_get_signing_pubkey(enclave.geteid(), &mut pub_key) 
@@ -121,7 +120,8 @@ pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,&'static s
         });
         Ok(hex_key)         
     }else{
-        Err("[-] Error get_register_signing_key()")
+        Err(errors::GetRegisterKeyErr{status:status, 
+        message : String::from("error in get_register_signing_key")}.into())
     }
 }
 
@@ -149,7 +149,16 @@ pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,&'static s
         // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
         // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0
         let spid = String::from("68A8730E9ABF1829EA3F7A66321E84D0");
-        let tested_encoded_quote = produce_quote(&enclave, &spid);
+        let tested_encoded_quote = match produce_quote(&enclave, &spid){
+            Ok(encoded_quote)=>{
+                encoded_quote
+            },
+            Err(e)=>{
+                println!("[-] Produce quote Err {}, {}", e.cause(), e.backtrace());
+                assert_eq!(0,1);
+                return;
+            }
+        };
         println!("-------------------------" );
         println!("{}",tested_encoded_quote);
         println!("-------------------------" );

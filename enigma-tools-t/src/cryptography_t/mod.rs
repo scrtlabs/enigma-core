@@ -1,3 +1,4 @@
+ #![allow(unused_must_use)]
 pub mod asymmetric;
 pub mod symmetric;
 
@@ -6,12 +7,16 @@ use std::untrusted::fs::{File, remove_file};
 use std::io::{Read, ErrorKind};
 
 
+// TODO:: handle failure and return a result including the empty match
 pub fn get_sealed_keys(sealed_path: &str) -> asymmetric::KeyPair {
     // Open the file
     match File::open(sealed_path) {
         Ok(mut file) => {
             let mut sealed:[u8; storage_t::SEAL_LOG_SIZE] = [0; storage_t::SEAL_LOG_SIZE];
-            file.read(&mut sealed);
+            match file.read(&mut sealed){
+                Ok(_v)=>{},
+                Err(_e)=>{},
+            }
             match storage_t::SecretKeyStorage::unseal_key(&mut sealed) {
                 // If the data is unsealed correctly return this KeyPair.
                 Some(unsealed_data) => {

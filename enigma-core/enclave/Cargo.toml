@@ -1,10 +1,10 @@
 [package]
-name = "Helloworldsampleenclave"
+name = "enigmacoreenclave"
 version = "0.9.8"
-authors = ["Baidu"]
+authors = ["Enigma"]
 
 [lib]
-name = "helloworldsampleenclave"
+name = "enigmacoreenclave"
 crate-type = ["staticlib"]
 
 [features]
@@ -13,6 +13,14 @@ default = []
 [dependencies]
 lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
 enigma-tools-t = {path = "../../enigma-tools-t"}
+failure = "0.1.1"
+failure_derive="0.1.1"
+rustc-hex = { git = "https://github.com/enigmampc/rustc-hex.git", rev = "sgx-master" }
+tiny-keccak = "1.4.1"
+ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "sgx-v5.1.0", default-features = false}
+error-chain = { git = "https://github.com/enigmampc/error-chain.git", rev = "sgx-0.11.0", default-features = false }
+etcommon-rlp = {git = "https://github.com/enigmampc/etcommon-rs.git", rev = "develop", default-features = false}
+
 
 [dependencies.sputnikvm-network-classic]
 git = "https://github.com/enigmampc/sputnikvm.git"
