@@ -72,8 +72,6 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8]) -> Result<Vec<u8
         args_vector.push(arg.to_string());
     }
 
-    println!("{:?}", args_vector);
-
     let val_sl = &args_vector[..];
     let types_sl = &types_vector[..];
 
@@ -81,8 +79,6 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8]) -> Result<Vec<u8
         Ok(v) => v,
         Err(e) => return Err(e),
     };
-
-    println!("{:?}", result);
 
     let types: Vec<ParamType> = types_sl.iter()
         .map(|s| Reader::read(s))
