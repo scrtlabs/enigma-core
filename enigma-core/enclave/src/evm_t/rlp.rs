@@ -1,3 +1,4 @@
+
 use rlp::{RlpStream, UntrustedRlp};
 use hexutil::read_hex;
 use std::str::from_utf8;
@@ -6,7 +7,9 @@ use rlp::DecoderError;
 use std::vec::Vec;
 use std::string::String;
 use cryptography_t::symmetric::{decrypt, encrypt};
-use common::utils_t::{ToHex};
+use common::utils_t::{ToHex, FromHex};
+use ring::digest;
+
 
 
 fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp) -> String{
@@ -25,7 +28,7 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp) -> String{
     result
 }
 
-fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8;9]) {
+fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8]) {
     if rlp.is_list(){
         result.push_str("[");
         let iter = rlp.iter();
@@ -59,29 +62,26 @@ fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8;9]) {
 
 
 pub fn decode_args(encoded: &[u8]) -> String{
- /*   let key = b"EnigmaMPC";
-    let arg1 = b"1".to_vec();
+    let key = digest::digest(&digest::SHA256, b"EnigmaMPC");
+/*    let arg1 = b"1".to_vec();
     let arg2 = b"2".to_vec();
     let iv = Some( [0,1,2,3,4,5,6,7,8,9,10,11] );
-    let enc1 = encrypt(&arg1, key, &iv);
-    let enc2 = encrypt(&arg2, key, &iv);
+    let enc1 = encrypt(&arg1, key.as_ref(), &iv);
+    let enc2 = encrypt(&arg2, key.as_ref(), &iv);
     let mut stream = RlpStream::new_list(2);
     stream.append(&enc1.to_hex());
     stream.append(&enc2.to_hex());
-    let out = stream.out();
-
-    let rlp = UntrustedRlp::new(&out);*/
+    let out = stream.out();*/
     let rlp = UntrustedRlp::new(encoded);
 
     let mut result: String = "".to_string();
-    decrypt_rlp(&rlp, &mut result, &key);
+    decrypt_rlp(&rlp, &mut result, key.as_ref());
     if result.len()>=2{
         if &result[0..1] == "["{
             result.pop();
             result.remove(0);
         }
     }
-    println!("{}", result);
     result
 }
 

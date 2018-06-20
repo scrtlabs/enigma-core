@@ -87,3 +87,7 @@ rev = "v1.0.0"
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tunittest]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
+
+[dependencies.ring]
+git = "https://github.com/enigmampc/ring.git"
+rev = "sgx-0.12.1"

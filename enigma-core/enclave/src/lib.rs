@@ -30,6 +30,9 @@ extern crate bigint;
 extern crate sputnikvm_network_classic;
 extern crate enigma_tools_t;
 
+extern crate ring;
+
+
 #[macro_use]
 extern crate error_chain;
 extern crate rustc_hex as hex;
@@ -89,7 +92,8 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
     let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
     let callable_args_slice = unsafe { slice::from_raw_parts(callable_args, callable_args_len) };
 
-    let data = match  prepare_evm_input(callable_slice, callable_args_slice){
+
+    let data = match  prepare_evm_input(callable_slice, &read_hex(from_utf8(callable_args_slice).unwrap()).unwrap()){
         Ok(v) => v,
         Err(_e) => return sgx_status_t::SGX_ERROR_UNEXPECTED,
     };
@@ -99,7 +103,6 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
     let mut res = call_sputnikvm(bytecode, data);
     let s: &mut [u8] = &mut res.1[..];
     *result_len = s.len();
-    println!("{:?}", *result_len);
 
     *vm_status = res.0;
     unsafe {
