@@ -1,10 +1,10 @@
 [package]
-name = "enigma_principle_enclave"
+name = "enigma_principal_enclave"
 version = "1.0.0"
 authors = ["Enigma <support@enigma.co>"]
 
 [lib]
-name = "enigma_principle_enclave"
+name = "enigma_principal_enclave"
 crate-type = ["staticlib"]
 
 [features]

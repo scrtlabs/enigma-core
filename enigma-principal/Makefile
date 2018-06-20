@@ -87,7 +87,7 @@ App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
 App_Rust_Path := ./app/target/release
 App_Enclave_u_Object :=app/libEnclave_u.a
-App_Name := bin/enigma_principle_app
+App_Name := bin/enigma_principal_app
 
 ######## Enclave Settings ########
 
@@ -143,7 +143,7 @@ $(App_Enclave_u_Object): app/Enclave_u.o
 $(App_Name): $(App_Enclave_u_Object)
 	cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 	@echo "Cargo  =>  $@"
-	cp $(App_Rust_Path)/enigma_principle_app ./bin
+	cp $(App_Rust_Path)/enigma_principal_app ./bin
 
 ######## Enclave Objects ########
 

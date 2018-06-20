@@ -41,13 +41,11 @@ mod ocalls_t;
 use sgx_types::*;
 
 use std::ptr;
-
 use std::slice;
 use std::str::from_utf8;
 
 use hexutil::read_hex;
 use evm_t::evm::call_sputnikvm;
-
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::common::utils_t::{ToHex};

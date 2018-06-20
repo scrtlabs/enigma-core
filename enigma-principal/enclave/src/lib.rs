@@ -1,5 +1,5 @@
 
-#![crate_name = "enigma_principle_enclave"]
+#![crate_name = "enigma_principal_enclave"]
 #![crate_type = "staticlib"]
 
 #![cfg_attr(not(target_env = "sgx"), no_std)]

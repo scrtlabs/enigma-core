@@ -1,4 +1,3 @@
-use ring::digest;
 use ring::aead;
 use ring::rand::{SystemRandom, SecureRandom};
 use std::vec::Vec;
@@ -30,7 +29,7 @@ pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Vec<u8>
         in_out.push(0);
     }
     let seal_size = aead::seal_in_place(&aes_encrypt, &iv, &additional_data, &mut in_out, tag_size).expect(&"AES encryption failed");
-    println!("returned size: {:?}, real size: {:?}", &seal_size, in_out.len());
+    println!("**Returned size: {:?}, Real size: {:?}", &seal_size, in_out.len());
     in_out.append(&mut iv.to_vec());
     in_out
 }
@@ -43,7 +42,6 @@ pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Vec<u8>{
     for _i in (0..iv.len()).rev() {
         iv[_i] = ciphertext.pop().unwrap();
     }
-    println!("{:?}", iv);
     let decrypted_data = aead::open_in_place(&aes_decrypt, &iv, &additional_data, 0, &mut ciphertext).expect(&"AES decryption failed");
     let result = decrypted_data.to_vec();
     result

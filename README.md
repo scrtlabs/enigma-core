@@ -119,9 +119,9 @@ Running this test will require to
 * running the tests with -- --nocapture
 * using the Python client that mimics surface.
 
-### Principle Node 
+### Principal Node 
 
-Has a seperate [trsuted + untrusted](https://github.com/enigmampc/enigma-core/tree/develop/enigma-principle). 
+Has a seperate [trsuted + untrusted](https://github.com/enigmampc/enigma-core/tree/develop/enigma-principal). 
 There is a 100% code [resue](https://github.com/enigmampc/enigma-core/tree/develop/enigma-tools-t)
 
 TBD

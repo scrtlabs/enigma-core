@@ -1,5 +1,5 @@
 [package]
-name = "enigma_principle_app"
+name = "enigma_principal_app"
 version = "1.0.0"
 authors = ["Enigma <support@enigma.co>"]
 build = "build.rs"
