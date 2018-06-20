@@ -41,15 +41,16 @@ mod ocalls_t;
 use sgx_types::*;
 
 use std::ptr;
-use std::slice;
 use std::str::from_utf8;
-
+use std::slice;
 use hexutil::read_hex;
 use evm_t::evm::call_sputnikvm;
 use enigma_tools_t::cryptography_t;
+use enigma_tools_t::common;
 use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::common::utils_t::{ToHex};
 use enigma_tools_t::quote_t;
+use evm_t::abi::prepare_evm_input;
 
 
 lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -77,16 +78,28 @@ pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
 }
 
 #[no_mangle]
-pub extern "C" fn ecall_evm(code: *const u8, code_len: usize, data: *const u8, data_len: usize, output: *mut u8, vm_status: &mut u8, result_len: &mut usize) -> sgx_status_t {
-    let code_slice = unsafe { slice::from_raw_parts(code, code_len) };
-    let data_slice = unsafe { slice::from_raw_parts(data, data_len) };
+pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
+                            callable: *const u8, callable_len: usize,
+                            callable_args: *const u8, callable_args_len: usize,
+                            preprocessor: *const u8, preprocessor_len: usize,
+                            callback: *const u8, callback_len: usize,
+                            output: *mut u8, vm_status: &mut u8, result_len: &mut usize) -> sgx_status_t {
 
-    let code = read_hex(from_utf8(code_slice).unwrap()).unwrap();
-    let data = read_hex(from_utf8(data_slice).unwrap()).unwrap();
+    let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
+    let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
+    let callable_args_slice = unsafe { slice::from_raw_parts(callable_args, callable_args_len) };
 
-    let mut res = call_sputnikvm(code, data);
+    let data = match  prepare_evm_input(callable_slice, callable_args_slice){
+        Ok(v) => v,
+        Err(_e) => return sgx_status_t::SGX_ERROR_UNEXPECTED,
+    };
+
+    let bytecode = read_hex(from_utf8(bytecode_slice).unwrap()).unwrap();
+
+    let mut res = call_sputnikvm(bytecode, data);
     let s: &mut [u8] = &mut res.1[..];
     *result_len = s.len();
+    println!("{:?}", *result_len);
 
     *vm_status = res.0;
     unsafe {
