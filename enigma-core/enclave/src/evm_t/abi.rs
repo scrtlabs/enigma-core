@@ -40,30 +40,31 @@ fn encode_params(types: &[String], values: &[String], lenient: bool) -> Result<V
     Ok(result)
 }
 
-pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8]) -> Result<Vec<u8>, Error> {
-    let callable: &str = from_utf8(callable).unwrap();
+
+fn get_types(function: &str) -> Result<(Vec<String>, String), Error>{
     let start_arg_index;
     let end_arg_index;
 
-    match  callable.find('(') {
+    match  function.find('(') {
         Some(x) => start_arg_index = x,
         None  => return Err(Error(ErrorKind::Msg("'callable' signature is illegal".to_string()),State {next_error:None})),
     }
 
-    match  callable.find(')') {
+    match  function.find(')') {
         Some(x) => end_arg_index = x,
         None  => return Err(Error(ErrorKind::Msg("'callable' signature is illegal".to_string()),State {next_error:None})),
     }
 
-    let types_string: &str = &callable[start_arg_index+1..end_arg_index];
-    let function_name = &callable[..start_arg_index];
-
+    let types_string: &str = &function[start_arg_index+1..end_arg_index];
     let mut types_vector: Vec<String> = vec![];
     let types_iterator = types_string.split(",");
     for each_type in types_iterator{
         types_vector.push(each_type.to_string());
     }
+    Ok(( types_vector, String::from(&function[..start_arg_index] )))
+}
 
+fn get_args(callable_args: &[u8]) -> Result<Vec<String>, Error>{
     let decoded_args = &decode_args(callable_args)[..];
 
     let mut args_vector: Vec<String> = vec![];
@@ -71,21 +72,32 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8]) -> Result<Vec<u8
     for arg in args_iterator{
         args_vector.push(arg.to_string());
     }
+    Ok(args_vector)
+}
 
-    let val_sl = &args_vector[..];
-    let types_sl = &types_vector[..];
+pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8]) -> Result<Vec<u8>, Error> {
+    let callable: &str = from_utf8(callable).unwrap();
 
-    let result= match encode_params(types_sl, val_sl, true){
+    let (types_vector,function_name) = match get_types(callable){
+        Ok(v) => v,
+        Err(e) => return Err(e),
+    };
+    let args_vector = match get_args(callable_args){
         Ok(v) => v,
         Err(e) => return Err(e),
     };
 
-    let types: Vec<ParamType> = types_sl.iter()
+    let params = match encode_params(&types_vector[..], &args_vector[..], true){
+        Ok(v) => v,
+        Err(e) => return Err(e),
+    };
+
+    let types: Vec<ParamType> =  types_vector[..].iter()
         .map(|s| Reader::read(s))
         .collect::<Result<_, _>>()?;
     ;
 
-    let callable_signature = short_signature(function_name, &types);
+    let callable_signature = short_signature(&function_name, &types);
 
     let mut result_bytes: Vec<u8> = vec![];
     let iter = callable_signature.iter();
@@ -93,7 +105,7 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8]) -> Result<Vec<u8
         result_bytes.push(*item);
     }
 
-    let iter = result.iter();
+    let iter = params.iter();
     for item in iter{
         result_bytes.push(*item);
     }

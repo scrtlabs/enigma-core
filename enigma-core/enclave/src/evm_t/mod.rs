@@ -3,7 +3,7 @@ pub mod abi;
 pub mod error;
 pub mod rlp;
 
-pub enum EVM_RESULT{
+pub enum EvmResult{
     SUCCESS=0,
     FAULT,
 }

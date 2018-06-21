@@ -54,7 +54,7 @@ use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::common::utils_t::{ToHex};
 use enigma_tools_t::quote_t;
 use evm_t::abi::prepare_evm_input;
-use evm_t::EVM_RESULT;
+use evm_t::EvmResult;
 
 
 lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -101,7 +101,7 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
             v
         },
         Err(_e) => {
-            *vm_status = EVM_RESULT::FAULT as u8;
+            *vm_status = EvmResult::FAULT as u8;
             return sgx_status_t::SGX_ERROR_UNEXPECTED
         },
     };
