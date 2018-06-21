@@ -1,5 +1,7 @@
 # Enigma Core library 
 
+<img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=develop" />
+
 Pure Rust Enclave && Untrusted in Rust. 
 Core is part of the Enigma node software stack. The Core component as it's name suggests is responsible for the core operations. The core includes Remote Attestation (SGX SDK), Cryptography and the Ethereum EVM.
 
