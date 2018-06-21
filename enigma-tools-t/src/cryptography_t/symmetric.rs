@@ -1,7 +1,10 @@
 use ring::aead;
 use ring::rand::{SystemRandom, SecureRandom};
 use std::vec::Vec;
+use std::string::ToString;
 use std::option::Option;
+use common::utils_t::ToHex;
+use common::errors_t::EnclaveError;
 
 static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 
@@ -34,17 +37,23 @@ pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Vec<u8>
     in_out
 }
 
-pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Vec<u8>{
-    let aes_decrypt = aead::OpeningKey::new(&AES_MODE, key).unwrap();
+pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+    let aes_decrypt = match aead::OpeningKey::new(&AES_MODE, key) {
+        Ok(key) => key,
+        Err(_) => return Err(EnclaveError::KeyErr{key: "".to_string(), key_type: "Encryption".to_string()})
+    };
     let additional_data: [u8; 0] = [];
     let mut ciphertext = cipheriv.clone();
     let mut iv: [u8; 12] = [0; 12];
     for _i in (0..iv.len()).rev() {
         iv[_i] = ciphertext.pop().unwrap();
     }
-    let decrypted_data = aead::open_in_place(&aes_decrypt, &iv, &additional_data, 0, &mut ciphertext).expect(&"AES decryption failed");
-    let result = decrypted_data.to_vec();
-    result
+    let decrypted_data = match aead::open_in_place(&aes_decrypt, &iv, &additional_data, 0, &mut ciphertext) {
+        Ok(data) => data,
+        Err(_) => return Err(EnclaveError::DecryptionError{encrypted_parm: cipheriv.as_slice().to_hex()})
+    };
+
+    Ok(decrypted_data.to_vec())
 }
 
 pub mod tests {
@@ -61,7 +70,7 @@ pub mod tests {
         iv.clone_from_slice(&rand_seed[32..44]);
         let msg = rand_seed[44..1068].to_vec();
         let ciphertext = encrypt(&msg, key, &Some(iv));
-        assert_eq!(msg, decrypt(&ciphertext, &key));
+        assert_eq!(msg, decrypt(&ciphertext, &key).unwrap());
     }
 
     pub fn test_encryption() {
@@ -77,7 +86,7 @@ pub mod tests {
     pub fn test_decryption() {
         let encrypted_data = "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b";
         let key = digest::digest(&digest::SHA256, b"EnigmaMPC");
-        let result = decrypt(&encrypted_data.from_hex().unwrap(), key.as_ref());
+        let result = decrypt(&encrypted_data.from_hex().unwrap(), key.as_ref()).unwrap();
         assert_eq!(result, b"This Is Enigma".to_vec());
     }
 }
