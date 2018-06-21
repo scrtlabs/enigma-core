@@ -54,6 +54,7 @@ use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::common::utils_t::{ToHex};
 use enigma_tools_t::quote_t;
 use evm_t::abi::prepare_evm_input;
+use evm_t::EVM_RESULT;
 
 
 lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -92,23 +93,34 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
     let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
     let callable_args_slice = unsafe { slice::from_raw_parts(callable_args, callable_args_len) };
 
-
-    let data = match  prepare_evm_input(callable_slice, &read_hex(from_utf8(callable_args_slice).unwrap()).unwrap()){
-        Ok(v) => v,
-        Err(_e) => return sgx_status_t::SGX_ERROR_UNEXPECTED,
-    };
-
+    let callable_args = read_hex(from_utf8(callable_args_slice).unwrap()).unwrap();
     let bytecode = read_hex(from_utf8(bytecode_slice).unwrap()).unwrap();
 
-    let mut res = call_sputnikvm(bytecode, data);
-    let s: &mut [u8] = &mut res.1[..];
-    *result_len = s.len();
+    let data = match  prepare_evm_input(callable_slice, &callable_args){
+        Ok(v) => {
+            v
+        },
+        Err(_e) => {
+            *vm_status = EVM_RESULT::FAULT as u8;
+            return sgx_status_t::SGX_ERROR_UNEXPECTED
+        },
+    };
 
+    let mut res = call_sputnikvm(bytecode, data);
     *vm_status = res.0;
-    unsafe {
-        ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
+    match *vm_status{
+        0 => {
+            let s: &mut [u8] = &mut res.1[..];
+            *result_len = s.len();
+
+            unsafe {
+                ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
+            }
+            sgx_status_t::SGX_SUCCESS
+
+        }
+        _ => sgx_status_t::SGX_ERROR_UNEXPECTED
     }
-    sgx_status_t::SGX_SUCCESS
 }
 
 pub mod tests {

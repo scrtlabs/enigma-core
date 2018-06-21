@@ -3,6 +3,12 @@ pub mod abi;
 pub mod error;
 pub mod rlp;
 
+pub enum EVM_RESULT{
+    SUCCESS=0,
+    FAULT,
+}
+
+
 pub mod preprocessor{
     use std::vec::Vec;
     use sgx_trts::trts::rsgx_read_rand;
