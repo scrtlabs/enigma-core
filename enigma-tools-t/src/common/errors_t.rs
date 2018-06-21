@@ -1,5 +1,3 @@
-#![allow(dead_code,unused_assignments,unused_variables)]
-use std::io;
 use std::string::String;
 
 #[derive(Debug, Fail)]
@@ -18,4 +16,6 @@ pub enum EnclaveError {
     DecryptionError {
         encrypted_parm: String,
     },
+    #[fail(display = "Failed Encrypting")]
+    EncryptionError {},
 }

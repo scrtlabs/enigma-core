@@ -9,32 +9,34 @@ use common::errors_t::EnclaveError;
 static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 
 //TODO:: error handling return a result/match
-pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Vec<u8> {
+pub fn encrypt(message: &Vec<u8>, key: &[u8], _iv: &Option<[u8; 12]>) -> Result<Vec<u8>, EnclaveError> {
     let mut iv: [u8; 12];
     match _iv {
         Some(x) => {iv = *x;},
         None => {
             iv = [0; 12];
             let r = SystemRandom::new();
-            match r.fill(&mut iv){
-                Ok(_v)=>{},
-                Err(_e)=>{},
-            };
+            r.fill(&mut iv).unwrap()
         }
     }
     let additional_data: [u8; 0] = [];
 
-    let aes_encrypt = aead::SealingKey::new(&AES_MODE, key).unwrap();
-
+    let aes_encrypt = match aead::SealingKey::new(&AES_MODE, key) {
+        Ok(key) => key,
+        Err(_) => return Err(EnclaveError::KeyErr{key: "".to_string(), key_type: "Encryption".to_string()})
+    };
     let mut in_out = message.clone();
     let tag_size = AES_MODE.tag_len();
     for _ in 0..tag_size {
         in_out.push(0);
     }
-    let seal_size = aead::seal_in_place(&aes_encrypt, &iv, &additional_data, &mut in_out, tag_size).expect(&"AES encryption failed");
+    let seal_size = match aead::seal_in_place(&aes_encrypt, &iv, &additional_data, &mut in_out, tag_size) {
+        Ok(size) => size,
+        Err(_) => return Err(EnclaveError::EncryptionError{})
+    };
     println!("**Returned size: {:?}, Real size: {:?}", &seal_size, in_out.len());
     in_out.append(&mut iv.to_vec());
-    in_out
+    Ok(in_out)
 }
 
 pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Result<Vec<u8>, EnclaveError> {
@@ -69,7 +71,7 @@ pub mod tests {
         let mut iv: [u8; 12] = [0; 12];
         iv.clone_from_slice(&rand_seed[32..44]);
         let msg = rand_seed[44..1068].to_vec();
-        let ciphertext = encrypt(&msg, key, &Some(iv));
+        let ciphertext = encrypt(&msg, key, &Some(iv)).unwrap();
         assert_eq!(msg, decrypt(&ciphertext, &key).unwrap());
     }
 
@@ -77,8 +79,7 @@ pub mod tests {
         let key = digest::digest(&digest::SHA256, b"EnigmaMPC");
         let msg = b"This Is Enigma".to_vec();
         let iv = Some( [0,1,2,3,4,5,6,7,8,9,10,11] );
-        let result = encrypt(&msg, key.as_ref(), &iv);
-//        println!("{:?}", result.to_hex());
+        let result = encrypt(&msg, key.as_ref(), &iv).unwrap();
         assert_eq!(result.to_hex(), "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b");
 
     }

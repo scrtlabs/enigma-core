@@ -41,7 +41,7 @@ impl KeyPair {
         pubarr[1..].copy_from_slice(&_pubarr[..]);
         let pubkey = match PublicKey::parse(&pubarr) {
             Ok(key) => key,
-            Err(err) => return Err(EnclaveError::KeyErr{key: _pubarr.to_hex(), key_type: "PublicKey".to_string()})
+            Err(_) => return Err(EnclaveError::KeyErr{key: _pubarr.to_hex(), key_type: "PublicKey".to_string()})
         };
         match SharedSecret::new(&pubkey, &self.privkey) {
             Ok(val) => Ok(val.as_ref().to_vec()),
@@ -95,7 +95,6 @@ impl KeyPair {
 
 pub mod tests {
     use cryptography_t::asymmetric::*;
-    use secp256k1::{PublicKey, SecretKey};
 
     pub fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
@@ -118,6 +117,7 @@ pub mod tests {
         assert_eq!(shared1, [139, 184, 212, 39, 0, 146, 97, 243, 63, 65, 81, 130, 96, 208, 43, 150, 229, 90, 132, 202, 235, 168, 86, 59, 141, 19, 200, 38, 242, 55, 203, 15]);
     }
 
+    //    use secp256k1::{PublicKey, SecretKey};
     pub fn test_fail_ecdh() {
 //        let mut wrong_array: [u8; 65] = [0; 65];
 //        wrong_array[0] = 04;

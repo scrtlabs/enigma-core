@@ -4,9 +4,9 @@ extern crate base64;
 // networking apt install libzmq3-dev
 extern crate zmq; 
 extern crate serde_json;
-// errors 
+// errors
+#[macro_use]
 extern crate failure;
-#[macro_use] extern crate failure_derive;
 
 
 #[macro_use]

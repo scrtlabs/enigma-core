@@ -41,6 +41,7 @@ impl SecretKeyStorage {
         to_sealed_log(&sealed_data, sealed_log, sealed_log_size as u32);
     }
 
+    // TODO: Add Error Handling.
     /// unseal key
     /// param: sealed_log_in : the encrypted blob
     /// param: udata : the SecreyKeyStorage (clear text)

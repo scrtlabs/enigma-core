@@ -6,7 +6,7 @@ const PATH_MAX: usize = 4096; // linux/limits.h - this depends on the FS.
 
 extern { fn ocall_get_home(output: *mut u8, result_len: &mut usize) -> sgx_status_t; }
 
-
+// TODO: Add Result.
 pub fn get_home_path() -> path::PathBuf{
     // Get Home path via Ocall
     let mut home_slice: [u8; PATH_MAX] = [0; PATH_MAX];

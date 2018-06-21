@@ -43,7 +43,7 @@ fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8]) {
         let value: String = match as_val{
             Ok(v) => {
                 let encrypted_value = read_hex(from_utf8(&v).unwrap()).unwrap();
-                let decrypted_value = decrypt(&encrypted_value,key);
+                let decrypted_value = decrypt(&encrypted_value,key).unwrap();
                 let iter = decrypted_value.into_iter();
                 let mut decrypted_str = "".to_string();
                 for item in iter{
