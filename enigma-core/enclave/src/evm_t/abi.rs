@@ -1,6 +1,6 @@
 use ethabi::param_type::{ParamType, Reader};
 use ethabi::token::{Token, Tokenizer, StrictTokenizer, LenientTokenizer};
-use ethabi::{encode, decode};
+use ethabi;
 use evm_t::error::Error;
 use ethabi::signature::short_signature;
 
@@ -35,7 +35,7 @@ fn encode_params(types: &[String], values: &[String], lenient: bool) -> Result<V
         .collect();
 
     let tokens = parse_tokens(&params, lenient)?;
-    let result = encode(&tokens);
+    let result = ethabi::encode(&tokens);
 
     Ok(result)
 }
