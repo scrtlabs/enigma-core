@@ -3,6 +3,8 @@
 
 #[macro_use]
 extern crate sgx_tstd as std;
+#[macro_use]
+extern crate failure;
 extern crate sgx_types;
 extern crate sgx_trts;
 extern crate sgx_tse;

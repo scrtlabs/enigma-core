@@ -2,7 +2,8 @@ use secp256k1;
 use secp256k1::{PublicKey, SecretKey, SharedSecret};
 use sgx_trts::trts::rsgx_read_rand;
 use common::utils_t::{ToHex, Keccak256};
-
+use common::errors_t::EnclaveError;
+use std::string::ToString;
 //use std::str;
 use std::vec::Vec;
 use std::str::from_utf8;
@@ -16,8 +17,6 @@ pub struct KeyPair {
 impl KeyPair {
     pub fn new() -> KeyPair {
         let mut me: [u8; 32] = [0; 32];
-        // TODO: Check if needs to check the random is within the curve.
-        // TODO:: return result and error handling
         match rsgx_read_rand(&mut me){
             Ok(_v)=>{},
             Err(_e)=>{},
@@ -35,11 +34,19 @@ impl KeyPair {
         keys
     }
 
-    pub fn get_aes_key(&self, pubk: &PublicKey) -> Vec<u8> {
+    pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<Vec<u8>, EnclaveError> {
         // TODO: Maybe accept a slice [u8; 64] and add 0x04, and then make the PublicKey obj.
-        let shared = SharedSecret::new(&pubk, &self.privkey).unwrap();
-        let sharedkey = shared.as_ref().to_vec();
-        sharedkey
+        let mut pubarr: [u8; 65] = [0; 65];
+        pubarr[0] = 04;
+        pubarr[1..].copy_from_slice(&_pubarr[..]);
+        let pubkey = match PublicKey::parse(&pubarr) {
+            Ok(key) => key,
+            Err(err) => return Err(EnclaveError::KeyErr{key: _pubarr.to_hex(), key_type: "PublicKey".to_string()})
+        };
+        match SharedSecret::new(&pubkey, &self.privkey) {
+            Ok(val) => Ok(val.as_ref().to_vec()),
+            Err(_) => Err(EnclaveError::DerivingKeyErr{self_key: self.get_pubkey().to_hex(), other_key: pubkey.serialize()[1..65].to_hex()}),
+        }
     }
     pub fn get_privkey(&self) -> [u8; 32] {
         self.privkey.serialize()
@@ -88,6 +95,7 @@ impl KeyPair {
 
 pub mod tests {
     use cryptography_t::asymmetric::*;
+    use secp256k1::{PublicKey, SecretKey};
 
     pub fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
@@ -103,10 +111,24 @@ pub mod tests {
         let _priv2: [u8; 32] = [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162];
         let k1 = KeyPair::from_slice(&_priv1);
         let k2 = KeyPair::from_slice(&_priv2);
-        let shared1 = k1.get_aes_key(&k2.pubkey);
-        let shared2 = k2.get_aes_key(&k1.pubkey);
+        let shared1 = k1.get_aes_key(&k2.get_pubkey()).unwrap();
+        let shared2 = k2.get_aes_key(&k1.get_pubkey()).unwrap();
         println!("the Derived key: {:?}, Hex: {:?}", &shared1, &shared1.to_hex());
         assert_eq!(shared1, shared2);
         assert_eq!(shared1, [139, 184, 212, 39, 0, 146, 97, 243, 63, 65, 81, 130, 96, 208, 43, 150, 229, 90, 132, 202, 235, 168, 86, 59, 141, 19, 200, 38, 242, 55, 203, 15]);
+    }
+
+    pub fn test_fail_ecdh() {
+//        let mut wrong_array: [u8; 65] = [0; 65];
+//        wrong_array[0] = 04;
+//        wrong_array[33] = 1;
+//        match PublicKey::parse(&wrong_array) {
+//            Ok(val) => println!("{:?}", &val.serialize()[..]),
+//            Err(err) => println!("Error! {:?}", err)
+//        };
+//        let _priv: [u8; 32] = [0; 32];
+//        let k1 = SecretKey::parse(&_priv).unwrap();
+        assert_eq!(0,0)
+
     }
 }
