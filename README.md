@@ -10,7 +10,7 @@ Core is part of the Enigma node software stack. The Core component as it's name 
 ### Prerequisites
 
 * [RUST-SGX-Intel SGX SDK 2.1.3 for Linux](https://github.com/baidu/rust-sgx-sdk) installed.
-* clone this repo into /some/path/enigma-core + `git submodule update --init` inside the project dir.
+* clone this repo into /some/path/enigma-core.
 * [Docker](https://docs.docker.com/install) - Install.
 
 ### Build and Compile 
