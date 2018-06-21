@@ -109,9 +109,6 @@ mod tests {
 
     #[test]
     fn it_selects_worker() {
-        let seed = U256::from(100);
-        let w3 = Web3{ transport: () };
-        let taskId = w3.sha3(b"test");
     }
 }
 
