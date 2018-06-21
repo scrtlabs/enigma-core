@@ -6,6 +6,7 @@ use std::boxed::Box;
 use std::vec::Vec;
 use sputnikvm_network_classic::MainnetFrontierPatch;
 use std::ops::DerefMut;
+use evm_t::EvmResult;
 
 fn handle_fire_without_rpc(vm: &mut VM) {
     loop {
@@ -72,8 +73,8 @@ pub fn call_sputnikvm(code: Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
         println!("{:?}", account);
     }
     let vm_status: u8 = match vm.status() {
-        VMStatus::ExitedOk => 0,
-        _ => 1,
+        VMStatus::ExitedOk => EvmResult::SUCCESS as u8,
+        _ => EvmResult::FAULT as u8,
     };
     (vm_status, vm.out().to_vec())
 }

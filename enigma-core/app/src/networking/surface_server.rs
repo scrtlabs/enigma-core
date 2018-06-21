@@ -6,6 +6,7 @@ use evm_u::evm;
 use esgx::equote;
 use networking::constants;
 use sgx_urts::SgxEnclave;
+use sgx_types::*;
 
 //failure 
 use failure::Error;
@@ -24,7 +25,7 @@ impl ClientHandler {
         let cmd : constants::Command = v["cmd"].as_str().unwrap().into();
         let result = match cmd {
             constants::Command::Execevm =>{
-                let result = self.handle_execevm(v.clone()).unwrap();
+                let result = self.handle_execevm(enclave.geteid(), v.clone()).unwrap();
                 println!("EVM Output result : {}",result );
                 result
             },
@@ -67,11 +68,11 @@ impl ClientHandler {
         Ok(str_result)
     }
     // private function : handle execevm cmd 
-    fn handle_execevm(&self, msg : Value)-> Result<(String), Error>{
+    fn handle_execevm(&self, eid: sgx_enclave_id_t, msg : Value)-> Result<(String), Error>{
             // get the EVM inputs 
             let evm_input = self.unwrap_execevm(msg);
             // make an ecall to encrypt+compute 
-            let result : evm::EvmResponse = evm::exec_evm(evm_input)?;
+            let result : evm::EvmResponse = evm::exec_evm(eid, evm_input)?;
             // serialize the result 
             let str_result = serde_json::to_string(&result).unwrap();
             // send 

@@ -16,8 +16,11 @@ enclave {
 
         public void ecall_run_tests();
 
-	    public sgx_status_t ecall_evm([in, size=code_len] const uint8_t* code, size_t code_len,
-	                                  [in, size=data_len] const uint8_t* data, size_t data_len,
+	    public sgx_status_t ecall_evm([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
+	                                  [in, size=callable_len] const uint8_t* callable, size_t callable_len,
+                                      [in, size=callable_args_len] const uint8_t* callable_args, size_t callable_args_len,
+                                      [in, size=preprocessor_len] const uint8_t* preprocessor, size_t preprocessor_len,
+                                      [in, size=callback_len] const uint8_t* callback, size_t callback_len,
 	                                  [out, size=32] uint8_t* output, [out] uint8_t* vm_status, [out] uint32_t* result_length);
 
 

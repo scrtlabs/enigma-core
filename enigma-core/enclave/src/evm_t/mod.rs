@@ -1,4 +1,12 @@
 pub mod evm;
+pub mod abi;
+pub mod error;
+pub mod rlp;
+
+pub enum EvmResult{
+    SUCCESS=0,
+    FAULT,
+}
 
 
 pub mod preprocessor{
