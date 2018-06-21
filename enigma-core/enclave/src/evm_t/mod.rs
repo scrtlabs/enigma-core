@@ -2,12 +2,18 @@ pub mod evm;
 pub mod abi;
 pub mod error;
 pub mod rlp;
+use ring::digest;
+use std::vec::Vec;
+
 
 pub enum EvmResult{
     SUCCESS=0,
     FAULT,
 }
 
+pub fn get_key() -> Vec<u8> {
+    digest::digest(&digest::SHA256, b"EnigmaMPC").as_ref().iter().cloned().collect()
+}
 
 pub mod preprocessor{
     use std::vec::Vec;
