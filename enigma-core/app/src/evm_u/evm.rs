@@ -66,7 +66,7 @@ pub struct EvmResponse{
 // this function is called by the the server componenet upon an execevm command from surface
 // very likely that this functions will require an SgxEnclave object.
 
-pub fn exec_evm(enclave: &SgxEnclave, evm_input: EvmRequest )-> Result<EvmResponse,Error>{
+pub fn exec_evm(/*enclave: &SgxEnclave*/eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmResponse,Error>{
     println!("recieved from the client => " );
     println!("bytecode : {}",evm_input.bytecode );
     println!("callable : {}",evm_input.callable );
@@ -87,7 +87,7 @@ pub fn exec_evm(enclave: &SgxEnclave, evm_input: EvmRequest )-> Result<EvmRespon
 // This should be changed
 // the length of the result returned by EVM should be checked in advance
 const MAX_EVM_RESULT: usize = 1000000;
-fn call_evm(enclave: &SgxEnclave, evm_input: EvmRequest) -> (u8, Vec<u8>) {
+fn call_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> (u8, Vec<u8>) {
     let mut out = vec![0u8; MAX_EVM_RESULT];
     let slice = out.as_mut_slice();
     let mut st: u8 = 1;
@@ -95,7 +95,7 @@ fn call_evm(enclave: &SgxEnclave, evm_input: EvmRequest) -> (u8, Vec<u8>) {
     let mut result_length: usize = 0;
 
     let result = unsafe {
-        ecall_evm(enclave.geteid(),
+        ecall_evm(eid,
                   &mut retval,
                   evm_input.bytecode.as_ptr() as *const u8,
                   evm_input.bytecode.len(),
@@ -159,7 +159,7 @@ pub mod tests {
             preprocessor: "".to_string(),
             callback : "".to_string(),
         };
-        let evm_result = evm::call_evm(&enclave, evm_input);
+        let evm_result = evm::call_evm(enclave.geteid(), evm_input);
         assert_eq!(evm_result.0, 0);
         assert_eq!(evm_result.1, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
         enclave.destroy();
