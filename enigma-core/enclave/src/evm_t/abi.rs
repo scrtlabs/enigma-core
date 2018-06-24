@@ -65,14 +65,8 @@ fn get_types(function: &str) -> Result<(Vec<String>, String), Error>{
 }
 
 fn get_args(callable_args: &[u8]) -> Result<Vec<String>, Error>{
-    let decoded_args = &decode_args(callable_args)[..];
-
-    let mut args_vector: Vec<String> = vec![];
-    let args_iterator = decoded_args.split(",");
-    for arg in args_iterator{
-        args_vector.push(arg.to_string());
-    }
-    Ok(args_vector)
+    let decoded_args = decode_args(callable_args);
+    Ok(decoded_args)
 }
 
 pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8]) -> Result<Vec<u8>, Error> {

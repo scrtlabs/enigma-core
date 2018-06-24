@@ -48,7 +48,10 @@ pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Result<Vec<u8>, EnclaveError> 
     let mut ciphertext = cipheriv.clone();
     let mut iv: [u8; 12] = [0; 12];
     for _i in (0..iv.len()).rev() {
-        iv[_i] = ciphertext.pop().unwrap();
+        match ciphertext.pop(){
+            Some(v) => iv[_i] = v,
+            None => return Err(EnclaveError::DecryptionError{encrypted_parm: "Improper encryption".to_string()}),
+        };
     }
     let decrypted_data = match aead::open_in_place(&aes_decrypt, &iv, &additional_data, 0, &mut ciphertext) {
         Ok(data) => data,
