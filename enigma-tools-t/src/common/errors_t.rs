@@ -18,4 +18,12 @@ pub enum EnclaveError {
     },
     #[fail(display = "Failed Encrypting")]
     EncryptionError {},
+    #[fail(display = "Preprocessor Error: {}", message)]
+    PreprocessorError{
+        message: String,
+    },
+    #[fail(display = "Input Error: {}", message)]
+    InputError{
+        message: String,
+    }
 }

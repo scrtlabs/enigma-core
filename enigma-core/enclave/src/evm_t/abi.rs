@@ -13,6 +13,7 @@ use evm_t::rlp::decode_args;
 use error_chain::State;
 use evm_t::preprocessor;
 use common::utils_t::{ToHex, FromHex};
+use common::errors_t::EnclaveError;
 
 
 fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, Error> {
@@ -44,18 +45,18 @@ fn encode_params(types: &[String], values: &[String], lenient: bool) -> Result<V
 }
 
 
-fn get_types(function: &str) -> Result<(Vec<String>, String), Error>{
+fn get_types(function: &str) -> Result<(Vec<String>, String), EnclaveError>{
     let start_arg_index;
     let end_arg_index;
 
     match  function.find('(') {
         Some(x) => start_arg_index = x,
-        None  => return Err(Error(ErrorKind::Msg("'callable' signature is illegal".to_string()),State {next_error:None})),
+        None  => return Err(EnclaveError::InputError{message: "'callable' signature is illegal".to_string()}),
     }
 
     match  function.find(')') {
         Some(x) => end_arg_index = x,
-        None  => return Err(Error(ErrorKind::Msg("'callable' signature is illegal".to_string()),State {next_error:None})),
+        None  => return Err(EnclaveError::InputError{message: "'callable' signature is illegal".to_string()}),
     }
 
     let types_string: &str = &function[start_arg_index+1..end_arg_index];
@@ -67,41 +68,48 @@ fn get_types(function: &str) -> Result<(Vec<String>, String), Error>{
     Ok(( types_vector, String::from(&function[..start_arg_index] )))
 }
 
-fn get_args(callable_args: &[u8]) -> Result<Vec<String>, Error>{
+fn get_args(callable_args: &[u8]) -> Result<Vec<String>, EnclaveError>{
     let decoded_args = decode_args(callable_args);
     Ok(decoded_args)
 }
 
-fn get_preprocessor(preproc: &[u8]) -> Result<String, Error> {
+fn get_preprocessor(preproc: &[u8]) -> Result<String, EnclaveError> {
     let preprocessor_result = preprocessor::run(from_utf8(preproc).unwrap());
-    let result = preprocessor_result.to_hex();
-    Ok(result.to_string())
+    match preprocessor_result{
+        Ok(v) => Ok(v.to_hex()),
+        Err(e) => Err(e),
+    }
 }
 
-pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) -> Result<Vec<u8>, EnclaveError> {
     let callable: &str = from_utf8(callable).unwrap();
 
-    let (types_vector,function_name) = match get_types(callable){
+    let (types_vector, function_name) = match get_types(callable) {
         Ok(v) => v,
         Err(e) => return Err(e),
     };
-    let mut args_vector = match get_args(callable_args){
+    let mut args_vector = match get_args(callable_args) {
         Ok(v) => v,
         Err(e) => return Err(e),
     };
-    let preprocessor = match get_preprocessor(preproc){
-        Ok(v) => v,
-        Err(e) => return Err(e),
-    };
+    if preproc.len() > 0 {
+        let preprocessor = match get_preprocessor(preproc) {
+            Ok(v) => v,
+            Err(e) => return Err(e),
+        };
+    }
     let params = match encode_params(&types_vector[..], &args_vector[..], true){
         Ok(v) => v,
-        Err(e) => return Err(e),
+        Err(e) => return Err(EnclaveError::InputError{message: e.to_string()}),
     };
 
-    let types: Vec<ParamType> =  types_vector[..].iter()
+    let mut types: Vec<ParamType> = vec![];
+        match types_vector[..].iter()
         .map(|s| Reader::read(s))
-        .collect::<Result<_, _>>()?;
-    ;
+        .collect::<Result<_, _>>(){
+        Ok(v) => types = v,
+        Err(e) => return Err(EnclaveError::InputError{message: e.to_string()}),
+    };
 
     let callable_signature = short_signature(&function_name, &types);
 
