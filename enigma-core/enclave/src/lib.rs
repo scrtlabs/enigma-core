@@ -56,7 +56,6 @@ use enigma_tools_t::quote_t;
 use evm_t::abi::prepare_evm_input;
 use evm_t::EvmResult;
 
-
 lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
 
@@ -92,11 +91,12 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
     let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
     let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
     let callable_args_slice = unsafe { slice::from_raw_parts(callable_args, callable_args_len) };
+    let preprocessor_slice = unsafe { slice::from_raw_parts(preprocessor, preprocessor_len) };
 
     let callable_args = read_hex(from_utf8(callable_args_slice).unwrap()).unwrap();
     let bytecode = read_hex(from_utf8(bytecode_slice).unwrap()).unwrap();
 
-    let data = match  prepare_evm_input(callable_slice, &callable_args){
+    let data = match  prepare_evm_input(callable_slice, &callable_args, preprocessor_slice){
         Ok(v) => {
             v
         },

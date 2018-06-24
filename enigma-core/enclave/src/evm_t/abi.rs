@@ -11,6 +11,9 @@ use std::str::from_utf8;
 use evm_t::error::{ErrorKind};
 use evm_t::rlp::decode_args;
 use error_chain::State;
+use evm_t::preprocessor;
+use common::utils_t::{ToHex, FromHex};
+
 
 fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, Error> {
     params.iter()
@@ -69,18 +72,27 @@ fn get_args(callable_args: &[u8]) -> Result<Vec<String>, Error>{
     Ok(decoded_args)
 }
 
-pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8]) -> Result<Vec<u8>, Error> {
+fn get_preprocessor(preproc: &[u8]) -> Result<String, Error> {
+    let preprocessor_result = preprocessor::run(from_utf8(preproc).unwrap());
+    let result = preprocessor_result.to_hex();
+    Ok(result.to_string())
+}
+
+pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) -> Result<Vec<u8>, Error> {
     let callable: &str = from_utf8(callable).unwrap();
 
     let (types_vector,function_name) = match get_types(callable){
         Ok(v) => v,
         Err(e) => return Err(e),
     };
-    let args_vector = match get_args(callable_args){
+    let mut args_vector = match get_args(callable_args){
         Ok(v) => v,
         Err(e) => return Err(e),
     };
-
+    let preprocessor = match get_preprocessor(preproc){
+        Ok(v) => v,
+        Err(e) => return Err(e),
+    };
     let params = match encode_params(&types_vector[..], &args_vector[..], true){
         Ok(v) => v,
         Err(e) => return Err(e),

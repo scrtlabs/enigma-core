@@ -19,7 +19,7 @@ pub mod preprocessor{
     use std::vec::Vec;
     use sgx_trts::trts::rsgx_read_rand;
     // TODO: Implement Errors
-    fn run(pre_sig: &str) -> Vec<u8> {
+    pub fn run(pre_sig: &str) -> Vec<u8> {
         match pre_sig {
             "rand()" | "rand" => rand(),
             _ => panic!()
