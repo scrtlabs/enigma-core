@@ -38,7 +38,7 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
     }
 
     // Generate a new Keypair and seal it.
-    let keypair = asymmetric::KeyPair::new();
+    let keypair = asymmetric::KeyPair::new()?;
     let data = storage_t::SecretKeyStorage {version: 0x1, data: keypair.get_privkey()};
     let mut output: [u8; storage_t::SEAL_LOG_SIZE] = [0; storage_t::SEAL_LOG_SIZE];
     data.seal_key(&mut output);

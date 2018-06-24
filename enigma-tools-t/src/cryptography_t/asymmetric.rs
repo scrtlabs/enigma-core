@@ -15,22 +15,21 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
-    pub fn new() -> KeyPair {
+    pub fn new() -> Result<KeyPair, EnclaveError> {
         let mut me: [u8; 32] = [0; 32];
-        match rsgx_read_rand(&mut me){
-            Ok(_v)=>{},
-            Err(_e)=>{},
+        // TODO: Should loop until works?
+        rsgx_read_rand(&mut me)?;
+        let keys = match SecretKey::parse(&me) {
+            Ok(_priv) => KeyPair{privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv)},
+            Err(_) => return Err( EnclaveError::GenerationErr { generate: "Private Key".to_string(), err: "".to_string()} )
         };
-        let _priv = SecretKey::parse(&me).unwrap();
-        let _pub = PublicKey::from_secret_key(&_priv);
-        let keys = KeyPair{privkey: _priv, pubkey: _pub};
-        keys
+        Ok(keys)
     }
 
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, EnclaveError> {
         let _priv = match SecretKey::parse(&privkey) {
             Ok(key) => key,
-            Err(_) => return Err( EnclaveError::KeyErr{key_type: "PrivateKey".to_string(), key: "".to_string()} )
+            Err(_) => return Err( EnclaveError::KeyErr{key_type: "Private Key".to_string(), key: "".to_string()} )
         };
         let _pub = PublicKey::from_secret_key(&_priv);
         let keys = KeyPair{privkey: _priv, pubkey: _pub};
