@@ -33,6 +33,7 @@ fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8]) {
         let iter = rlp.iter();
         for item in iter{
             decrypt_rlp(&item, result, key);
+            result.push_str(",");
         }
         //Replace the last ',' with ']'
         result.pop();
@@ -43,36 +44,39 @@ fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8]) {
         let value: String = match as_val{
             Ok(v) => {
                 let encrypted_value = read_hex(from_utf8(&v).unwrap()).unwrap();
-                let decrypted_value = decrypt(&encrypted_value,key).unwrap();
-                let iter = decrypted_value.into_iter();
-                let mut decrypted_str = "".to_string();
-                for item in iter{
-                    decrypted_str.push(item as char);
+                let decrypted_value = decrypt(&encrypted_value,key);
+                match decrypted_value{
+                    Ok(v)=> {
+                        let iter = v.into_iter();
+                        let mut decrypted_str = "".to_string();
+                        for item in iter{
+                            decrypted_str.push(item as char);
+                        }
+                        decrypted_str
+                    },
+                    Err(e) => {
+                        convert_undecrypted_value_to_string(rlp)
+                    },
                 }
-                decrypted_str
             },
             Err(_e) => {
                 convert_undecrypted_value_to_string(rlp)
             },
         };
         result.push_str(&value);
-        result.push_str(",");
     }
 }
 
-pub fn decode_args(encoded: &[u8]) -> String{
+pub fn decode_args(encoded: &[u8]) -> Vec<String> {
     let key = get_key();
     let rlp = UntrustedRlp::new(encoded);
 
-    let mut result: String = "".to_string();
-    decrypt_rlp(&rlp, &mut result, key.as_ref());
-    //Remove outer []
-    if result.len()>=2{
-        if &result[0..1] == "["{
-            result.pop();
-            result.remove(0);
-        }
+    let mut result: Vec<String> = vec![];
+    let iter = rlp.iter();
+    for item in iter {
+        let mut str: String = "".to_string();
+        decrypt_rlp(&item, & mut str, &key);
+        result.push(str);
     }
     result
 }
-
