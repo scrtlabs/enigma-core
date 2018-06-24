@@ -27,11 +27,14 @@ impl KeyPair {
         keys
     }
 
-    pub fn from_slice(privkey: &[u8; 32]) -> KeyPair {
-        let _priv = SecretKey::parse(&privkey).unwrap();
+    pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, EnclaveError> {
+        let _priv = match SecretKey::parse(&privkey) {
+            Ok(key) => key,
+            Err(_) => return Err( EnclaveError::KeyErr{key_type: "PrivateKey".to_string(), key: "".to_string()} )
+        };
         let _pub = PublicKey::from_secret_key(&_priv);
         let keys = KeyPair{privkey: _priv, pubkey: _pub};
-        keys
+        Ok(keys)
     }
 
     pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<Vec<u8>, EnclaveError> {
@@ -78,18 +81,22 @@ impl KeyPair {
     /// 1. 32 Bytes, ECDSA `r` variable.
     /// 2. 32 Bytes ECDSA `s` variable.
     /// 3. 1 Bytes ECDSA `v` variable aligned to the right for Ethereum compatibility
-    pub fn sign(&self, message: &[u8]) -> Vec<u8> {
+    pub fn sign(&self, message: &[u8]) -> Result<Vec<u8>, EnclaveError> {
         let hashed_msg = message.keccak256();
         println!("the hash in hex: {:?}", &hashed_msg.to_hex());
         println!("the hash in array: {:?}", &hashed_msg);
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
-        let result = secp256k1::sign(&message_to_sign, &self.privkey);
-        let (sig, recovery) = result.unwrap();
+        let (sig, recovery) = match secp256k1::sign(&message_to_sign, &self.privkey) {
+            Ok( (sig, rec) ) => (sig, rec),
+            Err(_) => return Err( EnclaveError::SigningErr{msg: message.to_hex()} )
+        };
+//        let result = secp256k1::sign(&message_to_sign, &self.privkey);
+//        let (sig, recovery) = result.unwrap();
         let v: u8 = recovery.into();
 
         let mut returnvalue = sig.serialize().to_vec();
         returnvalue.push(v + 27);
-        returnvalue
+        Ok(returnvalue)
     }
 }
 
@@ -98,9 +105,9 @@ pub mod tests {
 
     pub fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
-        let k1 = KeyPair::from_slice(&_priv);
+        let k1 = KeyPair::from_slice(&_priv).unwrap();
         let msg = b"EnigmaMPC";
-        let sig = k1.sign(msg);
+        let sig = k1.sign(msg).unwrap();
         println!("Message: {:?}, Signature: {:?}", from_utf8(msg), &sig.to_hex());
         assert_eq!(sig, [103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28].to_vec());
     }
@@ -108,8 +115,8 @@ pub mod tests {
     pub fn test_ecdh() {
         let _priv1: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
         let _priv2: [u8; 32] = [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162];
-        let k1 = KeyPair::from_slice(&_priv1);
-        let k2 = KeyPair::from_slice(&_priv2);
+        let k1 = KeyPair::from_slice(&_priv1).unwrap();
+        let k2 = KeyPair::from_slice(&_priv2).unwrap();
         let shared1 = k1.get_aes_key(&k2.get_pubkey()).unwrap();
         let shared2 = k2.get_aes_key(&k1.get_pubkey()).unwrap();
         println!("the Derived key: {:?}, Hex: {:?}", &shared1, &shared1.to_hex());

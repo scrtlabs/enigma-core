@@ -18,4 +18,12 @@ pub enum EnclaveError {
     },
     #[fail(display = "Failed Encrypting")]
     EncryptionError {},
+    #[fail(display = "Signing the message failed: {}", msg)]
+    SigningErr {
+        msg: String,
+    },
+    #[fail(display = "There's no sufficient permissions to read this file: {}", file)]
+    PermissionErr {
+        file: String,
+    }
 }

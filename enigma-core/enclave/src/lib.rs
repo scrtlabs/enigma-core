@@ -73,7 +73,11 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
 
-    cryptography_t::get_sealed_keys(&sealed_path)
+    // TODO: Decide what to do if failed to obtain keys.
+    match cryptography_t::get_sealed_keys(&sealed_path) {
+        Ok(key) => return key,
+        Err(err) => panic!("Failed obtaining keys: {:?}", err)
+    };
 }
 
 #[no_mangle]
