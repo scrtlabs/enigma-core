@@ -5,10 +5,12 @@ pub mod symmetric;
 use storage_t;
 use std::untrusted::fs::{File, remove_file};
 use std::io::{Read, ErrorKind};
+ use std::string::ToString;
+ use common::errors_t::EnclaveError;
 
 
-// TODO:: handle failure and return a result including the empty match
-pub fn get_sealed_keys(sealed_path: &str) -> asymmetric::KeyPair {
+ // TODO:: handle failure and return a result including the empty match
+pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, EnclaveError> {
     // Open the file
     match File::open(sealed_path) {
         Ok(mut file) => {
@@ -31,17 +33,17 @@ pub fn get_sealed_keys(sealed_path: &str) -> asymmetric::KeyPair {
             };
         },
         Err(err) => {
-            if err.kind() == ErrorKind::PermissionDenied { panic!("No Permissions for: {}", sealed_path) }
+            if err.kind() == ErrorKind::PermissionDenied { return Err( EnclaveError::PermissionErr{ file: sealed_path.to_string() } ) }
         }
     }
 
     // Generate a new Keypair and seal it.
-    let keypair = asymmetric::KeyPair::new();
+    let keypair = asymmetric::KeyPair::new()?;
     let data = storage_t::SecretKeyStorage {version: 0x1, data: keypair.get_privkey()};
     let mut output: [u8; storage_t::SEAL_LOG_SIZE] = [0; storage_t::SEAL_LOG_SIZE];
     data.seal_key(&mut output);
     storage_t::save_sealed_key(&sealed_path, &output);
     println!("Generated a new key");
 
-    keypair
+    Ok(keypair)
 }

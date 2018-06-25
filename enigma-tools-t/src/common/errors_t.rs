@@ -1,4 +1,5 @@
-use std::string::String;
+use std::string::{String, ToString};
+use sgx_types::sgx_status_t;
 
 #[derive(Debug, Fail)]
 pub enum EnclaveError {
@@ -18,12 +19,37 @@ pub enum EnclaveError {
     },
     #[fail(display = "Failed Encrypting")]
     EncryptionError {},
+
     #[fail(display = "Preprocessor Error: {}", message)]
     PreprocessorError{
         message: String,
     },
     #[fail(display = "Input Error: {}", message)]
-    InputError{
+    InputError {
         message: String,
+    },
+    #[fail(display = "Signing the message failed: {}", msg)]
+    SigningErr {
+        msg: String,
+    },
+    #[fail(display = "There's no sufficient permissions to read this file: {}", file)]
+    PermissionErr {
+        file: String,
+    },
+    #[fail(display = "Failed Generating a: {}, {}", generate, err)]
+    GenerationErr {
+        generate: String,
+        err: String,
+    },
+    #[fail(display = "An SGX Error has occurred: {}, Description: {}", err, description)]
+    SgxErr {
+        err: String,
+        description: String,
+    }
+}
+
+impl From<sgx_status_t> for EnclaveError {
+    fn from(err: sgx_status_t) -> EnclaveError {
+        EnclaveError::SgxErr { err: err.as_str().to_string(), description: err.__description().to_string() }
     }
 }
