@@ -9,7 +9,7 @@ use std::vec::Vec;
 use std::string::ToString;
 use std::str::from_utf8;
 use evm_t::error::{ErrorKind};
-use evm_t::rlp::decode_args;
+use evm_t::rlp::{decode_args, complete_to_u256};
 use error_chain::State;
 use evm_t::preprocessor;
 use common::utils_t::{ToHex, FromHex};
@@ -68,9 +68,8 @@ fn get_types(function: &str) -> Result<(Vec<String>, String), EnclaveError>{
     Ok(( types_vector, String::from(&function[..start_arg_index] )))
 }
 
-fn get_args(callable_args: &[u8]) -> Result<Vec<String>, EnclaveError>{
-    let decoded_args = decode_args(callable_args);
-    Ok(decoded_args)
+fn get_args(callable_args: &[u8], types: &Vec<String>) -> Result<Vec<String>, EnclaveError>{
+    decode_args(callable_args, types)
 }
 
 fn get_preprocessor(preproc: &[u8]) -> Result<String, EnclaveError> {
@@ -101,7 +100,7 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
         Ok(v) => v,
         Err(e) => return Err(e),
     };
-    let mut args_vector = match get_args(callable_args) {
+    let mut args_vector = match get_args(callable_args, &types_vector) {
         Ok(v) => v,
         Err(e) => return Err(e),
     };
@@ -110,8 +109,9 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
             Ok(v) => v,
             Err(e) => return Err(e),
         };
+        args_vector.push(complete_to_u256(preprocessor));
     }
-    let params = match encode_params(&types_vector[..], &args_vector[..], true){
+    let params = match encode_params(&types_vector[..], &args_vector[..], false){
         Ok(v) => v,
         Err(e) => return Err(EnclaveError::InputError{message: e.to_string()}),
     };
