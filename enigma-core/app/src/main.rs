@@ -7,6 +7,8 @@ extern crate serde_json;
 // errors
 #[macro_use]
 extern crate failure;
+extern crate rustc_hex as hex;
+
 
 
 #[macro_use]

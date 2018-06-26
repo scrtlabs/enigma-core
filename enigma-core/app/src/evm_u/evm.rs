@@ -3,14 +3,12 @@ extern crate sgx_types;
 extern crate sgx_urts;
 
 use sgx_types::*;
-use sgx_urts::SgxEnclave;
 
 use std::iter::FromIterator;
 //failure 
 use common_u::errors;
 use failure::Error;
-use std::str::from_utf8;
-
+use hex::ToHex;
 
 extern {
     fn ecall_evm(eid: sgx_enclave_id_t,
@@ -20,7 +18,7 @@ extern {
                  callable_args: *const u8, callable_args_len: usize,
                  preprocessor: *const u8, preprocessor_len: usize,
                  callback: *const u8, callback_len: usize,
-                 output: *mut u8, vm_status: &mut u8,
+                 output: *mut u8, signature: &mut [u8; 64],
                  result_length: &mut usize) -> sgx_status_t;
 }
 
@@ -87,10 +85,10 @@ pub fn exec_evm(/*enclave: &SgxEnclave*/eid: sgx_enclave_id_t, evm_input: EvmReq
 // This should be changed
 // the length of the result returned by EVM should be checked in advance
 const MAX_EVM_RESULT: usize = 100000;
-fn call_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> (u8, Vec<u8>) {
+fn call_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> Result<EvmResponse,Error> {
     let mut out = vec![0u8; MAX_EVM_RESULT];
     let slice = out.as_mut_slice();
-    let mut st: u8 = 1;
+    let mut signature: [u8; 64] = [0; 64];
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     let mut result_length: usize = 0;
 
@@ -108,11 +106,15 @@ fn call_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> (u8, Vec<u8>) {
                   evm_input.callback.as_ptr(),
                   evm_input.callback.len(),
                   slice.as_mut_ptr() as *mut u8,
-                  &mut st,
+                  &mut signature,
                   &mut result_length)
     };
     let part = Vec::from_iter(slice[0..result_length].iter().cloned());
-    (st, part)
+    Ok(EvmResponse{
+        errored: retval != sgx_status_t::SGX_SUCCESS,
+        result: part.to_hex(),
+        signature: signature.to_hex(),
+    })
 }
 
 #[cfg(test)]
@@ -159,9 +161,15 @@ pub mod tests {
             preprocessor: "".to_string(),
             callback : "".to_string(),
         };
-        let evm_result = evm::call_evm(enclave.geteid(), evm_input);
-        assert_eq!(evm_result.0, 0);
-        assert_eq!(evm_result.1, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
+        let evm_result = match evm::call_evm(enclave.geteid(), evm_input){
+            Ok(v) => v,
+            Err(e) => {
+                println!("{}", e.to_string());
+                return
+            }
+        };
+        assert_eq!(evm_result.errored, false);
+        assert_eq!(evm_result.result, "0000000000000000000000000000000000000000000000000000000000000003");
         enclave.destroy();
     }
 
@@ -184,8 +192,17 @@ pub mod tests {
             preprocessor: "rand".to_string(),
             callback : "distribute(uint,address[])".to_string(),
         };
-        let evm_result = evm::call_evm(enclave.geteid(), evm_input);
-        assert_eq!(evm_result.0, 0);
+        let evm_result = match evm::call_evm(enclave.geteid(), evm_input){
+            Ok(v) => v,
+            Err(e) => {
+                println!("{}", e.to_string());
+                return
+            }
+        };
+        assert_eq!(evm_result.errored, false);
+        assert!((evm_result.result == "000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000ee281427f13de12d46f1b910bfbc6346d041009f0000000000000000000000007331511dfdb45760f210af747d1ab275d935e4e8")
+        |
+                    (evm_result.result == "0000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000007331511dfdb45760f210af747d1ab275d935e4e8000000000000000000000000ee281427f13de12d46f1b910bfbc6346d041009f"));
         enclave.destroy();
     }
 
