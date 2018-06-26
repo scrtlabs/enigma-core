@@ -75,10 +75,23 @@ fn get_args(callable_args: &[u8]) -> Result<Vec<String>, EnclaveError>{
 
 fn get_preprocessor(preproc: &[u8]) -> Result<String, EnclaveError> {
     let preprocessor_result = preprocessor::run(from_utf8(preproc).unwrap());
-    match preprocessor_result{
+    match preprocessor_result {
         Ok(v) => Ok(v.to_hex()),
         Err(e) => Err(e),
     }
+}
+
+fn create_function_signature(types_vector: Vec<String>, function_name: String) -> Result<[u8;4],EnclaveError>{
+    let mut types: Vec<ParamType> = vec![];
+    match types_vector[..].iter()
+        .map(|s| Reader::read(s))
+        .collect::<Result<_, _>>(){
+        Ok(v) => types = v,
+        Err(e) => return Err(EnclaveError::InputError{message: e.to_string()}),
+    };
+
+    let callback_signature = short_signature(&function_name, &types);
+    Ok(callback_signature)
 }
 
 pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) -> Result<Vec<u8>, EnclaveError> {
@@ -124,5 +137,23 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
         result_bytes.push(*item);
     }
 
+    Ok(result_bytes)
+}
+
+pub fn create_callback(mut data: & mut Vec<u8>, callback: &[u8]) -> Result<Vec<u8>, EnclaveError>{
+    let callback: &str = from_utf8(callback).unwrap();
+
+    let (types_vector, function_name) = match get_types(callback) {
+        Ok(v) => v,
+        Err(e) => return Err(e),
+    };
+
+    let callback_signature = create_function_signature(types_vector, function_name);
+    let mut result_bytes: Vec<u8> = vec![];
+    match callback_signature{
+        Err(e) => return Err(e),
+        Ok(v) => result_bytes.extend_from_slice(&v),
+    };
+    result_bytes.append(& mut data);
     Ok(result_bytes)
 }

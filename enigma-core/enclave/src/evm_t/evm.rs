@@ -7,6 +7,8 @@ use std::vec::Vec;
 use sputnikvm_network_classic::MainnetFrontierPatch;
 use std::ops::DerefMut;
 use evm_t::EvmResult;
+use common::utils_t::{ToHex, FromHex};
+
 
 fn handle_fire_without_rpc(vm: &mut VM) {
     loop {
@@ -33,7 +35,7 @@ fn handle_fire_without_rpc(vm: &mut VM) {
 }
 
 
-pub fn call_sputnikvm(code: Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
+pub fn call_sputnikvm(code: &Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
     let caller = Address::from_str("0x0000000000000000000000000000000000000000").unwrap();
     let address = Address::from_str("0x0000000000000000000000000000000000000000").unwrap();
     let gas_limit = Gas::from_str("0x2540be400").unwrap();
@@ -56,7 +58,7 @@ pub fn call_sputnikvm(code: Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
             gas_limit,
             gas_price,
             value,
-            code: Rc::new(code),
+            code: Rc::new(code.to_vec() ),
             data: Rc::new(data),
             origin: caller,
             apprent_value: value,
@@ -68,7 +70,7 @@ pub fn call_sputnikvm(code: Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
 
     handle_fire_without_rpc(vm.deref_mut());
     println!("VM returned: {:?}", vm.status());
-    println!("VM out: {:?}", vm.out());
+    println!("VM out: {:?}", vm.out().to_hex());
     for account in vm.accounts() {
         println!("{:?}", account);
     }

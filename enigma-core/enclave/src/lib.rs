@@ -53,8 +53,11 @@ use enigma_tools_t::common;
 use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::common::utils_t::{ToHex};
 use enigma_tools_t::quote_t;
-use evm_t::abi::prepare_evm_input;
+use evm_t::abi::{prepare_evm_input, create_callback};
 use evm_t::EvmResult;
+use std::vec::Vec;
+use common::errors_t::EnclaveError;
+
 
 lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
@@ -96,6 +99,8 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
     let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
     let callable_args_slice = unsafe { slice::from_raw_parts(callable_args, callable_args_len) };
     let preprocessor_slice = unsafe { slice::from_raw_parts(preprocessor, preprocessor_len) };
+    let mut callback_slice = unsafe { slice::from_raw_parts(callback, callback_len) };
+
 
     let callable_args = read_hex(from_utf8(callable_args_slice).unwrap()).unwrap();
     let bytecode = read_hex(from_utf8(bytecode_slice).unwrap()).unwrap();
@@ -110,7 +115,15 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
         },
     };
 
-    let mut res = call_sputnikvm(bytecode, data);
+    let mut res = call_sputnikvm(&bytecode, data);
+    let mut signature = Vec::<u8>::new();
+    if callback_slice.len() > 0 {
+        signature = match sign(callable_args_slice, callback_slice, bytecode_slice, &mut res.1) {
+            Ok(v) => v,
+            Err(e) => return sgx_status_t::SGX_ERROR_UNEXPECTED,
+        };
+    }
+
     *vm_status = res.0;
     match *vm_status{
         0 => {
@@ -125,6 +138,18 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
         }
         _ => sgx_status_t::SGX_ERROR_UNEXPECTED
     }
+}
+
+fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8], result: & mut Vec<u8>) -> Result<Vec<u8>, EnclaveError>{
+    let callback_data = match create_callback(result, callback){
+        Ok(v) => v,
+        Err(e) => return Err(e),
+    };
+    let mut to_be_signed: Vec<u8> = vec![];
+    to_be_signed.extend_from_slice(callable_args);
+    to_be_signed.extend_from_slice(&callback_data);
+    to_be_signed.extend_from_slice(bytecode);
+    SIGNINING_KEY.sign(&to_be_signed)
 }
 
 pub mod tests {
