@@ -2,8 +2,9 @@ pub mod evm;
 pub mod abi;
 pub mod error;
 pub mod rlp;
-use ring::digest;
+
 use std::vec::Vec;
+use enigma_tools_t::common::utils_t::{Sha256};
 
 pub enum EvmResult{
     SUCCESS=0,
@@ -11,7 +12,7 @@ pub enum EvmResult{
 }
 
 pub fn get_key() -> Vec<u8> {
-    digest::digest(&digest::SHA256, b"EnigmaMPC").as_ref().iter().cloned().collect()
+    b"EnigmaMPC".sha256().to_vec()
 }
 
 pub mod preprocessor{

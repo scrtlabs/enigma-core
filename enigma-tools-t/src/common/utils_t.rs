@@ -16,13 +16,16 @@ use std::fmt;
 use std::error;
 use std::vec::Vec;
 use std::string::String;
-
+use ring::digest;
 use tiny_keccak::Keccak;
 
 
 // Hash a byte array into keccak256.
 pub trait Keccak256<T> {
     fn keccak256(&self) -> T where T: Sized;
+}
+pub trait Sha256<T> {
+    fn sha256(&self) -> T where T: Sized;
 }
 
 impl Keccak256<[u8; 32]> for [u8] {
@@ -35,6 +38,14 @@ impl Keccak256<[u8; 32]> for [u8] {
     }
 }
 
+impl Sha256<[u8; 32]> for [u8] {
+    fn sha256(&self) -> [u8; 32] {
+        let mut result = [0u8; 32];
+        let hash = digest::digest(&digest::SHA256, self);
+        result.copy_from_slice(hash.as_ref());
+        result
+    }
+}
 
 /// A trait for converting a value to hexadecimal encoding
 pub trait ToHex {
