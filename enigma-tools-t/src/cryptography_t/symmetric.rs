@@ -62,9 +62,8 @@ pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Result<Vec<u8>, EnclaveError> 
 }
 
 pub mod tests {
-    use ring::digest;
     use cryptography_t::symmetric::*;
-    use common::utils_t::{ToHex, FromHex};
+    use common::utils_t::{ToHex, FromHex, Sha256};
     use sgx_trts::trts::rsgx_read_rand;
 
     pub fn test_rand_encrypt_decrypt() {
@@ -79,18 +78,18 @@ pub mod tests {
     }
 
     pub fn test_encryption() {
-        let key = digest::digest(&digest::SHA256, b"EnigmaMPC");
+        let key = b"EnigmaMPC".sha256();
         let msg = b"This Is Enigma".to_vec();
         let iv = Some( [0,1,2,3,4,5,6,7,8,9,10,11] );
-        let result = encrypt(&msg, key.as_ref(), &iv).unwrap();
+        let result = encrypt(&msg, &key, &iv).unwrap();
         assert_eq!(result.to_hex(), "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b");
 
     }
 
     pub fn test_decryption() {
         let encrypted_data = "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b";
-        let key = digest::digest(&digest::SHA256, b"EnigmaMPC");
-        let result = decrypt(&encrypted_data.from_hex().unwrap(), key.as_ref()).unwrap();
+        let key = b"EnigmaMPC".sha256();
+        let result = decrypt(&encrypted_data.from_hex().unwrap(), &key).unwrap();
         assert_eq!(result, b"This Is Enigma".to_vec());
     }
 }

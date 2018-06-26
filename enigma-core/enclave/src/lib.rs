@@ -30,9 +30,6 @@ extern crate bigint;
 extern crate sputnikvm_network_classic;
 extern crate enigma_tools_t;
 
-extern crate ring;
-
-
 #[macro_use]
 extern crate error_chain;
 extern crate rustc_hex as hex;
