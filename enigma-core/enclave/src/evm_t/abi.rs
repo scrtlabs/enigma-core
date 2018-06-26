@@ -154,6 +154,6 @@ pub fn create_callback(mut data: & mut Vec<u8>, callback: &[u8]) -> Result<Vec<u
         Err(e) => return Err(e),
         Ok(v) => result_bytes.extend_from_slice(&v),
     };
-    result_bytes.append(& mut data);
+    result_bytes.extend_from_slice(& mut data);
     Ok(result_bytes)
 }

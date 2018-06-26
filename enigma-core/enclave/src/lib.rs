@@ -93,13 +93,13 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
                             callable_args: *const u8, callable_args_len: usize,
                             preprocessor: *const u8, preprocessor_len: usize,
                             callback: *const u8, callback_len: usize,
-                            output: *mut u8, vm_status: &mut u8, result_len: &mut usize) -> sgx_status_t {
+                            output: *mut u8, signature: &mut [u8; 64], result_len: &mut usize) -> sgx_status_t {
 
     let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
     let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
     let callable_args_slice = unsafe { slice::from_raw_parts(callable_args, callable_args_len) };
     let preprocessor_slice = unsafe { slice::from_raw_parts(preprocessor, preprocessor_len) };
-    let mut callback_slice = unsafe { slice::from_raw_parts(callback, callback_len) };
+    let callback_slice = unsafe { slice::from_raw_parts(callback, callback_len) };
 
 
     let callable_args = read_hex(from_utf8(callable_args_slice).unwrap()).unwrap();
@@ -110,26 +110,24 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
             v
         },
         Err(_e) => {
-            *vm_status = EvmResult::FAULT as u8;
             return sgx_status_t::SGX_ERROR_UNEXPECTED
         },
     };
 
     let mut res = call_sputnikvm(&bytecode, data);
-    let mut signature = Vec::<u8>::new();
+    let mut out_signature = Vec::<u8>::new();
     if callback_slice.len() > 0 {
-        signature = match sign(callable_args_slice, callback_slice, bytecode_slice, &mut res.1) {
+        out_signature = match sign(callable_args_slice, callback_slice, bytecode_slice, &mut res.1) {
             Ok(v) => v,
-            Err(e) => return sgx_status_t::SGX_ERROR_UNEXPECTED,
+            Err(_e) => return sgx_status_t::SGX_ERROR_UNEXPECTED,
         };
+        signature.clone_from_slice(&out_signature[0..64]);
     }
 
-    *vm_status = res.0;
-    match *vm_status{
+    match res.0{
         0 => {
             let s: &mut [u8] = &mut res.1[..];
             *result_len = s.len();
-
             unsafe {
                 ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
             }
