@@ -64,28 +64,11 @@ pub struct EvmResponse{
 // this function is called by the the server componenet upon an execevm command from surface
 // very likely that this functions will require an SgxEnclave object.
 
-pub fn exec_evm(/*enclave: &SgxEnclave*/eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmResponse,Error>{
-    println!("recieved from the client => " );
-    println!("bytecode : {}",evm_input.bytecode );
-    println!("callable : {}",evm_input.callable );
-    println!("callable_args : {}",evm_input.callable_args );
-    println!("callback : {}",evm_input.callback );
-    println!("preprocessor : {}",evm_input.preprocessor );
-    // this never happens, just an example of WHEN this function is implemented how to use the error type related to that computation.
-    if false {
-        return Err(errors::ExecEvmErr{status:sgx_status_t::SGX_SUCCESS, message : String::from("execevm error example")}.into());
-    }
-    Ok(EvmResponse{
-        errored:false,
-        result : String::from("the evm result :o"),
-        signature : String::from("the evm signature :o")})
-}
-
 // TODO:: handle error and failure correctly with the 'result' variable returned from the enclave
 // This should be changed
 // the length of the result returned by EVM should be checked in advance
 const MAX_EVM_RESULT: usize = 100000;
-fn call_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> Result<EvmResponse,Error> {
+pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmResponse,Error>{
     let mut out = vec![0u8; MAX_EVM_RESULT];
     let slice = out.as_mut_slice();
     let mut signature: [u8; 64] = [0; 64];
@@ -161,7 +144,7 @@ pub mod tests {
             preprocessor: "".to_string(),
             callback : "".to_string(),
         };
-        let evm_result = match evm::call_evm(enclave.geteid(), evm_input){
+        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input){
             Ok(v) => v,
             Err(e) => {
                 println!("{}", e.to_string());
@@ -192,7 +175,7 @@ pub mod tests {
             preprocessor: "rand".to_string(),
             callback : "distribute(uint,address[])".to_string(),
         };
-        let evm_result = match evm::call_evm(enclave.geteid(), evm_input){
+        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input){
             Ok(v) => v,
             Err(e) => {
                 println!("{}", e.to_string());
