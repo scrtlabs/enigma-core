@@ -73,7 +73,7 @@ fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8], is_uint: bo
                         }
                         decrypted_str
                     },
-                    Err(e) => {
+                    Err(_e) => {
                         convert_undecrypted_value_to_string(rlp, is_uint)
                     },
                 }
