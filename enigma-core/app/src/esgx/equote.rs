@@ -113,13 +113,13 @@ pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,Error>{
     let status =  unsafe {
          ecall_get_signing_pubkey(enclave.geteid(), &mut pub_key) 
     };
-    if status == sgx_status_t::SGX_SUCCESS{
+    if status == sgx_status_t::SGX_SUCCESS {
         let hex_key = pub_key.iter().fold(String::new(), |mut s, v| {
-                    s.push_str(&format!("{:x}", v));
+                    s.push_str(&format!("{:02x}", v));
                     s
         });
-        Ok(hex_key)         
-    }else{
+        Ok(hex_key)
+    } else {
         Err(errors::GetRegisterKeyErr{status:status, 
         message : String::from("error in get_register_signing_key")}.into())
     }
