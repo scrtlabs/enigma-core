@@ -34,13 +34,13 @@ pub struct EvmRequest{
     bytecode :      String,
     callable :      String,
     callable_args :  String,
-    preprocessor :  String,
+    pub preprocessor :  Vec<String>,
     callback :      String,
 }
 
 
 impl EvmRequest {
-     pub fn new(_bytecode:String,_callable:String,_callable_args:String,_preprocessor:String,_callback:String) -> Self {
+     pub fn new(_bytecode:String,_callable:String,_callable_args:String,_preprocessor:Vec<String>,_callback:String) -> Self {
         EvmRequest {
             bytecode : _bytecode,
             callable : _callable, 
@@ -74,6 +74,13 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmRespo
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     let mut result_length: usize = 0;
 
+    let mut prep: String = "".to_owned();
+    for item in evm_input.preprocessor{
+        prep.push_str(&item);
+        prep.push(',');
+    }
+    prep.pop();
+
     let result = unsafe {
         ecall_evm(eid,
                   &mut retval,
@@ -83,8 +90,10 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmRespo
                   evm_input.callable.len(),
                   evm_input.callable_args.as_ptr(),
                   evm_input.callable_args.len(),
-                  evm_input.preprocessor.as_ptr(),
-                  evm_input.preprocessor.len(),
+                  //evm_input.preprocessor.as_ptr(),
+                  prep.as_ptr(),
+                  //evm_input.preprocessor.len(),
+                  prep.len(),
                   evm_input.callback.as_ptr(),
                   evm_input.callback.len(),
                   slice.as_mut_ptr() as *mut u8,

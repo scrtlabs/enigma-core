@@ -70,12 +70,19 @@ fn get_args(callable_args: &[u8], types: &Vec<String>) -> Result<Vec<String>, En
     decode_args(callable_args, types)
 }
 
-fn get_preprocessor(preproc: &[u8]) -> Result<String, EnclaveError> {
-    let preprocessor_result = preprocessor::run(from_utf8(preproc).unwrap());
-    match preprocessor_result {
-        Ok(v) => Ok(v.to_hex()),
-        Err(e) => Err(e),
+fn get_preprocessor(preproc: &[u8]) -> Result<Vec<String>, EnclaveError> {
+    let prep_string = from_utf8(preproc).unwrap();
+    let mut split = prep_string.split(",");
+    let mut preprocessors = vec![];
+    for preprocessor in split{
+        let preprocessor_result = preprocessor::run(preprocessor);
+        match preprocessor_result {
+            Ok(v) => preprocessors.push(v.to_hex()),
+            Err(e) => return Err(e),
+        };
     }
+    Ok(preprocessors)
+
 }
 
 fn create_function_signature(types_vector: Vec<String>, function_name: String) -> Result<[u8;4],EnclaveError>{
@@ -103,11 +110,13 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
         Err(e) => return Err(e),
     };
     if preproc.len() > 0 {
-        let preprocessor = match get_preprocessor(preproc) {
+        let preprocessors = match get_preprocessor(preproc) {
             Ok(v) => v,
             Err(e) => return Err(e),
         };
-        args_vector.push(complete_to_u256(preprocessor));
+        for preprocessor in preprocessors {
+            args_vector.push(complete_to_u256(preprocessor));
+        }
     }
     if types_vector.len() != args_vector.len(){
         return Err(EnclaveError::InputError{message: "The number of function arguments does not match the number of actual parameters in ".to_string()+&function_name});
