@@ -53,7 +53,7 @@ Successfully built cd6787969fd1
 * run docker with the Successfully built id (cd6787969fd1 in the example above)
 
 ```
-docker run -v /some/path/enigma-core/:/root/enigma-core -ti --device /dev/isgx <id>
+docker run -v /some/path/enigma-core/:/root/enigma-core -ti -p 5552:5552 --device /dev/isgx <id>
 ```
 
 * build the project 

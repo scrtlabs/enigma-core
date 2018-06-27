@@ -24,7 +24,7 @@ mod networking;
 mod common_u;
 
 pub use esgx::general::ocall_get_home;
-
+use networking::{surface_server, constants};
 
 #[allow(unused_variables, unused_mut)]
 fn main() {
@@ -40,6 +40,10 @@ fn main() {
             return;
         },
     };
+    {
+        let mut server = surface_server::Server::new(constants::CONNECTION_STR, &enclave);
+        server.run();
+    }
     enclave.destroy();
 }
 
