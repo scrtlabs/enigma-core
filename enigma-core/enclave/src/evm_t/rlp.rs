@@ -68,6 +68,13 @@ fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8], is_uint: bo
                         for item in iter{
                             decrypted_str.push(item as char);
                         }
+
+                        //Remove 0x from the beginning, if used in encryption
+                        if (&decrypted_str[0..2]=="0x") | (&decrypted_str[0..2]=="0X") {
+                            decrypted_str.remove(0);
+                            decrypted_str.remove(0);
+                        }
+
                         if is_uint {
                             decrypted_str = complete_to_u256(decrypted_str);
                         }
