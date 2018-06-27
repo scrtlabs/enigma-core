@@ -17,7 +17,7 @@ extern {
                  callable_args: *const u8, callable_args_len: usize,
                  preprocessor: *const u8, preprocessor_len: usize,
                  callback: *const u8, callback_len: usize,
-                 output: *mut u8, signature: &mut [u8; 64],
+                 output: *mut u8, signature: &mut [u8; 65],
                  result_length: &mut usize) -> sgx_status_t;
 }
 
@@ -31,11 +31,11 @@ pub struct EvmInput {
 
 pub struct EvmRequest{
     #[allow(dead_code)]
-    bytecode :      String,
-    callable :      String,
-    callable_args :  String,
+    pub bytecode :      String,
+    pub callable :      String,
+    pub callable_args :  String,
     pub preprocessor :  Vec<String>,
-    callback :      String,
+    pub callback :      String,
 }
 
 
@@ -70,7 +70,7 @@ const MAX_EVM_RESULT: usize = 100000;
 pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmResponse,Error>{
     let mut out = vec![0u8; MAX_EVM_RESULT];
     let slice = out.as_mut_slice();
-    let mut signature: [u8; 64] = [0; 64];
+    let mut signature: [u8; 65] = [0; 65];
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     let mut result_length: usize = 0;
 
