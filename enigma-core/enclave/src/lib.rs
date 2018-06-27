@@ -48,7 +48,7 @@ use evm_t::evm::call_sputnikvm;
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::common;
 use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::common::utils_t::{ToHex};
+use enigma_tools_t::common::utils_t::{ToHex, Keccak256};
 use enigma_tools_t::quote_t;
 use evm_t::abi::{prepare_evm_input, create_callback};
 use evm_t::EvmResult;
@@ -62,6 +62,7 @@ lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_ke
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
     println!("Generating Report with: {:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
+    println!("Ethereum Address: 0x{}", &SIGNINING_KEY.get_pubkey().keccak256().to_hex()[24..]);
     quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
 }
 
@@ -81,6 +82,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 #[no_mangle]
 pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
+    println!("PrivKey: {:?}", SIGNINING_KEY.get_privkey().to_hex());
     pubkey.clone_from_slice(&SIGNINING_KEY.get_pubkey());
 }
 
@@ -90,7 +92,7 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
                             callable_args: *const u8, callable_args_len: usize,
                             preprocessor: *const u8, preprocessor_len: usize,
                             callback: *const u8, callback_len: usize,
-                            output: *mut u8, signature: &mut [u8; 64], result_len: &mut usize) -> sgx_status_t {
+                            output: *mut u8, signature: &mut [u8; 65], result_len: &mut usize) -> sgx_status_t {
 
     let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
     let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
@@ -98,10 +100,8 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
     let preprocessor_slice = unsafe { slice::from_raw_parts(preprocessor, preprocessor_len) };
     let callback_slice = unsafe { slice::from_raw_parts(callback, callback_len) };
 
-
     let callable_args = read_hex(from_utf8(callable_args_slice).unwrap()).unwrap();
     let bytecode = read_hex(from_utf8(bytecode_slice).unwrap()).unwrap();
-
     let data = match  prepare_evm_input(callable_slice, &callable_args, preprocessor_slice){
         Ok(v) => {
             v
@@ -111,7 +111,6 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
             return sgx_status_t::SGX_ERROR_UNEXPECTED
         },
     };
-
     let mut res = call_sputnikvm(&bytecode, data);
     let mut out_signature = Vec::<u8>::new();
     let mut callback_data = vec![];
@@ -123,14 +122,14 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
                 return sgx_status_t::SGX_ERROR_UNEXPECTED
             },
         };
-        out_signature = match sign(callable_args_slice, & mut callback_data, bytecode_slice) {
+        out_signature = match sign(&callable_args, & mut callback_data, &bytecode) {
             Ok(v) => v,
             Err(e) => {
                 println!("{:?}", e);
                 return sgx_status_t::SGX_ERROR_UNEXPECTED
             },
         };
-        signature.clone_from_slice(&out_signature[0..64]);
+        signature.clone_from_slice(&out_signature[0..65]);
     }
 
     match res.0{
@@ -150,11 +149,12 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
     }
 }
 
-fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8>, EnclaveError>{
+fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8>, EnclaveError> {
     let mut to_be_signed: Vec<u8> = vec![];
     to_be_signed.extend_from_slice(callable_args);
     to_be_signed.extend_from_slice(&callback);
     to_be_signed.extend_from_slice(bytecode);
+    println!("Combined hash: {:?}", &to_be_signed.keccak256().to_hex());
     SIGNINING_KEY.sign(&to_be_signed)
 }
 

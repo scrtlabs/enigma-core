@@ -21,7 +21,7 @@ enclave {
                                       [in, size=callable_args_len] const uint8_t* callable_args, size_t callable_args_len,
                                       [in, size=preprocessor_len] const uint8_t* preprocessor, size_t preprocessor_len,
                                       [in, size=callback_len] const uint8_t* callback, size_t callback_len,
-	                                  [out, size=100000] uint8_t* output, [out] uint8_t signiture[64], [out] uint64_t* result_length);
+	                                  [out, size=100000] uint8_t* output, [out] uint8_t signiture[65], [out] uint64_t* result_length);
 
 
         public void ecall_get_signing_pubkey([out] uint8_t arr[64]);

@@ -82,7 +82,6 @@ impl KeyPair {
     /// 3. 1 Bytes ECDSA `v` variable aligned to the right for Ethereum compatibility
     pub fn sign(&self, message: &[u8]) -> Result<Vec<u8>, EnclaveError> {
         let hashed_msg = message.keccak256();
-        println!("Hash in hex before signing: {:?}", &hashed_msg.to_hex());
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
         let (sig, recovery) = match secp256k1::sign(&message_to_sign, &self.privkey) {
             Ok( (sig, rec) ) => (sig, rec),
@@ -94,6 +93,7 @@ impl KeyPair {
 
         let mut returnvalue = sig.serialize().to_vec();
         returnvalue.push(v + 27);
+//        println!("Sig hex on signing:")
         Ok(returnvalue)
     }
 }
