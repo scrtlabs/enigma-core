@@ -71,7 +71,7 @@ impl ClientHandler {
     fn handle_execevm(&self, eid: sgx_enclave_id_t, msg : Value)-> Result<(String), Error>{
             // get the EVM inputs 
             let evm_input = self.unwrap_execevm(msg);
-            // make an ecall to encrypt+compute 
+            // make an ecall to encrypt+compute
             let result : evm::EvmResponse = evm::exec_evm(eid, evm_input)?;
             // serialize the result 
             let str_result = serde_json::to_string(&result).unwrap();
@@ -98,8 +98,8 @@ impl ClientHandler {
         evm::EvmRequest::new(
         msg["bytecode"].as_str().unwrap().to_string(),
         msg["callable"].as_str().unwrap().to_string(), 
-        msg["callable_args"].as_str().unwrap().to_string(), 
-        msg["preprocessor"].as_str().unwrap().to_string(), 
+        msg["callable_args"].as_str().unwrap().to_string(),
+        msg["preprocessors"].as_str().unwrap().to_string(),
         msg["callback"].as_str().unwrap().to_string())
     }
 }
