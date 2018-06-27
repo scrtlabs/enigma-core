@@ -48,7 +48,7 @@ use evm_t::evm::call_sputnikvm;
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::common;
 use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::common::utils_t::{ToHex};
+use enigma_tools_t::common::utils_t::{ToHex, Keccak256};
 use enigma_tools_t::quote_t;
 use evm_t::abi::{prepare_evm_input, create_callback};
 use evm_t::EvmResult;
@@ -62,6 +62,7 @@ lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_ke
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
     println!("Generating Report with: {:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
+    println!("Ethereum Address: 0x{}", &SIGNINING_KEY.get_pubkey().keccak256().to_hex()[24..]);
     quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
 }
 
@@ -81,6 +82,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 #[no_mangle]
 pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
+    println!("PrivKey: {:?}", SIGNINING_KEY.get_privkey().to_hex());
     pubkey.clone_from_slice(&SIGNINING_KEY.get_pubkey());
 }
 
@@ -101,7 +103,7 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
 
     let callable_args = read_hex(from_utf8(callable_args_slice).unwrap()).unwrap();
     let bytecode = read_hex(from_utf8(bytecode_slice).unwrap()).unwrap();
-
+    println!("Before prepare evm_input");
     let data = match  prepare_evm_input(callable_slice, &callable_args, preprocessor_slice){
         Ok(v) => {
             v
@@ -111,11 +113,12 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
             return sgx_status_t::SGX_ERROR_UNEXPECTED
         },
     };
-
+    println!("Before sputnikvm");
     let mut res = call_sputnikvm(&bytecode, data);
     let mut out_signature = Vec::<u8>::new();
     let mut callback_data = vec![];
     if callback_slice.len() > 0 {
+        println!("Before create callback");
         callback_data = match create_callback(&mut res.1, callback_slice){
             Ok(v) => v,
             Err(e) => {
