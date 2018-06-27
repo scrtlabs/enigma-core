@@ -114,7 +114,7 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
     }
     let params = match encode_params(&types_vector[..], &args_vector[..], false){
         Ok(v) => v,
-        Err(e) => return Err(EnclaveError::InputError{message: "Error in encoding of ".to_string()+&function_name+": ".to_string()+&e.to_string()}),
+        Err(e) => return Err(EnclaveError::InputError{message: "Error in encoding of ".to_string()+&function_name+&": ".to_string()+&e.to_string()}),
     };
 
     let mut types: Vec<ParamType> = vec![];
