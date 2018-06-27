@@ -28,8 +28,6 @@ fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token
 }
 
 fn encode_params(types: &[String], values: &[String], lenient: bool) -> Result<Vec<u8>, Error> {
-    assert_eq!(types.len(), values.len());
-
     let types: Vec<ParamType> = types.iter()
         .map(|s| Reader::read(s))
         .collect::<Result<_, _>>()?;
@@ -111,9 +109,12 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
         };
         args_vector.push(complete_to_u256(preprocessor));
     }
+    if types_vector.len() != args_vector.len(){
+        return Err(EnclaveError::InputError{message: "The number of function arguments does not match the number of actual parameters in ".to_string()+&function_name});
+    }
     let params = match encode_params(&types_vector[..], &args_vector[..], false){
         Ok(v) => v,
-        Err(e) => return Err(EnclaveError::InputError{message: e.to_string()}),
+        Err(e) => return Err(EnclaveError::InputError{message: "Error in encoding of ".to_string()+&function_name+": ".to_string()+&e.to_string()}),
     };
 
     let mut types: Vec<ParamType> = vec![];

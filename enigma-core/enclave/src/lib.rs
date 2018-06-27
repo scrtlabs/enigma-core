@@ -106,7 +106,8 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
         Ok(v) => {
             v
         },
-        Err(_e) => {
+        Err(e) => {
+            println!("{:?}", e);
             return sgx_status_t::SGX_ERROR_UNEXPECTED
         },
     };
