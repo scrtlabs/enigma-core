@@ -11,12 +11,12 @@ use common::utils_t::{ToHex, FromHex};
 use evm_t::get_key;
 use common::errors_t::EnclaveError;
 
-fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, is_uint: bool) -> String{
+fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, type_str: String) -> String{
     let result: String;
     let string_result: Result<String, DecoderError> = rlp.as_val();
     result = match string_result{
         Ok(v) => {
-            if is_uint {
+            if type_str.starts_with("uint") {
                 complete_to_u256(v.clone())
             }
             else {
@@ -43,12 +43,12 @@ pub fn complete_to_u256(num: String) -> String{
     result
 }
 
-fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8], is_uint: bool) {
+fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8], type_str: &String) {
     if rlp.is_list(){
         result.push_str("[");
         let iter = rlp.iter();
         for item in iter{
-            decrypt_rlp(&item, result, key, is_uint);
+            decrypt_rlp(&item, result, key, type_str);
             result.push_str(",");
         }
         //Replace the last ',' with ']'
@@ -68,18 +68,25 @@ fn decrypt_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8], is_uint: bo
                         for item in iter{
                             decrypted_str.push(item as char);
                         }
-                        if is_uint {
+
+                        //Remove 0x from the beginning, if used in encryption
+                        if type_str.starts_with("address") & decrypted_str.starts_with("0x") {
+                            decrypted_str.remove(0);
+                            decrypted_str.remove(0);
+                        }
+
+                        if type_str.starts_with("uint") {
                             decrypted_str = complete_to_u256(decrypted_str);
                         }
                         decrypted_str
                     },
                     Err(_e) => {
-                        convert_undecrypted_value_to_string(rlp, is_uint)
+                        convert_undecrypted_value_to_string(rlp, type_str.to_string())
                     },
                 }
             },
             Err(_e) => {
-                convert_undecrypted_value_to_string(rlp, is_uint)
+                convert_undecrypted_value_to_string(rlp, type_str.to_string())
             },
         };
         result.push_str(&value);
@@ -99,8 +106,7 @@ pub fn decode_args(encoded: &[u8], types: &Vec<String>) -> Result<Vec<String>,En
             Some(v) => v,
             None => return Err(EnclaveError::InputError{message: "Arguments and callable signature do not match".to_string()}),
         };
-        let is_uint: bool = next_type.starts_with("uint");
-        decrypt_rlp(&item, & mut str, &key, is_uint);
+        decrypt_rlp(&item, & mut str, &key, &next_type.to_string());
         result.push(str);
     }
    Ok(result)

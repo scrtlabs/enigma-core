@@ -95,11 +95,16 @@ impl ClientHandler {
     }
     // private function : turn all JSON values to strings
     fn unwrap_execevm(&self, msg : Value) -> evm::EvmRequest {
+        let mut preprocessors: Vec<String> = vec![];
+        let val = msg["preprocessors"].as_array().unwrap();
+        for item in val{
+            preprocessors.push(item.as_str().unwrap().to_string());
+        }
         evm::EvmRequest::new(
         msg["bytecode"].as_str().unwrap().to_string(),
         msg["callable"].as_str().unwrap().to_string(), 
         msg["callable_args"].as_str().unwrap().to_string(),
-        msg["preprocessors"].as_str().unwrap().to_string(),
+        preprocessors,
         msg["callback"].as_str().unwrap().to_string())
     }
 }
