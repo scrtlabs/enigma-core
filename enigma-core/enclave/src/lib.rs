@@ -113,17 +113,28 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
 
     let mut res = call_sputnikvm(&bytecode, data);
     let mut out_signature = Vec::<u8>::new();
+    let mut callback_data = vec![];
     if callback_slice.len() > 0 {
-        out_signature = match sign(callable_args_slice, callback_slice, bytecode_slice, &mut res.1) {
+        callback_data = match create_callback(&mut res.1, callback_slice){
             Ok(v) => v,
-            Err(_e) => return sgx_status_t::SGX_ERROR_UNEXPECTED,
+            Err(e) => {
+                println!("{:?}", e);
+                return sgx_status_t::SGX_ERROR_UNEXPECTED
+            },
+        };
+        out_signature = match sign(callable_args_slice, & mut callback_data, bytecode_slice) {
+            Ok(v) => v,
+            Err(e) => {
+                println!("{:?}", e);
+                return sgx_status_t::SGX_ERROR_UNEXPECTED
+            },
         };
         signature.clone_from_slice(&out_signature[0..64]);
     }
 
     match res.0{
         0 => {
-            let s: &mut [u8] = &mut res.1[..];
+            let s: &mut [u8] = &mut callback_data[..];
             *result_len = s.len();
             unsafe {
                 ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
@@ -131,18 +142,17 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
             sgx_status_t::SGX_SUCCESS
 
         }
-        _ => sgx_status_t::SGX_ERROR_UNEXPECTED
+        _ => {
+            println!("Error in EVM execution");
+            sgx_status_t::SGX_ERROR_UNEXPECTED
+        }
     }
 }
 
-fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8], result: & mut Vec<u8>) -> Result<Vec<u8>, EnclaveError>{
-    let callback_data = match create_callback(result, callback){
-        Ok(v) => v,
-        Err(e) => return Err(e),
-    };
+fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8>, EnclaveError>{
     let mut to_be_signed: Vec<u8> = vec![];
     to_be_signed.extend_from_slice(callable_args);
-    to_be_signed.extend_from_slice(&callback_data);
+    to_be_signed.extend_from_slice(&callback);
     to_be_signed.extend_from_slice(bytecode);
     SIGNINING_KEY.sign(&to_be_signed)
 }
