@@ -148,7 +148,7 @@ pub fn get_register_signing_key(enclave : &SgxEnclave)->Result<String,Error>{
         // produce a quote 
         // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
         // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0
-        let spid = String::from("68A8730E9ABF1829EA3F7A66321E84D0");
+        let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE"); // Elichai's SPID
         let tested_encoded_quote = match produce_quote(&enclave, &spid){
             Ok(encoded_quote)=>{
                 encoded_quote

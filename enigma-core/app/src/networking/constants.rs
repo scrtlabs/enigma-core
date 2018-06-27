@@ -35,5 +35,7 @@ pub struct UnkownCmd{
 pub const CONNECTION_STR: &'static str = "tcp://*:5552";
 
 // isan's SPID 
-pub const SPID: &'static str = "3DDB338BD52EE314B01F1E4E1E84E8AA";
+//pub const SPID: &'static str = "3DDB338BD52EE314B01F1E4E1E84E8AA";
+// Elichai's SPID
+pub const SPID: &'static str = "1601F95C39B9EA307FEAABB901ADC3EE";
 
