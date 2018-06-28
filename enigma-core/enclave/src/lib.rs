@@ -131,6 +131,10 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
         };
         signature.clone_from_slice(&out_signature[0..65]);
     }
+    else{
+        println!("Callback cannot be empty");
+        return sgx_status_t::SGX_ERROR_UNEXPECTED
+    }
 
     match res.0{
         0 => {
