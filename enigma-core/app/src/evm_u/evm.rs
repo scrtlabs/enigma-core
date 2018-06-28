@@ -165,8 +165,8 @@ pub mod tests {
                 return
             }
         };
-        assert_eq!(evm_result.errored, false);
-        assert_eq!(evm_result.result, "0000000000000000000000000000000000000000000000000000000000000003");
+        // Callback is not supplied, which results in error
+        assert_eq!(evm_result.errored, true);
         enclave.destroy();
     }
 
