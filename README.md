@@ -21,9 +21,7 @@ Core is part of the Enigma node software stack. The Core component as it's name 
 
 ```
  cd /some/path/enigma-core/dockerfile
-```
-```
- docker build .
+ docker build -t enigma_core .
 ```
 
 The output should look like that: 
@@ -52,18 +50,16 @@ Step 7/7 : RUN echo '/opt/intel/sgxpsw/aesm/aesm_service &' >> /root/.bashrc
  ---> cd6787969fd1
 Successfully built cd6787969fd1
 ```
-* run docker with the Successfully built id (cd6787969fd1 in the example above)
+* run docker:
 
 ```
-docker run -v /some/path/enigma-core/:/root/enigma-core -ti -p 5552:5552 --device /dev/isgx <id>
+docker run -v /some/path/enigma-core/:/root/enigma-core -ti -p 5552:5552 --device /dev/isgx enigma_core
 ```
 
 * build the project 
 
 ```
 cd enigma-core/enigma-core
-```
-```
 make 
 ```
 
@@ -89,8 +85,6 @@ check out [Troubleshooting](https://github.com/enigmampc/enigma-core/tree/develo
 * Build the project 
 ```
 make
-``` 
-```
 cd app/
 ```
 Run the tests (no std)
@@ -106,15 +100,12 @@ cargo test -- --nocapture
 
 ```
 cd root/enigma-core/enigma-core/bin
-```
-
-```
 ./app
 ```
 
 ### Testing with the Surface server
 
-This is the server that accept commands from the surface component. 
+This is the server that accepts commands from the surface component. 
 Currently its unit-test is #[ignored] simply because testing it requires manually sending requests and watching the output. 
 For now there's a compatible [Python client provided](https://github.com/enigmampc/enigma-core/tree/develop/enigma-core/app/tests/surface_listener),
 the unit-test can be found [here](https://github.com/enigmampc/enigma-core/blob/246dc727f3e5d54ffe039b0b880b7bfecbcd1d8e/enigma-core/app/src/networking/surface_server.rs#L152).
@@ -127,7 +118,7 @@ Running this test will require to
 ### Principal Node 
 
 Has a seperate [trsuted + untrusted](https://github.com/enigmampc/enigma-core/tree/develop/enigma-principal). 
-There is a 100% code [resue](https://github.com/enigmampc/enigma-core/tree/develop/enigma-tools-t)
+There is a 100% code [reuse](https://github.com/enigmampc/enigma-core/tree/develop/enigma-tools-t)
 
 TBD
 
