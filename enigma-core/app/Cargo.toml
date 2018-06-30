@@ -1,0 +1,23 @@
+[package]
+name = "app"
+version = "0.9.8"
+authors = ["enigma <support@enigma.co>"]
+build = "build.rs"
+
+[dependencies]
+base64 = "0.9.1"
+libc = "0.2.41"
+zmq = "0.8.2"
+serde_json = "1.0"
+serde = "1.0.66"
+serde_derive = "1.0.66"
+failure = "0.1.1"
+rustc-hex = "1.0.0"
+
+[dependencies.sgx_types]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+
+[dependencies.sgx_urts]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"

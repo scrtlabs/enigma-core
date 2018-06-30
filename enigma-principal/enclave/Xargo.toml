@@ -1,0 +1,28 @@
+[dependencies]
+alloc = {}
+panic_unwind = {}
+panic_abort = {}
+
+[dependencies.std]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+#path = "../../../xargo/sgx_tstd"
+stage = 1
+
+[dependencies.sgx_rand]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+#path = "../../../xargo/sgx_rand"
+stage = 2
+
+[dependencies.sgx_serialize]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+#path = "../../../xargo/sgx_serialize"
+stage = 2
+
+[dependencies.sgx_tunittest]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+#path = "../../../xargo/sgx_tunittest"
+stage = 2

@@ -1,0 +1,33 @@
+
+
+enclave {
+    from "sgx_tstd.edl" import *;
+    from "sgx_stdio.edl" import *;
+    from "sgx_backtrace.edl" import *;
+    from "sgx_tstdc.edl" import *;
+    from "sgx_fs.edl" import *;
+
+    /* data structures */
+    include "sgx_key_exchange.h"
+
+    trusted {
+
+        public sgx_status_t ecall_get_registration_quote([in] const sgx_target_info_t * target_info ,[out]  sgx_report_t * report);
+
+        public void ecall_run_tests();
+
+	    public sgx_status_t ecall_evm([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
+	                                  [in, size=callable_len] const uint8_t* callable, size_t callable_len,
+                                      [in, size=callable_args_len] const uint8_t* callable_args, size_t callable_args_len,
+                                      [in, size=preprocessor_len] const uint8_t* preprocessor, size_t preprocessor_len,
+                                      [in, size=callback_len] const uint8_t* callback, size_t callback_len,
+	                                  [out, size=100000] uint8_t* output, [out] uint8_t signiture[65], [out] uint64_t* result_length);
+
+
+        public void ecall_get_signing_pubkey([out] uint8_t arr[64]);
+    };
+    untrusted {
+        void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);
+
+    };
+};
