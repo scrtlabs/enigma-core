@@ -82,10 +82,6 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 #[no_mangle]
 pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
-<<<<<<< HEAD
-=======
-
->>>>>>> d9f6c393c1bb10dc7e6c1bdb5ca6ab65d0a0a876
     pubkey.clone_from_slice(&SIGNINING_KEY.get_pubkey());
 }
 
