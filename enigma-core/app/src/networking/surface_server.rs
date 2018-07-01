@@ -166,7 +166,7 @@ impl Server{
     // can be tested with a client /app/tests/surface_listener/surface_client.pu
     // network message defitnitions can be found in /app/tests/surface_listener/message_type.definition
      #[test]
-     //#[ignore]
+     #[ignore]
      fn test_run_server(){ 
             // initiate the enclave 
             let enclave = match init_enclave() {
