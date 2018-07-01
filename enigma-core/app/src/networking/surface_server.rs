@@ -8,6 +8,7 @@ use networking::constants;
 use sgx_urts::SgxEnclave;
 use sgx_types::*;
 
+
 //failure 
 use failure::Error;
 
@@ -16,7 +17,7 @@ pub struct ClientHandler{}
 
 impl ClientHandler {
     // public function to handle the surface requests 
-    pub fn handle(&self, enclave : &SgxEnclave,responder : &zmq::Socket,msg :& str) -> Result<(bool), Error> {
+    pub fn handle(&self, eid : sgx_enclave_id_t,responder : &zmq::Socket,msg :& str) -> Result<(bool), Error> {
         
         let mut keep_running : bool = true;
 
@@ -25,12 +26,12 @@ impl ClientHandler {
         let cmd : constants::Command = v["cmd"].as_str().unwrap().into();
         let result = match cmd {
             constants::Command::Execevm =>{
-                let result = self.handle_execevm(enclave.geteid(), v.clone()).unwrap();
+                let result = self.handle_execevm(eid, v.clone()).unwrap();
                 println!("EVM Output result : {}",result );
                 result
             },
             constants::Command::GetRegister =>{
-                let result = self.handle_get_register(enclave).unwrap();
+                let result = self.handle_get_register(eid).unwrap();
                 println!("Enclave quote : {}", result);
                 result
             },
@@ -79,11 +80,11 @@ impl ClientHandler {
         Ok(str_result)
     }
     // private function : handle getregister
-    fn handle_get_register(&self,enclave: &SgxEnclave)->  Result<(String), Error>{   
+    fn handle_get_register(&self,eid :sgx_enclave_id_t)->  Result<(String), Error>{   
         // ecall a quote + key 
-        let encoded_quote = equote::produce_quote(enclave, &constants::SPID.to_owned())?;
+        let encoded_quote = equote::produce_quote(eid, &constants::SPID.to_owned())?;
         // ecall get the clear text public signing key 
-        let pub_signing_key = equote::get_register_signing_key(enclave)?;
+        let pub_signing_key = equote::get_register_signing_key(eid)?;
         // serialize the result 
         let str_result = serde_json::to_string(&equote::GetRegisterResult{
             errored:false,
@@ -109,16 +110,16 @@ impl ClientHandler {
     }
 }
 
-pub struct Server<'a>{
+pub struct Server{
     context : zmq::Context,
     responder : zmq::Socket,
     handler : ClientHandler,
-    enclave: &'a SgxEnclave ,
+    enclave_id : sgx_enclave_id_t,
 }
 
-impl<'a> Server<'a>{
+impl Server{
     
-    pub fn new(conn_str: &str, enclave: &'a SgxEnclave) -> Server<'a> {
+    pub fn new(conn_str: &str , eid : sgx_enclave_id_t) -> Server {
         let ctx = zmq::Context::new();
         // Maybe this doesn't need to be mut?
         let rep = ctx.socket(zmq::REP).unwrap();
@@ -128,7 +129,7 @@ impl<'a> Server<'a>{
             context: ctx,
             responder: rep,
             handler: client_handler,
-            enclave : enclave,
+            enclave_id : eid,
         }
     }
 
@@ -137,7 +138,7 @@ impl<'a> Server<'a>{
         loop {
             println!("[+] Server awaiting connection..." );
             self.responder.recv(&mut msg, 0).unwrap();
-            match self.handler.handle(&self.enclave,&self.responder,&msg.as_str().expect("[-] Err in ClientHandler.handle()")){
+            match self.handler.handle(self.enclave_id,&self.responder,&msg.as_str().expect("[-] Err in ClientHandler.handle()")){
                 Ok(keep_running) =>{
                     if !keep_running{
                         println!("[+] Server shutting down... ");    
@@ -161,6 +162,7 @@ impl<'a> Server<'a>{
     use esgx::general::init_enclave;
     use networking::surface_server;
     use networking::constants;
+    use std::thread;
     // can be tested with a client /app/tests/surface_listener/surface_client.pu
     // network message defitnitions can be found in /app/tests/surface_listener/message_type.definition
      #[test]
@@ -179,11 +181,16 @@ impl<'a> Server<'a>{
             },
         };
         // run the server 
-        {
-            let mut server = surface_server::Server::new(constants::CONNECTION_STR, &enclave);
-            server.run();
-        }
-        
+            let eid = enclave.geteid();
+            let child = thread::spawn(move || {
+                let mut server = surface_server::Server::new(constants::CONNECTION_STR, eid);
+                server.run();
+            });
+            child.join();
+            // let eid = enclave.geteid();
+            // let mut server = surface_server::Server::new(constants::CONNECTION_STR, eid);
+            // server.run();
+    
         // destroy the enclave 
         enclave.destroy();
      }
