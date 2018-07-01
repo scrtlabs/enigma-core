@@ -41,7 +41,7 @@ fn main() {
         },
     };
     {
-        let mut server = surface_server::Server::new(constants::CONNECTION_STR, &enclave);
+        let mut server = surface_server::Server::new(constants::CONNECTION_STR,enclave.geteid());
         server.run();
     }
     enclave.destroy();
