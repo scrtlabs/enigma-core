@@ -1,4 +1,3 @@
-
 use rlp::{RlpStream, UntrustedRlp};
 use hexutil::read_hex;
 use std::str::from_utf8;
@@ -11,24 +10,67 @@ use common::utils_t::{ToHex, FromHex};
 use evm_t::get_key;
 use common::errors_t::EnclaveError;
 
-fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, type_str: String) -> String{
-    let result: String;
-    let string_result: Result<String, DecoderError> = rlp.as_val();
-    result = match string_result{
-        Ok(v) => {
-            if type_str.starts_with("uint") {
-                complete_to_u256(v.clone())
-            }
-            else {
-                v.clone()
-            }
-        },
-        Err(_e) =>  "".to_string(),
-    };
-    result
+enum SolidityType {
+    Uint,
+    String,
+    Address,
+    Bytes,
 }
 
-pub fn complete_to_u256(num: String) -> String{
+fn get_type(type_str: &str) -> SolidityType {
+    let t = match &type_str[0..4] {
+        "uint" => SolidityType::Uint,
+        "addr" => SolidityType::Address,
+        "stri" => SolidityType::String,
+        _ => SolidityType::Bytes,
+    };
+    t
+}
+
+fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityType) -> Result<String, EnclaveError> {
+    let rlp_error: String = "Bad RLP encoding".to_string();
+    let mut result: String = "".to_string();
+    match arg_type {
+        &SolidityType::String => {
+            let string_result: Result<String, DecoderError> = rlp.as_val();
+            result = match string_result {
+                Ok(v) => v,
+                Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
+            }
+        },
+        &SolidityType::Uint => {
+            let num_result: Result<u64, DecoderError> = rlp.as_val();
+            result = match num_result {
+                Ok(v) => complete_to_u256(v.to_string()),
+                Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
+            }
+        },
+        _ => {
+            let bytes_result: Result<Vec<u8>, DecoderError> = rlp.as_val();
+            match bytes_result {
+                Ok(v) => {
+                    let iter = v.into_iter();
+                    for item in iter {
+                        result.push(item as char);
+                    }
+                    match arg_type {
+                        &SolidityType::Address => {
+                            if result.starts_with("0x") {
+                                result.remove(0);
+                                result.remove(0);
+                            }
+                        },
+                        _ => (),
+                    }
+                },
+                Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
+            };
+        }
+    }
+    Ok(result)
+}
+
+pub fn complete_to_u256(num: String) -> String {
     let mut result: String = "".to_string();
     for i in num.len()..64 {
         result.push('0');
@@ -37,88 +79,99 @@ pub fn complete_to_u256(num: String) -> String{
     result
 }
 
-fn decrypt_rlp(v: &[u8], key: &[u8], type_str: &String) -> Result<String, EnclaveError>{
-    let encrypted_value = read_hex(from_utf8(&v).unwrap()).unwrap();
-    let decrypted_value = decrypt(&encrypted_value, key);
-    match decrypted_value {
+fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, EnclaveError> {
+    let encrypted_value = from_utf8(&v).unwrap();
+    match read_hex(encrypted_value) {
+        Err(e) => Err(EnclaveError::InputError { message: "".to_string() }),
         Ok(v) => {
-            let iter = v.into_iter();
-            let mut decrypted_str = "".to_string();
-            for item in iter {
-                decrypted_str.push(item as char);
-            }
+            let decrypted_value = decrypt(&v, key);
+            match decrypted_value {
+                Ok(v) => { //The value is decrypted
+                    let iter = v.clone().into_iter();
+                    let mut decrypted_str = "".to_string();
+                    for item in iter {
+                        decrypted_str.push(item as char);
+                    }
 
-            //Remove 0x from the beginning, if used in encryption
-            if type_str.starts_with("address") & decrypted_str.starts_with("0x") {
-                decrypted_str.remove(0);
-                decrypted_str.remove(0);
-            }
+                    //Remove 0x from the beginning, if used in encryption
+                    match arg_type {
+                        &SolidityType::Address => {
+                            if decrypted_str.starts_with("0x") {
+                                decrypted_str.remove(0);
+                                decrypted_str.remove(0);
+                            }
+                        },
 
-            if type_str.starts_with("uint") {
-                decrypted_str = complete_to_u256(decrypted_str);
+                        &SolidityType::Uint => {
+                            decrypted_str = complete_to_u256(decrypted_str);
+                        },
+
+                        _ => ()
+                    };
+                    Ok(decrypted_str)
+                }
+                Err(e) => Err(e),
             }
-            Ok(decrypted_str)
-        },
-        Err(e) => Err(e),
+        }
     }
 }
 
-fn decode_rlp(rlp: &UntrustedRlp, result: & mut String, key: &[u8], type_str: &String) {
+fn decode_rlp(rlp: &UntrustedRlp, result: &mut String, key: &[u8], arg_type: &SolidityType) -> Result<(), EnclaveError> {
     if rlp.is_list() {
         result.push_str("[");
         let iter = rlp.iter();
         for item in iter {
-            decode_rlp(&item, result, key, type_str);
+            decode_rlp(&item, result, key, arg_type);
             result.push_str(",");
         }
-        //Replace the last ',' with ']'
+//Replace the last ',' with ']'
         result.pop();
         result.push_str("]");
+        Ok(())
     } else {
-        let num_result: Result<u64, DecoderError> = rlp.as_val();
-        let value: String = match num_result {
+//Maybe the value is encrypted
+        let as_val: Result<Vec<u8>, DecoderError> = rlp.as_val();
+        let value: String = match as_val {
             Ok(v) => {
-                if type_str.starts_with("uint") {
-                    complete_to_u256(v.to_string())
-                }
-                else {
-                    v.to_string()
-                }
-            },
-            Err(_e) => {
-                let as_val: Result<Vec<u8>, DecoderError> = rlp.as_val();
-                match as_val {
-                    Ok(v) => {
-                        match decrypt_rlp(&v, key, type_str) {
-                            Ok(result_string) => result_string,
-                            Err(_e) => convert_undecrypted_value_to_string(rlp, type_str.to_string()),
-                        }
-                    },
+                match decrypt_rlp(&v, key, arg_type) {
+                    Ok(result_string) => result_string,
                     Err(_e) => {
-                        convert_undecrypted_value_to_string(rlp, type_str.to_string())
-                    },
+                        match convert_undecrypted_value_to_string(rlp, arg_type) {
+                            Ok(result_string) => result_string,
+                            Err(e) => return Err(e),
+                        }
+                    }
                 }
-            },
+            }
+            Err(_e) => {
+                match convert_undecrypted_value_to_string(rlp, arg_type) {
+                    Ok(result_string) => result_string,
+                    Err(e) => return Err(e),
+                }
+            }
         };
         result.push_str(&value);
+        Ok(())
     }
 }
 
-pub fn decode_args(encoded: &[u8], types: &Vec<String>) -> Result<Vec<String>,EnclaveError> {
+pub fn decode_args(encoded: &[u8], types: &Vec<String>) -> Result<Vec<String>, EnclaveError> {
     let key = get_key();
     let rlp = UntrustedRlp::new(encoded);
-
     let mut result: Vec<String> = vec![];
     let iter = rlp.iter();
     let mut types_iter = types.iter();
     for item in iter {
         let mut str: String = "".to_string();
-        let next_type = match types_iter.next(){
+        let next_type = match types_iter.next() {
             Some(v) => v,
-            None => return Err(EnclaveError::InputError{message: "Arguments and callable signature do not match".to_string()}),
+            None => return Err(EnclaveError::InputError { message: "Arguments and callable signature do not match".to_string() }),
         };
-        decode_rlp(&item, & mut str, &key, &next_type.to_string());
-        result.push(str);
+
+        match decode_rlp(&item, &mut str, &key, &get_type(next_type)) {
+            Ok(_v) => result.push(str),
+            Err(e) => return Err(e),
+        };
     }
-   Ok(result)
+    Ok(result)
 }
