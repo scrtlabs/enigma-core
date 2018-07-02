@@ -163,7 +163,6 @@ pub fn create_callback(mut data: & mut Vec<u8>, callback: &[u8]) -> Result<Vec<u
     match callback_signature{
         Err(e) => return Err(e),
         Ok(v) => {
-            println!("{:?}",v.to_hex());
             result_bytes.extend_from_slice(&v)
         },
     };
