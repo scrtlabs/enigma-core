@@ -14,6 +14,7 @@ enum SolidityType {
     Uint,
     String,
     Address,
+    Bool,
     Bytes,
 }
 
@@ -22,6 +23,7 @@ fn get_type(type_str: &str) -> SolidityType {
         "uint" => SolidityType::Uint,
         "addr" => SolidityType::Address,
         "stri" => SolidityType::String,
+        "bool" => SolidityType::Bool,
         _ => SolidityType::Bytes,
     };
     t
@@ -42,6 +44,13 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityTy
             let num_result: Result<u64, DecoderError> = rlp.as_val();
             result = match num_result {
                 Ok(v) => complete_to_u256(v.to_string()),
+                Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
+            }
+        },
+        &SolidityType::Bool => {
+            let num_result: Result<bool, DecoderError> = rlp.as_val();
+            result = match num_result {
+                Ok(v) => v.to_string(),
                 Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
             }
         },
@@ -167,7 +176,6 @@ pub fn decode_args(encoded: &[u8], types: &Vec<String>) -> Result<Vec<String>, E
             Some(v) => v,
             None => return Err(EnclaveError::InputError { message: "Arguments and callable signature do not match".to_string() }),
         };
-
         match decode_rlp(&item, &mut str, &key, &get_type(next_type)) {
             Ok(_v) => result.push(str),
             Err(e) => return Err(e),
