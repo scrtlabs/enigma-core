@@ -162,12 +162,8 @@ impl Server{
     use esgx::general::init_enclave;
     use networking::surface_server;
     use networking::constants;
-<<<<<<< HEAD
     extern crate zmq;
-
-=======
     use std::thread;
->>>>>>> 4a329cd2c1cad2ab7b34679842dd841ef81455c6
     // can be tested with a client /app/tests/surface_listener/surface_client.pu
     // network message defitnitions can be found in /app/tests/surface_listener/message_type.definition
      #[test]
