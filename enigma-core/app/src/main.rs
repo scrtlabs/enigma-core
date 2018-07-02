@@ -16,7 +16,7 @@ extern crate serde_derive;
 extern crate serde;
 
 use sgx_types::*;
-
+use std::thread;
 // enigma modules 
 mod esgx;
 mod evm_u;
@@ -40,10 +40,13 @@ fn main() {
             return;
         },
     };
-    {
-        let mut server = surface_server::Server::new(constants::CONNECTION_STR, &enclave);
+    let eid = enclave.geteid();
+    let child = thread::spawn(move || {
+        let mut server = surface_server::Server::new(constants::CONNECTION_STR, eid);
         server.run();
-    }
+    });
+    child.join();
+   
     enclave.destroy();
 }
 

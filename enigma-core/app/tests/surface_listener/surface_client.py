@@ -25,7 +25,7 @@ stop_data = json.dumps({
 					"cmd" : "stop",
 				})
 #send 
-socket.send_string(evm_data)
+socket.send_string(register_data)
 #read
 from_server = socket.recv_json()
 print('got from server {}'.format(from_server))
