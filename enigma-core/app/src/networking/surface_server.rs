@@ -161,6 +161,8 @@ impl<'a> Server<'a>{
     use esgx::general::init_enclave;
     use networking::surface_server;
     use networking::constants;
+    extern crate zmq;
+
     // can be tested with a client /app/tests/surface_listener/surface_client.pu
     // network message defitnitions can be found in /app/tests/surface_listener/message_type.definition
      #[test]
@@ -187,4 +189,23 @@ impl<'a> Server<'a>{
         // destroy the enclave 
         enclave.destroy();
      }
+     //
+     // the tests bellow simulate clients only. The server above is accepting all the connections. 
+     //
+     fn test_get_register_cmd(){
+        // 1. init client 
+        let context = zmq::Context::new();
+        let requester = context.socket(zmq::REQ).unwrap();
+        // 2. request quote+key
+        // 3. validate response with Attestation service 
+     }
+     fn test_execevm_cmd(){
+        // 1. init client 
+        // 2. request computation
+        // 3. validate result (no sig validation)
+     }
+    fn test_stop_cmd(){
+        // 1. init client 
+        // 2. request stop server
+    }
  }
