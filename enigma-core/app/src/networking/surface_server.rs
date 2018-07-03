@@ -28,6 +28,7 @@ impl ClientHandler {
             constants::Command::Execevm =>{
                 let result = self.handle_execevm(eid, v.clone()).unwrap();
                 println!("EVM Output result : {}",result );
+
                 result
             },
             constants::Command::GetRegister =>{
@@ -70,8 +71,10 @@ impl ClientHandler {
     }
     // private function : handle execevm cmd 
     fn handle_execevm(&self, eid: sgx_enclave_id_t, msg : Value)-> Result<(String), Error>{
+
             // get the EVM inputs 
             let evm_input = self.unwrap_execevm(msg);
+            
             // make an ecall to encrypt+compute
             let result : evm::EvmResponse = evm::exec_evm(eid, evm_input)?;
             // serialize the result 
@@ -98,6 +101,7 @@ impl ClientHandler {
     fn unwrap_execevm(&self, msg : Value) -> evm::EvmRequest {
         let mut preprocessors: Vec<String> = vec![];
         let val = msg["preprocessors"].as_array().unwrap();
+
         for item in val{
             preprocessors.push(item.as_str().unwrap().to_string());
         }
@@ -199,7 +203,7 @@ impl Server{
                 // test commands 
                 test_get_register_cmd(&requester);
                 test_execevm_cmd(&requester);
-                test_stop_cmd();
+                test_stop_cmd(&requester);
             }
             child_server.join();
         // destroy the enclave 
@@ -238,7 +242,7 @@ impl Server{
             pub bytecode :      String,
             pub callable :      String,
             pub callable_args :  String,
-            pub preprocessor :  Vec<String>,
+            pub preprocessors :  Vec<String>,
             pub callback :      String,
         }
         impl EvmMockRequest {
@@ -248,7 +252,7 @@ impl Server{
                     bytecode : _bytecode,
                     callable : _callable, 
                     callable_args : _callable_args, 
-                    preprocessor : _preprocessor,
+                    preprocessors : _preprocessor,
                     callback : _callback,
                 }
             }
@@ -259,40 +263,42 @@ impl Server{
             callable: "mixAddresses(uint32,address[],uint)".to_string(),
             callable_args: //Temp value, includes preprocessor
  "f9011832f90114b88831336431326537323439323462626230383930366434333239633063663138343062663239373562306339313963656238643530653830333463383066303437663261303438623264323034666363643664333061346439396137653239386166386235303837326639663039633464303030313032303330343035303630373038303930613062b88836313837326637623464323162386533613935333835343263633061663564303539663663303561306665653961656666383732396232313138383166333434663261393466623661373030383062336632333437646233376432653236316231616365336333313938636135656163303030313032303330343035303630373038303930613062".to_string(),
-            preprocessor: ["rand".to_string()].to_vec(),
+            preprocessors: ["rand".to_string()].to_vec(),
             callback : "distribute(uint,address[])".to_string(),
         };
         // 1. request computation
         let cmd_request = serde_json::to_string(&evm_input).unwrap();
-        println!("8888888888888888888888888888888888888888888888888" );
-        println!("8888888888888888888888888888888888888888888888888" );
-        println!("8888888888888888888888888888888888888888888888888" );
-        println!("{}",cmd_request );
-        println!("8888888888888888888888888888888888888888888888888" );
-        println!("8888888888888888888888888888888888888888888888888" );
-        println!("8888888888888888888888888888888888888888888888888" );
-
         requester.send_str(&cmd_request, 0).unwrap();            
-        // 2. validate result (no sig validation)
+        // 2. extract result 
         let mut msg = zmq::Message::new().unwrap();
-        println!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" );
-        println!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" );
-        println!("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" );
         requester.recv(&mut msg, 0).unwrap();
         let v: Value = serde_json::from_str(msg.as_str().unwrap()).unwrap();
         let errored  = v["errored"].as_bool().unwrap();//{
         let signature  = v["signature"].as_str().unwrap();
         let result = v["result"].as_str().unwrap();
-        println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" );
-        println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" );
-        println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" );
-        println!("errored {} sig {} res {} ",errored,signature,result );
-        println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" );
-        println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" );
-        println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@" );   
+        // 3. validate result 
+        assert!((result == "85e3c463000000000000000000000000000000000000000000000000000000000000005000000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000002000000000000000000000000ee281427f13de12d46f1b910bfbc6346d041009f0000000000000000000000007331511dfdb45760f210af747d1ab275d935e4e8")
+        ||
+                    (result == "85e3c4630000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000007331511dfdb45760f210af747d1ab275d935e4e8000000000000000000000000ee281427f13de12d46f1b910bfbc6346d041009f"));
      }
-    fn test_stop_cmd(){
-        // 1. init client 
-        // 2. request stop server
+    fn test_stop_cmd(requester : &zmq::Socket){
+        #[derive(Serialize, Deserialize, Debug)]
+        pub struct StopRequest{
+            pub cmd : String
+        }
+        // 1. build the command 
+        let cmd_request = serde_json::to_string(&StopRequest{
+            cmd : String::from("stop"),
+        }).unwrap();
+        // 2. send shutdown request 
+        requester.send_str(&cmd_request, 0).unwrap();   
+        // 3. validate response
+        let mut msg = zmq::Message::new().unwrap();
+        requester.recv(&mut msg, 0).unwrap();
+        let v: Value = serde_json::from_str(msg.as_str().unwrap()).unwrap();
+        let errored  = v["errored"].as_bool().unwrap();
+        let reason  = v["reason"].as_str().unwrap();
+        assert_eq!(errored,false );
+        assert_eq!(reason,"stop request." );
     }
  }
