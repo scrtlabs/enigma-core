@@ -2,6 +2,7 @@ use rlp::{RlpStream, UntrustedRlp};
 use hexutil::read_hex;
 use std::str::from_utf8;
 use std::string::ToString;
+use std::mem;
 use rlp::DecoderError;
 use std::vec::Vec;
 use std::string::String;
@@ -98,24 +99,30 @@ fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, 
                 Ok(v) => { //The value is decrypted
                     let iter = v.clone().into_iter();
                     let mut decrypted_str = "".to_string();
-                    for item in iter {
-                        decrypted_str.push(item as char);
-                    }
-
                     //Remove 0x from the beginning, if used in encryption
                     match arg_type {
                         &SolidityType::Address => {
+                            for item in iter {
+                                decrypted_str.push(item as char);
+                            }
                             if decrypted_str.starts_with("0x") {
                                 decrypted_str.remove(0);
                                 decrypted_str.remove(0);
                             }
                         },
-
                         &SolidityType::Uint => {
-                            decrypted_str = complete_to_u256(decrypted_str);
+                            let mut static_type_num= [0u8; mem::size_of::<usize>()];
+                            static_type_num[..v.len()].clone_from_slice(&v);
+                            let num = unsafe { mem::transmute::<[u8; mem::size_of::<usize>()], usize>(static_type_num) };
+                            decrypted_str = complete_to_u256(num.to_string());
                         },
 
-                        _ => ()
+                        _ => {
+                            for item in iter {
+                                decrypted_str.push(item as char);
+                            }
+
+                        }
                     };
                     Ok(decrypted_str)
                 }
