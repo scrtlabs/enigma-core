@@ -1,6 +1,8 @@
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate base64;
+extern crate reqwest;
+
 // networking apt install libzmq3-dev
 extern crate zmq; 
 extern crate serde_json;
@@ -8,7 +10,6 @@ extern crate serde_json;
 #[macro_use]
 extern crate failure;
 extern crate rustc_hex as hex;
-
 
 
 #[macro_use]
