@@ -116,6 +116,12 @@ fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, 
                             let num = unsafe { mem::transmute::<[u8; mem::size_of::<usize>()], usize>(static_type_num) };
                             decrypted_str = complete_to_u256(num.to_string());
                         },
+                        &SolidityType::Bool => {
+                            let mut static_type_num= [0u8; 1];
+                            static_type_num[..v.len()].clone_from_slice(&v);
+                            let bool_val = unsafe { mem::transmute::<[u8; 1], bool>(static_type_num) };
+                            decrypted_str = bool_val.to_string();
+                        },
 
                         _ => {
                             for item in iter {
