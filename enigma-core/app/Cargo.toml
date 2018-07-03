@@ -13,6 +13,7 @@ serde = "1.0.66"
 serde_derive = "1.0.66"
 failure = "0.1.1"
 rustc-hex = "1.0.0"
+httparse = "=1.2.5"
 reqwest = "0.8.6"
 
 
