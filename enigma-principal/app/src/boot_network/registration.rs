@@ -25,9 +25,5 @@ pub fn run(){
     let report_string = as_response.result.report_string;
     // rlp encoding 
     let encoded : Vec<u8> = rlp_encode_registration_params(&certificate, &signature, &report_string);
-    
-    // let animal = "cat";
-    // let out = rlp::encode(&animal).to_vec();
-    // assert_eq!(out, vec![0x83, b'c', b'a', b't']);
-    // println!("original = {} encoded = |{:?}|" ,animal, out);
+
 }
