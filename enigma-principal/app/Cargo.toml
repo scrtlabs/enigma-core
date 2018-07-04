@@ -7,6 +7,8 @@ build = "build.rs"
 [dependencies]
 base64 = "0.9.1"
 libc = "0.2.41"
+enigma-tools-u = {path = "../../enigma-tools-u"}
+etcommon-rlp = {rev = "0.2.3", default-features = false}
 
 [dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
