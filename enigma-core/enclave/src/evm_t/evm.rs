@@ -69,8 +69,8 @@ pub fn call_sputnikvm(code: &Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
     };
 
     handle_fire_without_rpc(vm.deref_mut());
-    println!("VM returned: {:?}", vm.status());
-    println!("VM out: {:?}", vm.out().to_hex());
+    //println!("VM returned: {:?}", vm.status());
+    //println!("VM out: {:?}", vm.out().to_hex());
     for account in vm.accounts() {
         println!("{:?}", account);
     }
