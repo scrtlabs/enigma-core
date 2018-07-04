@@ -51,7 +51,11 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
 
-    cryptography_t::get_sealed_keys(&sealed_path)
+        // TODO: Decide what to do if failed to obtain keys.
+    match cryptography_t::get_sealed_keys(&sealed_path) {
+        Ok(key) => return key,
+        Err(err) => panic!("Failed obtaining keys: {:?}", err)
+    };
 }
 
 #[no_mangle]
@@ -75,7 +79,7 @@ pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
 pub extern "C" fn ecall_get_random_seed(rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t  {
     // TODO: Check if needs to check the random is within the curve.
     let status = rsgx_read_rand(&mut rand_out[..]);
-    let sig = SIGNINING_KEY.sign(&rand_out[..]);
+    let sig = SIGNINING_KEY.sign(&rand_out[..]).unwrap();
     sig_out.copy_from_slice(sig.as_slice());
     println!("Random inside Enclave: {:?}", &rand_out[..]);
     println!("Signature inside Enclave: {:?}\n", &sig.as_slice());

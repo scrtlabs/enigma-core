@@ -1,11 +1,15 @@
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate base64;
+extern crate rlp;
+extern crate enigma_tools_u;
+extern crate failure;
 // enigma modules
 mod esgx;
 use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use esgx::equote;
+mod boot_network;
 pub use esgx::general::ocall_get_home;
 
 extern { fn ecall_get_signing_pubkey(eid: sgx_enclave_id_t, pubkey: &mut [u8; 64]) -> sgx_status_t; }
@@ -30,31 +34,32 @@ fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
 
 #[allow(unused_variables, unused_mut)]
 fn main() {
+    boot_network::registration::run();
     /* this is an example of initiating an enclave */
 
-    let enclave = match esgx::general::init_enclave() {
-        Ok(r) => {
-            println!("[+] Init Enclave Successful {}!", r.geteid());
-            r
-        },
-        Err(x) => {
-            println!("[-] Init Enclave Failed {}!", x.as_str());
-            return;
-        },
-    };
-//    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
-    let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
-    let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
-    println!("{:?}", &tested_encoded_quote);
+//     let enclave = match esgx::general::init_enclave() {
+//         Ok(r) => {
+//             println!("[+] Init Enclave Successful {}!", r.geteid());
+//             r
+//         },
+//         Err(x) => {
+//             println!("[-] Init Enclave Failed {}!", x.as_str());
+//             return;
+//         },
+//     };
+// //    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
+//     let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
+//     let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
+//     println!("{:?}", &tested_encoded_quote);
 
-    let mut pubme: [u8; 64] = [0; 64];
-    unsafe {ecall_get_signing_pubkey(enclave.geteid(), &mut pubme)};
-    println!("Returned Pub: {:?}", &pubme[..]);
+//     let mut pubme: [u8; 64] = [0; 64];
+//     unsafe {ecall_get_signing_pubkey(enclave.geteid(), &mut pubme)};
+//     println!("Returned Pub: {:?}", &pubme[..]);
 
-    let (rand_seed, sig) = get_signed_random(enclave.geteid());
-    println!("Random Outside Enclave:{:?}", &rand_seed[..]);
-    println!("Signature Outside Enclave: {:?}\n", &sig[..]);
-    enclave.destroy();
+//     let (rand_seed, sig) = get_signed_random(enclave.geteid());
+//     println!("Random Outside Enclave:{:?}", &rand_seed[..]);
+//     println!("Signature Outside Enclave: {:?}\n", &sig[..]);
+//     enclave.destroy();
 }
 
 
