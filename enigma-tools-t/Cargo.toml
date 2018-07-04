@@ -1,7 +1,7 @@
 [package]
 name = "enigma-tools-t"
 version = "0.1.0"
-authors = ["mr_signer <satoshi@enigma.co>"]
+authors = ["Elichai-Turkel <elichai@enigma.co>"]
 description = "Tools used by the trusted part of the Enigma core and Principal node."
 
 [dependencies]

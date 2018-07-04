@@ -11,6 +11,8 @@ extern crate serde_json;
 extern crate failure;
 extern crate rustc_hex as hex;
 
+//enigma utils 
+extern crate enigma_tools_u;
 
 #[macro_use]
 extern crate serde_derive;
