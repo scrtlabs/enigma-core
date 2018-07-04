@@ -100,6 +100,7 @@ impl KeyPair {
 
 pub mod tests {
     use cryptography_t::asymmetric::*;
+    use common::utils_t::*;
 
     pub fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
@@ -120,6 +121,17 @@ pub mod tests {
         println!("the Derived key: {:?}, Hex: {:?}", &shared1, &shared1.to_hex());
         assert_eq!(shared1, shared2);
         assert_eq!(shared1, [139, 184, 212, 39, 0, 146, 97, 243, 63, 65, 81, 130, 96, 208, 43, 150, 229, 90, 132, 202, 235, 168, 86, 59, 141, 19, 200, 38, 242, 55, 203, 15]);
+
+        let key = b"EnigmaMPC".sha256();
+        let keys = KeyPair::from_slice(&key).unwrap();
+        println!("PUB: {:?}", keys.get_pubkey().to_hex());
+        println!("PRIV: {:?}", keys.get_privkey().to_hex());
+
+        let key = b"EnigmaClient".sha256();
+        let keys = KeyPair::from_slice(&key).unwrap();
+        println!("PUB: {:?}", keys.get_pubkey().to_hex());
+        println!("PRIV: {:?}", keys.get_privkey().to_hex());
+
     }
 
     //    use secp256k1::{PublicKey, SecretKey};
