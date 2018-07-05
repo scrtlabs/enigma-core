@@ -4,6 +4,10 @@ extern crate base64;
 extern crate rlp;
 extern crate enigma_tools_u;
 extern crate failure;
+//web3 
+extern crate web3;
+extern crate rustc_hex;
+
 // enigma modules
 mod esgx;
 use sgx_types::{uint8_t, uint32_t};

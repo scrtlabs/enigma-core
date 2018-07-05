@@ -3,6 +3,14 @@ use enigma_tools_u;
 use enigma_tools_u::attestation_service::service;
 use enigma_tools_u::attestation_service::constants;
 use failure::Error;
+//web3
+use web3;
+use web3::futures::Future;
+use web3::contract::{Contract, Options};
+use web3::types::{Address, U256};
+use rustc_hex::FromHex;
+
+
 // encoding in surface https://github.com/enigmampc/surface/blob/e179790347e03666ad24829545429bcb69867849/src/surface/communication/core/worker.py#L105
 
 pub fn get_report()->Result<service::ASResponse, Error>{
@@ -17,6 +25,14 @@ pub fn rlp_encode_registration_params(certificate : &String , signature : &Strin
     let encoded = rlp::encode_list::<&str,&str>(&clear).to_vec();
     encoded
 }
+
+pub fn web3_test(){
+    let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
+    let web3 = web3::Web3::new(transport);
+    // get accounts 
+    let accounts = web3.eth().accounts().wait().unwrap();
+    println!("Accounts: {:?}", accounts);
+}
 pub fn run(){
     let as_response = get_report().unwrap();
     // certificate,signature,report_string are all need to be rlp encoded and send to register() func in enigma contract
@@ -25,4 +41,6 @@ pub fn run(){
     let report_string = as_response.result.report_string;
     // rlp encoding 
     let encoded : Vec<u8> = rlp_encode_registration_params(&certificate, &signature, &report_string);
+    // register worker 
+    web3_test();
 }
