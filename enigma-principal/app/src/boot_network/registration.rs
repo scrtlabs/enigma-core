@@ -25,5 +25,4 @@ pub fn run(){
     let report_string = as_response.result.report_string;
     // rlp encoding 
     let encoded : Vec<u8> = rlp_encode_registration_params(&certificate, &signature, &report_string);
-
 }
