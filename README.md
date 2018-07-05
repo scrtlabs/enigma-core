@@ -158,4 +158,8 @@ rm -rf /root/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/
 
 ## License
 
-TBD
+Enigma-Core is provided under the BSD license. Please refer to the [License file](LICENSE) file for details.
+
+## Acknowledgements
+
+Thanks to [Baidu X-Lab](https://github.com/BaiduXLab) for their great work on [Rust SGX SDK](https://github.com/baidu/rust-sgx-sdk).
