@@ -28,7 +28,7 @@ pub struct EvmInput {
 }
 
 // this is the input after its being parsed from the server (originally came from surface)
-
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EvmRequest{
     #[allow(dead_code)]
     pub bytecode :      String,

@@ -1,6 +1,8 @@
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate base64;
+extern crate reqwest;
+
 // networking apt install libzmq3-dev
 extern crate zmq; 
 extern crate serde_json;
@@ -9,7 +11,8 @@ extern crate serde_json;
 extern crate failure;
 extern crate rustc_hex as hex;
 
-
+//enigma utils 
+extern crate enigma_tools_u;
 
 #[macro_use]
 extern crate serde_derive;
