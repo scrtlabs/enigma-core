@@ -122,30 +122,5 @@ pub mod tests {
         assert_eq!(shared1, shared2);
         assert_eq!(shared1, [139, 184, 212, 39, 0, 146, 97, 243, 63, 65, 81, 130, 96, 208, 43, 150, 229, 90, 132, 202, 235, 168, 86, 59, 141, 19, 200, 38, 242, 55, 203, 15]);
 
-        let key = b"EnigmaMPC".sha256();
-        let keys = KeyPair::from_slice(&key).unwrap();
-        println!("PUB: {:?}", keys.get_pubkey().to_hex());
-        println!("PRIV: {:?}", keys.get_privkey().to_hex());
-
-        let key = b"EnigmaClient".sha256();
-        let keys = KeyPair::from_slice(&key).unwrap();
-        println!("PUB: {:?}", keys.get_pubkey().to_hex());
-        println!("PRIV: {:?}", keys.get_privkey().to_hex());
-
-    }
-
-    //    use secp256k1::{PublicKey, SecretKey};
-    pub fn test_fail_ecdh() {
-//        let mut wrong_array: [u8; 65] = [0; 65];
-//        wrong_array[0] = 04;
-//        wrong_array[33] = 1;
-//        match PublicKey::parse(&wrong_array) {
-//            Ok(val) => println!("{:?}", &val.serialize()[..]),
-//            Err(err) => println!("Error! {:?}", err)
-//        };
-//        let _priv: [u8; 32] = [0; 32];
-//        let k1 = SecretKey::parse(&_priv).unwrap();
-        assert_eq!(0,0)
-
     }
 }
