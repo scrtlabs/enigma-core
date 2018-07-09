@@ -110,7 +110,7 @@ impl ClientHandler {
         msg["callable"].as_str().unwrap().to_string(), 
         msg["callable_args"].as_str().unwrap().to_string(),
         preprocessors,
-        msg["callback"].as_str().unwrap().to_string())
+        msg["callback"].as_str().unwrap().to_string())  
     }
 }
 
