@@ -100,6 +100,7 @@ impl KeyPair {
 
 pub mod tests {
     use cryptography_t::asymmetric::*;
+    use common::utils_t::*;
 
     pub fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
@@ -120,20 +121,6 @@ pub mod tests {
         println!("the Derived key: {:?}, Hex: {:?}", &shared1, &shared1.to_hex());
         assert_eq!(shared1, shared2);
         assert_eq!(shared1, [139, 184, 212, 39, 0, 146, 97, 243, 63, 65, 81, 130, 96, 208, 43, 150, 229, 90, 132, 202, 235, 168, 86, 59, 141, 19, 200, 38, 242, 55, 203, 15]);
-    }
-
-    //    use secp256k1::{PublicKey, SecretKey};
-    pub fn test_fail_ecdh() {
-//        let mut wrong_array: [u8; 65] = [0; 65];
-//        wrong_array[0] = 04;
-//        wrong_array[33] = 1;
-//        match PublicKey::parse(&wrong_array) {
-//            Ok(val) => println!("{:?}", &val.serialize()[..]),
-//            Err(err) => println!("Error! {:?}", err)
-//        };
-//        let _priv: [u8; 32] = [0; 32];
-//        let k1 = SecretKey::parse(&_priv).unwrap();
-        assert_eq!(0,0)
 
     }
 }

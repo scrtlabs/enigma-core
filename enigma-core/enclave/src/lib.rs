@@ -173,7 +173,6 @@ pub mod tests {
     use std::string::{String, ToString};
     use enigma_tools_t::common::utils_t::{FromHex, ToHex, Keccak256};
     use enigma_tools_t::cryptography_t::asymmetric::tests::*;
-    use enigma_tools_t::cryptography_t::asymmetric;
     use enigma_tools_t::cryptography_t::symmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
     #[cfg(test)]
