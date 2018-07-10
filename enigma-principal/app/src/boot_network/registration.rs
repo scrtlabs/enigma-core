@@ -16,6 +16,13 @@ use rustc_hex::FromHex;
 // tokio+polling blocks 
 use tokio_core;
 use web3::types::FilterBuilder;
+use std::time;
+use std::thread;
+use web3::Web3;
+use web3::transports::Http;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 
 extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
 
@@ -129,7 +136,7 @@ pub fn run2(eid: sgx_enclave_id_t){
 }
 
 // polling 
-pub fn run(eid: sgx_enclave_id_t){
+pub fn run3(eid: sgx_enclave_id_t){
 
     /*
         let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
@@ -139,14 +146,47 @@ pub fn run(eid: sgx_enclave_id_t){
     println!("Accounts: {:?}", accounts);
     */
 
-    let mut eloop = tokio_core::reactor::Core::new().unwrap();
-    let web3 = web3::Web3::new(web3::transports::WebSocket::with_event_loop("ws://localhost:9545", &eloop.handle()).unwrap());
-    let future = web3.eth().accounts()::<u32,u32>.then(|accounts| {
-            let accounts = accounts.unwrap();
-            println!("accounts: {:?}", &accounts);
-    });
+    // let mut eloop = tokio_core::reactor::Core::new().unwrap();
+    // let web3 = web3::Web3::new(web3::transports::WebSocket::with_event_loop("ws://localhost:9545", &eloop.handle()).unwrap());
+    // let future = web3.eth().accounts()::<u32,u32>.then(|accounts| {
+    //         let accounts = accounts.unwrap();
+    //         println!("accounts: {:?}", &accounts);
+    // });
 
     // eloop
     //     .run(future)
     //     .unwrap();
+}
+
+
+pub fn run(eid: sgx_enclave_id_t){
+    watch_blocks();
+}
+
+
+fn setup() -> (web3::transports::EventLoopHandle, Web3<Http>) {
+        let (_eloop, http) = web3::transports::Http::new("http://localhost:9545")
+            .expect("unable to create Web3 HTTP provider");
+        let w3 = web3::Web3::new(http);
+        (_eloop, w3)
+}
+ pub fn watch_blocks() {
+    let epoch_size = 2;
+    let (eloop, web3) = setup();
+    let block_counter = Arc::new(AtomicUsize::new(0));
+    loop{
+        let future = web3.eth().block_number().then(move |res|{
+        match res {
+            Ok(n) => {
+                let cur_block = n.low_u64() as usize;
+                let ref_block = block_counter.swap(cur_block, Ordering::Relaxed);
+                 //println!("the current block number: {}, block counter: {:?},", cur_block, block_counter);
+            }
+                Err(e) => println!("Error: {:?}", e),
+            }
+            Ok(())
+        });
+        eloop.remote().spawn(|_| future);
+        thread::sleep(time::Duration::from_secs(1));
+    }
 }
