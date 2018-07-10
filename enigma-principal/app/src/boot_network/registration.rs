@@ -13,9 +13,7 @@ use web3::futures::{Future, Stream};
 use web3::contract::{Contract, Options};
 use web3::types::{Address, U256, Bytes};
 use rustc_hex::FromHex;
-// bytes operations 
-use std::io::Cursor;
-use byteorder::{BigEndian, ReadBytesExt};
+
 
 extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
 
@@ -61,13 +59,6 @@ pub fn register_worker(signer : &String, report : &Vec<u8>){
 
     // register 
     let signer_addr : Address = signer.parse().unwrap();
-    // test1 : validate that the worker is not registred 
-    // let result = contract.query("test_validate_registration",(signer_addr), None, Options::default(),None);
-    // let is_registred : bool = result.wait().unwrap();
-    // println!("is registred ? (not ){}",is_registred );
-    // assert_eq!(is_registred, false);
-    // end of test1 
-    // set gas options for the tx 
     let mut options = Options::default();
     let mut gas : U256 = U256::from_dec_str("5999999").unwrap();
     options.gas = Some(gas);
@@ -87,27 +78,12 @@ pub fn register_worker(signer : &String, report : &Vec<u8>){
     assert_eq!(is_registred, true);
     // end of test2
 }
-pub fn to_u32(byte_seed : [u8; 32])->u32{
-    println!("performing....");
-    let mut arr = Cursor::new(byte_seed.to_vec());
-    let n : u64 = arr.read_u64::<BigEndian>().unwrap();
-    println!("the u32 i generated = {}", n);
-    let n : u64 = arr.read_u64::<BigEndian>().unwrap();
-    println!("the u32 i generated = {}", n);
-    let n : u64 = arr.read_u64::<BigEndian>().unwrap();
-    println!("the u32 i generated = {}", n);
-    let n : u64 = arr.read_u64::<BigEndian>().unwrap();
-    println!("the u32 i generated = {}", n);
-    //https://docs.rs/web3/0.3.0/web3/types/struct.U256.html
-    3
-}
+
 //setWorkersParams(uint256 seed, bytes sig)
 pub fn set_random_number(eid: sgx_enclave_id_t){
     let (rand_seed, sig) = get_signed_random(eid);
-    let seed = to_u32(rand_seed);
-    println!("the seed in deciaml = {}",seed );
-    // println!("Random Outside Enclave:{:?}", &rand_seed[..]);
-    // println!("Signature Outside Enclave: {:?}\n", &sig[..]);
+    let the_seed : U256 = U256::from_big_endian(&rand_seed);
+    println!("the seed in hex = {:?}",the_seed );
     // connect the Enigma contract 
      let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
     let web3 = web3::Web3::new(transport);
@@ -115,8 +91,22 @@ pub fn set_random_number(eid: sgx_enclave_id_t){
     // load the contract 
     let eng_address : Address ="345cA3e014Aaf5dcA488057592ee47305D9B3e10".parse().unwrap();
     let contract = Contract::from_json(web3.eth(), eng_address, include_bytes!("./enigma.abi"),).unwrap();
+    // set gas options for the tx 
+    let mut options = Options::default();
+    let mut gas : U256 = U256::from_dec_str("5999999").unwrap();
+    options.gas = Some(gas);
     // set random seed 
-    //contract.call("setWorkersParams",(),accounts[0],options ).wait().unwrap();
+    let ret = contract.call("setWorkersParams",(the_seed,sig.to_vec()),accounts[0],options ).wait().unwrap();
+    println!("ret val = {:?}",ret );
+    // test 
+    // test get the new seed 
+    let res = contract.query("test_seed",(),None,Options::default(),None);
+    let test_seed : U256 = res.wait().unwrap();
+    println!("to contract {:?} => returnd seed from contract : {:?}",the_seed,test_seed );
+    // test get recoverd addr 
+    let res = contract.query("test_recover_addr2",(),None,Options::default(),None);
+    let test_addr : Address = res.wait().unwrap();
+    println!("recoverd address from ec recover {:?}",test_addr );
 }
 pub fn run(eid: sgx_enclave_id_t){
     let as_response = get_report().unwrap();
@@ -127,7 +117,11 @@ pub fn run(eid: sgx_enclave_id_t){
     // rlp encoding 
     let encoded : Vec<u8> = rlp_encode_registration_params(&certificate, &signature, &report_string);
     // register worker 
-    let signer_addr = String::from("a8d18dbf9d6876fb8bc4dc485b8e0a3d86908650");
+    // tested principal address from enigma-contract repo 
+    // TODO:: this address is workers[msg.sender].signer == principal address. 
+    // TODO:: the public key should be the key that is used for signing actually. 
+    // TODO:: get the key from the enclave.
+    let signer_addr = String::from("c44205c3aFf78e99049AfeAE4733a3481575CD26");
     register_worker(&signer_addr, &encoded);
     set_random_number(eid);
 }

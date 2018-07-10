@@ -4,7 +4,6 @@ extern crate base64;
 extern crate rlp;
 extern crate enigma_tools_u;
 extern crate failure;
-extern crate byteorder;
 //web3 
 extern crate web3;
 extern crate rustc_hex;

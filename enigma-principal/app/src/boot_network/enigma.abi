@@ -562,6 +562,36 @@
       "signature": "0xa944c0cd"
     },
     {
+      "constant": true,
+      "inputs": [],
+      "name": "test_recover_addr2",
+      "outputs": [
+        {
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function",
+      "signature": "0xa7ca0b60"
+    },
+    {
+      "constant": true,
+      "inputs": [],
+      "name": "test_seed",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function",
+      "signature": "0xf4fd0b83"
+    },
+    {
       "constant": false,
       "inputs": [
         {
