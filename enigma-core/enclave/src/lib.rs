@@ -48,7 +48,7 @@ use evm_t::evm::call_sputnikvm;
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::common;
 use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::common::utils_t::{ToHex, Keccak256};
+use enigma_tools_t::common::utils_t::{ToHex, Keccak256, EthereumAddress};
 use enigma_tools_t::quote_t;
 use evm_t::abi::{prepare_evm_input, create_callback};
 use evm_t::EvmResult;
@@ -62,7 +62,7 @@ lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_ke
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
     println!("Generating Report with: {:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
-    println!("Ethereum Address: 0x{}", &SIGNINING_KEY.get_pubkey().keccak256().to_hex()[24..]);
+    println!("Ethereum Address: {}", &SIGNINING_KEY.get_pubkey().address());
     quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
 }
 
@@ -82,7 +82,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 #[no_mangle]
 pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
-    pubkey.clone_from_slice(&SIGNINING_KEY.get_pubkey());
+    pubkey.copy_from_slice(&SIGNINING_KEY.get_pubkey());
 }
 
 #[no_mangle]
@@ -171,7 +171,7 @@ pub mod tests {
     use core::iter::FromIterator;
     use std::vec::Vec;
     use std::string::{String, ToString};
-    use enigma_tools_t::common::utils_t::{FromHex, ToHex, Keccak256};
+    use enigma_tools_t::common::utils_t::{FromHex, ToHex, Keccak256, EthereumAddress};
     use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::cryptography_t::symmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
@@ -206,8 +206,7 @@ pub mod tests {
         to_be_signed.extend_from_slice(&bytecode_hex);
         let sig = SIGNINING_KEY.sign(&to_be_signed.as_slice()).unwrap();
 
-        println!("Ethereum Address: 0x{}", &SIGNINING_KEY.get_pubkey().keccak256().to_hex()[24..]);
-
+        println!("Ethereum Address: {}", &SIGNINING_KEY.get_pubkey().address());
         // Recover address.
         let msg = secp256k1::Message::parse(&to_be_signed.keccak256());
         let mut _sig_obj = [0u8; 64];
@@ -215,8 +214,9 @@ pub mod tests {
         let sig_obj = secp256k1::Signature::parse(&_sig_obj);
         let rec_id = secp256k1::RecoveryId::parse(*sig.last().unwrap()-27).unwrap();
         let recovered_pubkey = secp256k1::recover(&msg, &sig_obj, &rec_id).unwrap();
-
-        assert_eq!(&recovered_pubkey.serialize()[1..65].keccak256(), &SIGNINING_KEY.get_pubkey().keccak256())
+        let mut recovered =  [0u8; 64];
+        recovered.copy_from_slice(&recovered_pubkey.serialize()[1..65]);
+        assert_eq!(recovered.address(), SIGNINING_KEY.get_pubkey().address())
     }
 
 }
