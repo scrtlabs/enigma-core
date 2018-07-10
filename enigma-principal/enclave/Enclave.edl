@@ -45,7 +45,7 @@ enclave {
 
         public void ecall_run_tests();
 
-        public void ecall_get_signing_pubkey([out] uint8_t arr[64]);
+        public void ecall_get_signing_address([out] uint8_t arr[42]);
 
         public sgx_status_t ecall_get_random_seed( [out, size=32] uint8_t* rand_out, [out, size=65] uint8_t* sig_out);
     };

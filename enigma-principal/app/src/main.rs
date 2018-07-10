@@ -8,7 +8,7 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use esgx::equote;
 pub use esgx::general::ocall_get_home;
 
-extern { fn ecall_get_signing_pubkey(eid: sgx_enclave_id_t, pubkey: &mut [u8; 64]) -> sgx_status_t; }
+extern { fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 64]) -> sgx_status_t; }
 extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
 
 
@@ -48,7 +48,7 @@ fn main() {
     println!("{:?}", &tested_encoded_quote);
 
     let mut pubme: [u8; 64] = [0; 64];
-    unsafe {ecall_get_signing_pubkey(enclave.geteid(), &mut pubme)};
+    unsafe { ecall_get_signing_address(enclave.geteid(), &mut pubme) };
     println!("Returned Pub: {:?}", &pubme[..]);
 
     let (rand_seed, sig) = get_signed_random(enclave.geteid());

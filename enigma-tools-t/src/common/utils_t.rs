@@ -33,6 +33,7 @@ pub trait EthereumAddress<T> {
 }
 
 impl EthereumAddress<String> for [u8; 64] {
+    // TODO: Maybe add a checksum address
     fn address(&self) -> String {
         let mut result: String = String::from("0x");
         result.push_str(&self.keccak256()[12..32].to_hex());

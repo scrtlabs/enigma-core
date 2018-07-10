@@ -24,7 +24,7 @@ enclave {
 	                                  [out, size=100000] uint8_t* output, [out] uint8_t signiture[65], [out] uint64_t* result_length);
 
 
-        public void ecall_get_signing_pubkey([out] uint8_t arr[64]);
+        public void ecall_get_signing_address([out] uint8_t arr[42]);
     };
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);
