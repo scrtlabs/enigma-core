@@ -51,7 +51,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
 
-    cryptography_t::get_sealed_keys(&sealed_path)
+    cryptography_t::get_sealed_keys(&sealed_path).unwrap()
 }
 
 #[no_mangle]
