@@ -7,7 +7,8 @@ extern crate failure;
 //web3 
 extern crate web3;
 extern crate rustc_hex;
-
+//tokio
+extern crate tokio_core;
 // enigma modules
 mod esgx;
 use sgx_types::{uint8_t, uint32_t};

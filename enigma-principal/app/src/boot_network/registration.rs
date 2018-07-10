@@ -13,7 +13,9 @@ use web3::futures::{Future, Stream};
 use web3::contract::{Contract, Options};
 use web3::types::{Address, U256, Bytes};
 use rustc_hex::FromHex;
-
+// tokio+polling blocks 
+use tokio_core;
+use web3::types::FilterBuilder;
 
 extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
 
@@ -87,7 +89,7 @@ pub fn set_random_number(eid: sgx_enclave_id_t){
     // connect the Enigma contract 
      let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
     let web3 = web3::Web3::new(transport);
-    let accounts = web3.eth().accounts().wait().unwrap();
+    let accounts = web3.eth().accounts().wait().    unwrap();
     // load the contract 
     let eng_address : Address ="345cA3e014Aaf5dcA488057592ee47305D9B3e10".parse().unwrap();
     let contract = Contract::from_json(web3.eth(), eng_address, include_bytes!("./enigma.abi"),).unwrap();
@@ -108,7 +110,7 @@ pub fn set_random_number(eid: sgx_enclave_id_t){
     let test_addr : Address = res.wait().unwrap();
     println!("recoverd address from ec recover {:?}",test_addr );
 }
-pub fn run(eid: sgx_enclave_id_t){
+pub fn run2(eid: sgx_enclave_id_t){
     let as_response = get_report().unwrap();
     // certificate,signature,report_string are all need to be rlp encoded and send to register() func in enigma contract
     let certificate = as_response.result.certificate;
@@ -124,4 +126,27 @@ pub fn run(eid: sgx_enclave_id_t){
     let signer_addr = String::from("c44205c3aFf78e99049AfeAE4733a3481575CD26");
     register_worker(&signer_addr, &encoded);
     set_random_number(eid);
+}
+
+// polling 
+pub fn run(eid: sgx_enclave_id_t){
+
+    /*
+        let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
+    let web3 = web3::Web3::new(transport);
+    // get accounts 
+    let accounts = web3.eth().accounts().wait().unwrap();
+    println!("Accounts: {:?}", accounts);
+    */
+
+    let mut eloop = tokio_core::reactor::Core::new().unwrap();
+    let web3 = web3::Web3::new(web3::transports::WebSocket::with_event_loop("ws://localhost:9545", &eloop.handle()).unwrap());
+    let future = web3.eth().accounts()::<u32,u32>.then(|accounts| {
+            let accounts = accounts.unwrap();
+            println!("accounts: {:?}", &accounts);
+    });
+
+    // eloop
+    //     .run(future)
+    //     .unwrap();
 }
