@@ -59,19 +59,19 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
     ).collect();
     let mut arr = [0; 16];
     arr.copy_from_slice(&v);
-    let mut finalSPID : sgx_spid_t = sgx_spid_t {id:arr };
+    let mut final_spid : sgx_spid_t = sgx_spid_t {id:arr };
     let mut the_quote = vec![0u8; quote_size as usize].into_boxed_slice();
     let nonce =  sgx_quote_nonce_t::default();;
-    let mut qeReport = sgx_report_t::default();
+    let mut qe_report = sgx_report_t::default();
 
     stat = unsafe {
         sgx_get_quote(&report,
         quote_type ,
-        &finalSPID,
+        &final_spid,
         &nonce,
         std::ptr::null(),
         0,
-        &mut qeReport,
+        &mut qe_report,
         the_quote.as_mut_ptr() as *mut sgx_quote_t,
         quote_size )
     };

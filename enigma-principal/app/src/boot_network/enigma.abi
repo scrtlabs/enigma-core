@@ -406,6 +406,26 @@
       "signature": "0x452cbe5e"
     },
     {
+      "constant": true,
+      "inputs": [
+        {
+          "name": "worker",
+          "type": "address"
+        }
+      ],
+      "name": "test_validate_registration",
+      "outputs": [
+        {
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "view",
+      "type": "function",
+      "signature": "0xf8bbea02"
+    },
+    {
       "constant": false,
       "inputs": [
         {

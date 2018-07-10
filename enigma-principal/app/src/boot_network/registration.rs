@@ -1,3 +1,7 @@
+//sgx 
+use sgx_types::{uint8_t, uint32_t};
+use sgx_types::{sgx_enclave_id_t, sgx_status_t};
+// general 
 use rlp;
 use enigma_tools_u;
 use enigma_tools_u::attestation_service::service;
@@ -9,6 +13,20 @@ use web3::futures::{Future, Stream};
 use web3::contract::{Contract, Options};
 use web3::types::{Address, U256, Bytes};
 use rustc_hex::FromHex;
+// bytes operations 
+use std::io::Cursor;
+use byteorder::{BigEndian, ReadBytesExt};
+
+extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
+
+fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
+    let mut rand_out: [u8; 32] = [0; 32];
+    let mut sig_out: [u8; 65] = [0; 65];
+    let mut retval = sgx_status_t::default();
+    unsafe { ecall_get_random_seed(eid, &mut retval, &mut rand_out, &mut sig_out); }
+    assert_eq!(retval, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
+    (rand_out, sig_out)
+}
 
 // encoding in surface https://github.com/enigmampc/surface/blob/e179790347e03666ad24829545429bcb69867849/src/surface/communication/core/worker.py#L105
 
@@ -40,30 +58,67 @@ pub fn register_worker(signer : &String, report : &Vec<u8>){
     // load the contract 
     let eng_address : Address ="345cA3e014Aaf5dcA488057592ee47305D9B3e10".parse().unwrap();
     let contract = Contract::from_json(web3.eth(), eng_address, include_bytes!("./enigma.abi"),).unwrap();
+
     // register 
     let signer_addr : Address = signer.parse().unwrap();
-    let byte_report : Bytes = Bytes(report.to_vec());
-    //contract.call("test",(11,),accounts[0], Options::default());
-    
-    
-    //contract.call("register",(signer_addr,report.to_vec(),12,),accounts[0], Options::default());//.
-    // then(|tx| {
-    //     println!("got tx: {:?}", tx);
-    //     Ok(())
-    // });
-    let small : Vec<u8> = [report[0],report[1]].to_vec();
+    // test1 : validate that the worker is not registred 
+    // let result = contract.query("test_validate_registration",(signer_addr), None, Options::default(),None);
+    // let is_registred : bool = result.wait().unwrap();
+    // println!("is registred ? (not ){}",is_registred );
+    // assert_eq!(is_registred, false);
+    // end of test1 
+    // set gas options for the tx 
     let mut options = Options::default();
-    let mut gas : U256 = U256::from_dec_str("1000000").unwrap();
-    println!("send with gas = {:?}",gas );
+    let mut gas : U256 = U256::from_dec_str("5999999").unwrap();
     options.gas = Some(gas);
-    contract.call("register",(signer_addr,report.to_vec(),1,),accounts[0],options ).wait().unwrap();
+    println!("send with gas = {:?}",gas );
+    // call the register function
+    contract.call("register",(signer_addr,report.to_vec(),12,),accounts[0],options ).wait().unwrap();
+    // test3:validate that number commited 
     let res = contract.query("test_view",(),None,Options::default(),None);
     let num : U256 = res.wait().unwrap();
     println!("result from call = {:?}",num );
+    // end of test3
     // confirm registration 
+    // test2 : validate that the worker is registred 
+    let result = contract.query("test_validate_registration",(signer_addr), None, Options::default(),None);
+    let is_registred : bool = result.wait().unwrap();
+    println!("is registred ? (yes ){}",is_registred );
+    assert_eq!(is_registred, true);
+    // end of test2
 }
-
-pub fn run(){
+pub fn to_u32(byte_seed : [u8; 32])->u32{
+    println!("performing....");
+    let mut arr = Cursor::new(byte_seed.to_vec());
+    let n : u64 = arr.read_u64::<BigEndian>().unwrap();
+    println!("the u32 i generated = {}", n);
+    let n : u64 = arr.read_u64::<BigEndian>().unwrap();
+    println!("the u32 i generated = {}", n);
+    let n : u64 = arr.read_u64::<BigEndian>().unwrap();
+    println!("the u32 i generated = {}", n);
+    let n : u64 = arr.read_u64::<BigEndian>().unwrap();
+    println!("the u32 i generated = {}", n);
+    //https://docs.rs/web3/0.3.0/web3/types/struct.U256.html
+    3
+}
+//setWorkersParams(uint256 seed, bytes sig)
+pub fn set_random_number(eid: sgx_enclave_id_t){
+    let (rand_seed, sig) = get_signed_random(eid);
+    let seed = to_u32(rand_seed);
+    println!("the seed in deciaml = {}",seed );
+    // println!("Random Outside Enclave:{:?}", &rand_seed[..]);
+    // println!("Signature Outside Enclave: {:?}\n", &sig[..]);
+    // connect the Enigma contract 
+     let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
+    let web3 = web3::Web3::new(transport);
+    let accounts = web3.eth().accounts().wait().unwrap();
+    // load the contract 
+    let eng_address : Address ="345cA3e014Aaf5dcA488057592ee47305D9B3e10".parse().unwrap();
+    let contract = Contract::from_json(web3.eth(), eng_address, include_bytes!("./enigma.abi"),).unwrap();
+    // set random seed 
+    //contract.call("setWorkersParams",(),accounts[0],options ).wait().unwrap();
+}
+pub fn run(eid: sgx_enclave_id_t){
     let as_response = get_report().unwrap();
     // certificate,signature,report_string are all need to be rlp encoded and send to register() func in enigma contract
     let certificate = as_response.result.certificate;
@@ -74,4 +129,5 @@ pub fn run(){
     // register worker 
     let signer_addr = String::from("a8d18dbf9d6876fb8bc4dc485b8e0a3d86908650");
     register_worker(&signer_addr, &encoded);
+    set_random_number(eid);
 }

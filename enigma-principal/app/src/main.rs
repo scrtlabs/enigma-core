@@ -4,6 +4,7 @@ extern crate base64;
 extern crate rlp;
 extern crate enigma_tools_u;
 extern crate failure;
+extern crate byteorder;
 //web3 
 extern crate web3;
 extern crate rustc_hex;
@@ -38,19 +39,22 @@ fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
 
 #[allow(unused_variables, unused_mut)]
 fn main() {
-    boot_network::registration::run();
+
+    
     /* this is an example of initiating an enclave */
 
-//     let enclave = match esgx::general::init_enclave() {
-//         Ok(r) => {
-//             println!("[+] Init Enclave Successful {}!", r.geteid());
-//             r
-//         },
-//         Err(x) => {
-//             println!("[-] Init Enclave Failed {}!", x.as_str());
-//             return;
-//         },
-//     };
+    let enclave = match esgx::general::init_enclave() {
+        Ok(r) => {
+            println!("[+] Init Enclave Successful {}!", r.geteid());
+            r
+        },
+        Err(x) => {
+            println!("[-] Init Enclave Failed {}!", x.as_str());
+            return;
+        },
+    };
+    let eid = enclave.geteid();
+    boot_network::registration::run(eid);
 // //    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
 //     let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
 //     let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
@@ -63,7 +67,7 @@ fn main() {
 //     let (rand_seed, sig) = get_signed_random(enclave.geteid());
 //     println!("Random Outside Enclave:{:?}", &rand_seed[..]);
 //     println!("Signature Outside Enclave: {:?}\n", &sig[..]);
-//     enclave.destroy();
+     enclave.destroy();
 }
 
 

@@ -12,6 +12,7 @@ etcommon-rlp = {rev = "0.2.3", default-features = false}
 failure = "0.1.1"
 web3 = "0.3.0"
 rustc-hex = "1.0.0"
+byteorder = "1.2.3"
 
 [dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
