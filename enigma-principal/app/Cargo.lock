@@ -1,0 +1,55 @@
+[[package]]
+name = "base64"
+version = "0.9.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "safemem 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "byteorder"
+version = "1.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "enigma_principal_app"
+version = "1.0.0"
+dependencies = [
+ "base64 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_urts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "libc"
+version = "0.2.42"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "safemem"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "sgx_types"
+version = "1.0.0"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+
+[[package]]
+name = "sgx_urts"
+version = "1.0.0"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[metadata]
+"checksum base64 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)" = "85415d2594767338a74a30c1d370b2f3262ec1b4ed2d7bba5b3faf4de40467d9"
+"checksum byteorder 1.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "74c0b906e9446b0a2e4f760cdb3fa4b2c48cdc6db8766a845c54b6ff063fd2e9"
+"checksum libc 0.2.42 (registry+https://github.com/rust-lang/crates.io-index)" = "b685088df2b950fccadf07a7187c8ef846a959c142338a48f9dc0b94517eb5f1"
+"checksum safemem 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e27a8b19b835f7aea908818e871f5cc3a5a186550c30773be987e155e8163d8f"
+"checksum sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_urts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
