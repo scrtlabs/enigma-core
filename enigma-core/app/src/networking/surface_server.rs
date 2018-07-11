@@ -87,12 +87,12 @@ impl ClientHandler {
         // ecall a quote + key 
         let encoded_quote = equote::produce_quote(eid, &constants::SPID.to_owned())?;
         // ecall get the clear text public signing key 
-        let pub_signing_key = equote::get_register_signing_key(eid)?;
+        let pub_signing_address = equote::get_register_signing_address(eid)?;
         // serialize the result 
         let str_result = serde_json::to_string(&equote::GetRegisterResult{
             errored:false,
             quote:encoded_quote, 
-            pub_key: pub_signing_key })
+            address: pub_signing_address })
             .unwrap();
         // send 
         Ok(str_result)
@@ -226,13 +226,13 @@ impl Server{
         let v: Value = serde_json::from_str(msg.as_str().unwrap()).unwrap();
         let errored  = v["errored"].as_bool().unwrap();//{
         let quote  = v["quote"].as_str().unwrap();
-        let pub_key = v["pub_key"].as_str().unwrap();
+        let address = v["address"].as_str().unwrap();
         // 3. validate the quote with the attestation service
         let expected_quote_len = 1488;
-        let expected_key_len = 128;
-        assert_eq!(expected_quote_len,quote.len());
+        let expected_address_len = 42;
+        assert_eq!(expected_quote_len, quote.len());
         assert_eq!(false, errored);
-        assert_eq!(expected_key_len,pub_key.len());
+        assert_eq!(expected_address_len, address.len());
      }
      fn test_execevm_cmd(requester : &zmq::Socket){
         // build the request

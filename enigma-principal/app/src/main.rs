@@ -19,7 +19,7 @@ use esgx::equote;
 mod boot_network;
 pub use esgx::general::ocall_get_home;
 
-extern { fn ecall_get_signing_pubkey(eid: sgx_enclave_id_t, pubkey: &mut [u8; 64]) -> sgx_status_t; }
+extern { fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 42]) -> sgx_status_t; }
 extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
 
 
@@ -62,10 +62,15 @@ fn main() {
 //     let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
 //     println!("{:?}", &tested_encoded_quote);
 
+
 //     let mut pubme: [u8; 64] = [0; 64];
 //     unsafe {ecall_get_signing_pubkey(enclave.geteid(), &mut pubme)};
 //     println!("Returned Pub: {:?}", &pubme[..]);
-
+////////////////////////////////////////////////////
+    // let mut pubme: [u8; 42] = [0; 42];
+    // unsafe { ecall_get_signing_address(enclave.geteid(), &mut pubme) };
+    // println!("Returned Address: {:?}", &pubme[..]);
+////////////////////////////////////////////////////
 //     let (rand_seed, sig) = get_signed_random(enclave.geteid());
 //     println!("Random Outside Enclave:{:?}", &rand_seed[..]);
 //     println!("Signature Outside Enclave: {:?}\n", &sig[..]);

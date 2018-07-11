@@ -30,7 +30,7 @@ use sgx_trts::trts::rsgx_read_rand;
 
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::common::utils_t::{ToHex, FromHex};
+use enigma_tools_t::common::utils_t::{ToHex, FromHex, EthereumAddress};
 use enigma_tools_t::storage_t;
 use enigma_tools_t::quote_t;
 
@@ -59,8 +59,8 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 }
 
 #[no_mangle]
-pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
-    pubkey.clone_from_slice(&SIGNINING_KEY.get_pubkey());
+pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
+    pubkey.clone_from_slice(SIGNINING_KEY.get_pubkey().address().as_bytes());
 }
 
 

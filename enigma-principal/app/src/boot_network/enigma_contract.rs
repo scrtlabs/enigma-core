@@ -1,6 +1,6 @@
 //sgx 
 use sgx_types::{uint8_t, uint32_t};
-use s   gx_types::{sgx_enclave_id_t, sgx_status_t};
+use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 // general 
 use rlp;
 use enigma_tools_u;
@@ -79,7 +79,7 @@ impl EnigmaContract{
         println!("Accounts: {:?}", accounts);
     }
 
-    pub fn register_as_worker(&self, signer : &String, report : &Vec<u8>, gas_limit: &String){
+    pub fn register_as_worker(&self, signer : &String, report : &Vec<u8>, gas_limit: &String)->Result<(),Error>{
         // register 
         let signer_addr : Address = signer.parse().unwrap();
         let mut options = Options::default();
@@ -87,5 +87,6 @@ impl EnigmaContract{
         options.gas = Some(gas);
         // call the register function
         self.contract.call("register",(signer_addr,report.to_vec(),12,),self.account,options ).wait().expect("error registering to the enigma smart contract.");
+        Ok(())
     }
 }
