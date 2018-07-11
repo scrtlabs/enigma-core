@@ -19,3 +19,4 @@ pub fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
     assert_eq!(retval, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
     (rand_out, sig_out)
 }
+

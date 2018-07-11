@@ -11,3 +11,4 @@ serde_derive = "1.0.66"
 failure = "0.1.1"
 httparse = "=1.2.5"
 reqwest = "0.8.6"
+etcommon-rlp = {rev = "0.2.3", default-features = false}

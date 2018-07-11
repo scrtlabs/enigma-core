@@ -24,13 +24,14 @@ use serde_json::{Value};
 
 
 pub struct EnigmaContract{
-    web3 : Web3<Http>,
-    contract : Contract<Http>, 
-    account : Address,
+    pub web3 : Web3<Http>,
+    pub contract : Contract<Http>, 
+    pub account : Address,
+    pub eloop : web3::transports::EventLoopHandle,
 }
 
 impl EnigmaContract{
-    pub fn new(web3: Web3<Http>, address: &str, path: &str, account: &str) -> Self{
+    pub fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str) -> Self{
         let contract_address: Address = address
             .parse()
             .expect("unable to parse contract address");
@@ -40,10 +41,10 @@ impl EnigmaContract{
             .parse()
             .expect("unable to parse account address");
 
-        EnigmaContract { web3, contract, account }
+        EnigmaContract { web3: web3, contract: contract, account : account , eloop : eloop}
      }
         /// Fetch the Enigma contract deployed on Ethereum using an HTTP Web3 provider
-    fn deployed(web3: &Web3<Http>, address: Address, path: &str) -> Contract<Http> {
+    pub fn deployed(web3: &Web3<Http>, address: Address, path: &str) -> Contract<Http> {
        
        let abi = EnigmaContract::load_abi(path);
 

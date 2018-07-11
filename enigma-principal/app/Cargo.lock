@@ -179,6 +179,7 @@ dependencies = [
 name = "enigma-tools-u"
 version = "0.1.0"
 dependencies = [
+ "etcommon-rlp 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "httparse 1.2.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.8.6 (registry+https://github.com/rust-lang/crates.io-index)",
