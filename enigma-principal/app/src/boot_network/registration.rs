@@ -22,7 +22,8 @@ use web3::Web3;
 use web3::transports::Http;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
-
+// formal 
+use boot_network::enigma_contract;
 
 extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
 
@@ -159,7 +160,7 @@ pub fn run3(eid: sgx_enclave_id_t){
 }
 
 
-pub fn run(eid: sgx_enclave_id_t){
+pub fn run4(eid: sgx_enclave_id_t){
     watch_blocks();
 }
 
@@ -171,17 +172,21 @@ fn setup() -> (web3::transports::EventLoopHandle, Web3<Http>) {
         (_eloop, w3)
 }
  pub fn watch_blocks() {
-    let epoch_size = 2;
+    let epoch_size = 5;
     let (eloop, web3) = setup();
-    let block_counter = Arc::new(AtomicUsize::new(0));
-    loop{
+    let prev_epoch = Arc::new(AtomicUsize::new(0));
+    loop {
+        let prev_epoch = Arc::clone(&prev_epoch);
         let future = web3.eth().block_number().then(move |res|{
         match res {
-            Ok(n) => {
-                let cur_block = n.low_u64() as usize;
-                let ref_block = block_counter.swap(cur_block, Ordering::Relaxed);
-                 //println!("the current block number: {}, block counter: {:?},", cur_block, block_counter);
-            }
+            Ok(num) => {
+                let cur_block = num.low_u64() as usize;
+                let prev_block_ref = prev_epoch.load(Ordering::Relaxed);
+                if  prev_block_ref ==0 || cur_block >= prev_block_ref + epoch_size{
+                    prev_epoch.swap(cur_block,  Ordering::Relaxed);
+                    println!("emit random, current block {} , prev block {} , next prev {} ", cur_block, prev_block_ref , prev_epoch.load(Ordering::Relaxed));
+                }
+            }   
                 Err(e) => println!("Error: {:?}", e),
             }
             Ok(())
@@ -189,4 +194,20 @@ fn setup() -> (web3::transports::EventLoopHandle, Web3<Http>) {
         eloop.remote().spawn(|_| future);
         thread::sleep(time::Duration::from_secs(1));
     }
+}
+
+
+
+// enigma contract 
+//pub fn new(web3: Web3<Http>, address: &str, path: &str, account: &str)
+pub fn run(eid: sgx_enclave_id_t){
+    let (eloop, web3) = setup();
+    // deployed contract address
+    let address = "345cA3e014Aaf5dcA488057592ee47305D9B3e10";
+    // path to the build file of the contract 
+    let path = "/root/enigma-core/enigma-principal/app/src/boot_network/enigma_full.abi";
+    // the account owner that initializes 
+    let account = "627306090abab3a6e1400e9345bc60c78a8bef57";
+    let enigma_contract = enigma_contract::EnigmaContract::new(web3, address, path, account);
+    enigma_contract.test_web3();
 }
