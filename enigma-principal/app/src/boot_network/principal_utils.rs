@@ -64,7 +64,8 @@ impl Principal for EnigmaContract {
     fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t){
         
         let prev_epoch = Arc::new(AtomicUsize::new(0));
-
+        //let cloned_ac = self.account.clone();
+        //let contract_addr = self.contract.address();
         loop {
             let prev_epoch = Arc::clone(&prev_epoch);
             let future = self.web3.eth().block_number().then(move |res|{
@@ -79,7 +80,9 @@ impl Principal for EnigmaContract {
                             prev_epoch.swap(cur_block,  Ordering::Relaxed);
                             println!("emit random, current block {} , prev block {} , next prev {} ", cur_block, prev_block_ref , prev_epoch.load(Ordering::Relaxed));
                             // https://paste.ubuntu.com/p/B8wJN47kjV/
-                            //emit_worker_params(contract, eid, gas_limit, cloned_ac);
+                            // let path = "/root/enigma-core/enigma-principal/app/src/boot_network/enigma_full.abi";
+                            // let gas_limit = String::from("5999999");
+                            //  emit_worker_params(eid, gas_limit, cloned_ac,contract_addr.clone(),&path);
                         }
                     }   
                         Err(e) => println!("Error: {:?}", e),
@@ -104,8 +107,8 @@ fn setup() -> (web3::transports::EventLoopHandle, Web3<Http>) {
         (_eloop, w3)
 }
 
-pub fn emit_worker_params(contract : &Contract<Http>,eid: sgx_enclave_id_t, gas_limit : String,account : Address)->Result<(),Error>{
-    
+pub fn emit_worker_params(eid: sgx_enclave_id_t, gas_limit : String,account : Address, contract_address: Address, path: &str)->Result<(),Error>{
+    let contract = contract_instance(contract_address, path);
     // get seed,signature
     let (rand_seed, sig) = random_u::get_signed_random(eid);
     let the_seed : U256 = U256::from_big_endian(&rand_seed);
@@ -119,3 +122,19 @@ pub fn emit_worker_params(contract : &Contract<Http>,eid: sgx_enclave_id_t, gas_
     contract.call("setWorkersParams",(the_seed,sig.to_vec()),account,options ).wait().unwrap();
     Ok(())
 }
+
+
+pub fn contract_instance(address: Address, path: &str) -> Contract<Http> {
+       
+       let (eloop,web3) = setup();
+       
+       let abi = EnigmaContract::load_abi(path);
+       
+       let contract = Contract::from_json(
+           web3.eth(), 
+           address, 
+           abi.unwrap().as_bytes(),
+         ).expect("unable to fetch the deployed contract on the Ethereum provider");
+
+        contract
+    }

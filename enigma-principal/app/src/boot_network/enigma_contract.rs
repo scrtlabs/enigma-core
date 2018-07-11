@@ -24,11 +24,14 @@ use serde_json::{Value};
 
 
 pub struct EnigmaContract{
+
     pub web3 : Web3<Http>,
     pub contract : Contract<Http>, 
     pub account : Address,
     pub eloop : web3::transports::EventLoopHandle,
+    
 }
+
 
 impl EnigmaContract{
     pub fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str) -> Self{
