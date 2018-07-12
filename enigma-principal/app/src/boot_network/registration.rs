@@ -26,150 +26,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use boot_network::enigma_contract;
 use boot_network::principal_utils::Principal;
 
-extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
-
-fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
-    let mut rand_out: [u8; 32] = [0; 32];
-    let mut sig_out: [u8; 65] = [0; 65];
-    let mut retval = sgx_status_t::default();
-    unsafe { ecall_get_random_seed(eid, &mut retval, &mut rand_out, &mut sig_out); }
-    assert_eq!(retval, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
-    (rand_out, sig_out)
-}
-
-// encoding in surface https://github.com/enigmampc/surface/blob/e179790347e03666ad24829545429bcb69867849/src/surface/communication/core/worker.py#L105
-
-pub fn get_report()->Result<service::ASResponse, Error>{
-    let service : service::AttestationService = service::AttestationService::new(constants::ATTESTATION_SERVICE_URL);
-    let quote = String::from("AgAAANoKAAAHAAYAAAAAABYB+Vw5ueowf+qruQGtw+54eaWW7MiyrIAooQw/uU3eBAT/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAALcVy53ugrfvYImaDi1ZW5RueQiEekyu/HmLIKYvg6OxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACGcCDM4cgbYe6zQSwWQINFsDvd21kXGeteDakovCXPDwjJ31WG0K+wyDDRo8PFi293DtIr6DgNqS/guQSkglPJqAIAALbvs91Ugh9/yhBpAyGQPth+UWXRboGkTaZ3DY8U+Upkb2NWbLPkXbcMbB7c3SAfV4ip/kPswyq0OuTTiJijsUyOBOV3hVLIWM4f2wVXwxiVRXrfeFs/CGla6rGdRQpFzi4wWtrdKisVK5+Cyrt2y38Ialm0NqY9FIjxlodD9D7TC8fv0Xog29V1HROlY+PvRNa+f2qp858w8j+9TshkvOAdE1oVzu0F8KylbXfsSXhH7d+n0c8fqSBoLLEjedoDBp3KSO0bof/uzX2lGQJkZhJ/RSPPvND/1gVj9q1lTM5ccbfVfkmwdN0B5iDA5fMJaRz5o8SVILr3uWoBiwx7qsUceyGX77tCn2gZxfiOICNrpy3vv384TO2ovkwvhq1Lg071eXAlxQVtPvRYOGgBAABydn7bEWdP2htRd46nBkGIAoNAnhMvbGNbGCKtNVQAU0N9f7CROLPOTrlw9gVlKK+G5vM1X95KTdcOjs8gKtTkgEos021zBs9R+whyUcs9npo1SJ8GzowVwTwWfVz9adw2jL95zwJ/qz+y5x/IONw9iXspczf7W+bwyQpNaetO9xapF6aHg2/1w7st9yJOd0OfCZsowikJ4JRhAMcmwj4tiHovLyo2fpP3SiNGzDfzrpD+PdvBpyQgg4aPuxqGW8z+4SGn+vwadsLr+kIB4z7jcLQgkMSAplrnczr0GQZJuIPLxfk9mp8oi5dF3+jqvT1d4CWhRwocrs7Vm1tAKxiOBzkUElNaVEoFCPmUYE7uZhfMqOAUsylj3Db1zx1F1d5rPHgRhybpNpxThVWWnuT89I0XLO0WoQeuCSRT0Y9em1lsozSu2wrDKF933GL7YL0TEeKw3qFTPKsmUNlWMIow0jfWrfds/Lasz4pbGA7XXjhylwum8e/I");
-    let as_response : service::ASResponse = service.get_report(&quote).unwrap();
-    Ok(as_response)
-}
-
 pub fn get_rlp_encoded_report()->Result<(Vec<u8>,service::ASResponse),Error>{
     let service : service::AttestationService = service::AttestationService::new(constants::ATTESTATION_SERVICE_URL);
     let quote = String::from("AgAAANoKAAAHAAYAAAAAABYB+Vw5ueowf+qruQGtw+54eaWW7MiyrIAooQw/uU3eBAT/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAALcVy53ugrfvYImaDi1ZW5RueQiEekyu/HmLIKYvg6OxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACGcCDM4cgbYe6zQSwWQINFsDvd21kXGeteDakovCXPDwjJ31WG0K+wyDDRo8PFi293DtIr6DgNqS/guQSkglPJqAIAALbvs91Ugh9/yhBpAyGQPth+UWXRboGkTaZ3DY8U+Upkb2NWbLPkXbcMbB7c3SAfV4ip/kPswyq0OuTTiJijsUyOBOV3hVLIWM4f2wVXwxiVRXrfeFs/CGla6rGdRQpFzi4wWtrdKisVK5+Cyrt2y38Ialm0NqY9FIjxlodD9D7TC8fv0Xog29V1HROlY+PvRNa+f2qp858w8j+9TshkvOAdE1oVzu0F8KylbXfsSXhH7d+n0c8fqSBoLLEjedoDBp3KSO0bof/uzX2lGQJkZhJ/RSPPvND/1gVj9q1lTM5ccbfVfkmwdN0B5iDA5fMJaRz5o8SVILr3uWoBiwx7qsUceyGX77tCn2gZxfiOICNrpy3vv384TO2ovkwvhq1Lg071eXAlxQVtPvRYOGgBAABydn7bEWdP2htRd46nBkGIAoNAnhMvbGNbGCKtNVQAU0N9f7CROLPOTrlw9gVlKK+G5vM1X95KTdcOjs8gKtTkgEos021zBs9R+whyUcs9npo1SJ8GzowVwTwWfVz9adw2jL95zwJ/qz+y5x/IONw9iXspczf7W+bwyQpNaetO9xapF6aHg2/1w7st9yJOd0OfCZsowikJ4JRhAMcmwj4tiHovLyo2fpP3SiNGzDfzrpD+PdvBpyQgg4aPuxqGW8z+4SGn+vwadsLr+kIB4z7jcLQgkMSAplrnczr0GQZJuIPLxfk9mp8oi5dF3+jqvT1d4CWhRwocrs7Vm1tAKxiOBzkUElNaVEoFCPmUYE7uZhfMqOAUsylj3Db1zx1F1d5rPHgRhybpNpxThVWWnuT89I0XLO0WoQeuCSRT0Y9em1lsozSu2wrDKF933GL7YL0TEeKw3qFTPKsmUNlWMIow0jfWrfds/Lasz4pbGA7XXjhylwum8e/I");
     let (rlp_encoded, as_response ) = service.rlp_encode_registration_params(&quote).unwrap();
     Ok((rlp_encoded,as_response))
-}
-
-pub fn rlp_encode_registration_params(certificate : &String , signature : &String, report : &String)->Vec<u8>{
-    let clear = vec![report.as_str(), certificate.as_str(), signature.as_str()];
-    let encoded = rlp::encode_list::<&str,&str>(&clear).to_vec();
-    encoded
-}
-
-pub fn web3_test(){
-    let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
-    let web3 = web3::Web3::new(transport);
-    // get accounts 
-    let accounts = web3.eth().accounts().wait().unwrap();
-    println!("Accounts: {:?}", accounts);
-}
-
-pub fn register_worker(signer : &String, report : &Vec<u8>){
-    let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
-    let web3 = web3::Web3::new(transport);
-    let accounts = web3.eth().accounts().wait().unwrap();
-    // load the contract 
-    let eng_address : Address ="345cA3e014Aaf5dcA488057592ee47305D9B3e10".parse().unwrap();
-    let contract = Contract::from_json(web3.eth(), eng_address, include_bytes!("./enigma.abi"),).unwrap();
-
-    // register 
-    let signer_addr : Address = signer.parse().unwrap();
-    let mut options = Options::default();
-    let mut gas : U256 = U256::from_dec_str("5999999").unwrap();
-    options.gas = Some(gas);
-    println!("send with gas = {:?}",gas );
-    // call the register function
-    contract.call("register",(signer_addr,report.to_vec(),12,),accounts[0],options ).wait().unwrap();
-    // test3:validate that number commited 
-    let res = contract.query("test_view",(),None,Options::default(),None);
-    let num : U256 = res.wait().unwrap();
-    println!("result from call = {:?}",num );
-    // end of test3
-    // confirm registration 
-    // test2 : validate that the worker is registred 
-    let result = contract.query("test_validate_registration",(signer_addr), None, Options::default(),None);
-    let is_registred : bool = result.wait().unwrap();
-    println!("is registred ? (yes ){}",is_registred );
-    assert_eq!(is_registred, true);
-    // end of test2
-}
-
-//setWorkersParams(uint256 seed, bytes sig)
-pub fn set_random_number(eid: sgx_enclave_id_t){
-    let (rand_seed, sig) = get_signed_random(eid);
-    let the_seed : U256 = U256::from_big_endian(&rand_seed);
-    println!("the seed in hex = {:?}",the_seed );
-    // connect the Enigma contract 
-     let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
-    let web3 = web3::Web3::new(transport);
-    let accounts = web3.eth().accounts().wait().    unwrap();
-    // load the contract 
-    let eng_address : Address ="345cA3e014Aaf5dcA488057592ee47305D9B3e10".parse().unwrap();
-    let contract = Contract::from_json(web3.eth(), eng_address, include_bytes!("./enigma.abi"),).unwrap();
-    // set gas options for the tx 
-    let mut options = Options::default();
-    let mut gas : U256 = U256::from_dec_str("5999999").unwrap();
-    options.gas = Some(gas);
-    // set random seed 
-    let ret = contract.call("setWorkersParams",(the_seed,sig.to_vec()),accounts[0],options ).wait().unwrap();
-    println!("ret val = {:?}",ret );
-    // test 
-    // test get the new seed 
-    let res = contract.query("test_seed",(),None,Options::default(),None);
-    let test_seed : U256 = res.wait().unwrap();
-    println!("to contract {:?} => returnd seed from contract : {:?}",the_seed,test_seed );
-    // test get recoverd addr 
-    let res = contract.query("test_recover_addr2",(),None,Options::default(),None);
-    let test_addr : Address = res.wait().unwrap();
-    println!("recoverd address from ec recover {:?}",test_addr );
-}
-pub fn run2(eid: sgx_enclave_id_t){
-    let as_response = get_report().unwrap();
-    // certificate,signature,report_string are all need to be rlp encoded and send to register() func in enigma contract
-    let certificate = as_response.result.certificate;
-    let signature = as_response.result.signature;
-    let report_string = as_response.result.report_string;
-    // rlp encoding 
-    let encoded : Vec<u8> = rlp_encode_registration_params(&certificate, &signature, &report_string);
-    // register worker 
-    // tested principal address from enigma-contract repo 
-    // TODO:: this address is workers[msg.sender].signer == principal address. 
-    // TODO:: the public key should be the key that is used for signing actually. 
-    // TODO:: get the key from the enclave.
-    let signer_addr = String::from("c44205c3aFf78e99049AfeAE4733a3481575CD26");
-    register_worker(&signer_addr, &encoded);
-    set_random_number(eid);
-}
-
-// polling 
-pub fn run3(eid: sgx_enclave_id_t){
-
-    /*
-        let (_eloop, transport) = web3::transports::Http::new("http://localhost:9545").unwrap();
-    let web3 = web3::Web3::new(transport);
-    // get accounts 
-    let accounts = web3.eth().accounts().wait().unwrap();
-    println!("Accounts: {:?}", accounts);
-    */
-
-    // let mut eloop = tokio_core::reactor::Core::new().unwrap();
-    // let web3 = web3::Web3::new(web3::transports::WebSocket::with_event_loop("ws://localhost:9545", &eloop.handle()).unwrap());
-    // let future = web3.eth().accounts()::<u32,u32>.then(|accounts| {
-    //         let accounts = accounts.unwrap();
-    //         println!("accounts: {:?}", &accounts);
-    // });
-
-    // eloop
-    //     .run(future)
-    //     .unwrap();
-}
-
-
-pub fn run4(eid: sgx_enclave_id_t){
-    watch_blocks();
 }
 
 
@@ -179,36 +40,9 @@ fn setup() -> (web3::transports::EventLoopHandle, Web3<Http>) {
         let w3 = web3::Web3::new(http);
         (_eloop, w3)
 }
- pub fn watch_blocks() {
-    let epoch_size = 5;
-    let (eloop, web3) = setup();
-    let prev_epoch = Arc::new(AtomicUsize::new(0));
-    loop {
-        let prev_epoch = Arc::clone(&prev_epoch);
-        let future = web3.eth().block_number().then(move |res|{
-        match res {
-            Ok(num) => {
-                let cur_block = num.low_u64() as usize;
-                let prev_block_ref = prev_epoch.load(Ordering::Relaxed);
-                if  prev_block_ref ==0 || cur_block >= prev_block_ref + epoch_size{
-                    prev_epoch.swap(cur_block,  Ordering::Relaxed);
-                    println!("emit random, current block {} , prev block {} , next prev {} ", cur_block, prev_block_ref , prev_epoch.load(Ordering::Relaxed));
-                }
-            }   
-                Err(e) => println!("Error: {:?}", e),
-            }
-            Ok(())
-        });
-        eloop.remote().spawn(|_| future);
-        thread::sleep(time::Duration::from_secs(1));
-    }
-}
 
 
-
-// enigma contract 
-//pub fn new(web3: Web3<Http>, address: &str, path: &str, account: &str)
-pub fn run(eid: sgx_enclave_id_t){
+pub fn enigma_contract_builder()->enigma_contract::EnigmaContract{
     let (eloop, web3) = setup();
     // deployed contract address
     let address = "345cA3e014Aaf5dcA488057592ee47305D9B3e10";
@@ -216,7 +50,13 @@ pub fn run(eid: sgx_enclave_id_t){
     let path = "/root/enigma-core/enigma-principal/app/src/boot_network/enigma_full.abi";
     // the account owner that initializes 
     let account = "627306090abab3a6e1400e9345bc60c78a8bef57";
-    let enigma_contract : enigma_contract::EnigmaContract = Principal::new(web3,eloop, address, path, account);
+    let url = "http://localhost:9545";
+    let enigma_contract : enigma_contract::EnigmaContract = Principal::new(web3,eloop, address, path, account,url);
+    enigma_contract
+}
+// enigma contract 
+pub fn run(eid: sgx_enclave_id_t){
+    let enigma_contract = enigma_contract_builder();
     // fetch report 
     let (encoded_report , as_response ) = get_rlp_encoded_report().unwrap();
     // register worker 
@@ -228,5 +68,5 @@ pub fn run(eid: sgx_enclave_id_t){
     //fn watch_blocks(&self, epoch_size : usize, delay_seconds : u64){
     let epoch_size = 2;
     let polling_interval = 1;
-    enigma_contract.watch_blocks(epoch_size, polling_interval, eid);
+    enigma_contract.watch_blocks(epoch_size, polling_interval, eid, gas_limit);
 }
