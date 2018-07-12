@@ -102,12 +102,6 @@ impl EnigmaContract{
 
         Ok(abi)
     }
-    pub fn test_web3(&self){
-        // get accounts 
-        let accounts = self.web3.eth().accounts().wait().unwrap();
-        println!("Accounts: {:?}", accounts);
-    }
-
     pub fn register_as_worker(&self, signer : &String, report : &Vec<u8>, gas_limit: &String)->Result<(),Error>{
         // register 
         let signer_addr : Address = signer.parse().unwrap();

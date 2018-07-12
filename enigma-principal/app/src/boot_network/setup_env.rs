@@ -25,6 +25,70 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 // formal 
 use boot_network::enigma_contract;
 use boot_network::principal_utils::Principal;
+use boot_network::principal_utils::{EmittParams};
+// files 
+use std::fs::File;
+use std::io::prelude::*;
+use serde_derive::*;
+use serde_json;
+use serde_json::{Value};
+
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PrincipalConfig {
+
+    pub ENIGMA_CONTRACT_PATH : String,
+    pub ENIGMA_CONTRACT_REMOTE_PATH : String,
+    pub ENIGMA_CONTRACT_ADDRESS : String,
+    pub ACCOUNT_ADDRESS : String,
+    pub TEST_NET : bool,
+    pub WITH_PRIVATE_KEY : bool,
+    pub PRIVATE_KEY : String,
+    pub URL : String,
+    pub EPOCH_SIZE : usize,
+    pub POLLING_INTERVAL : u64
+
+}
+
+pub struct PrincipalManager {
+    config_path : String,
+    pub config : PrincipalConfig,
+    emitt_params : EmittParams,
+}
+
+
+trait Sampler {
+    fn new(config : &str, emit : EmittParams)->Self;
+    fn get_quote()->Result<String,Error>;
+    fn get_report()->Result<(Vec<u8>,service::ASResponse),Error>;
+    fn connect()->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>;
+    fn run(&self);
+}   
+
+impl Sampler for PrincipalManager {
+    fn new(config_path : &str,emit : EmittParams)-> Self{
+
+        let mut f = File::open(config_path)
+        .expect("file not found.");
+
+       let mut contents = String::new();
+        f.read_to_string(&mut contents)
+            .expect("canno't read file");
+
+       let config = serde_json::from_str(&contents).unwrap();
+       
+        PrincipalManager{
+            config_path : config_path.to_string(),
+            config : config,
+            emitt_params : emit,
+        }
+    }
+
+    fn run(&self){
+
+    }
+}
+
 
 pub fn get_rlp_encoded_report()->Result<(Vec<u8>,service::ASResponse),Error>{
     let service : service::AttestationService = service::AttestationService::new(constants::ATTESTATION_SERVICE_URL);
@@ -55,7 +119,7 @@ pub fn enigma_contract_builder()->enigma_contract::EnigmaContract{
     enigma_contract
 }
 // enigma contract 
-pub fn run(eid: sgx_enclave_id_t){
+pub fn run2(eid: sgx_enclave_id_t){
     let enigma_contract = enigma_contract_builder();
     // fetch report 
     let (encoded_report , as_response ) = get_rlp_encoded_report().unwrap();
@@ -65,8 +129,34 @@ pub fn run(eid: sgx_enclave_id_t){
     let gas_limit = String::from("5999999");
     enigma_contract.register_as_worker(&signer,&encoded_report,&gas_limit ).unwrap();
     // begin loop process
-    //fn watch_blocks(&self, epoch_size : usize, delay_seconds : u64){
     let epoch_size = 2;
     let polling_interval = 1;
     enigma_contract.watch_blocks(epoch_size, polling_interval, eid, gas_limit);
+}
+pub fn run3(eid: sgx_enclave_id_t){
+    let (eloop, web3) = setup();
+    let password = "c87509a1c067bbde78beb793e6fa76530b6382a4c0241e5e4a9ec0a0f44dc0d3";
+    
+    let contract_address: Address = "627306090abab3a6e1400e9345bc60c78a8bef57"
+            .parse()
+            .expect("unable to parse contract address");
+
+    let success = web3.personal().unlock_account(contract_address, password, None).wait().unwrap();
+    println!("unlocked account ? {}", success);
+}
+
+pub fn run(eid: sgx_enclave_id_t){
+    // check configs load  /root/enigma-core/enigma-principal/app/src/boot_network
+    let params = EmittParams{
+                                eid : eid,
+                                url :String::from("@@@@@"),
+                                address: String::from("@@@@@"),
+                                account : String::from("@@@@@"),
+                                abi : String::from("@@@@@"),
+                                gas_limit : String::from("@@@@@"),
+                                abi_path : String::from("@@@@@"),
+    };
+    
+    let principal = PrincipalManager::new("/root/enigma-core/enigma-principal/app/src/boot_network/config.json",params);
+    println!("{:?}",principal.config);
 }

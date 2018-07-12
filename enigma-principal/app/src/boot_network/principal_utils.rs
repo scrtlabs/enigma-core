@@ -6,6 +6,8 @@ use boot_network::enigma_contract;
 use boot_network::enigma_contract::{EnigmaContract};
 use enigma_tools_u::attestation_service::service;
 use failure::Error;
+use serde_derive::*;
+use serde_json;
 // web3 
 use web3;
 use web3::Web3;
@@ -21,6 +23,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 // this struct holds parameters nessceary for emitting the randim 
+#[derive(Serialize, Deserialize, Debug)]
 pub struct EmittParams{
     pub eid: sgx_enclave_id_t, 
     pub url : String, 

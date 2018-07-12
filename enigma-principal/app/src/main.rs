@@ -5,7 +5,10 @@ extern crate rlp;
 extern crate enigma_tools_u;
 extern crate failure;
 extern crate serde_json;
-
+// serde 
+//extern crate serde_json;
+extern crate serde;
+extern crate serde_derive;
 //web3 
 extern crate web3;
 extern crate rustc_hex;
@@ -56,7 +59,7 @@ fn main() {
         },
     };
     let eid = enclave.geteid();
-    boot_network::registration::run(eid);
+    boot_network::setup_env::run(eid);
 // //    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
 //     let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
 //     let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
