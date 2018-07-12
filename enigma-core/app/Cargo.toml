@@ -15,7 +15,7 @@ failure = "0.1.1"
 rustc-hex = "1.0.0"
 httparse = "=1.2.5"
 reqwest = "0.8.6"
-
+enigma-tools-u = {path = "../../enigma-tools-u"}
 
 [dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"

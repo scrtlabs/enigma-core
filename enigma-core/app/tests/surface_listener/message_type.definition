@@ -13,7 +13,7 @@ From enigma-core:
 {
 	'errored' : False,
 	'quote': '...',  // base64 string 
-	'pub_key': '...', // hex string 
+	'address': '...', // Ethereum Address in string with 0x - Not Checksummed
 }
 
 2) execevm

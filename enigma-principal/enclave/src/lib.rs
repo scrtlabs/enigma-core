@@ -51,12 +51,12 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
 
-    cryptography_t::get_sealed_keys(&sealed_path)
+    cryptography_t::get_sealed_keys(&sealed_path).unwrap()
 }
 
 #[no_mangle]
-pub extern "C" fn ecall_get_signing_pubkey(pubkey: &mut [u8; 64]) {
-    pubkey.clone_from_slice(&SIGNINING_KEY.get_pubkey());
+pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
+    pubkey.clone_from_slice(SIGNINING_KEY.get_pubkey().address().as_bytes());
 }
 
 

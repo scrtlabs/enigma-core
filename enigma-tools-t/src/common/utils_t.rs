@@ -19,13 +19,26 @@ use std::string::String;
 use ring::digest;
 use tiny_keccak::Keccak;
 
-
 // Hash a byte array into keccak256.
 pub trait Keccak256<T> {
     fn keccak256(&self) -> T where T: Sized;
 }
+
 pub trait Sha256<T> {
     fn sha256(&self) -> T where T: Sized;
+}
+
+pub trait EthereumAddress<T> {
+    fn address(&self) -> T where T: Sized;
+}
+
+impl EthereumAddress<String> for [u8; 64] {
+    // TODO: Maybe add a checksum address
+    fn address(&self) -> String {
+        let mut result: String = String::from("0x");
+        result.push_str(&self.keccak256()[12..32].to_hex());
+        result
+    }
 }
 
 impl Keccak256<[u8; 32]> for [u8] {

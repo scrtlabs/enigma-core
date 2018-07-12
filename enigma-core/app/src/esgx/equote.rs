@@ -38,18 +38,18 @@ use failure::Error;
 }
 
 extern { 
-    fn ecall_get_signing_pubkey(eid: sgx_enclave_id_t, pubkey: &mut [u8; 64]) -> sgx_status_t; 
+    fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 42]) -> sgx_status_t;
 }
 
 
 // this struct is returned during the process registration back to the surface.
 // quote: the base64 encoded quote 
-// pub_key : the clear text public key for ecdsa signing and registration
+// address : the clear text public key for ecdsa signing and registration
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetRegisterResult{
     pub errored : bool,
     pub quote : String, 
-    pub pub_key : String,
+    pub address : String,
 }
 
 // TODO:: handle stat return with error handling 
@@ -108,17 +108,19 @@ pub fn produce_quote(eid: sgx_enclave_id_t, spid : &String) -> Result<String,Err
 
 // wrapper function for getting the enclave public sign key (the one attached with produce_quote()) 
 // TODO:: replace the error type in the Result once established
-pub fn get_register_signing_key(eid: sgx_enclave_id_t)->Result<String,Error>{
-    let mut pub_key: [u8; 64] = [0; 64];
+pub fn get_register_signing_address(eid: sgx_enclave_id_t) ->Result<String,Error>{
+    let mut address: [u8; 42] = [0; 42];
     let status =  unsafe {
-         ecall_get_signing_pubkey(eid, &mut pub_key) 
+        ecall_get_signing_address(eid, &mut address)
     };
     if status == sgx_status_t::SGX_SUCCESS {
-        let hex_key = pub_key.iter().fold(String::new(), |mut s, v| {
-                    s.push_str(&format!("{:02x}", v));
-                    s
-        });
-        Ok(hex_key)
+//        let hex_key = pub_key.iter().fold(String::new(), |mut s, v| {
+//                    s.push_str(&format!("{:02x}", v));
+//                    s
+//        });
+//        Ok(hex_key)
+        let address_str = str::from_utf8(&address).unwrap();
+        Ok(address_str.to_owned())
     } else {
         Err(errors::GetRegisterKeyErr{status:status, 
         message : String::from("error in get_register_signing_key")}.into())

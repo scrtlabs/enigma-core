@@ -1,6 +1,6 @@
 # Enigma Core library 
 
-<img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=master" />
+<img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=develop" />
 
 Pure Rust Enclave && Untrusted in Rust. 
 Core is part of the Enigma node software stack. The Core component as it's name suggests is responsible for the core operations. The core includes Remote Attestation (SGX SDK), Cryptography and the Ethereum EVM.
@@ -134,8 +134,16 @@ TBD
 TBD
 
 ## Contributing
+The `master` branch always contain the latest release, `develop` branch is used for continuous developing  
+Tags will be used to signify releases.
 
-TBD 
+### Pull Request
+Every new feature or a bug fix will be presented in a pull request while it's a work in progress under the correct label.  
+When finished change the label to `3 - Ready` for reviewing, every pull request is required to pass a code review from at least 1 member before merging.
+
+### Issues
+Please use the templates accordingly.
+<br>
 
 ## Versioning
 
