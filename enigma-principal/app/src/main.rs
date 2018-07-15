@@ -19,6 +19,7 @@ extern crate tokio_core;
 mod esgx;
 mod common_u;
 mod boot_network;
+mod web3_utils;
 
 use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};

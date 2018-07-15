@@ -39,17 +39,18 @@ pub struct EnigmaContract{
 
 impl EnigmaContract{
     pub fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str, url : &str) -> Self{
+
         let account_str = account.to_string();
         let address_str =  address.to_string();
+    
         let contract_address: Address = address
             .parse()
             .expect("unable to parse contract address");
         let (contract, abi_str) = EnigmaContract::deployed(&web3, contract_address, path);
-
         let account: Address = account
             .parse()
             .expect("unable to parse account address");
-
+                    
         EnigmaContract {
             web3: web3, 
             contract: contract, 
@@ -86,14 +87,14 @@ impl EnigmaContract{
     }
     // given a path load EnigmaContract.json and extract the ABI
     pub fn load_abi(path: &str) -> Result<String,Error>{
-               
+
        let mut f = File::open(path)
-        .expect("file not found.");
+        .expect("file not found."); 
 
        let mut contents = String::new();
         f.read_to_string(&mut contents)
             .expect("canno't read file");
-
+       
        let contract_data : Value = serde_json::from_str(&contents)
             .expect("unable to parse JSON built contract");
 
@@ -102,6 +103,24 @@ impl EnigmaContract{
 
         Ok(abi)
     }
+    pub fn load_bytecode(path: &str) -> Result<String,Error>{
+
+       let mut f = File::open(path)
+        .expect("file not found."); 
+
+       let mut contents = String::new();
+        f.read_to_string(&mut contents)
+            .expect("canno't read file");
+       
+       let contract_data : Value = serde_json::from_str(&contents)
+            .expect("unable to parse JSON built contract");
+
+        let bytecode = serde_json::to_string(&contract_data["bytecode"])
+            .expect("unable to find the abi key at the root of the JSON built contract");
+
+        Ok(bytecode)
+    }
+    
     pub fn register_as_worker(&self, signer : &String, report : &Vec<u8>, gas_limit: &String)->Result<(),Error>{
         // register 
         let signer_addr : Address = signer.parse().unwrap();

@@ -23,15 +23,15 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 // this struct holds parameters nessceary for emitting the randim 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 pub struct EmittParams{
-    pub eid: sgx_enclave_id_t, 
-    pub url : String, 
-    pub address: String ,
-    pub account : String, 
-    pub abi : String, 
-    pub gas_limit: String,
-    pub abi_path : String,
+    pub  eid: sgx_enclave_id_t, 
+    pub  url : String, 
+    pub  address: String ,
+    pub  account : String, 
+    pub  abi : String, 
+    pub  gas_limit: String,
+    pub  abi_path : String,
 }
 
 // this trait should extend the EnigmaContract into Principal specific functions.

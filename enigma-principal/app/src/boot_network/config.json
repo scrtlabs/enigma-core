@@ -1,5 +1,5 @@
 {
-    "ENIGMA_CONTRACT_PATH" : "/home/wildermind/rust-sgx/enigma-core/enigma-principal/app/src/boot_network/enigma_full.abi",
+    "ENIGMA_CONTRACT_PATH" : "../app/src/boot_network/enigma_full.abi",
     "ENIGMA_CONTRACT_REMOTE_PATH" : "",
     "ENIGMA_CONTRACT_ADDRESS" : "345cA3e014Aaf5dcA488057592ee47305D9B3e10",
     "ACCOUNT_ADDRESS" : "627306090abab3a6e1400e9345bc60c78a8bef57",

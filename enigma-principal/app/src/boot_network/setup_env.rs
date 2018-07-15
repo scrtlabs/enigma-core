@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 //sgx 
 use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
@@ -14,20 +15,19 @@ use web3;
 use web3::futures::{Future, Stream};
 use web3::contract::{Contract, Options};
 use web3::types::{Address, U256, Bytes};
-use rustc_hex::FromHex;
-// tokio+polling blocks 
-use tokio_core;
 use web3::types::FilterBuilder;
+use web3::transports::Http;
+use web3::Web3;
+// tokio+polling blocks 
+use rustc_hex::FromHex;
+use tokio_core;
 use std::time;
 use std::thread;
-use web3::Web3;
-use web3::transports::Http;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 // formal 
-use
- boot_network::enigma_contract;
- use boot_network::enigma_contract::EnigmaContract;
+use boot_network::enigma_contract;
+use boot_network::enigma_contract::EnigmaContract;
 use boot_network::principal_utils::Principal;
 use boot_network::principal_utils::{EmittParams};
 // files 
@@ -36,7 +36,8 @@ use std::io::prelude::*;
 use serde_derive::*;
 use serde_json;
 use serde_json::{Value};
-
+// TESTING FOR W3UTILS
+use web3_utils::w3utils;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PrincipalConfig {
@@ -147,11 +148,19 @@ impl Sampler for PrincipalManager {
         let (eloop, http) = self.connect()?;
         let enigma_contract = self.enigma_contract(eloop,http)?;
         // register worker 
+         //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
         let signer = self.get_signing_address()?;
         println!("signing address = {}", signer);
+        // TODO:: implement deploying the enigma contract
+        let signer = String::from("c44205c3aFf78e99049AfeAE4733a3481575CD26");
         let gas_limit = &self.emitt_params.gas_limit;
         enigma_contract.register_as_worker(&signer,&rlp_encoded,&gas_limit)?;
         // watch blocks 
+        let polling_interval = self.config.POLLING_INTERVAL;
+        let epoch_size = self.config.EPOCH_SIZE;
+        let eid = self.emitt_params.eid;
+        let gas_limit = gas_limit.clone();
+        enigma_contract.watch_blocks(epoch_size, polling_interval, eid, gas_limit);
         Ok(())
     }
 }
@@ -192,6 +201,7 @@ pub fn run2(eid: sgx_enclave_id_t){
     let (encoded_report , as_response ) = get_rlp_encoded_report().unwrap();
     // register worker 
     // signer_addr = address representation of the public key generated in the report 
+    
     let signer = String::from("c44205c3aFf78e99049AfeAE4733a3481575CD26");
     let gas_limit = String::from("5999999");
     enigma_contract.register_as_worker(&signer,&encoded_report,&gas_limit ).unwrap();
@@ -212,18 +222,34 @@ pub fn run3(eid: sgx_enclave_id_t){
     println!("unlocked account ? {}", success);
 }
 
-pub fn run(eid: sgx_enclave_id_t){
-    // check configs load  /root/enigma-core/enigma-principal/app/src/boot_network
-    let params = EmittParams{
-                                eid : eid,
-                                url :String::from("@@@@@"),
-                                address: String::from("@@@@@"),
-                                account : String::from("@@@@@"),
-                                abi : String::from("@@@@@"),
-                                gas_limit : String::from("@@@@@"),
-                                abi_path : String::from("@@@@@"),
-    };
+pub fn run_REAL_REAL(eid: sgx_enclave_id_t){
     
-    let principal = PrincipalManager::new("/root/enigma-core/enigma-principal/app/src/boot_network/config.json",params);
+    let mut params : EmittParams = EmittParams{ eid : eid, 
+        gas_limit : String::from("5999999"), 
+        ..Default::default()};
+
+    let principal = PrincipalManager::new("../app/src/boot_network/config.json",params);
     principal.run().unwrap();
+}
+
+pub fn get_fake_ctor()->(Address,Address)
+{
+    let account = String::from("627306090abab3a6e1400e9345bc60c78a8bef57");
+    let account: Address = account
+            .parse()
+            .expect("unable to parse account address");
+    (account,account)
+}
+pub fn run(eid: sgx_enclave_id_t){
+    let abi = EnigmaContract::load_abi("../app/src/boot_network/enigma_full.abi").unwrap();
+    let bytecode = EnigmaContract::load_bytecode("../app/src/boot_network/enigma_full.abi").unwrap();
+
+    let uri = "http://localhost:9545";
+    let deployer = "627306090abab3a6e1400e9345bc60c78a8bef57";
+    let gas_limit = "5999999";
+    let tx : w3utils::DeployParams = w3utils::DeployParams::new(deployer.to_string(),abi,bytecode,gas_limit.to_string());
+
+    let (eloop,w3) = w3utils::connect(uri).unwrap();
+    w3utils::deploy_contract(&w3, tx,get_fake_ctor()).unwrap();
+    println!("finished turn OFF ------------------------------------------------" );
 }

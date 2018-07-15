@@ -140,7 +140,8 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) ->Result<String,Error
         // produce a quote 
         // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
         let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
-        let tested_encoded_quote = produce_quote(&enclave, &spid);
+        let eid = enclave.geteid();
+        let tested_encoded_quote = produce_quote(eid, &spid).unwrap();
         enclave.destroy();
         assert!(tested_encoded_quote.len() > 0);
         //assert_eq!(real_encoded_quote, tested_encoded_quote);
