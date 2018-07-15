@@ -7,6 +7,9 @@ use reqwest::StatusCode;
 use failure::Error;
 use common_u::errors;
 use attestation_service;
+use base64;
+use std::io::Read;
+use std::mem;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ASReport {
@@ -41,6 +44,37 @@ pub struct QuoteRequest {
     pub method : String, 
     pub params : Params, 
     pub id : i32, 
+}
+
+#[derive(Default)]
+pub struct Quote {
+    pub body: QBody,
+    pub report_body: QReportBody,
+}
+
+pub struct QBody { // size: 48
+    pub version: [u8; 2],
+    pub signature_type: [u8; 2],
+    pub gid: [u8; 4],
+    pub isv_svn_qe: [u8; 2],
+    pub isv_svn_pce: [u8; 2],
+    pub reserved: [u8; 4],
+    pub base_name: [u8; 32],
+}
+
+pub struct QReportBody { // size: 384
+    pub cpu_svn: [u8; 16],
+    pub misc_select: [u8; 4],
+    pub reserved: [u8; 28],
+    pub attributes: [u8; 16],
+    pub mr_enclave: [u8; 32],
+    pub reserved2: [u8; 32],
+    pub mr_signer: [u8; 32],
+    pub reserved3: [u8; 96],
+    pub isv_prod_id: [u8; 2],
+    pub isv_svn: [u8; 2],
+    pub reserved4: [u8; 60],
+    pub report_data: [u8; 64],
 }
 
 pub struct AttestationService {
@@ -101,7 +135,7 @@ impl AttestationService{
              }.into())
 
         }
-}
+    }
     // parse the response json into an ASResponse
     fn unwrap_report_obj(&self,r : &Value) -> ASReport {
         let report_str = r["result"]["report"].as_str().unwrap();
@@ -151,13 +185,93 @@ impl AttestationService{
 
 }
 
+impl ASResponse {
+    pub fn get_quote(&self) -> Result<Quote, Error> {
+        Quote::from_base64(&self.result.report.isvEnclaveQuoteBody)
+    }
+}
+
+
+impl Quote {
+    pub fn from_base64(encoded_quote: &str) -> Result<Quote, Error> {
+        let quote_bytes =  base64::decode(encoded_quote)?;
+        let mut result: Quote = Default::default();
+//        let mut sig_len = [0u8; 4]; sig_len.copy_from_slice(&quote_bytes[432..436]);
+        Ok(Quote {
+            body: QBody::from_bytes_read(&mut &quote_bytes[..48])?,
+            report_body: QReportBody::from_bytes_read(&mut &quote_bytes[48..432])?,
+        })
+    }
+}
+
+//impl Default for Quote {
+//    fn default() -> Quote {
+//        unsafe { mem::zeroed() }
+//    }
+//}
+
+impl QBody {
+    pub fn from_bytes_read<R: Read> (body: &mut R) -> Result<QBody, Error> {
+        let mut result: QBody = Default::default();
+
+        body.read_exact(&mut result.version)?;
+        body.read_exact(&mut result.signature_type)?;
+        body.read_exact(&mut result.gid)?;
+        body.read_exact(&mut result.isv_svn_qe)?;
+        body.read_exact(&mut result.isv_svn_pce)?;
+        body.read_exact(&mut result.reserved)?;
+        body.read_exact(&mut result.base_name)?;
+
+        if body.read(&mut [0u8])? != 0 {
+            unimplemented!();
+        }
+        Ok(result)
+    }
+}
+
+impl Default for QBody {
+    fn default() -> QBody {
+        unsafe { mem::zeroed() }
+    }
+}
+
+impl QReportBody { // Size: 384
+    pub fn from_bytes_read<R: Read> (body: &mut R) -> Result<QReportBody, Error> {
+        let mut result: QReportBody = Default::default();
+
+        body.read_exact(&mut result.cpu_svn)?;
+        body.read_exact(&mut result.misc_select)?;
+        body.read_exact(&mut result.reserved)?;
+        body.read_exact(&mut result.attributes)?;
+        body.read_exact(&mut result.mr_enclave)?;
+        body.read_exact(&mut result.reserved2)?;
+        body.read_exact(&mut result.mr_signer)?;
+        body.read_exact(&mut result.reserved3)?;
+        body.read_exact(&mut result.isv_prod_id)?;
+        body.read_exact(&mut result.isv_svn)?;
+        body.read_exact(&mut result.reserved4)?;
+        body.read_exact(&mut result.report_data)?;
+
+        if body.read(&mut [0u8])? != 0 {
+            unimplemented!();
+        }
+        Ok(result)
+    }
+}
+
+impl Default for QReportBody {
+    fn default() -> QReportBody {
+        unsafe { mem::zeroed() }
+    }
+}
+
 
  #[cfg(test)]  
  mod test {
-    use attestation_service;
-    use attestation_service::service::*;
-    use attestation_service::service;
-    // this unit-test is for the attestation service 
+     use attestation_service::service::*;
+     use attestation_service;
+     use std::str::from_utf8;
+    // this unit-test is for the attestation service
     // it uses a hardcoded quote that is validated 
     // the test requests a report from the attestation service construct an object with the response 
     // for signing the report there's additional field that can be accessed via ASResponse.result.report_string
