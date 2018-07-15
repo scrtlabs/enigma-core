@@ -1,9 +1,15 @@
-extern crate base64;
+#![allow(dead_code,unused_assignments)]
 use std;
-use sgx_types::*; // Too many things to import
+use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use base64::encode;
+use std::*;
+use base64::{encode};
 
+
+use esgx::general;
+use common_u::errors;
+//errors 
+use failure::Error;
 
 
 #[link(name = "sgx_tservice")] extern {
@@ -28,15 +34,21 @@ use base64::encode;
                          p_quote: * mut sgx_quote_t,
                          quote_size: ::uint32_t) -> sgx_status_t;
 }
+// refactored 
 
+extern { 
+    fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 42]) -> sgx_status_t;
+}
+
+
+// TODO:: handle stat return with error handling 
 #[allow(unused_variables, unused_mut)]
-pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
+pub fn produce_quote(eid: sgx_enclave_id_t, spid : &String) -> Result<String,Error>{
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let mut stat = sgx_status_t::SGX_SUCCESS;
 
     let mut target_info = sgx_target_info_t::default();
     let mut gid = sgx_epid_group_id_t::default();
-
     // create quote
     stat = unsafe{
         sgx_init_quote(&mut target_info ,&mut gid)
@@ -44,8 +56,11 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
 
     // create report
     let mut report = sgx_report_t::default();
+    let _home = general::storage_dir();
+    let home = _home.to_str().unwrap();
     stat = unsafe {
-        ecall_get_registration_quote(enclave.geteid(), &mut retval, &target_info, &mut report)
+        ecall_get_registration_quote(eid, &mut retval, &target_info,
+                            &mut report)
     };
     // calc quote size
     let mut quote_size : u32= 0;
@@ -75,7 +90,30 @@ pub fn produce_quote(enclave : &SgxEnclave, spid : &String) -> String{
         the_quote.as_mut_ptr() as *mut sgx_quote_t,
         quote_size )
     };
-    encode(&the_quote)
+    let encoded_quote= encode(&the_quote);
+    Ok(encoded_quote)
+}
+
+
+// wrapper function for getting the enclave public sign key (the one attached with produce_quote()) 
+// TODO:: replace the error type in the Result once established
+pub fn get_register_signing_address(eid: sgx_enclave_id_t) ->Result<String,Error>{
+    let mut address: [u8; 42] = [0; 42];
+    let status =  unsafe {
+        ecall_get_signing_address(eid, &mut address)
+    };
+    if status == sgx_status_t::SGX_SUCCESS {
+//        let hex_key = pub_key.iter().fold(String::new(), |mut s, v| {
+//                    s.push_str(&format!("{:02x}", v));
+//                    s
+//        });
+//        Ok(hex_key)
+        let address_str = str::from_utf8(&address).unwrap();
+        Ok(address_str.to_owned())
+    } else {
+        Err(errors::GetRegisterKeyErr{status:status, 
+        message : String::from("error in get_register_signing_key")}.into())
+    }
 }
 
 

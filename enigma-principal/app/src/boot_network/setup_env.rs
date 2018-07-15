@@ -1,10 +1,12 @@
 //sgx 
 use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
+use esgx;
 // general 
 use rlp;
 use enigma_tools_u;
 use enigma_tools_u::attestation_service::service;
+use enigma_tools_u::attestation_service::service::*;
 use enigma_tools_u::attestation_service::constants;
 use failure::Error;
 //web3
@@ -23,7 +25,9 @@ use web3::transports::Http;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 // formal 
-use boot_network::enigma_contract;
+use
+ boot_network::enigma_contract;
+ use boot_network::enigma_contract::EnigmaContract;
 use boot_network::principal_utils::Principal;
 use boot_network::principal_utils::{EmittParams};
 // files 
@@ -46,7 +50,9 @@ pub struct PrincipalConfig {
     pub PRIVATE_KEY : String,
     pub URL : String,
     pub EPOCH_SIZE : usize,
-    pub POLLING_INTERVAL : u64
+    pub POLLING_INTERVAL : u64,
+    pub SPID : String,
+    pub ATTESTATION_SERVICE_URL : String,
 
 }
 
@@ -54,20 +60,12 @@ pub struct PrincipalManager {
     config_path : String,
     pub config : PrincipalConfig,
     emitt_params : EmittParams,
+    as_service : service::AttestationService,
 }
 
-
-trait Sampler {
-    fn new(config : &str, emit : EmittParams)->Self;
-    fn get_quote()->Result<String,Error>;
-    fn get_report()->Result<(Vec<u8>,service::ASResponse),Error>;
-    fn connect()->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>;
-    fn run(&self);
-}   
-
-impl Sampler for PrincipalManager {
-    fn new(config_path : &str,emit : EmittParams)-> Self{
-
+impl PrincipalManager{
+    pub fn load_config(config_path : &str)-> PrincipalConfig {
+       
         let mut f = File::open(config_path)
         .expect("file not found.");
 
@@ -75,17 +73,86 @@ impl Sampler for PrincipalManager {
         f.read_to_string(&mut contents)
             .expect("canno't read file");
 
-       let config = serde_json::from_str(&contents).unwrap();
-       
+       serde_json::from_str(&contents).unwrap()
+    }
+}
+
+
+trait Sampler {
+    fn new(config : &str, emit : EmittParams)->Self;
+    fn get_quote(&self)->Result<String,Error>;
+    fn get_report(&self,quote : &String)->Result<(Vec<u8>,service::ASResponse),Error>;
+    fn connect(&self)->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>;
+    fn enigma_contract(&self,web3::transports::EventLoopHandle, Web3<Http>)->Result<EnigmaContract,Error>;
+    fn get_signing_address(&self)->Result<String,Error>;
+    fn run(&self)->Result<(),Error>;
+}   
+
+impl Sampler for PrincipalManager {
+    fn new(config_path : &str,emit : EmittParams)-> Self{
+
+        let config = PrincipalManager::load_config(config_path);
+        let connection_str = config.ATTESTATION_SERVICE_URL.clone();
         PrincipalManager{
             config_path : config_path.to_string(),
             config : config,
             emitt_params : emit,
+            as_service : service::AttestationService::new(&connection_str),
         }
     }
-
-    fn run(&self){
-
+    fn get_quote(&self)->Result<String,Error>{
+        let eid = self.emitt_params.eid;
+         match esgx::equote::produce_quote(eid, &self.config.SPID){
+             Ok(quote) =>{
+                Ok(quote)
+             },
+             Err(e)=>{
+                Err(e)
+             }
+         }
+    }
+    fn get_report(&self, quote : &String)->Result<(Vec<u8>,service::ASResponse),Error>{
+        let (rlp_encoded, as_response ) = self.as_service.rlp_encode_registration_params(quote)?;
+        Ok((rlp_encoded,as_response))
+    }
+    fn connect(&self)->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>{
+        let (_eloop, http) = web3::transports::Http::new(&self.config.URL.clone())
+            .expect("unable to create Web3 HTTP provider");
+        let w3 = web3::Web3::new(http);
+        Ok((_eloop, w3))
+    }
+    fn enigma_contract(&self,eloop : web3::transports::EventLoopHandle, web3 : Web3<Http>)->Result<EnigmaContract,Error>{
+        // deployed contract address
+        let address = self.config.ENIGMA_CONTRACT_ADDRESS.clone();
+        // path to the build file of the contract 
+        let path = self.config.ENIGMA_CONTRACT_PATH.clone();
+        // the account owner that initializes 
+        let account = self.config.ACCOUNT_ADDRESS.clone();
+        // the ethereum node url
+        let url = self.config.URL.clone();
+        let enigma_contract : EnigmaContract = Principal::new(web3,eloop, &address, &path, &account, &url);
+        Ok(enigma_contract)
+    }
+    fn get_signing_address(&self)->Result<String,Error>{
+        let eid = self.emitt_params.eid;
+        let signing_address = esgx::equote::get_register_signing_address(eid)?;
+        Ok(signing_address)
+    }
+    fn run(&self)->Result<(),Error>{
+        // get quote 
+        let quote = self.get_quote()?;
+        // get report 
+        let (rlp_encoded, as_response ) = self.get_report(&quote)?;
+        // get enigma contract 
+        let (eloop, http) = self.connect()?;
+        let enigma_contract = self.enigma_contract(eloop,http)?;
+        // register worker 
+        let signer = self.get_signing_address()?;
+        println!("signing address = {}", signer);
+        let gas_limit = &self.emitt_params.gas_limit;
+        enigma_contract.register_as_worker(&signer,&rlp_encoded,&gas_limit)?;
+        // watch blocks 
+        Ok(())
     }
 }
 
@@ -158,5 +225,5 @@ pub fn run(eid: sgx_enclave_id_t){
     };
     
     let principal = PrincipalManager::new("/root/enigma-core/enigma-principal/app/src/boot_network/config.json",params);
-    println!("{:?}",principal.config);
+    principal.run().unwrap();
 }

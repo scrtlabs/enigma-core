@@ -3,6 +3,7 @@ extern crate sgx_urts;
 extern crate base64;
 extern crate rlp;
 extern crate enigma_tools_u;
+#[macro_use]
 extern crate failure;
 extern crate serde_json;
 // serde 
@@ -16,10 +17,12 @@ extern crate rustc_hex;
 extern crate tokio_core;
 // enigma modules
 mod esgx;
+mod common_u;
+mod boot_network;
+
 use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use esgx::equote;
-mod boot_network;
 pub use esgx::general::ocall_get_home;
 
 extern { fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 42]) -> sgx_status_t; }
