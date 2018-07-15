@@ -56,6 +56,7 @@ impl SecretKeyStorage {
                 return Some(*udata)
             }
             Err(err) => {
+                // TODO: Handle this. It can causes panic in Simulation Mode until deleting the file.
                 if err == sgx_status_t::SGX_ERROR_MAC_MISMATCH { return None }
                 else { panic!(err) }
             }

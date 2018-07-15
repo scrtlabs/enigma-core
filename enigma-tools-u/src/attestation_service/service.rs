@@ -1,15 +1,12 @@
-use serde::*;
-use serde_derive::*;
 use serde_json;
 use serde_json::{Value};
 use reqwest;
-use reqwest::StatusCode;
 use failure::Error;
 use common_u::errors;
-use attestation_service;
 use base64;
 use std::io::Read;
 use std::mem;
+use std::string::ToString;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ASReport {
@@ -204,11 +201,6 @@ impl Quote {
     }
 }
 
-//impl Default for Quote {
-//    fn default() -> Quote {
-//        unsafe { mem::zeroed() }
-//    }
-//}
 
 impl QBody {
     pub fn from_bytes_read<R: Read> (body: &mut R) -> Result<QBody, Error> {
@@ -223,7 +215,7 @@ impl QBody {
         body.read_exact(&mut result.base_name)?;
 
         if body.read(&mut [0u8])? != 0 {
-            unimplemented!();
+            return Err( errors::QuoteErr { message: "String passed to QBody is too big".to_string() }.into() )
         }
         Ok(result)
     }
@@ -253,7 +245,7 @@ impl QReportBody { // Size: 384
         body.read_exact(&mut result.report_data)?;
 
         if body.read(&mut [0u8])? != 0 {
-            unimplemented!();
+            return Err( errors::QuoteErr { message: "String passed to QReportBody is too big".to_string() }.into() )
         }
         Ok(result)
     }
