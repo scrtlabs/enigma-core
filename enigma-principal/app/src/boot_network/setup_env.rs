@@ -136,7 +136,9 @@ impl Sampler for PrincipalManager {
     }
     fn get_signing_address(&self)->Result<String,Error>{
         let eid = self.emitt_params.eid;
-        let signing_address = esgx::equote::get_register_signing_address(eid)?;
+        let mut signing_address = esgx::equote::get_register_signing_address(eid)?;
+        // remove 0x
+        signing_address = signing_address[2..].to_string();
         Ok(signing_address)
     }
     fn run(&self)->Result<(),Error>{

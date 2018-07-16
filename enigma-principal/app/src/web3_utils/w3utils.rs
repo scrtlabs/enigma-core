@@ -139,7 +139,6 @@ P : Tokenize
         Ok(contract)
 }
 
-
  #[cfg(test)]  
  mod test {
     use web3_utils;
