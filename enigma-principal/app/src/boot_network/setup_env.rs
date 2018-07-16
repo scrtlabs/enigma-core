@@ -38,6 +38,7 @@ use serde_json;
 use serde_json::{Value};
 // TESTING FOR W3UTILS
 use web3_utils::w3utils;
+use web3_utils::deploy_scripts;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PrincipalConfig {
@@ -58,6 +59,7 @@ pub struct PrincipalConfig {
 }
 
 pub struct PrincipalManager {
+    custom_contract_address : Option<Address>,
     config_path : String,
     pub config : PrincipalConfig,
     emitt_params : EmittParams,
@@ -80,7 +82,8 @@ impl PrincipalManager{
 
 
 trait Sampler {
-    fn new(config : &str, emit : EmittParams)->Self;
+    fn new(config : &str, emit : EmittParams, custom_contract_address : Option<Address>)->Self;
+    fn get_contract_address(&self)->String;
     fn get_quote(&self)->Result<String,Error>;
     fn get_report(&self,quote : &String)->Result<(Vec<u8>,service::ASResponse),Error>;
     fn connect(&self)->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>;
@@ -90,16 +93,26 @@ trait Sampler {
 }   
 
 impl Sampler for PrincipalManager {
-    fn new(config_path : &str,emit : EmittParams)-> Self{
+    fn new(config_path : &str,emit : EmittParams, custom_contract_address : Option<Address>)-> Self{
 
         let config = PrincipalManager::load_config(config_path);
         let connection_str = config.ATTESTATION_SERVICE_URL.clone();
         PrincipalManager{
+            custom_contract_address : custom_contract_address,
             config_path : config_path.to_string(),
             config : config,
             emitt_params : emit,
             as_service : service::AttestationService::new(&connection_str),
         }
+    }
+    fn get_contract_address(&self)->String{
+
+        match self.custom_contract_address.unwrap(){
+
+            a => w3utils::address_to_string_addr(&a),
+            _ => self.config.ENIGMA_CONTRACT_ADDRESS.clone(),
+        }
+
     }
     fn get_quote(&self)->Result<String,Error>{
         let eid = self.emitt_params.eid;
@@ -124,7 +137,7 @@ impl Sampler for PrincipalManager {
     }
     fn enigma_contract(&self,eloop : web3::transports::EventLoopHandle, web3 : Web3<Http>)->Result<EnigmaContract,Error>{
         // deployed contract address
-        let address = self.config.ENIGMA_CONTRACT_ADDRESS.clone();
+        let address = self.get_contract_address();
         // path to the build file of the contract 
         let path = self.config.ENIGMA_CONTRACT_PATH.clone();
         // the account owner that initializes 
@@ -147,14 +160,19 @@ impl Sampler for PrincipalManager {
         // get report 
         let (rlp_encoded, as_response ) = self.get_report(&quote)?;
         // get enigma contract 
-        let (eloop, http) = self.connect()?;
-        let enigma_contract = self.enigma_contract(eloop,http)?;
+        let (eloop, w3) = self.connect()?;
+        let enigma_contract = self.enigma_contract(eloop,w3)?;
         // register worker 
-         //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
+        //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
         let signer = self.get_signing_address()?;
         println!("signing address = {}", signer);
+        println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
+    println!("@@@@@@@@@@@@@@@@           interactig with  signer addr =     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
+    println!("{}",signer );
+    println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
+    println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
         // TODO:: implement deploying the enigma contract
-        let signer = String::from("c44205c3aFf78e99049AfeAE4733a3481575CD26");
+        // let signer = String::from("c44205c3aFf78e99049AfeAE4733a3481575CD26");
         let gas_limit = &self.emitt_params.gas_limit;
         enigma_contract.register_as_worker(&signer,&rlp_encoded,&gas_limit)?;
         // watch blocks 
@@ -167,12 +185,37 @@ impl Sampler for PrincipalManager {
     }
 }
 
+pub fn run_miner(){
+    let child = thread::spawn(move || {
+        let url = "http://localhost:9545";
+        let deployer = String::from("627306090abab3a6e1400e9345bc60c78a8bef57");
+        deploy_scripts::forward_blocks(1,deployer, url.to_string());
+    });
+}
 pub fn run(eid: sgx_enclave_id_t){
+
+    // deploy contracts 
+    
+    let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
+    let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts
+    (
+        eid, 
+        deploy_config, 
+        None
+    )
+    .expect("cannot deploy Enigma,EnigmaToken");
+    
+    // run block simulation 
+    
+    run_miner();
+    thread::sleep(time::Duration::from_secs(3));
+    
+    // run principal 
     
     let mut params : EmittParams = EmittParams{ eid : eid, 
         gas_limit : String::from("5999999"), 
         ..Default::default()};
 
-    let principal = PrincipalManager::new("../app/src/boot_network/config.json",params);
+    let principal = PrincipalManager::new("../app/src/boot_network/config.json",params, Some(enigma_contract.address()));
     principal.run().unwrap();
 }

@@ -6,7 +6,7 @@ use structopt::StructOpt;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 pub struct Opt {
-
+    
     /// Run info mode and shutdown. (Not actually running the node)
     #[structopt(short = "i", long = "info")]
     pub info: bool,
@@ -18,12 +18,9 @@ pub struct Opt {
     /// Deploy to a different network (not the localhost:port)
     #[structopt(short = "n", long = "network" , default_value ="http://.c")]
     pub network: Url,
-       
-}
-
-pub fn print_info(){
 
 }
+
 pub fn test() {
     let opt = Opt::from_args();
     println!("{:?}", opt);

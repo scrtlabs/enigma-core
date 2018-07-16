@@ -139,6 +139,13 @@ P : Tokenize
         Ok(contract)
 }
 
+/// turn an Address to a string address and remove the 0x
+pub fn address_to_string_addr(addr : &Address)->String{
+    let mut addr  = format!("{:?}", addr);
+    addr = addr[2..].to_string();
+    addr
+
+}
  #[cfg(test)]  
  mod test {
     use web3_utils;

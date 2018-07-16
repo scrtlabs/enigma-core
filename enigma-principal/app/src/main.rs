@@ -53,37 +53,26 @@ fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
 fn cli(eid : sgx_enclave_id_t){
     
     let opt = cli::options::Opt::from_args();
-    let network_len = opt.network.clone().into_string().len();
-    let default_len = 10;
     let config = "../app/tests/principal_node/contracts/deploy_config.json";
-    println!("network len = {}",network_len );
+
     match opt.info {
+        // show info only
         true =>{
             println!("[Mode:] print info.");
+            let sign_key = web3_utils::deploy_scripts::get_signing_address(eid).expect("cannot load signing key");
+            println!("Signing key => 0x{}", sign_key);
         },
+        // run the node 
         false =>{
+
             match opt.deploy{
+                // deploy the contracts Enigma,EnigmaToken (not deployed yet)
                 true =>{
-                    match network_len {
-
-                        default_len =>{
-                            println!("[Mode:] deploying to default.");
-                            // [1]
-                            // deploy Enigma,EnigmaToken 
-
-                            let (enigma_contract , token_contract) = web3_utils::deploy_scripts::deploy_base_contracts(eid,config, None)
+                        println!("[Mode:] deploying to default.");
+                        let (enigma_contract , token_contract) = web3_utils::deploy_scripts::deploy_base_contracts(eid,config, None)
                             .unwrap();
-                            println!("ok ? " );
-                            // validate deployed 
-                            // run principal manager 
-                            
-                        },
-                        _ =>{
-                            println!("[Mode:] deploying to network {}.", opt.network.into_string());
-                            // same as [1] but with different url 
-                        }
-                    }
                 },
+                // contracts deployed, just run 
                 false =>{
                     println!("[Mode:] run node NO DEPLOY.");
                     // run principal manager 
@@ -91,11 +80,6 @@ fn cli(eid : sgx_enclave_id_t){
             }
         },
     };
-    // println!("{:?}", opt);
-    // println!("info => {}", opt.info);
-    // println!("deploy {}", opt.deploy);
-    // println!("network {}", opt.network);
-    
 
 }
 #[allow(unused_variables, unused_mut)]
@@ -115,8 +99,13 @@ fn main() {
         },
     };
     let eid = enclave.geteid();
-    //boot_network::setup_env::run(eid);
-    cli(eid);
+    boot_network::setup_env::run(eid);
+    //cli(eid);
+
+
+
+
+
 // //    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
 //     let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
 //     let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
