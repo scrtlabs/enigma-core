@@ -207,7 +207,7 @@ pub fn address_to_string_addr(addr : &Address)->String{
         contract
     }
     #[test] 
-    //#[ignore]
+    #[ignore]
     fn test_deploy_dummy_contract(){
         let (eloop,w3) = connect();
         let contract = deploy_dummy(&w3);
@@ -219,7 +219,7 @@ pub fn address_to_string_addr(addr : &Address)->String{
 
     }
      #[test]
-     //#[ignore]
+     #[ignore]
      fn test_deploy_enigma_contract(){ 
         // 1) generate ctor input 
         // the enigma contract requires 2 addresses in the constructor 
@@ -234,7 +234,7 @@ pub fn address_to_string_addr(addr : &Address)->String{
         w3utils::deploy_contract(&w3, tx,fake_input).unwrap();
      }
      #[test]
-     //#[ignore]
+     #[ignore]
      fn test_deployed_contract(){
          // deploy the dummy contract 
          let (eloop,w3) = connect();

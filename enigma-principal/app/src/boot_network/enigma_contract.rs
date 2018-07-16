@@ -104,11 +104,6 @@ impl EnigmaContract{
         let mut options = Options::default();
         let mut gas : U256 = U256::from_dec_str(gas_limit).unwrap();
         options.gas = Some(gas);
-        println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-    println!("@@@@@@@@@@@@@@@@           registering with  signer addr =     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-    println!("{}",signer );
-    println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-    println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
         // call the register function
         self.contract.call("register",(signer_addr,report.to_vec(),),self.account,options ).wait().expect("error registering to the enigma smart contract.");
         Ok(())

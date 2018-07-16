@@ -76,11 +76,6 @@ pub fn deploy_base_contracts(eid : sgx_enclave_id_t,
     // deploy the enigma contract
     let token_addr = token_contract.address();//.to_string();
     let signer_addr = get_signing_address(eid).expect("cannot get signer address from sgx");
-    println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-    println!("@@@@@@@@@@@@@@@@           deploying signer addr =     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-    println!("{}",signer_addr );
-    println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-    println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
     let enigma_contract = deploy_enigma_contract
     (
         &w3, 

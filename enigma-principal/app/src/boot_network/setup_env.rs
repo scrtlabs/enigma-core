@@ -166,13 +166,6 @@ impl Sampler for PrincipalManager {
         //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
         let signer = self.get_signing_address()?;
         println!("signing address = {}", signer);
-        println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-    println!("@@@@@@@@@@@@@@@@           interactig with  signer addr =     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-    println!("{}",signer );
-    println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-    println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2" );
-        // TODO:: implement deploying the enigma contract
-        // let signer = String::from("c44205c3aFf78e99049AfeAE4733a3481575CD26");
         let gas_limit = &self.emitt_params.gas_limit;
         enigma_contract.register_as_worker(&signer,&rlp_encoded,&gas_limit)?;
         // watch blocks 
