@@ -2,12 +2,14 @@
 
 #[macro_use]
 extern crate failure;
-extern crate reqwest;
-extern crate serde_json;
-
 #[macro_use]
 extern crate serde_derive;
+extern crate serde_json;
 extern crate serde;
+extern crate reqwest;
+extern crate base64;
+extern crate openssl;
+extern crate rustc_hex as hex;
 
 pub mod attestation_service;
 pub mod common_u;
