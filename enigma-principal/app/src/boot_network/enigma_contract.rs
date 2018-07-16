@@ -15,13 +15,13 @@ use web3::types::{Address, U256, Bytes};
 use rustc_hex::FromHex;
 use web3::transports::Http;
 use web3::Web3;
-
 // files 
 use std::fs::File;
 use std::io::prelude::*;
 use serde_json;
 use serde_json::{Value};
-
+// general 
+use web3_utils::w3utils;
 
 pub struct EnigmaContract{
 
@@ -65,7 +65,7 @@ impl EnigmaContract{
      }
         /// Fetch the Enigma contract deployed on Ethereum using an HTTP Web3 provider
     pub fn deployed(web3: &Web3<Http>, address: Address, path: &str) -> (Contract<Http>, String) {
-       let abi = EnigmaContract::load_abi(path).unwrap();
+       let (abi,_bytecode) = EnigmaContract::load_abi(path).unwrap();
        let abi_str = abi.clone();
        let contract = Contract::from_json(
            web3.eth(), 
@@ -86,41 +86,16 @@ impl EnigmaContract{
         Ok(contract)
     }
     // given a path load EnigmaContract.json and extract the ABI
-    pub fn load_abi(path: &str) -> Result<String,Error>{
-
-       let mut f = File::open(path)
-        .expect("file not found."); 
-
-       let mut contents = String::new();
-        f.read_to_string(&mut contents)
-            .expect("canno't read file");
-       
-       let contract_data : Value = serde_json::from_str(&contents)
-            .expect("unable to parse JSON built contract");
-
-        let abi = serde_json::to_string(&contract_data["abi"])
-            .expect("unable to find the abi key at the root of the JSON built contract");
-
-        Ok(abi)
+    pub fn load_abi(path: &str) -> Result<(String,String),Error>{
+        let (abi,bytecode) = w3utils::load_contract_abi_bytecode(path)?;
+        Ok((abi,bytecode))
     }
     pub fn load_bytecode(path: &str) -> Result<String,Error>{
-
-       let mut f = File::open(path)
-        .expect("file not found."); 
-
-       let mut contents = String::new();
-        f.read_to_string(&mut contents)
-            .expect("canno't read file");
-       
-       let contract_data : Value = serde_json::from_str(&contents)
-            .expect("unable to parse JSON built contract");
-
-        let bytecode = serde_json::to_string(&contract_data["bytecode"])
-            .expect("unable to find the abi key at the root of the JSON built contract");
-
+       let (_abi,bytecode) = w3utils::load_contract_abi_bytecode(path)?;
+    
         Ok(bytecode)
     }
-    
+
     pub fn register_as_worker(&self, signer : &String, report : &Vec<u8>, gas_limit: &String)->Result<(),Error>{
         // register 
         let signer_addr : Address = signer.parse().unwrap();
@@ -128,7 +103,7 @@ impl EnigmaContract{
         let mut gas : U256 = U256::from_dec_str(gas_limit).unwrap();
         options.gas = Some(gas);
         // call the register function
-        self.contract.call("register",(signer_addr,report.to_vec(),12,),self.account,options ).wait().expect("error registering to the enigma smart contract.");
+        self.contract.call("register",(signer_addr,report.to_vec(),),self.account,options ).wait().expect("error registering to the enigma smart contract.");
         Ok(())
     }
     pub fn connect(url : &str) -> (web3::transports::EventLoopHandle, Web3<Http>) {
