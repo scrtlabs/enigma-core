@@ -177,7 +177,6 @@ fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &String)->Result<Contract<Htt
 pub fn forward_blocks(interval : u64, deployer : String, url : String){
     let (eloop,w3) = w3utils::connect(&url.as_str()).expect("cannot connect to ethereum network (miner)");
     let contract = deploy_dummy_miner(&w3, &deployer).expect("cannot deploy dummy miner");
-    
     let deployer : Address = deployer
             .parse()
             .expect("unable to parse deployer address");
@@ -190,6 +189,84 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
         println!("new block mined..." );
         thread::sleep(time::Duration::from_secs(interval));
     }
+}
+
+
+pub fn test_block_listener(){
+    use web3;
+    use web3::api;
+    use web3::Web3;
+    use std::time;
+    use rustc_hex::FromHex;
+    use web3::contract::{Contract, Options};
+    use web3::futures::{Future, Stream};
+    use web3::types::FilterBuilder;
+    use tokio_core;
+    
+    const MAX_PARALLEL_REQUESTS: usize = 64;
+
+    // deploy the dummy miner 
+    let deployer = String::from("627306090abab3a6e1400e9345bc60c78a8bef57");
+
+    let url = "http://localhost:9545";
+    
+    let mut eloop = tokio_core::reactor::Core::new().unwrap();
+    println!("shit ????000000 " );
+    
+    let w3 = web3::Web3::new(
+        web3::transports::Http::with_event_loop(
+            url,
+            &eloop.handle(),
+            MAX_PARALLEL_REQUESTS,
+        ).unwrap(),
+    );
+
+    //let mut eloop = tokio_core::reactor::Core::new().unwrap();
+    //let (eloop,w3) = w3utils::connect(&url.as_str()).expect("cannot connect to ethereum network (miner)");
+
+    let contract = deploy_dummy_miner(&w3, &deployer)
+        .expect("cannot deploy dummy miner");
+
+    let w3 = web3::Web3::new(web3::transports::WebSocket::with_event_loop(url, &eloop.handle()).unwrap());
+    // // build event listener 
+    println!("shit ????11111 " );
+    let filter = FilterBuilder::default()
+    .address(vec![contract.address()])
+    .topics
+    (
+        Some(vec![
+            "Mined".into(), // 0x4d696e6564
+        ]),
+        None,
+        None,
+        None,
+    )
+    .build();
+
+    // start listening 
+    println!("shit ???? " );
+   let f =  w3.eth_subscribe()
+    .subscribe_logs(filter)
+    .then(|sub| {
+        sub.unwrap().for_each(|log| {
+            println!("got log: {:?}", log);
+            Ok(())
+        })
+    })
+    .map_err(|_| ());
+
+    eloop.run(f).unwrap();
+    thread::sleep(time::Duration::from_secs(3));
+    println!("done sleeping..." );
+
+    let deployer : Address = deployer
+            .parse()
+            .expect("unable to parse deployer address");
+
+    // emit event 
+    contract.call("mine", (), deployer, Options::default()).wait().unwrap();
+
+
 }
 
 

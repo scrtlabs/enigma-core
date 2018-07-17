@@ -17,6 +17,7 @@ extern crate serde_derive;
 extern crate web3;
 extern crate rustc_hex;
 //tokio
+//TODO: remove tokio_core 
 extern crate tokio_core;
 // enigma modules
 mod esgx;

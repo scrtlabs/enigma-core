@@ -1,438 +1,643 @@
 {
-    "contractName": "Dummy",
-    "abi": [
+  "contractName": "Dummy",
+  "abi": [
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "name": "value",
+          "type": "uint256"
+        }
+      ],
+      "name": "Mined",
+      "type": "event",
+      "signature": "0x4229d50c63dbdc5551dd68e0a9879b01ac250cb31feaeba7588533462e6c7aaa"
+    },
+    {
+      "constant": false,
+      "inputs": [],
+      "name": "mine",
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "payable": false,
+      "stateMutability": "nonpayable",
+      "type": "function",
+      "signature": "0x99f4b251"
+    }
+  ],
+  "bytecode": "0x6080604052348015600f57600080fd5b5060cc8061001e6000396000f300608060405260043610603e5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166399f4b25181146043575b600080fd5b348015604e57600080fd5b5060556067565b60408051918252519081900360200190f35b600080546001018082556040517f4229d50c63dbdc5551dd68e0a9879b01ac250cb31feaeba7588533462e6c7aaa908390a250600054905600a165627a7a72305820c80f2a4a2ff6e336c001e2ed158aa6b4d037083ab7ba5e5c0fa66347d703b4430029",
+  "deployedBytecode": "0x608060405260043610603e5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166399f4b25181146043575b600080fd5b348015604e57600080fd5b5060556067565b60408051918252519081900360200190f35b600080546001018082556040517f4229d50c63dbdc5551dd68e0a9879b01ac250cb31feaeba7588533462e6c7aaa908390a250600054905600a165627a7a72305820c80f2a4a2ff6e336c001e2ed158aa6b4d037083ab7ba5e5c0fa66347d703b4430029",
+  "sourceMap": "26:246:1:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;26:246:1;;;;;;;",
+  "deployedSourceMap": "26:246:1:-;;;;;;;;;;;;;;;;;;;;;;;158:112;;8:9:-1;5:2;;;30:1;27;20:12;5:2;158:112:1;;;;;;;;;;;;;;;;;;;;;189:7;207:9;;215:1;207:9;;;;231:11;;;;189:7;;231:11;-1:-1:-1;259:4:1;;158:112;:::o",
+  "source": "pragma solidity ^0.4.22;\n\ncontract Dummy{\n    uint256 test;\n\n    event Mined(uint256 indexed value);\n\n    // this function is in order to produce blocks.\n    function mine() public returns(uint256){\n        test += 1;\n        emit Mined(test);\n        return test;\n    }\n}",
+  "sourcePath": "/home/wildermind/rust-sgx/enigma-contract/contracts/Dummy.sol",
+  "ast": {
+    "absolutePath": "/home/wildermind/rust-sgx/enigma-contract/contracts/Dummy.sol",
+    "exportedSymbols": {
+      "Dummy": [
+        794
+      ]
+    },
+    "id": 795,
+    "nodeType": "SourceUnit",
+    "nodes": [
       {
-        "constant": false,
-        "inputs": [],
-        "name": "mine",
-        "outputs": [
+        "id": 771,
+        "literals": [
+          "solidity",
+          "^",
+          "0.4",
+          ".22"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:1"
+      },
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "documentation": null,
+        "fullyImplemented": true,
+        "id": 794,
+        "linearizedBaseContracts": [
+          794
+        ],
+        "name": "Dummy",
+        "nodeType": "ContractDefinition",
+        "nodes": [
           {
-            "name": "",
-            "type": "uint256"
+            "constant": false,
+            "id": 773,
+            "name": "test",
+            "nodeType": "VariableDeclaration",
+            "scope": 794,
+            "src": "46:12:1",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_uint256",
+              "typeString": "uint256"
+            },
+            "typeName": {
+              "id": 772,
+              "name": "uint256",
+              "nodeType": "ElementaryTypeName",
+              "src": "46:7:1",
+              "typeDescriptions": {
+                "typeIdentifier": "t_uint256",
+                "typeString": "uint256"
+              }
+            },
+            "value": null,
+            "visibility": "internal"
+          },
+          {
+            "anonymous": false,
+            "documentation": null,
+            "id": 777,
+            "name": "Mined",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 776,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 775,
+                  "indexed": true,
+                  "name": "value",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 777,
+                  "src": "77:21:1",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 774,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "77:7:1",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "76:23:1"
+            },
+            "src": "65:35:1"
+          },
+          {
+            "body": {
+              "id": 792,
+              "nodeType": "Block",
+              "src": "197:73:1",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 784,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
+                      "argumentTypes": null,
+                      "id": 782,
+                      "name": "test",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 773,
+                      "src": "207:4:1",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_uint256",
+                        "typeString": "uint256"
+                      }
+                    },
+                    "nodeType": "Assignment",
+                    "operator": "+=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "hexValue": "31",
+                      "id": 783,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "kind": "number",
+                      "lValueRequested": false,
+                      "nodeType": "Literal",
+                      "src": "215:1:1",
+                      "subdenomination": null,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_rational_1_by_1",
+                        "typeString": "int_const 1"
+                      },
+                      "value": "1"
+                    },
+                    "src": "207:9:1",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "id": 785,
+                  "nodeType": "ExpressionStatement",
+                  "src": "207:9:1"
+                },
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
+                        "argumentTypes": null,
+                        "id": 787,
+                        "name": "test",
+                        "nodeType": "Identifier",
+                        "overloadedDeclarations": [],
+                        "referencedDeclaration": 773,
+                        "src": "237:4:1",
+                        "typeDescriptions": {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        }
+                      }
+                    ],
+                    "expression": {
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        }
+                      ],
+                      "id": 786,
+                      "name": "Mined",
+                      "nodeType": "Identifier",
+                      "overloadedDeclarations": [],
+                      "referencedDeclaration": 777,
+                      "src": "231:5:1",
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_function_event_nonpayable$_t_uint256_$returns$__$",
+                        "typeString": "function (uint256)"
+                      }
+                    },
+                    "id": 788,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "231:11:1",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 789,
+                  "nodeType": "EmitStatement",
+                  "src": "226:16:1"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 790,
+                    "name": "test",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 773,
+                    "src": "259:4:1",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "functionReturnParameters": 781,
+                  "id": 791,
+                  "nodeType": "Return",
+                  "src": "252:11:1"
+                }
+              ]
+            },
+            "documentation": null,
+            "id": 793,
+            "implemented": true,
+            "isConstructor": false,
+            "isDeclaredConst": false,
+            "modifiers": [],
+            "name": "mine",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 778,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "171:2:1"
+            },
+            "payable": false,
+            "returnParameters": {
+              "id": 781,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 780,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 793,
+                  "src": "189:7:1",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 779,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "189:7:1",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "188:9:1"
+            },
+            "scope": 794,
+            "src": "158:112:1",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
           }
         ],
-        "payable": false,
-        "stateMutability": "nonpayable",
-        "type": "function",
-        "signature": "0x99f4b251"
+        "scope": 795,
+        "src": "26:246:1"
       }
     ],
-    "bytecode": "0x6080604052348015600f57600080fd5b5060a18061001e6000396000f300608060405260043610603e5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166399f4b25181146043575b600080fd5b348015604e57600080fd5b5060556067565b60408051918252519081900360200190f35b6000805460010190819055905600a165627a7a72305820474ecb68c6b626fadf046408f237c6b52ab841b95bd312918d70f51d68425f1c0029",
-    "deployedBytecode": "0x608060405260043610603e5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166399f4b25181146043575b600080fd5b348015604e57600080fd5b5060556067565b60408051918252519081900360200190f35b6000805460010190819055905600a165627a7a72305820474ecb68c6b626fadf046408f237c6b52ab841b95bd312918d70f51d68425f1c0029",
-    "sourceMap": "26:179:1:-;;;;8:9:-1;5:2;;;30:1;27;20:12;5:2;26:179:1;;;;;;;",
-    "deployedSourceMap": "26:179:1:-;;;;;;;;;;;;;;;;;;;;;;;117:86;;8:9:-1;5:2;;;30:1;27;20:12;5:2;117:86:1;;;;;;;;;;;;;;;;;;;;;148:7;166:9;;174:1;166:9;;;;;117:86;:::o",
-    "source": "pragma solidity ^0.4.22;\n\ncontract Dummy{\n    uint256 test;\n\n    // this function is in order to produce blocks.\n    function mine() public returns(uint256){\n        test += 1;\n        return test;\n    }\n}",
-    "sourcePath": "/home/wildermind/rust-sgx/enigma-contract/contracts/Dummy.sol",
-    "ast": {
-      "absolutePath": "/home/wildermind/rust-sgx/enigma-contract/contracts/Dummy.sol",
-      "exportedSymbols": {
-        "Dummy": [
-          786
-        ]
+    "src": "0:272:1"
+  },
+  "legacyAST": {
+    "absolutePath": "/home/wildermind/rust-sgx/enigma-contract/contracts/Dummy.sol",
+    "exportedSymbols": {
+      "Dummy": [
+        794
+      ]
+    },
+    "id": 795,
+    "nodeType": "SourceUnit",
+    "nodes": [
+      {
+        "id": 771,
+        "literals": [
+          "solidity",
+          "^",
+          "0.4",
+          ".22"
+        ],
+        "nodeType": "PragmaDirective",
+        "src": "0:24:1"
       },
-      "id": 787,
-      "nodeType": "SourceUnit",
-      "nodes": [
-        {
-          "id": 771,
-          "literals": [
-            "solidity",
-            "^",
-            "0.4",
-            ".22"
-          ],
-          "nodeType": "PragmaDirective",
-          "src": "0:24:1"
-        },
-        {
-          "baseContracts": [],
-          "contractDependencies": [],
-          "contractKind": "contract",
-          "documentation": null,
-          "fullyImplemented": true,
-          "id": 786,
-          "linearizedBaseContracts": [
-            786
-          ],
-          "name": "Dummy",
-          "nodeType": "ContractDefinition",
-          "nodes": [
-            {
-              "constant": false,
-              "id": 773,
-              "name": "test",
-              "nodeType": "VariableDeclaration",
-              "scope": 786,
-              "src": "46:12:1",
-              "stateVariable": true,
-              "storageLocation": "default",
+      {
+        "baseContracts": [],
+        "contractDependencies": [],
+        "contractKind": "contract",
+        "documentation": null,
+        "fullyImplemented": true,
+        "id": 794,
+        "linearizedBaseContracts": [
+          794
+        ],
+        "name": "Dummy",
+        "nodeType": "ContractDefinition",
+        "nodes": [
+          {
+            "constant": false,
+            "id": 773,
+            "name": "test",
+            "nodeType": "VariableDeclaration",
+            "scope": 794,
+            "src": "46:12:1",
+            "stateVariable": true,
+            "storageLocation": "default",
+            "typeDescriptions": {
+              "typeIdentifier": "t_uint256",
+              "typeString": "uint256"
+            },
+            "typeName": {
+              "id": 772,
+              "name": "uint256",
+              "nodeType": "ElementaryTypeName",
+              "src": "46:7:1",
               "typeDescriptions": {
                 "typeIdentifier": "t_uint256",
                 "typeString": "uint256"
-              },
-              "typeName": {
-                "id": 772,
-                "name": "uint256",
-                "nodeType": "ElementaryTypeName",
-                "src": "46:7:1",
-                "typeDescriptions": {
-                  "typeIdentifier": "t_uint256",
-                  "typeString": "uint256"
-                }
-              },
-              "value": null,
-              "visibility": "internal"
+              }
             },
-            {
-              "body": {
-                "id": 784,
-                "nodeType": "Block",
-                "src": "156:47:1",
-                "statements": [
-                  {
-                    "expression": {
-                      "argumentTypes": null,
-                      "id": 780,
-                      "isConstant": false,
-                      "isLValue": false,
-                      "isPure": false,
-                      "lValueRequested": false,
-                      "leftHandSide": {
-                        "argumentTypes": null,
-                        "id": 778,
-                        "name": "test",
-                        "nodeType": "Identifier",
-                        "overloadedDeclarations": [],
-                        "referencedDeclaration": 773,
-                        "src": "166:4:1",
-                        "typeDescriptions": {
-                          "typeIdentifier": "t_uint256",
-                          "typeString": "uint256"
-                        }
-                      },
-                      "nodeType": "Assignment",
-                      "operator": "+=",
-                      "rightHandSide": {
-                        "argumentTypes": null,
-                        "hexValue": "31",
-                        "id": 779,
-                        "isConstant": false,
-                        "isLValue": false,
-                        "isPure": true,
-                        "kind": "number",
-                        "lValueRequested": false,
-                        "nodeType": "Literal",
-                        "src": "174:1:1",
-                        "subdenomination": null,
-                        "typeDescriptions": {
-                          "typeIdentifier": "t_rational_1_by_1",
-                          "typeString": "int_const 1"
-                        },
-                        "value": "1"
-                      },
-                      "src": "166:9:1",
-                      "typeDescriptions": {
-                        "typeIdentifier": "t_uint256",
-                        "typeString": "uint256"
-                      }
-                    },
-                    "id": 781,
-                    "nodeType": "ExpressionStatement",
-                    "src": "166:9:1"
+            "value": null,
+            "visibility": "internal"
+          },
+          {
+            "anonymous": false,
+            "documentation": null,
+            "id": 777,
+            "name": "Mined",
+            "nodeType": "EventDefinition",
+            "parameters": {
+              "id": 776,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 775,
+                  "indexed": true,
+                  "name": "value",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 777,
+                  "src": "77:21:1",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
                   },
-                  {
-                    "expression": {
+                  "typeName": {
+                    "id": 774,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "77:7:1",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "76:23:1"
+            },
+            "src": "65:35:1"
+          },
+          {
+            "body": {
+              "id": 792,
+              "nodeType": "Block",
+              "src": "197:73:1",
+              "statements": [
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 784,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "lValueRequested": false,
+                    "leftHandSide": {
                       "argumentTypes": null,
                       "id": 782,
                       "name": "test",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
                       "referencedDeclaration": 773,
-                      "src": "192:4:1",
+                      "src": "207:4:1",
                       "typeDescriptions": {
                         "typeIdentifier": "t_uint256",
                         "typeString": "uint256"
                       }
                     },
-                    "functionReturnParameters": 777,
-                    "id": 783,
-                    "nodeType": "Return",
-                    "src": "185:11:1"
-                  }
-                ]
-              },
-              "documentation": null,
-              "id": 785,
-              "implemented": true,
-              "isConstructor": false,
-              "isDeclaredConst": false,
-              "modifiers": [],
-              "name": "mine",
-              "nodeType": "FunctionDefinition",
-              "parameters": {
-                "id": 774,
-                "nodeType": "ParameterList",
-                "parameters": [],
-                "src": "130:2:1"
-              },
-              "payable": false,
-              "returnParameters": {
-                "id": 777,
-                "nodeType": "ParameterList",
-                "parameters": [
-                  {
-                    "constant": false,
-                    "id": 776,
-                    "name": "",
-                    "nodeType": "VariableDeclaration",
-                    "scope": 785,
-                    "src": "148:7:1",
-                    "stateVariable": false,
-                    "storageLocation": "default",
+                    "nodeType": "Assignment",
+                    "operator": "+=",
+                    "rightHandSide": {
+                      "argumentTypes": null,
+                      "hexValue": "31",
+                      "id": 783,
+                      "isConstant": false,
+                      "isLValue": false,
+                      "isPure": true,
+                      "kind": "number",
+                      "lValueRequested": false,
+                      "nodeType": "Literal",
+                      "src": "215:1:1",
+                      "subdenomination": null,
+                      "typeDescriptions": {
+                        "typeIdentifier": "t_rational_1_by_1",
+                        "typeString": "int_const 1"
+                      },
+                      "value": "1"
+                    },
+                    "src": "207:9:1",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
-                    },
-                    "typeName": {
-                      "id": 775,
-                      "name": "uint256",
-                      "nodeType": "ElementaryTypeName",
-                      "src": "148:7:1",
-                      "typeDescriptions": {
-                        "typeIdentifier": "t_uint256",
-                        "typeString": "uint256"
-                      }
-                    },
-                    "value": null,
-                    "visibility": "internal"
-                  }
-                ],
-                "src": "147:9:1"
-              },
-              "scope": 786,
-              "src": "117:86:1",
-              "stateMutability": "nonpayable",
-              "superFunction": null,
-              "visibility": "public"
-            }
-          ],
-          "scope": 787,
-          "src": "26:179:1"
-        }
-      ],
-      "src": "0:205:1"
-    },
-    "legacyAST": {
-      "absolutePath": "/home/wildermind/rust-sgx/enigma-contract/contracts/Dummy.sol",
-      "exportedSymbols": {
-        "Dummy": [
-          786
-        ]
-      },
-      "id": 787,
-      "nodeType": "SourceUnit",
-      "nodes": [
-        {
-          "id": 771,
-          "literals": [
-            "solidity",
-            "^",
-            "0.4",
-            ".22"
-          ],
-          "nodeType": "PragmaDirective",
-          "src": "0:24:1"
-        },
-        {
-          "baseContracts": [],
-          "contractDependencies": [],
-          "contractKind": "contract",
-          "documentation": null,
-          "fullyImplemented": true,
-          "id": 786,
-          "linearizedBaseContracts": [
-            786
-          ],
-          "name": "Dummy",
-          "nodeType": "ContractDefinition",
-          "nodes": [
-            {
-              "constant": false,
-              "id": 773,
-              "name": "test",
-              "nodeType": "VariableDeclaration",
-              "scope": 786,
-              "src": "46:12:1",
-              "stateVariable": true,
-              "storageLocation": "default",
-              "typeDescriptions": {
-                "typeIdentifier": "t_uint256",
-                "typeString": "uint256"
-              },
-              "typeName": {
-                "id": 772,
-                "name": "uint256",
-                "nodeType": "ElementaryTypeName",
-                "src": "46:7:1",
-                "typeDescriptions": {
-                  "typeIdentifier": "t_uint256",
-                  "typeString": "uint256"
-                }
-              },
-              "value": null,
-              "visibility": "internal"
-            },
-            {
-              "body": {
-                "id": 784,
-                "nodeType": "Block",
-                "src": "156:47:1",
-                "statements": [
-                  {
-                    "expression": {
-                      "argumentTypes": null,
-                      "id": 780,
-                      "isConstant": false,
-                      "isLValue": false,
-                      "isPure": false,
-                      "lValueRequested": false,
-                      "leftHandSide": {
+                    }
+                  },
+                  "id": 785,
+                  "nodeType": "ExpressionStatement",
+                  "src": "207:9:1"
+                },
+                {
+                  "eventCall": {
+                    "argumentTypes": null,
+                    "arguments": [
+                      {
                         "argumentTypes": null,
-                        "id": 778,
+                        "id": 787,
                         "name": "test",
                         "nodeType": "Identifier",
                         "overloadedDeclarations": [],
                         "referencedDeclaration": 773,
-                        "src": "166:4:1",
+                        "src": "237:4:1",
                         "typeDescriptions": {
                           "typeIdentifier": "t_uint256",
                           "typeString": "uint256"
                         }
-                      },
-                      "nodeType": "Assignment",
-                      "operator": "+=",
-                      "rightHandSide": {
-                        "argumentTypes": null,
-                        "hexValue": "31",
-                        "id": 779,
-                        "isConstant": false,
-                        "isLValue": false,
-                        "isPure": true,
-                        "kind": "number",
-                        "lValueRequested": false,
-                        "nodeType": "Literal",
-                        "src": "174:1:1",
-                        "subdenomination": null,
-                        "typeDescriptions": {
-                          "typeIdentifier": "t_rational_1_by_1",
-                          "typeString": "int_const 1"
-                        },
-                        "value": "1"
-                      },
-                      "src": "166:9:1",
-                      "typeDescriptions": {
-                        "typeIdentifier": "t_uint256",
-                        "typeString": "uint256"
                       }
-                    },
-                    "id": 781,
-                    "nodeType": "ExpressionStatement",
-                    "src": "166:9:1"
-                  },
-                  {
+                    ],
                     "expression": {
-                      "argumentTypes": null,
-                      "id": 782,
-                      "name": "test",
+                      "argumentTypes": [
+                        {
+                          "typeIdentifier": "t_uint256",
+                          "typeString": "uint256"
+                        }
+                      ],
+                      "id": 786,
+                      "name": "Mined",
                       "nodeType": "Identifier",
                       "overloadedDeclarations": [],
-                      "referencedDeclaration": 773,
-                      "src": "192:4:1",
+                      "referencedDeclaration": 777,
+                      "src": "231:5:1",
                       "typeDescriptions": {
-                        "typeIdentifier": "t_uint256",
-                        "typeString": "uint256"
+                        "typeIdentifier": "t_function_event_nonpayable$_t_uint256_$returns$__$",
+                        "typeString": "function (uint256)"
                       }
                     },
-                    "functionReturnParameters": 777,
-                    "id": 783,
-                    "nodeType": "Return",
-                    "src": "185:11:1"
-                  }
-                ]
-              },
-              "documentation": null,
-              "id": 785,
-              "implemented": true,
-              "isConstructor": false,
-              "isDeclaredConst": false,
-              "modifiers": [],
-              "name": "mine",
-              "nodeType": "FunctionDefinition",
-              "parameters": {
-                "id": 774,
-                "nodeType": "ParameterList",
-                "parameters": [],
-                "src": "130:2:1"
-              },
-              "payable": false,
-              "returnParameters": {
-                "id": 777,
-                "nodeType": "ParameterList",
-                "parameters": [
-                  {
-                    "constant": false,
-                    "id": 776,
-                    "name": "",
-                    "nodeType": "VariableDeclaration",
-                    "scope": 785,
-                    "src": "148:7:1",
-                    "stateVariable": false,
-                    "storageLocation": "default",
+                    "id": 788,
+                    "isConstant": false,
+                    "isLValue": false,
+                    "isPure": false,
+                    "kind": "functionCall",
+                    "lValueRequested": false,
+                    "names": [],
+                    "nodeType": "FunctionCall",
+                    "src": "231:11:1",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_tuple$__$",
+                      "typeString": "tuple()"
+                    }
+                  },
+                  "id": 789,
+                  "nodeType": "EmitStatement",
+                  "src": "226:16:1"
+                },
+                {
+                  "expression": {
+                    "argumentTypes": null,
+                    "id": 790,
+                    "name": "test",
+                    "nodeType": "Identifier",
+                    "overloadedDeclarations": [],
+                    "referencedDeclaration": 773,
+                    "src": "259:4:1",
                     "typeDescriptions": {
                       "typeIdentifier": "t_uint256",
                       "typeString": "uint256"
-                    },
-                    "typeName": {
-                      "id": 775,
-                      "name": "uint256",
-                      "nodeType": "ElementaryTypeName",
-                      "src": "148:7:1",
-                      "typeDescriptions": {
-                        "typeIdentifier": "t_uint256",
-                        "typeString": "uint256"
-                      }
-                    },
-                    "value": null,
-                    "visibility": "internal"
-                  }
-                ],
-                "src": "147:9:1"
-              },
-              "scope": 786,
-              "src": "117:86:1",
-              "stateMutability": "nonpayable",
-              "superFunction": null,
-              "visibility": "public"
-            }
-          ],
-          "scope": 787,
-          "src": "26:179:1"
-        }
-      ],
-      "src": "0:205:1"
-    },
-    "compiler": {
-      "name": "solc",
-      "version": "0.4.24+commit.e67f0147.Emscripten.clang"
-    },
-    "networks": {
-      "4447": {
-        "events": {},
-        "links": {},
-        "address": "0x8f0483125FCb9aaAEFA9209D8E9d7b9C8B9Fb90F",
-        "transactionHash": "0x41b07d162a0623f42a1e769a8744868196e00839f9bc9ea53c13fdfc5b392969"
+                    }
+                  },
+                  "functionReturnParameters": 781,
+                  "id": 791,
+                  "nodeType": "Return",
+                  "src": "252:11:1"
+                }
+              ]
+            },
+            "documentation": null,
+            "id": 793,
+            "implemented": true,
+            "isConstructor": false,
+            "isDeclaredConst": false,
+            "modifiers": [],
+            "name": "mine",
+            "nodeType": "FunctionDefinition",
+            "parameters": {
+              "id": 778,
+              "nodeType": "ParameterList",
+              "parameters": [],
+              "src": "171:2:1"
+            },
+            "payable": false,
+            "returnParameters": {
+              "id": 781,
+              "nodeType": "ParameterList",
+              "parameters": [
+                {
+                  "constant": false,
+                  "id": 780,
+                  "name": "",
+                  "nodeType": "VariableDeclaration",
+                  "scope": 793,
+                  "src": "189:7:1",
+                  "stateVariable": false,
+                  "storageLocation": "default",
+                  "typeDescriptions": {
+                    "typeIdentifier": "t_uint256",
+                    "typeString": "uint256"
+                  },
+                  "typeName": {
+                    "id": 779,
+                    "name": "uint256",
+                    "nodeType": "ElementaryTypeName",
+                    "src": "189:7:1",
+                    "typeDescriptions": {
+                      "typeIdentifier": "t_uint256",
+                      "typeString": "uint256"
+                    }
+                  },
+                  "value": null,
+                  "visibility": "internal"
+                }
+              ],
+              "src": "188:9:1"
+            },
+            "scope": 794,
+            "src": "158:112:1",
+            "stateMutability": "nonpayable",
+            "superFunction": null,
+            "visibility": "public"
+          }
+        ],
+        "scope": 795,
+        "src": "26:246:1"
       }
-    },
-    "schemaVersion": "2.0.0",
-    "updatedAt": "2018-07-16T09:29:49.412Z"
-  }
+    ],
+    "src": "0:272:1"
+  },
+  "compiler": {
+    "name": "solc",
+    "version": "0.4.24+commit.e67f0147.Emscripten.clang"
+  },
+  "networks": {
+    "4447": {
+      "events": {},
+      "links": {},
+      "address": "0x1b63908A030a8392A957F11C28A71e602360D41d",
+      "transactionHash": "0xaec22abe4c7afb498d4222ebb1da886b6cdb52aea910e5b97cf4eca84e0f7f87"
+    }
+  },
+  "schemaVersion": "2.0.0",
+  "updatedAt": "2018-07-17T13:09:34.349Z"
+}

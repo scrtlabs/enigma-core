@@ -185,7 +185,7 @@ pub fn run_miner(){
         deploy_scripts::forward_blocks(1,deployer, url.to_string());
     });
 }
-pub fn run(eid: sgx_enclave_id_t){
+pub fn run2(eid: sgx_enclave_id_t){
 
     // deploy contracts 
     
@@ -201,6 +201,7 @@ pub fn run(eid: sgx_enclave_id_t){
     // run block simulation 
     
     run_miner();
+    
     thread::sleep(time::Duration::from_secs(3));
     
     // run principal 
@@ -211,4 +212,30 @@ pub fn run(eid: sgx_enclave_id_t){
 
     let principal = PrincipalManager::new("../app/src/boot_network/config.json",params, Some(enigma_contract.address()));
     principal.run().unwrap();
+}
+
+pub fn run(eid: sgx_enclave_id_t){
+    use std::time;
+    use rustc_hex::FromHex;
+    use web3::contract::{Contract, Options};
+    use web3::futures::{Future, Stream};
+    use web3::types::FilterBuilder;
+    
+    deploy_scripts::test_block_listener();
+    //run_miner();
+
+    // build filter 
+    
+    // let filter = FilterBuilder::default()
+    // .address(vec![contract.address()])
+    // .topics
+    // (
+    //     Some(vec![
+    //         "0xd282f389399565f3671145f5916e51652b60eee8e5c759293a2f5771b8ddfd2e".into(),
+    //     ]),
+    //     None,
+    //     None,
+    //     None,
+    // )
+    // .build();
 }
