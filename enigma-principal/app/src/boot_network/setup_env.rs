@@ -185,7 +185,7 @@ pub fn run_miner(){
         deploy_scripts::forward_blocks(1,deployer, url.to_string());
     });
 }
-pub fn run2(eid: sgx_enclave_id_t){
+pub fn run_real(eid: sgx_enclave_id_t){
 
     // deploy contracts 
     
@@ -221,9 +221,20 @@ pub fn run(eid: sgx_enclave_id_t){
     use web3::futures::{Future, Stream};
     use web3::types::FilterBuilder;
     
-    deploy_scripts::test_block_listener();
-    //run_miner();
+    //deploy_scripts::log_sub();
+    //deploy_scripts::test_block_listener();
+    
+    // run_miner();
+    // loop{
+    //     deploy_scripts::read_input();
+    //     thread::sleep(time::Duration::from_secs(2));
+    //     println!("waked up..." );
+    // }   
 
+    //deploy_scripts::filter_blocks();
+
+
+    deploy_scripts::filter_blocks_by_addr();
     // build filter 
     
     // let filter = FilterBuilder::default()

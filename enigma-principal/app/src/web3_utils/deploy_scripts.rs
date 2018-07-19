@@ -26,6 +26,9 @@ use serde_json::{Value};
 use url::{Url};
 // sgx 
 use sgx_types::{sgx_enclave_id_t};
+// FITLERS ADDITIONS ATTEMPTS 
+use web3::api;
+use tokio_core;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ScriptDeployConfig {
@@ -177,6 +180,7 @@ fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &String)->Result<Contract<Htt
 pub fn forward_blocks(interval : u64, deployer : String, url : String){
     let (eloop,w3) = w3utils::connect(&url.as_str()).expect("cannot connect to ethereum network (miner)");
     let contract = deploy_dummy_miner(&w3, &deployer).expect("cannot deploy dummy miner");
+    println!("deployed dummy contract at address = {:?}",contract.address() );
     let deployer : Address = deployer
             .parse()
             .expect("unable to parse deployer address");
@@ -191,17 +195,16 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
     }
 }
 
-
+////////////////////////////////////////////
+/// ////////////////////////////////////////////
+/// ////////////////////////////////////////////
+/// ////////////////////////////////////////////
+/// ////////////////////////////////////////////
+/// ////////////////////////////////////////////
+/// ////////////////////////////////////////////
+/// 
 pub fn test_block_listener(){
-    use web3;
-    use web3::api;
-    use web3::Web3;
-    use std::time;
-    use rustc_hex::FromHex;
-    use web3::contract::{Contract, Options};
-    use web3::futures::{Future, Stream};
-    use web3::types::FilterBuilder;
-    use tokio_core;
+
     
     const MAX_PARALLEL_REQUESTS: usize = 64;
 
@@ -213,16 +216,16 @@ pub fn test_block_listener(){
     let mut eloop = tokio_core::reactor::Core::new().unwrap();
     println!("shit ????000000 " );
     
-    let w3 = web3::Web3::new(
-        web3::transports::Http::with_event_loop(
-            url,
-            &eloop.handle(),
-            MAX_PARALLEL_REQUESTS,
-        ).unwrap(),
-    );
+    // let w3 = web3::Web3::new(
+    //     web3::transports::Http::with_event_loop(
+    //         url,
+    //         &eloop.handle(),
+    //         MAX_PARALLEL_REQUESTS,
+    //     ).unwrap(),
+    // );
 
     //let mut eloop = tokio_core::reactor::Core::new().unwrap();
-    //let (eloop,w3) = w3utils::connect(&url.as_str()).expect("cannot connect to ethereum network (miner)");
+    let (_eloop,w3) = w3utils::connect(&url).expect("cannot connect to ethereum network (miner)");
 
     let contract = deploy_dummy_miner(&w3, &deployer)
         .expect("cannot deploy dummy miner");
@@ -235,7 +238,7 @@ pub fn test_block_listener(){
     .topics
     (
         Some(vec![
-            "Mined".into(), // 0x4d696e6564
+            "0x4229d50c63dbdc5551dd68e0a9879b01ac250cb31feaeba7588533462e6c7aaa".into(),
         ]),
         None,
         None,
@@ -254,8 +257,9 @@ pub fn test_block_listener(){
         })
     })
     .map_err(|_| ());
-
+    println!("after decl " );
     eloop.run(f).unwrap();
+    println!("running shitza " );
     thread::sleep(time::Duration::from_secs(3));
     println!("done sleeping..." );
 
@@ -266,7 +270,181 @@ pub fn test_block_listener(){
     // emit event 
     contract.call("mine", (), deployer, Options::default()).wait().unwrap();
 
-
 }
 
 
+
+pub fn log_sub(){
+    use web3;
+    use web3::api;
+    use web3::Web3;
+    use std::time;
+    use rustc_hex::FromHex;
+    use web3::contract::{Contract, Options};
+    use web3::futures::{Future, Stream};
+    use web3::types::FilterBuilder;
+    use tokio_core;
+    let mut eloop = tokio_core::reactor::Core::new().unwrap();
+
+    let web3 = web3::Web3::new(web3::transports::WebSocket::with_event_loop("ws://localhost:9545", &eloop.handle()).unwrap());
+
+    // Get the contract bytecode for instance from Solidity compiler
+    let (abi,bytecode) = w3utils::load_contract_abi_bytecode( "../app/tests/principal_node/contracts/Dummy.json").unwrap();
+    let bytecode : Vec<u8> = w3utils::trunace_bytecode(&bytecode).expect("error parsing bytecode to bytes");
+
+    eloop
+        .run(web3.eth().accounts().then(|accounts| {
+            let accounts = accounts.unwrap();
+            println!("accounts: {:?}", &accounts);
+
+            Contract::deploy(web3.eth(), abi.as_bytes())
+                .unwrap()
+                .confirmations(0)
+                .poll_interval(time::Duration::from_secs(1))
+                .options(Options::with(|opt| {
+                    opt.gas = Some(3_000_000.into())
+                }))
+                .execute(bytecode, (), accounts[0])
+                .unwrap()
+                .then(move |contract| {
+                    let contract = contract.unwrap();
+                    println!("contract deployed at: {}", contract.address());
+
+                    // Filter for Hello event in our contract
+                    //0x4229d50c63dbdc5551dd68e0a9879b01ac250cb31feaeba7588533462e6c7aaa
+                    let filter = FilterBuilder::default()
+                        .address(vec![contract.address()])
+                        .topics(
+                            Some(vec![
+                                "0xd282f389399565f3671145f5916e51652b60eee8e5c759293a2f5771b8ddfd2e".into(),
+                            ]),
+                            None,
+                            None,
+                            None,
+                        )
+                        .build();
+
+                    let event_future = web3.eth_subscribe()
+                        .subscribe_logs(filter)
+                        .then(|sub| {
+                            sub.unwrap().for_each(|log| {
+                                println!("got log: {:?}", log);
+                                Ok(())
+                            })
+                        })
+                        .map_err(|_| ());
+
+                    let call_future = contract
+                        .call("mine", (), accounts[0], Options::default())
+                        .then(|tx| {
+                            println!("got tx: {:?}", tx);
+                            Ok(())
+                        });
+
+                    event_future.join(call_future)
+                })
+        }))
+        .unwrap();
+}
+
+
+use std::io::{self, Read};
+
+
+pub fn read_input() {
+
+    use web3;
+    use web3::api;
+    use web3::Web3;
+    use std::time;
+    use rustc_hex::FromHex;
+    use web3::contract::{Contract, Options};
+    use web3::futures::{Future, Stream};
+    use web3::types::FilterBuilder;
+    use tokio_core;
+
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(n) => {
+            let mut eloop = tokio_core::reactor::Core::new().unwrap();
+            println!("{}", input);
+            let deployer : Address = input
+            .parse()
+            .expect("unable to parse deployer address");
+            // listen to eventos 
+            let w3 = web3::Web3::new(web3::transports::WebSocket::with_event_loop("ws://localhost:9545", &eloop.handle()).unwrap());
+                // // build event listener 
+                println!("shit ????11111 " );
+                let filter = FilterBuilder::default()
+                .address(vec![deployer])
+                .topics
+                (
+                    Some(vec![
+                        "0x4229d50c63dbdc5551dd68e0a9879b01ac250cb31feaeba7588533462e6c7aaa".into(),
+                    ]),
+                    None,
+                    None,
+                    None,
+                )
+                .build();
+
+                // start listening 
+                println!("shit ???? " );
+            let f =  w3.eth_subscribe()
+                .subscribe_logs(filter)
+                .then(|sub| {
+                    sub.unwrap().for_each(|log| {
+                        println!("got log: {:?}", log);
+                        Ok(())
+                    })
+                }) 
+                .map_err(|_| ());
+                println!("after decl " );
+                //eloop.run(f).unwrap();
+                eloop.remote().spawn(|_| f);
+                println!("after decl2222222222222222222 " );
+
+        }
+        Err(error) => println!("error: {}", error),
+    };
+}
+
+pub fn build_filter(contract_addr : String )->web3::types::Filter{
+    
+    let contract_addr : Address = contract_addr
+                .parse()
+                .expect("unable to parse contract_addr address");
+    
+    FilterBuilder::default()
+    .address(vec![contract_addr])
+    .build()
+}
+pub fn filter_blocks(contract_addr : String ){
+
+    
+
+    let url = "http://localhost:9545";
+    let (eloop,w3) = w3utils::connect(&url).expect("cannot connect to ethereum");
+    
+
+    let filter = build_filter(contract_addr);
+
+    //     let mut eloop = tokio_core::reactor::Core::new().unwrap();
+    //  let w3 = web3::Web3::new(web3::transports::WebSocket::with_event_loop("ws://localhost:9545", &eloop.handle()).unwrap());
+    match w3.eth().logs(filter).wait(){
+        Ok(v)=>{println!("{:?}",v );},
+        Err(e)=>{println!("{:?}",e );},
+    };
+}
+
+pub fn filter_blocks_by_addr(){
+    let mut input = String::new();
+    match io::stdin().read_line(&mut input) {
+        Ok(n) => {
+            println!("{} bytes read", n);
+            println!("{}", input);
+            filter_blocks(input.clone());
+        }
+        Err(error) => println!("error: {}", error),
+    }
+}
