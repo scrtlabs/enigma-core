@@ -1,13 +1,13 @@
-// sgx 
-use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use esgx::random_u;
 // general 
-use boot_network::enigma_contract;
-use boot_network::enigma_contract::{EnigmaContract};
-use enigma_tools_u::attestation_service::service;
+use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use failure::Error;
 use serde_derive::*;
 use serde_json;
+use tokio_core;
+use std::time;
+use std::thread;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 // web3 
 use web3;
 use web3::Web3;
@@ -15,14 +15,13 @@ use web3::futures::{Future, Stream};
 use web3::contract::{Contract, Options};
 use web3::types::{Address, U256, Bytes};
 use web3::transports::Http;
-// tokio+polling blocks 
-use tokio_core;
-use std::time;
-use std::thread;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+// enigma modules 
+use esgx::random_u;
+use enigma_tools_u::enigma_contract;
+use enigma_tools_u::enigma_contract::{EnigmaContract};
+use enigma_tools_u::attestation_service::service;
 
-// this struct holds parameters nessceary for emitting the randim 
+// this struct holds parameters nessceary for emitting the random 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct EmittParams{
     pub  eid: sgx_enclave_id_t, 

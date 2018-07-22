@@ -1,35 +1,30 @@
-// general 
-// TODO: refactor into crate 
-use web3_utils::w3utils;
+// general
 use failure::Error;
 use rustc_hex::FromHex;
+use sgx_types::{sgx_enclave_id_t};
+use std::thread;
+use std::fs::File;
+use std::io::prelude::*;
 use std::time;
 use std::str;
+use serde_derive::*;
+use serde_json;
+use serde_json::{Value};
+use url::{Url};
+use tokio_core;
+// enigma modules 
+use enigma_tools_u::web3_utils::w3utils;
 use esgx;
-use std::thread;
 //web3
 use web3;
 use web3::futures::{Future, Stream};
 use web3::contract::{Contract, Options};
-use web3::types::{Address, U256, Bytes};
-use web3::types::FilterBuilder;
+use web3::types::{Address, U256, Bytes,BlockNumber,FilterBuilder};
 use web3::transports::Http;
 use web3::Web3;
 use web3::contract::tokens::Tokenize;
-// files 
-use std::fs::File;
-use std::io::prelude::*;
-use serde_derive::*;
-use serde_json;
-use serde_json::{Value};
-// url 
-use url::{Url};
-// sgx 
-use sgx_types::{sgx_enclave_id_t};
-// FITLERS ADDITIONS ATTEMPTS 
 use web3::api;
-use tokio_core;
-use web3::types::BlockNumber;
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ScriptDeployConfig {
@@ -252,7 +247,7 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
 #[cfg(test)]  
  mod test {
     use super::*;
-    use web3_utils;
+    use enigma_tools_u::web3_utils;
     use web3_utils::w3utils;
     use web3_utils::deploy_scripts;
     use esgx::general::init_enclave;

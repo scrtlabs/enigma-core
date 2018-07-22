@@ -12,3 +12,12 @@ failure = "0.1.1"
 httparse = "=1.2.5"
 reqwest = "0.8.6"
 etcommon-rlp = {rev = "0.2.3", default-features = false}
+# web3 utils 
+web3 = { git = 'https://github.com/tomusdrw/rust-web3.git' }
+libc = "0.2.41"
+rustc-hex = "1.0.0"
+tiny-keccak = "1.4.2"
+# enigma contract 
+[dependencies.sgx_types]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"

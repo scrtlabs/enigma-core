@@ -10,15 +10,10 @@ extern crate rlp;
 extern crate enigma_tools_u;
 extern crate tiny_keccak;
 extern crate serde_json;
-// serde 
-//extern crate serde_json;
 extern crate serde;
 extern crate serde_derive;
-//web3 
 extern crate web3;
 extern crate rustc_hex;
-//tokio
-//TODO: remove tokio_core 
 extern crate tokio_core;
 // enigma modules
 mod esgx;
@@ -26,22 +21,19 @@ mod common_u;
 mod boot_network;
 mod web3_utils;
 mod cli;
-
-use boot_network::principal_utils::EmittParams;
-//use boot_network::principal_manager::{PrincipalManager, PrincipalConfig, Sampler};
-use boot_network::principal_manager::{PrincipalConfig,Sampler,PrincipalManager};
-use web3_utils::deploy_scripts;
-use web3_utils::w3utils;
-use boot_network::principal_manager;
+// general modules
 use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use esgx::equote;
 use structopt::StructOpt;
-pub use esgx::general::ocall_get_home;
 use std::thread;
-
-extern { fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 42]) -> sgx_status_t; }
-extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
+// enigma modules 
+pub use esgx::general::ocall_get_home;
+use boot_network::principal_utils::EmittParams;
+use boot_network::principal_manager::{PrincipalConfig,Sampler,PrincipalManager};
+use web3_utils::deploy_scripts;
+use enigma_tools_u::web3_utils::w3utils;
+use boot_network::principal_manager;
+use esgx::equote;
 
 
 fn cli(eid : sgx_enclave_id_t){

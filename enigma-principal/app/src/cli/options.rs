@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 use web3::types::{Address, U256, Bytes,Log};
 use web3_utils::deploy_scripts;
-use web3_utils::w3utils;
+use enigma_tools_u::web3_utils::w3utils;
 use std::thread;
 
 #[derive(StructOpt, Debug)]

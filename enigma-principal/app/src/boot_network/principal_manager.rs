@@ -26,8 +26,8 @@ use std::thread;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 // formal 
-use boot_network::enigma_contract;
-use boot_network::enigma_contract::EnigmaContract;
+use enigma_tools_u::web3_utils::enigma_contract;
+use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use boot_network::principal_utils::Principal;
 use boot_network::principal_utils::{EmittParams};
 // files 
@@ -186,7 +186,7 @@ impl Sampler for PrincipalManager {
         let account = self.config.ACCOUNT_ADDRESS.clone();
         // the ethereum node url
         let url = self.config.URL.clone();
-        let enigma_contract : EnigmaContract = Principal::new(web3,eloop, &address, &path, &account, &url);
+        let enigma_contract = Principal::new(web3,eloop, &address, &path, &account, &url);
         Ok(enigma_contract)
     }
     fn get_signing_address(&self)->Result<String,Error>{
