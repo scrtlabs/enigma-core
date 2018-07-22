@@ -215,38 +215,8 @@ pub fn run_real(eid: sgx_enclave_id_t){
 }
 
 pub fn run(eid: sgx_enclave_id_t){
-    use std::time;
-    use rustc_hex::FromHex;
-    use web3::contract::{Contract, Options};
-    use web3::futures::{Future, Stream};
-    use web3::types::FilterBuilder;
-    
-    //deploy_scripts::log_sub();
-    //deploy_scripts::test_block_listener();
-    
-    // run_miner();
-    // loop{
-    //     deploy_scripts::read_input();
-    //     thread::sleep(time::Duration::from_secs(2));
-    //     println!("waked up..." );
-    // }   
-
-    //deploy_scripts::filter_blocks();
-
-
-    deploy_scripts::filter_blocks_by_addr();
-    // build filter 
-    
-    // let filter = FilterBuilder::default()
-    // .address(vec![contract.address()])
-    // .topics
-    // (
-    //     Some(vec![
-    //         "0xd282f389399565f3671145f5916e51652b60eee8e5c759293a2f5771b8ddfd2e".into(),
-    //     ]),
-    //     None,
-    //     None,
-    //     None,
-    // )
-    // .build();
+    let contract_addr = String::from("8cdaf0cd259887258bc13a92c0a6da92698644c0");
+    let url = String::from("http://localhost:9545");
+    w3utils::filter_blocks(contract_addr, url);
 }
+

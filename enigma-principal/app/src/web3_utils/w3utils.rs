@@ -2,9 +2,12 @@
 use failure::Error;
 use rustc_hex::FromHex;
 use std::time;
+use std::thread;
 use std::str;
+use tiny_keccak::Keccak;
 //web3
 use web3;
+use web3::types::BlockNumber;
 use web3::futures::{Future, Stream};
 use web3::contract::{Contract, Options};
 use web3::types::{Address, U256, Bytes};
@@ -18,6 +21,20 @@ use std::io::prelude::*;
 use serde_derive::*;
 use serde_json;
 use serde_json::{Value};
+
+// hash traits, same as ethereum's hash function
+pub trait Keccak256<T> {
+    fn keccak256(&self) -> T where T: Sized;
+}
+impl Keccak256<[u8; 32]> for [u8] {
+    fn keccak256(&self) -> [u8; 32] {
+        let mut keccak = Keccak::new_keccak256();
+        let mut result = [0u8; 32];
+        keccak.update(self);
+        keccak.finalize(&mut result);
+        result
+    }
+}
 
 
 pub struct DeployParams{
@@ -139,6 +156,92 @@ P : Tokenize
         Ok(contract)
 }
 
+//////////////////////// EVENTS LISTENING START ///////////////////////////
+
+fn build_event_fuilder(event_name : String,contract_addr : Option<String>)->web3::types::Filter{
+    let with_addr = contract_addr.is_some();
+    let filter = FilterBuilder::default()
+        .topics(Some(vec![
+                event_name.as_bytes().keccak256().into(),
+            ]),
+                None,
+                None,
+                None,
+        )
+        .from_block(BlockNumber::Earliest)
+        .to_block(BlockNumber::Latest);
+    filter.address(vec![contract_addr.unwrap().parse().unwrap()]).build()
+}
+fn build_event_fuilder2(event_name : String,contract_addr : Option<String>)->web3::types::Filter{
+    FilterBuilder::default().build()
+    // let event = "Hello(address)".as_bytes();
+    // //works "0x42487d8c593e0a9ff01966e22f9924ccd42728eb5c4592575f2dc4a3fe45f953"
+    // let mut builder = FilterBuilder::default()
+    //     .topics(Some(vec![
+    //             event_name.as_bytes().keccak256().into(),
+    //         ]),
+    //             None,
+    //             None,
+    //             None,
+    //     )
+    //     .from_block(BlockNumber::Earliest)
+    //     .to_block(BlockNumber::Latest);
+    //     builder.build()
+    // if contract_addr.is_some(){
+    //     let contract_addr : Address = contract_addr
+    //     .unwrap()
+    //     .parse()
+    //     .expect("unable to parse contract_addr address");    
+
+    //     &builder.address(vec![contract_addr]);
+    // }
+}
+/// TESTING: filter the network for events 
+pub fn filter_blocks2(contract_addr : String ,url : String){
+
+    // let (eloop,w3) = connect(&url.as_str())
+    //     .expect("cannot connect to ethereum");
+
+    // let contract_addr = contract_addr.clone();
+
+    // let filter = build_event_fuilder(contract_addr.clone());
+    // let res = w3.eth().logs(filter).wait();
+    // match res {
+    //     Ok(logs)=>println!("all good im happy and works {:?} ",logs),
+    //     Err(e) => println!("[-] Event filter error {}",e),
+    // };
+
+}
+pub fn filter_blocks(contract_addr : String ,url : String){
+    let (eloop,w3) = connect(&url.as_str())
+        .expect("cannot connect to ethereum");
+
+    let contract_addr = contract_addr.clone();
+    //"Hello(address)"
+    let filter = build_event_fuilder(String::from("Hello(address)"),Some(contract_addr.clone()));
+
+    let future = w3.eth()
+            .logs(filter)
+            .then(move |res|{
+                match res {
+                    Ok(logs)=>{
+                        println!("Ok git shit  {:?}", logs );
+                    },
+                    Err(e) =>{
+                        println!("Err git shit {:?} ",e );
+                    },
+                }
+
+            Ok(())
+        });
+        eloop.remote().spawn(|_| future);
+        loop{
+          thread::sleep(time::Duration::from_secs(1));  
+        }
+}
+
+//////////////////////// EVENTS LISTENING END ///////////////////////////
+/// 
 /// turn an Address to a string address and remove the 0x
 pub fn address_to_string_addr(addr : &Address)->String{
     let mut addr  = format!("{:?}", addr);
@@ -207,7 +310,7 @@ pub fn address_to_string_addr(addr : &Address)->String{
         contract
     }
     #[test] 
-    #[ignore]
+    //#[ignore]
     fn test_deploy_dummy_contract(){
         let (eloop,w3) = connect();
         let contract = deploy_dummy(&w3);
@@ -219,7 +322,7 @@ pub fn address_to_string_addr(addr : &Address)->String{
 
     }
      #[test]
-     #[ignore]
+     //#[ignore]
      fn test_deploy_enigma_contract(){ 
         // 1) generate ctor input 
         // the enigma contract requires 2 addresses in the constructor 
@@ -234,7 +337,7 @@ pub fn address_to_string_addr(addr : &Address)->String{
         w3utils::deploy_contract(&w3, tx,fake_input).unwrap();
      }
      #[test]
-     #[ignore]
+     //#[ignore]
      fn test_deployed_contract(){
          // deploy the dummy contract 
          let (eloop,w3) = connect();
