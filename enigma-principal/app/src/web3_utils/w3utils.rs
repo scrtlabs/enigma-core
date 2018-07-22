@@ -295,8 +295,7 @@ pub fn filter_blocks(contract_addr : Option<String> ,event_name : String ,url : 
     }
     // helper to quickly mock params for deployment of a contract to generate DeployParams 
     fn get_deploy_params(accounts : &Vec<Address>,ctype : &str)->w3utils::DeployParams{
-        
-        let deployer = super::address_to_string_addr(&accounts[0]);
+        let deployer = w3utils::address_to_string_addr(&accounts[0]);
         let gas_limit = "5999999";
         let poll_interval : u64 = 1;
         let confirmations : usize = 0;
