@@ -114,7 +114,8 @@ $(App_Enclave_u_Object): app/Enclave_u.o
 $(App_Name): $(App_Enclave_u_Object)
 	cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 	@echo "Cargo  =>  $@"
-	cp $(App_Rust_Path)/enigma_principal_app ./bin
+	mkdir -p ./bin
+	cp $(App_Rust_Path)/enigma_principal_app ./bin/enigma_principal_app
 
 ######## Enclave Objects ########
 

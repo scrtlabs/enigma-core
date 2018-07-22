@@ -5,6 +5,12 @@ pipeline:
       - "/dev/isgx:/dev/isgx"
     commands: 
       - /opt/intel/sgxpsw/aesm/aesm_service
-      - mkdir enigma-core/bin
-      - . /opt/sgxsdk/environment && . /root/.cargo/env && cd enigma-core && RUSTFLAGS=-Awarnings make
+      - . /opt/sgxsdk/environment && . /root/.cargo/env
+      - cd enigma-core && RUSTFLAGS=-Awarnings make
       - cd app && cargo test
+      - cd ../../enigma-principal && RUSTFLAGS=-Awarnings make
+      - cd app && cargo test
+services:
+  ganache:
+    image: trufflesuite/ganache-cli:v6.1.6
+    ports: [ 8545 ]
