@@ -189,30 +189,7 @@ fn build_event_fuilder(event_name : String,contract_addr : Option<String>)->web3
         filter.build()
     }
 }
-fn build_event_fuilder2(event_name : String,contract_addr : Option<String>)->web3::types::Filter{
-    FilterBuilder::default().build()
-    // let event = "Hello(address)".as_bytes();
-    // //works "0x42487d8c593e0a9ff01966e22f9924ccd42728eb5c4592575f2dc4a3fe45f953"
-    // let mut builder = FilterBuilder::default()
-    //     .topics(Some(vec![
-    //             event_name.as_bytes().keccak256().into(),
-    //         ]),
-    //             None,
-    //             None,
-    //             None,
-    //     )
-    //     .from_block(BlockNumber::Earliest)
-    //     .to_block(BlockNumber::Latest);
-    //     builder.build()
-    // if contract_addr.is_some(){
-    //     let contract_addr : Address = contract_addr
-    //     .unwrap()
-    //     .parse()
-    //     .expect("unable to parse contract_addr address");    
 
-    //     &builder.address(vec![contract_addr]);
-    // }
-}
 /// TESTING: filter the network for events 
 pub fn filter_blocks(contract_addr : Option<String> ,event_name : String ,url : String)->Result<Vec<Log>,Error>{
 
@@ -240,10 +217,10 @@ pub fn filter_blocks(contract_addr : Option<String> ,event_name : String ,url : 
 //             .then(move |res|{
 //                 match res {
 //                     Ok(logs)=>{
-//                         println!("Ok git shit  {:?}", logs );
+//                         println!("Ok got log  {:?}", logs );
 //                     },
 //                     Err(e) =>{
-//                         println!("Err git shit {:?} ",e );
+//                         println!("Err got log {:?} ",e );
 //                     },
 //                 }
 
