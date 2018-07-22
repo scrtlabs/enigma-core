@@ -101,7 +101,7 @@ fn main() {
         },
     };
     let eid = enclave.geteid();
-    boot_network::setup_env::run(eid);
+    boot_network::principal_manager::run(eid);
     //cli(eid);
 
 

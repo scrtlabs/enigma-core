@@ -220,14 +220,45 @@ pub fn run(eid: sgx_enclave_id_t){
     let event_name = String::from("Hello(address)");
     let logs = w3utils::filter_blocks(Some(contract_addr),event_name, url).unwrap();
     println!("{:?}",logs);
-        
-}
-
-pub fn shit(){
-    // initialze all 
-    // deploy shit 
-    // run logic 
-    // poll events 
-    // assert 
 
 }
+
+//////////////////////// TESTS  /////////////////////////////////////////
+
+//  #[cfg(test)]  
+//  mod test {
+ 
+//     fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
+//         let uri = "http://localhost:8545";
+//         let (eloop,w3) = w3utils::connect(uri).unwrap();
+//         let accounts = w3.eth().accounts().wait().unwrap();
+//         (eloop,w3, accounts)
+//     }
+
+//     #[test]
+//     #[ignore]
+//     fn test_deploy_enigma_contract_environment(){
+//         // init enclave 
+//         let enclave = match init_enclave() {
+//             Ok(r) => {
+//                 println!("[+] Init Enclave Successful {}!", r.geteid());
+//                 r
+//             },
+//             Err(x) => {
+//                 println!("[-] Init Enclave Failed {}!", x.as_str());
+//                 assert_eq!(0,1);
+//                 return;
+//             },
+//         };
+//         let (eloop,w3,accounts) = connect();
+//         // 
+//         let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
+//         let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts
+//         (
+//             eid, 
+//             deploy_config, 
+//             None
+//         )
+//         .expect("cannot deploy Enigma,EnigmaToken");
+//         }
+//  }

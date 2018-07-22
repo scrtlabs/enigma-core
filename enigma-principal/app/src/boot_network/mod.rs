@@ -1,3 +1,3 @@
-pub mod setup_env;
+pub mod principal_manager;
 pub mod enigma_contract;
 pub mod principal_utils;
