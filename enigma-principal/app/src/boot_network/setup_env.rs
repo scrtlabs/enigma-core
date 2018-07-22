@@ -217,6 +217,17 @@ pub fn run_real(eid: sgx_enclave_id_t){
 pub fn run(eid: sgx_enclave_id_t){
     let contract_addr = String::from("8cdaf0cd259887258bc13a92c0a6da92698644c0");
     let url = String::from("http://localhost:9545");
-    w3utils::filter_blocks(contract_addr, url);
+    let event_name = String::from("Hello(address)");
+    let logs = w3utils::filter_blocks(Some(contract_addr),event_name, url).unwrap();
+    println!("{:?}",logs);
+        
 }
 
+pub fn shit(){
+    // initialze all 
+    // deploy shit 
+    // run logic 
+    // poll events 
+    // assert 
+
+}

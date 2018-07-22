@@ -10,7 +10,7 @@ use web3;
 use web3::types::BlockNumber;
 use web3::futures::{Future, Stream};
 use web3::contract::{Contract, Options};
-use web3::types::{Address, U256, Bytes};
+use web3::types::{Address, U256, Bytes,Log};
 use web3::types::FilterBuilder;
 use web3::transports::Http;
 use web3::Web3;
@@ -156,6 +156,18 @@ P : Tokenize
         Ok(contract)
 }
 
+
+
+
+
+/// turn an Address to a string address and remove the 0x
+pub fn address_to_string_addr(addr : &Address)->String{
+    let mut addr  = format!("{:?}", addr);
+    addr = addr[2..].to_string();
+    addr
+
+}
+
 //////////////////////// EVENTS LISTENING START ///////////////////////////
 
 fn build_event_fuilder(event_name : String,contract_addr : Option<String>)->web3::types::Filter{
@@ -170,7 +182,12 @@ fn build_event_fuilder(event_name : String,contract_addr : Option<String>)->web3
         )
         .from_block(BlockNumber::Earliest)
         .to_block(BlockNumber::Latest);
-    filter.address(vec![contract_addr.unwrap().parse().unwrap()]).build()
+
+    if with_addr {
+            filter.address(vec![contract_addr.expect("[-] filter: error parsing ethereum address").parse().unwrap()]).build()
+    }else{
+        filter.build()
+    }
 }
 fn build_event_fuilder2(event_name : String,contract_addr : Option<String>)->web3::types::Filter{
     FilterBuilder::default().build()
@@ -197,58 +214,53 @@ fn build_event_fuilder2(event_name : String,contract_addr : Option<String>)->web
     // }
 }
 /// TESTING: filter the network for events 
-pub fn filter_blocks2(contract_addr : String ,url : String){
+pub fn filter_blocks(contract_addr : Option<String> ,event_name : String ,url : String)->Result<Vec<Log>,Error>{
 
-    // let (eloop,w3) = connect(&url.as_str())
-    //     .expect("cannot connect to ethereum");
-
-    // let contract_addr = contract_addr.clone();
-
-    // let filter = build_event_fuilder(contract_addr.clone());
-    // let res = w3.eth().logs(filter).wait();
-    // match res {
-    //     Ok(logs)=>println!("all good im happy and works {:?} ",logs),
-    //     Err(e) => println!("[-] Event filter error {}",e),
-    // };
-
-}
-pub fn filter_blocks(contract_addr : String ,url : String){
     let (eloop,w3) = connect(&url.as_str())
         .expect("cannot connect to ethereum");
 
-    let contract_addr = contract_addr.clone();
-    //"Hello(address)"
-    let filter = build_event_fuilder(String::from("Hello(address)"),Some(contract_addr.clone()));
+    let filter = build_event_fuilder(event_name,contract_addr);
 
-    let future = w3.eth()
-            .logs(filter)
-            .then(move |res|{
-                match res {
-                    Ok(logs)=>{
-                        println!("Ok git shit  {:?}", logs );
-                    },
-                    Err(e) =>{
-                        println!("Err git shit {:?} ",e );
-                    },
-                }
+    let logs = w3.eth().logs(filter).wait().expect("[-] error getting logs");
+    Ok(logs)
 
-            Ok(())
-        });
-        eloop.remote().spawn(|_| future);
-        loop{
-          thread::sleep(time::Duration::from_secs(1));  
-        }
 }
+// TODO:: implement this function, it should work but needs more improvments and ofcourse a future from the outside as a parameter.
+// pub fn filter_blocks_async(contract_addr : String ,url : String){
+//     let (eloop,w3) = connect(&url.as_str())
+//         .expect("cannot connect to ethereum");
+
+//     let contract_addr = contract_addr.clone();
+//     //"Hello(address)"
+//     // let filter = build_event_fuilder(String::from("Hello(address)"),Some(contract_addr.clone()));
+//     let filter = build_event_fuilder(String::from("Hello(address)"),None);
+
+//     let future = w3.eth()
+//             .logs(filter)
+//             .then(move |res|{
+//                 match res {
+//                     Ok(logs)=>{
+//                         println!("Ok git shit  {:?}", logs );
+//                     },
+//                     Err(e) =>{
+//                         println!("Err git shit {:?} ",e );
+//                     },
+//                 }
+
+//             Ok(())
+//         });
+//         eloop.remote().spawn(|_| future);
+//         loop{
+//           thread::sleep(time::Duration::from_secs(1));  
+//         }
+// }
 
 //////////////////////// EVENTS LISTENING END ///////////////////////////
-/// 
-/// turn an Address to a string address and remove the 0x
-pub fn address_to_string_addr(addr : &Address)->String{
-    let mut addr  = format!("{:?}", addr);
-    addr = addr[2..].to_string();
-    addr
 
-}
+
+//////////////////////// TESTS  /////////////////////////////////////////
+
+
  #[cfg(test)]  
  mod test {
     use web3_utils;
@@ -282,9 +294,9 @@ pub fn address_to_string_addr(addr : &Address)->String{
         (abi,bytecode)
     }
     // helper to quickly mock params for deployment of a contract to generate DeployParams 
-    fn get_deploy_params(ctype : &str)->w3utils::DeployParams{
+    fn get_deploy_params(accounts : &Vec<Address>,ctype : &str)->w3utils::DeployParams{
         
-        let deployer = "627306090abab3a6e1400e9345bc60c78a8bef57";
+        let deployer = super::address_to_string_addr(&accounts[0]);
         let gas_limit = "5999999";
         let poll_interval : u64 = 1;
         let confirmations : usize = 0;
@@ -298,22 +310,24 @@ pub fn address_to_string_addr(addr : &Address)->String{
             confirmations)
     }
     // helper connect to web3 
-    fn connect()->(web3::transports::EventLoopHandle, Web3<Http>){
-        let uri = "http://localhost:9545";
+    fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
+        let uri = "http://localhost:8545";
         let (eloop,w3) = w3utils::connect(uri).unwrap();
-        (eloop,w3)
+        let accounts = w3.eth().accounts().wait().unwrap();
+        (eloop,w3, accounts)
     }
     // helper deploy a dummy contract and return the contract instance
-    fn deploy_dummy(w3 : &Web3<Http>)->Contract<Http>{
-        let tx = get_deploy_params("Dummy");
+    fn deploy_dummy(w3 : &Web3<Http>, accounts : &Vec<Address>)->Contract<Http>{
+        
+        let tx = get_deploy_params(accounts,"Dummy");
         let contract = w3utils::deploy_contract(&w3, tx,()).unwrap();
         contract
     }
     #[test] 
     //#[ignore]
     fn test_deploy_dummy_contract(){
-        let (eloop,w3) = connect();
-        let contract = deploy_dummy(&w3);
+        let (eloop,w3,accounts) = connect();
+        let contract = deploy_dummy(&w3,&accounts);
         // validate deployment 
         // mine func add to a uint256=0 1 and returns it's value 
         let result = contract.query("mine", (), None, Options::default(), None);
@@ -329,10 +343,10 @@ pub fn address_to_string_addr(addr : &Address)->String{
         let account = String::from("627306090abab3a6e1400e9345bc60c78a8bef57");
         let fake_input: Address = account.parse().expect("unable to parse account address");
         let fake_input = (fake_input,fake_input);
-        // 2) get mock of the deploy params 
-        let tx = get_deploy_params("Enigma");
-        // 3) connect to ethereum network 
-        let (eloop,w3) = connect();
+        // 2) connect to ethereum network 
+        let (eloop,w3,accounts) = connect();
+        // 3) get mock of the deploy params 
+        let tx = get_deploy_params(&accounts,"Enigma");
         // 4) deploy the contract
         w3utils::deploy_contract(&w3, tx,fake_input).unwrap();
      }
@@ -340,8 +354,8 @@ pub fn address_to_string_addr(addr : &Address)->String{
      //#[ignore]
      fn test_deployed_contract(){
          // deploy the dummy contract 
-         let (eloop,w3) = connect();
-         let contract = deploy_dummy(&w3);
+         let (eloop,w3,accounts) = connect();
+         let contract = deploy_dummy(&w3,&accounts);
          // the deployed contract address
          let address = contract.address();
          let (abi,bytecode) = get_contract(&String::from("Dummy"));
