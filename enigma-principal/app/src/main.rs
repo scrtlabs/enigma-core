@@ -27,42 +27,34 @@ mod boot_network;
 mod web3_utils;
 mod cli;
 
+use boot_network::principal_utils::EmittParams;
+//use boot_network::principal_manager::{PrincipalManager, PrincipalConfig, Sampler};
+use boot_network::principal_manager::{PrincipalConfig,Sampler,PrincipalManager};
+use web3_utils::deploy_scripts;
+use web3_utils::w3utils;
+use boot_network::principal_manager;
 use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use esgx::equote;
 use structopt::StructOpt;
 pub use esgx::general::ocall_get_home;
+use std::thread;
 
 extern { fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 42]) -> sgx_status_t; }
 extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
 
 
-/// Returns a 32 bytes signed random seed.
-/// # Examples
-/// ```
-/// let enclave = esgx::general::init_enclave().unwrap();
-/// let (rand_seed, sig) = get_signed_random(enclave.geteid());
-/// ```
-fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
-    let mut rand_out: [u8; 32] = [0; 32];
-    let mut sig_out: [u8; 65] = [0; 65];
-    let mut retval = sgx_status_t::default();
-    unsafe { ecall_get_random_seed(eid, &mut retval, &mut rand_out, &mut sig_out); }
-    assert_eq!(retval, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
-    (rand_out, sig_out)
-}
-
 fn cli(eid : sgx_enclave_id_t){
     
     let opt = cli::options::Opt::from_args();
-    let config = "../app/tests/principal_node/contracts/deploy_config.json";
+    let config = opt.deploy_config.as_str();
+    let principal_config = opt.principal_config.as_str();
 
     match opt.info {
         // show info only
         true =>{
-            println!("[Mode:] print info.");
             let sign_key = web3_utils::deploy_scripts::get_signing_address(eid).expect("cannot load signing key");
-            println!("Signing key => 0x{}", sign_key);
+            cli::options::print_info(&sign_key);
         },
         // run the node 
         false =>{
@@ -71,13 +63,90 @@ fn cli(eid : sgx_enclave_id_t){
                 // deploy the contracts Enigma,EnigmaToken (not deployed yet)
                 true =>{
                         println!("[Mode:] deploying to default.");
-                        let (enigma_contract , token_contract) = web3_utils::deploy_scripts::deploy_base_contracts(eid,config, None)
-                            .unwrap();
+                        /* step1 : prepeare the contracts (deploy Enigma,EnigmaToken) */
+
+                        // load the config 
+                        let mut config = deploy_scripts::load_config(config);
+                        let url = config.URL.clone();
+                        // get dynamic eth addrress
+                        let accounts = w3utils::get_accounts(config.URL.clone().as_str()).unwrap();
+                        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
+                        // modify to dynamic address
+                        config.set_accounts_address(deployer);
+                        // deploy all contracts. (Enigma & EnigmaToken)
+                        let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
+                        (
+                            eid, 
+                            config, 
+                            None
+                        )
+                        .expect("cannot deploy Enigma,EnigmaToken");
+
+                        /* step2 : build the config of the principal node   */
+
+                        // optional : set time limit for the principal node 
+                        let mut ttl = None;
+                        if opt.time_to_live > 0{
+                            ttl = Some(opt.time_to_live);
+                        }
+                        let mut params : EmittParams = EmittParams{ 
+                            eid : eid, 
+                            gas_limit : String::from("5999999"),
+                            max_epochs : ttl, 
+                            ..Default::default()
+                        };
+
+                        let mut the_config = PrincipalManager::load_config(principal_config);
+                        let contract_addr : String = w3utils::address_to_string_addr(&enigma_contract.address());
+                        let deployer = w3utils::address_to_string_addr(&accounts[0]);
+                        the_config.set_accounts_address(deployer);
+                        the_config.set_enigma_contract_address(contract_addr.clone());
+                        
+                        /* step3 optional - run miner to simulate blocks */
+                        
+                        if opt.mine >0 {
+                            cli::options::run_miner(url, &accounts, opt.mine);
+                        }
+
+                        /* step4 : run the principal manager */
+
+                        let principal : PrincipalManager = PrincipalManager::new_delegated(principal_config, params, the_config);
+                        principal.run().unwrap();
+
                 },
                 // contracts deployed, just run 
                 false =>{
                     println!("[Mode:] run node NO DEPLOY.");
-                    // run principal manager 
+                     /* step1 : build the config of the principal node   */
+
+                    // optional : set time limit for the principal node 
+                    let mut ttl = None;
+                    if opt.time_to_live > 0{
+                        ttl = Some(opt.time_to_live);
+                    }
+                    let mut params : EmittParams = EmittParams{ 
+                        eid : eid, 
+                        gas_limit : String::from("5999999"),
+                        max_epochs : ttl, 
+                        ..Default::default()
+                    };
+                    
+                    let principal : PrincipalManager = PrincipalManager::new(principal_config, params, None);
+            
+                    /* step2 optional - run miner to simulate blocks */
+                    
+                    if opt.mine >0 {
+                        cli::options::run_miner
+                        (
+                            principal.get_network_url(), 
+                            &vec![principal.get_account_address().unwrap()], 
+                            opt.mine
+                        );
+                    }
+
+                    /* step3 : run the principal manager */
+                    
+                    principal.run().unwrap();
                 }
             }
         },
@@ -86,9 +155,6 @@ fn cli(eid : sgx_enclave_id_t){
 }
 #[allow(unused_variables, unused_mut)]
 fn main() {
-
-    
-    /* this is an example of initiating an enclave */
 
     let enclave = match esgx::general::init_enclave() {
         Ok(r) => {
@@ -100,37 +166,12 @@ fn main() {
             return;
         },
     };
+    
     let eid = enclave.geteid();
-    boot_network::principal_manager::run(eid);
-    //cli(eid);
-
-
-
-
-
-
-
-
-
-
-// //    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
-//     let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
-//     let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
-//     println!("{:?}", &tested_encoded_quote);
-
-
-//     let mut pubme: [u8; 64] = [0; 64];
-//     unsafe {ecall_get_signing_pubkey(enclave.geteid(), &mut pubme)};
-//     println!("Returned Pub: {:?}", &pubme[..]);
-////////////////////////////////////////////////////
-    // let mut pubme: [u8; 42] = [0; 42];
-    // unsafe { ecall_get_signing_address(enclave.geteid(), &mut pubme) };
-    // println!("Returned Address: {:?}", &pubme[..]);
-////////////////////////////////////////////////////
-//     let (rand_seed, sig) = get_signed_random(enclave.geteid());
-//     println!("Random Outside Enclave:{:?}", &rand_seed[..]);
-//     println!("Signature Outside Enclave: {:?}\n", &sig[..]);
-     enclave.destroy();
+    
+    cli(eid);
+    
+    enclave.destroy();
 }
 
 

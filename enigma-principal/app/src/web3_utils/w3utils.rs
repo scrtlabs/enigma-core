@@ -173,6 +173,13 @@ pub fn to_keccak256(value : Vec<u8>)->[u8; 32]{
     return value.as_slice().keccak256();
 }
 
+/// get list of current accounts from web3 isolated 
+pub fn get_accounts(url: &str)->Result<Vec<Address>,Error>{
+    let ( eloop,w3 ) =connect(url).unwrap();
+    let accounts = w3.eth().accounts().wait().unwrap();
+    Ok(accounts)
+}
+
 //////////////////////// EVENTS LISTENING START ///////////////////////////
 
 fn build_event_fuilder(event_name : String,contract_addr : Option<String>)->web3::types::Filter{

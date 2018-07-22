@@ -92,8 +92,10 @@ impl PrincipalManager{
     }
 }
 
-
-trait Sampler {
+/*
+    General interface of a Sampler == The entity that manages the principal node logic.
+*/
+pub trait Sampler {
     /// load with config from file 
     fn new(config : &str, emit : EmittParams, custom_contract_address : Option<Address>)->Self;
     /// load with config passed from the caller (for mutation purposes)
@@ -105,6 +107,8 @@ trait Sampler {
     fn connect(&self)->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>;
     fn enigma_contract(&self,web3::transports::EventLoopHandle, Web3<Http>)->Result<EnigmaContract,Error>;
     fn get_signing_address(&self)->Result<String,Error>;
+    fn get_account_address(&self)-> Result<Address,Error>;
+    fn get_network_url(&self)-> String;
     /// after initiation, this will run the principal node and block.
     fn run(&self)->Result<(),Error>;
 }   
@@ -164,6 +168,15 @@ impl Sampler for PrincipalManager {
         let w3 = web3::Web3::new(http);
         Ok((_eloop, w3))
     }
+    fn get_account_address(&self)-> Result<Address,Error>{
+        Ok
+        (
+            self.config.ACCOUNT_ADDRESS
+            .clone()
+            .parse()
+            .expect("[-] error parsing account address")
+        )
+    }
     fn enigma_contract(&self,eloop : web3::transports::EventLoopHandle, web3 : Web3<Http>)->Result<EnigmaContract,Error>{
         // deployed contract address
         let address = self.get_contract_address();
@@ -205,15 +218,9 @@ impl Sampler for PrincipalManager {
         enigma_contract.watch_blocks(epoch_size, polling_interval, eid, gas_limit,self.emitt_params.max_epochs);
         Ok(())
     }
-}
-
-pub fn run(eid: sgx_enclave_id_t){
-    let contract_addr = String::from("8cdaf0cd259887258bc13a92c0a6da92698644c0");
-    let url = String::from("http://localhost:9545");
-    let event_name = String::from("Hello(address)");
-    let logs = w3utils::filter_blocks(Some(contract_addr),event_name, url).unwrap();
-    println!("{:?}",logs);
-
+    fn get_network_url(&self)-> String{
+        self.config.URL.clone()
+    }
 }
 
 //////////////////////// TESTS  /////////////////////////////////////////
@@ -322,7 +329,7 @@ pub fn run(eid: sgx_enclave_id_t){
                 thread::sleep(time::Duration::from_secs(1));
 
                 if counter > 15 {
-                    println!("more than 15 seconds without events" );
+                    println!("more than {} seconds without events" ,15);
                     assert!(false);
                     break;
                 }
