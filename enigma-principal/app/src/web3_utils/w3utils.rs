@@ -168,6 +168,11 @@ pub fn address_to_string_addr(addr : &Address)->String{
 
 }
 
+/// String into keccak256/sha3 solidity compatible 
+pub fn to_keccak256(value : Vec<u8>)->[u8; 32]{
+    return value.as_slice().keccak256();
+}
+
 //////////////////////// EVENTS LISTENING START ///////////////////////////
 
 fn build_event_fuilder(event_name : String,contract_addr : Option<String>)->web3::types::Filter{

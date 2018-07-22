@@ -246,7 +246,6 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
         contract.call("mine",(),deployer,options ).wait().unwrap();
         println!("new block mined..." );
         thread::sleep(time::Duration::from_secs(interval));
-        break;  
     }
 }
 
@@ -264,7 +263,13 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
         let accounts = w3.eth().accounts().wait().unwrap();
         (eloop,w3, accounts)
     }
-
+    pub fn run_miner(accounts : &Vec<Address> ){
+        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
+        let child = thread::spawn(move || {
+            let url = "http://localhost:8545";
+            deploy_scripts::forward_blocks(1,deployer, url.to_string());
+        });
+    }
     #[test]
     //#[ignore]
     fn test_deploy_enigma_contract_environment(){
@@ -300,6 +305,44 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
         )
         .expect("cannot deploy Enigma,EnigmaToken");
     }
-    
-    
+
+    // #[test]
+    // //#[ignore]
+    // fn test_full_principal_logic(){
+    //             // init enclave 
+        
+    //     let enclave = match init_enclave() {
+    //         Ok(r) => {
+    //             println!("[+] Init Enclave Successful {}!", r.geteid());
+    //             r
+    //         },
+    //         Err(x) => {
+    //             println!("[-] Init Enclave Failed {}!", x.as_str());
+    //             assert_eq!(0,1);
+    //             return;
+    //         },
+    //     };
+
+    //     let eid = enclave.geteid();
+    //     let (eloop,w3,accounts) = connect();
+    //     let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
+    //     // load the config 
+    //     let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
+    //     let mut config = deploy_scripts::load_config(deploy_config);
+    //     // modify to dynamic address
+    //     config.set_accounts_address(deployer);
+    //     // deploy all contracts.
+    //     let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
+    //     (
+    //         eid, 
+    //         config, 
+    //         None
+    //     )
+    //     .expect("cannot deploy Enigma,EnigmaToken");
+
+    //     // run simulated miner 
+    //     run_miner(&accounts);
+
+    // }
+
  }

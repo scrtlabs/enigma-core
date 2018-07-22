@@ -58,6 +58,18 @@ pub struct PrincipalConfig {
 
 }
 
+impl PrincipalConfig {
+    pub fn set_enigma_contract_address(&mut self,new_address : String){
+        self.ENIGMA_CONTRACT_ADDRESS = new_address;
+    }
+    pub fn set_accounts_address(&mut self, new_account : String){
+        self.ACCOUNT_ADDRESS = new_account;
+    }
+    pub fn set_ethereum_url(&mut self, ethereum_url : String){
+        self.URL = ethereum_url;
+    }
+}
+
 pub struct PrincipalManager {
     custom_contract_address : Option<Address>,
     config_path : String,
@@ -82,13 +94,18 @@ impl PrincipalManager{
 
 
 trait Sampler {
+    /// load with config from file 
     fn new(config : &str, emit : EmittParams, custom_contract_address : Option<Address>)->Self;
+    /// load with config passed from the caller (for mutation purposes)
+    fn new_delegated(config_path : &str,emit : EmittParams, the_config : PrincipalConfig)->Self;
     fn get_contract_address(&self)->String;
     fn get_quote(&self)->Result<String,Error>;
     fn get_report(&self,quote : &String)->Result<(Vec<u8>,service::ASResponse),Error>;
+    /// connect to the ethereum network 
     fn connect(&self)->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>;
     fn enigma_contract(&self,web3::transports::EventLoopHandle, Web3<Http>)->Result<EnigmaContract,Error>;
     fn get_signing_address(&self)->Result<String,Error>;
+    /// after initiation, this will run the principal node and block.
     fn run(&self)->Result<(),Error>;
 }   
 
@@ -105,16 +122,28 @@ impl Sampler for PrincipalManager {
             as_service : service::AttestationService::new(&connection_str),
         }
     }
+    fn new_delegated(config_path : &str,emit : EmittParams,the_config : PrincipalConfig)->Self{
+        let config = the_config;
+        let connection_str = config.ATTESTATION_SERVICE_URL.clone();
+        PrincipalManager{
+            custom_contract_address : None,
+            config_path : config_path.to_string(),
+            config : config,
+            emitt_params : emit,
+            as_service : service::AttestationService::new(&connection_str),
+        }
+    }
     fn get_contract_address(&self)->String{
 
-        match self.custom_contract_address.unwrap(){
-
-            a => w3utils::address_to_string_addr(&a),
-            _ => self.config.ENIGMA_CONTRACT_ADDRESS.clone(),
+        if self.custom_contract_address.is_none(){
+            return self.config.ENIGMA_CONTRACT_ADDRESS.clone();
+        }else{
+            let addr =  self.custom_contract_address.unwrap();
+            return w3utils::address_to_string_addr(&addr);
         }
-
     }
     fn get_quote(&self)->Result<String,Error>{
+
         let eid = self.emitt_params.eid;
          match esgx::equote::produce_quote(eid, &self.config.SPID){
              Ok(quote) =>{
@@ -173,45 +202,9 @@ impl Sampler for PrincipalManager {
         let epoch_size = self.config.EPOCH_SIZE;
         let eid = self.emitt_params.eid;
         let gas_limit = gas_limit.clone();
-        enigma_contract.watch_blocks(epoch_size, polling_interval, eid, gas_limit);
+        enigma_contract.watch_blocks(epoch_size, polling_interval, eid, gas_limit,self.emitt_params.max_epochs);
         Ok(())
     }
-}
-
-pub fn run_miner(){
-    let child = thread::spawn(move || {
-        let url = "http://localhost:9545";
-        let deployer = String::from("627306090abab3a6e1400e9345bc60c78a8bef57");
-        deploy_scripts::forward_blocks(1,deployer, url.to_string());
-    });
-}
-pub fn run_real(eid: sgx_enclave_id_t){
-
-    // deploy contracts 
-    
-    let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
-    let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts
-    (
-        eid, 
-        deploy_config, 
-        None
-    )
-    .expect("cannot deploy Enigma,EnigmaToken");
-    
-    // run block simulation 
-    
-    run_miner();
-    
-    thread::sleep(time::Duration::from_secs(3));
-    
-    // run principal 
-    
-    let mut params : EmittParams = EmittParams{ eid : eid, 
-        gas_limit : String::from("5999999"), 
-        ..Default::default()};
-
-    let principal = PrincipalManager::new("../app/src/boot_network/config.json",params, Some(enigma_contract.address()));
-    principal.run().unwrap();
 }
 
 pub fn run(eid: sgx_enclave_id_t){
@@ -225,40 +218,120 @@ pub fn run(eid: sgx_enclave_id_t){
 
 //////////////////////// TESTS  /////////////////////////////////////////
 
-//  #[cfg(test)]  
-//  mod test {
- 
-//     fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
-//         let uri = "http://localhost:8545";
-//         let (eloop,w3) = w3utils::connect(uri).unwrap();
-//         let accounts = w3.eth().accounts().wait().unwrap();
-//         (eloop,w3, accounts)
-//     }
+#[cfg(test)]  
+ mod test {
+    use super::*;
+    use boot_network::principal_manager;
+    use boot_network::principal_manager::*;
+    use web3_utils;
+    use web3_utils::w3utils;
+    use web3_utils::deploy_scripts;
+    use web3::types::{Log,H256};
+    use esgx::general::init_enclave;
+    
+    fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
+        let uri = "http://localhost:8545";
+        let (eloop,w3) = w3utils::connect(uri).unwrap();
+        let accounts = w3.eth().accounts().wait().unwrap();
+        (eloop,w3, accounts)
+    }
+    pub fn run_miner(accounts : &Vec<Address> ){
+        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
+        let child = thread::spawn(move || {
+            let url = "http://localhost:8545";
+            deploy_scripts::forward_blocks(1,deployer, url.to_string());
+        });
+    }
+    pub fn filter_random(contract_addr : Option<String>, url : String , event_name : String)->Result<Vec<Log>,Error>{
+        let logs = w3utils::filter_blocks(contract_addr,event_name, url).unwrap();
+        Ok(logs)
+    }
+    #[test]
+    //#[ignore]
+    fn test_full_principal_logic(){
+                // init enclave 
+        
+        let enclave = match init_enclave() {
+            Ok(r) => {
+                println!("[+] Init Enclave Successful {}!", r.geteid());
+                r
+            },
+            Err(x) => {
+                println!("[-] Init Enclave Failed {}!", x.as_str());
+                assert_eq!(0,1);
+                return;
+            },
+        };
 
-//     #[test]
-//     #[ignore]
-//     fn test_deploy_enigma_contract_environment(){
-//         // init enclave 
-//         let enclave = match init_enclave() {
-//             Ok(r) => {
-//                 println!("[+] Init Enclave Successful {}!", r.geteid());
-//                 r
-//             },
-//             Err(x) => {
-//                 println!("[-] Init Enclave Failed {}!", x.as_str());
-//                 assert_eq!(0,1);
-//                 return;
-//             },
-//         };
-//         let (eloop,w3,accounts) = connect();
-//         // 
-//         let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
-//         let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts
-//         (
-//             eid, 
-//             deploy_config, 
-//             None
-//         )
-//         .expect("cannot deploy Enigma,EnigmaToken");
-//         }
-//  }
+        let eid = enclave.geteid();
+        let (eloop,w3,accounts) = connect();
+        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
+        // load the config 
+        let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
+        let mut config = deploy_scripts::load_config(deploy_config);
+        // modify to dynamic address
+        config.set_accounts_address(deployer);
+        // deploy all contracts. (Enigma & EnigmaToken)
+        let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
+        (
+            eid, 
+            config, 
+            None
+        )
+        .expect("cannot deploy Enigma,EnigmaToken");
+
+        // run simulated miner 
+        run_miner(&accounts);
+
+        // build the config 
+
+        let mut params : EmittParams = EmittParams{ 
+            eid : eid, 
+            gas_limit : String::from("5999999"),
+            max_epochs : Some(5), 
+            ..Default::default()
+        };
+        
+        let principal_config = "../app/tests/principal_node/contracts/principal_test_config.json";
+        let mut the_config = PrincipalManager::load_config(principal_config);
+        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
+        let contract_addr : String = w3utils::address_to_string_addr(&enigma_contract.address());
+        the_config.set_accounts_address(deployer);
+        the_config.set_enigma_contract_address(contract_addr.clone());
+
+        let url = the_config.URL.clone();
+        // run event filter in the background 
+        
+        let event_name : String =  String::from("WorkersParameterized(uint256,address[],bool)");
+        let child = thread::spawn(move || {
+            
+            let mut counter = 0;
+            
+            loop{   
+                counter +=1;
+                let logs = filter_random(Some(contract_addr.clone()), url.clone(), event_name.clone()).expect("err filtering random"); 
+                // the test: if events recieved >2 (more than 2 emitts of random)
+                // assert topic (keccack(event_name))
+                if logs.len() > 2 {
+                    for (idx, log) in logs.iter().enumerate(){
+                        let expected_topic = w3utils::to_keccak256(event_name.clone().into_bytes());
+                        assert!(log.topics[0].contains(&H256::from_slice(&expected_topic)));
+                    }
+                    break;
+                }
+                thread::sleep(time::Duration::from_secs(1));
+
+                if counter > 15 {
+                    println!("more than 15 seconds without events" );
+                    assert!(false);
+                    break;
+                }
+            }
+        });
+
+        // run principal 
+        let principal = PrincipalManager::new_delegated(principal_config, params, the_config);
+        principal.run().unwrap();
+    }
+
+ }

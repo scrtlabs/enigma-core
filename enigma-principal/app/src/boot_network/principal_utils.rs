@@ -32,13 +32,14 @@ pub struct EmittParams{
     pub  abi : String, 
     pub  gas_limit: String,
     pub  abi_path : String,
+    pub max_epochs : Option<usize>,
 }
 
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
      fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str,url: &str) -> Self;
      fn set_worker_params(&self,eid: sgx_enclave_id_t, gas_limit : String)->Result<(),Error>;
-     fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : String);
+     fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : String,max_epochs : Option<usize>);
 }
 
 
@@ -79,10 +80,11 @@ impl Principal for EnigmaContract {
         Ok(())
     }
 
-    fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : String){
+    fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : String, max_epochs : Option<usize>){
         
         let prev_epoch = Arc::new(AtomicUsize::new(0));
-
+        let MAX_EPOCHS = max_epochs.unwrap_or(0);
+        let mut epoch_counter = 0;
         loop {
             //params 
             let url = self.url.clone();
@@ -114,7 +116,8 @@ impl Principal for EnigmaContract {
                                 account : account.clone(), 
                                 abi : abi.clone(),
                                 gas_limit : gas_limit.clone(),
-                                abi_path : abi_path.clone()
+                                abi_path : abi_path.clone(),
+                                max_epochs : None
                             };
 
                             match emitter_builder(params).set_worker_params(eid,gas_limit){
@@ -133,6 +136,11 @@ impl Principal for EnigmaContract {
 
             self.eloop.remote().spawn(|_| future);
             thread::sleep(time::Duration::from_secs(polling_interval));
+            epoch_counter+=1;
+            if MAX_EPOCHS != 0 && epoch_counter == MAX_EPOCHS{
+                println!("[+] Principal: reached MAX_EPOCHS {} , stopping.",MAX_EPOCHS );
+                break;
+            }
         }
     }
 }
