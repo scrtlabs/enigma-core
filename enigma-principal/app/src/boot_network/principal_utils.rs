@@ -41,22 +41,6 @@ pub trait Principal {
      fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : String,max_epochs : Option<usize>);
 }
 
-
-// impl Clone for EnigmaContract {
-//     fn clone(&self) -> EnigmaContract {
-//          let (eloop, w3) =  EnigmaContract::connect(self.url.as_str());
-//          let enigma_contract : EnigmaContract = Principal::new(
-//             w3,
-//             eloop, 
-//             self.address_str.as_str(), 
-//             self.abi_path.as_str(), 
-//             self.account_str.as_str(),
-//             self.url.as_str(),
-//         );
-//          enigma_contract
-//     }
-// }
-
 impl Principal for EnigmaContract {
     fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str,url: &str) -> Self{
         Self::new(web3,eloop,address,path,account,url)

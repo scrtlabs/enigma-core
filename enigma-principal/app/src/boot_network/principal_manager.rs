@@ -231,7 +231,6 @@ impl Sampler for PrincipalManager {
     use super::*;
     use boot_network::principal_manager;
     use boot_network::principal_manager::*;
-    use web3_utils;
     use enigma_tools_u::web3_utils::w3utils;
     use boot_network::deploy_scripts;
     use web3::types::{Log,H256};
