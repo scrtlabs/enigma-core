@@ -14,9 +14,8 @@ use esgx::equote;
 use cli;
 
 
-
 pub fn start(eid : sgx_enclave_id_t){
-    
+
     let opt = cli::options::Opt::from_args();
     let config = opt.deploy_config.as_str();
     let principal_config = opt.principal_config.as_str();

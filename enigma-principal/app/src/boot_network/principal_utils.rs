@@ -52,7 +52,7 @@ impl Principal for EnigmaContract {
         // get seed,signature
         let (rand_seed, sig) = random_u::get_signed_random(eid);
         let the_seed : U256 = U256::from_big_endian(&rand_seed);
-        
+        yellow!("[---\u{25B6} seed: {} \u{25C0}---]\n",the_seed );
         // set gas options for the tx 
         let mut options = Options::default();
         let mut gas : U256 = U256::from_dec_str(&gas_limit).unwrap();
@@ -90,7 +90,7 @@ impl Principal for EnigmaContract {
 
                             prev_epoch.swap(cur_block,  Ordering::Relaxed);
                             
-                            println!("emit random, current block {} - prev block {}  = {} =>  next prev {} ", cur_block, prev_block_ref ,cur_block - prev_block_ref, prev_epoch.load(Ordering::Relaxed));
+                            green!("[\u{1F50A} ] @ block {}, prev block @ {} [\u{1F50A} ]\n", cur_block, prev_block_ref);
                             
                             let params = EmittParams{
                                 eid : eid,
@@ -106,7 +106,7 @@ impl Principal for EnigmaContract {
                             match emitter_builder(params).set_worker_params(eid,gas_limit){
                                 Ok(_)=>{},
                                 Err(e)=>{
-                                    println!("[-] Error setting worker params in principale {:?}",e );
+                                    red!("[-] Error setting worker params in principale {:?}\n",e );
                                 },
                             };
                         }
@@ -121,7 +121,7 @@ impl Principal for EnigmaContract {
             thread::sleep(time::Duration::from_secs(polling_interval));
             epoch_counter+=1;
             if MAX_EPOCHS != 0 && epoch_counter == MAX_EPOCHS{
-                println!("[+] Principal: reached MAX_EPOCHS {} , stopping.",MAX_EPOCHS );
+                red!("[+] Principal: reached MAX_EPOCHS {} , stopping.\n",MAX_EPOCHS );
                 break;
             }
         }

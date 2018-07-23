@@ -54,9 +54,29 @@ pub fn run_miner(url : String ,accounts : &Vec<Address>, mining_interval : usize
     });
 }
 
+fn all_colours() {
+    black!("black ");
+    red!("red ");
+    green!("green ");
+    yellow!("yellow ");
+    blue!("blue ");
+    magenta!("magenta ");
+    cyan!("cyan ");
+    white!("white ");
+    dark_black!("dark_black ");
+    dark_red!("dark_red ");
+    dark_green!("dark_green ");
+    dark_yellow!("dark_yellow ");
+    dark_blue!("dark_blue ");
+    dark_magenta!("dark_magenta ");
+    dark_cyan!("dark_cyan ");
+    dark_white!("dark_white ");
+    prnt!("default colour\n\n");
+}
+
 pub fn print_logo(){
-println!("<>------------------------------------------<>");
-print!("
+yellow!("<>------------------------------------------<>\n");
+magenta!("
 \t╔═╗ ┌┐┌ ┬ ┌─┐ ┌┬┐ ┌─┐         
 \t║╣  │││ │ │ ┬ │││ ├─┤         
 \t╚═╝ ┘└┘ ┴ └─┘ ┴ ┴ ┴ ┴ \n        
@@ -66,21 +86,21 @@ print!("
 \t╔╗╔ ┌─┐ ┌┬┐ ┌─┐             
 \t║║║ │ │  ││ ├┤              
 \t╝╚╝ └─┘ ─┴┘ └─┘\n");
-println!("<>------------------------------------------<>");
+yellow!("<>------------------------------------------<>\n");
 }
 pub fn print_info(sign_key : &String){
     print_logo();
-    println!("<>------------------------------------------<>");
-    println!("--info                                 => Print the signing key and help.");
-    println!("--deploy                               => Optional, deploy the Enigma contract." );
-    println!("--network                              => Currently ignored, use a custom network (use config file instead)." );
-    println!("--mine <speed>                         => Optional, simulate new blocks, speed = seconds interval." );
-    println!("--time-to-live <time>                  => Optional, kill the principal node after aprox <time> seconds." );
-    println!("--deploy-config <path from current>    => Optional, if --deploy load deployment config from custom path." );
-    println!("--principal-config <path from current> => Optional, load the principal config from custom path." );
-    println!("<>------------------------------------------<>");
-    println!("Enclave Signing address                => 0x{}", sign_key);
-    println!("<>------------------------------------------<>");
+    yellow!("<>------------------------------------------<>\n");
+    green!("--info                                 => Print the signing key and help.\n");
+    green!("--deploy                               => Optional, deploy the Enigma contract.\n" );
+    green!("--network                              => Currently ignored, use a custom network (use config file instead).\n" );
+    green!("--mine <speed>                         => Optional, simulate new blocks, speed = seconds interval.\n" );
+    green!("--time-to-live <time>                  => Optional, kill the principal node after aprox <time> seconds.\n" );
+    green!("--deploy-config <path from current>    => Optional, if --deploy load deployment config from custom path.\n" );
+    green!("--principal-config <path from current> => Optional, load the principal config from custom path.\n" );
+    yellow!("<>------------------------------------------<>\n");
+    red!("Enclave Signing address                => 0x{}\n", sign_key);
+    yellow!("<>------------------------------------------<>\n");
 }
 
 

@@ -2,11 +2,17 @@
 
 <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=principal-node-isan" />
 
-* To see all of the options available once compiled cd into /bin and type
+## To see all of the options available once compiled cd into /bin and type
 ```
 $./enigma_principal_app --info
 ```
-<img src="https://image.ibb.co/i7ugUJ/cli.jpg" />
+<img src="https://image.ibb.co/nOcLry/newinfo.png" />
+
+## Running in mining simulation mode
+```
+$./enigma_principal_app --deploy --mine 1
+```
+<img src="https://image.ibb.co/hunpJd/mininig.png" />
 
 The Principal node is part of the Enigma node software stack. 
 The Principal component  is responsible for emitting random numbers from within an enclave into the Enigma contract. 

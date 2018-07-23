@@ -2,6 +2,8 @@
 extern crate structopt;
 #[macro_use]
 extern crate failure;
+#[macro_use]
+extern crate colour;
 extern crate url;
 extern crate sgx_types;
 extern crate sgx_urts;
