@@ -38,6 +38,9 @@ impl ScriptDeployConfig{
     pub fn set_accounts_address(&mut self, new_address : String){
         self.ACCOUNT_ADDRESS = new_address;
     }
+    pub fn set_ethereum_url(&mut self, new_address : String){
+        self.URL = new_address;
+    }
 }
 
 pub fn load_config(config_path : &str)->ScriptDeployConfig{
@@ -251,17 +254,26 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
     use enigma_tools_u::web3_utils::w3utils;
     use boot_network::deploy_scripts;
     use esgx::general::init_enclave;
+    use std::env;
+
+    fn get_node_url()->String{
+        let key = "NODE_URL";
+        match env::var(key) {
+            Ok(val) => val,
+            Err(e) => String::from("http://localhost:8545"),
+        }
+    }
     
     fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
-        let uri = "http://localhost:8545";
-        let (eloop,w3) = w3utils::connect(uri).unwrap();
+        let uri = get_node_url();
+        let (eloop,w3) = w3utils::connect(&uri).unwrap();
         let accounts = w3.eth().accounts().wait().unwrap();
         (eloop,w3, accounts)
     }
     pub fn run_miner(accounts : &Vec<Address> ){
         let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
         let child = thread::spawn(move || {
-            let url = "http://localhost:8545";
+            let url = get_node_url();
             deploy_scripts::forward_blocks(1,deployer, url.to_string());
         });
     }
@@ -291,6 +303,7 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
         let mut config = deploy_scripts::load_config(deploy_config);
         // modify to dynamic address
         config.set_accounts_address(deployer);
+        config.set_ethereum_url(get_node_url());
         // deploy all contracts.
         let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
         (
@@ -300,44 +313,4 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
         )
         .expect("cannot deploy Enigma,EnigmaToken");
     }
-
-    // #[test]
-    // //#[ignore]
-    // fn test_full_principal_logic(){
-    //             // init enclave 
-        
-    //     let enclave = match init_enclave() {
-    //         Ok(r) => {
-    //             println!("[+] Init Enclave Successful {}!", r.geteid());
-    //             r
-    //         },
-    //         Err(x) => {
-    //             println!("[-] Init Enclave Failed {}!", x.as_str());
-    //             assert_eq!(0,1);
-    //             return;
-    //         },
-    //     };
-
-    //     let eid = enclave.geteid();
-    //     let (eloop,w3,accounts) = connect();
-    //     let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
-    //     // load the config 
-    //     let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
-    //     let mut config = deploy_scripts::load_config(deploy_config);
-    //     // modify to dynamic address
-    //     config.set_accounts_address(deployer);
-    //     // deploy all contracts.
-    //     let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
-    //     (
-    //         eid, 
-    //         config, 
-    //         None
-    //     )
-    //     .expect("cannot deploy Enigma,EnigmaToken");
-
-    //     // run simulated miner 
-    //     run_miner(&accounts);
-
-    // }
-
  }

@@ -235,17 +235,26 @@ impl Sampler for PrincipalManager {
     use boot_network::deploy_scripts;
     use web3::types::{Log,H256};
     use esgx::general::init_enclave;
+    use std::env;
+
+    fn get_node_url()->String{
+        let key = "NODE_URL";
+        match env::var(key) {
+            Ok(val) => val,
+            Err(e) => String::from("http://localhost:8545"),
+        }
+    }
     
     fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
-        let uri = "http://localhost:8545";
-        let (eloop,w3) = w3utils::connect(uri).unwrap();
+        let uri = get_node_url();
+        let (eloop,w3) = w3utils::connect(&uri).unwrap();
         let accounts = w3.eth().accounts().wait().unwrap();
         (eloop,w3, accounts)
     }
     pub fn run_miner(accounts : &Vec<Address> ){
         let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
         let child = thread::spawn(move || {
-            let url = "http://localhost:8545";
+            let url = get_node_url();
             deploy_scripts::forward_blocks(1,deployer, url.to_string());
         });
     }
@@ -278,6 +287,7 @@ impl Sampler for PrincipalManager {
         let mut config = deploy_scripts::load_config(deploy_config);
         // modify to dynamic address
         config.set_accounts_address(deployer);
+        config.set_ethereum_url(get_node_url());
         // deploy all contracts. (Enigma & EnigmaToken)
         let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
         (
@@ -305,7 +315,7 @@ impl Sampler for PrincipalManager {
         let contract_addr : String = w3utils::address_to_string_addr(&enigma_contract.address());
         the_config.set_accounts_address(deployer);
         the_config.set_enigma_contract_address(contract_addr.clone());
-
+        the_config.set_ethereum_url(get_node_url());
         let url = the_config.URL.clone();
         // run event filter in the background 
         
