@@ -2,6 +2,10 @@
 
 <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=principal-node-isan" />
 
+* To see all of the options available once compiled cd into /bin and type
+```
+$./enigma_principal_app --info
+```
 <img src="https://image.ibb.co/i7ugUJ/cli.jpg" />
 
 The Principal node is part of the Enigma node software stack. 
