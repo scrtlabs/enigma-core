@@ -3,7 +3,9 @@ pipeline:
     image: enigmampc/enigma-core:0.0.1
     devices:
       - "/dev/isgx:/dev/isgx"
-    commands: 
+    environment:
+      - NODE_URL="http://ganache:8545"
+    commands:
       - /opt/intel/sgxpsw/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-core && RUSTFLAGS=-Awarnings make
@@ -13,4 +15,4 @@ pipeline:
 services:
   ganache:
     image: trufflesuite/ganache-cli:v6.1.6
-    ports: [ 8545 ]
+    command: ["-h", "0.0.0.0"]
