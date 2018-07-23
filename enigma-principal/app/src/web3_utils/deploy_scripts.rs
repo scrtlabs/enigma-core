@@ -248,7 +248,7 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
  mod test {
     use super::*;
     use enigma_tools_u::web3_utils;
-    use web3_utils::w3utils;
+    use enigma_tools_u::web3_utils::w3utils;
     use web3_utils::deploy_scripts;
     use esgx::general::init_enclave;
     

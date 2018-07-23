@@ -28,17 +28,18 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 // formal 
 use enigma_tools_u::web3_utils::enigma_contract;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
+use enigma_tools_u::web3_utils::w3utils;
+use web3_utils::deploy_scripts;
 use boot_network::principal_utils::Principal;
 use boot_network::principal_utils::{EmittParams};
+
 // files 
 use std::fs::File;
 use std::io::prelude::*;
 use serde_derive::*;
 use serde_json;
 use serde_json::{Value};
-// TESTING FOR W3UTILS
-use web3_utils::w3utils;
-use web3_utils::deploy_scripts;
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PrincipalConfig {
@@ -231,7 +232,7 @@ impl Sampler for PrincipalManager {
     use boot_network::principal_manager;
     use boot_network::principal_manager::*;
     use web3_utils;
-    use web3_utils::w3utils;
+    use enigma_tools_u::web3_utils::w3utils;
     use web3_utils::deploy_scripts;
     use web3::types::{Log,H256};
     use esgx::general::init_enclave;

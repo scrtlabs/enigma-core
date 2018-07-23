@@ -17,8 +17,8 @@ use web3::types::{Address, U256, Bytes};
 use web3::transports::Http;
 // enigma modules 
 use esgx::random_u;
-use enigma_tools_u::enigma_contract;
-use enigma_tools_u::enigma_contract::{EnigmaContract};
+use enigma_tools_u::web3_utils::enigma_contract;
+use enigma_tools_u::web3_utils::enigma_contract::{EnigmaContract};
 use enigma_tools_u::attestation_service::service;
 
 // this struct holds parameters nessceary for emitting the random 
@@ -42,20 +42,20 @@ pub trait Principal {
 }
 
 
-impl Clone for EnigmaContract {
-    fn clone(&self) -> EnigmaContract {
-         let (eloop, w3) =  EnigmaContract::connect(self.url.as_str());
-         let enigma_contract : EnigmaContract = Principal::new(
-            w3,
-            eloop, 
-            self.address_str.as_str(), 
-            self.abi_path.as_str(), 
-            self.account_str.as_str(),
-            self.url.as_str(),
-        );
-         enigma_contract
-    }
-}
+// impl Clone for EnigmaContract {
+//     fn clone(&self) -> EnigmaContract {
+//          let (eloop, w3) =  EnigmaContract::connect(self.url.as_str());
+//          let enigma_contract : EnigmaContract = Principal::new(
+//             w3,
+//             eloop, 
+//             self.address_str.as_str(), 
+//             self.abi_path.as_str(), 
+//             self.account_str.as_str(),
+//             self.url.as_str(),
+//         );
+//          enigma_contract
+//     }
+// }
 
 impl Principal for EnigmaContract {
     fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str,url: &str) -> Self{
