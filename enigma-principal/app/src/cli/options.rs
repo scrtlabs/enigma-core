@@ -3,7 +3,7 @@ use url::{Url};
 use std::path::PathBuf;
 use structopt::StructOpt;
 use web3::types::{Address, U256, Bytes,Log};
-use web3_utils::deploy_scripts;
+use boot_network::deploy_scripts;
 use enigma_tools_u::web3_utils::w3utils;
 use std::thread;
 

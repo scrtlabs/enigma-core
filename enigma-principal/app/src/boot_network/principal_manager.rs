@@ -29,7 +29,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use enigma_tools_u::web3_utils::enigma_contract;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use enigma_tools_u::web3_utils::w3utils;
-use web3_utils::deploy_scripts;
+use boot_network::deploy_scripts;
 use boot_network::principal_utils::Principal;
 use boot_network::principal_utils::{EmittParams};
 
@@ -233,7 +233,7 @@ impl Sampler for PrincipalManager {
     use boot_network::principal_manager::*;
     use web3_utils;
     use enigma_tools_u::web3_utils::w3utils;
-    use web3_utils::deploy_scripts;
+    use boot_network::deploy_scripts;
     use web3::types::{Log,H256};
     use esgx::general::init_enclave;
     

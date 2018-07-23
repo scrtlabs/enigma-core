@@ -30,7 +30,7 @@ use std::thread;
 pub use esgx::general::ocall_get_home;
 use boot_network::principal_utils::EmittParams;
 use boot_network::principal_manager::{PrincipalConfig,Sampler,PrincipalManager};
-use web3_utils::deploy_scripts;
+use boot_network::deploy_scripts;
 use enigma_tools_u::web3_utils::w3utils;
 use boot_network::principal_manager;
 use esgx::equote;
@@ -45,7 +45,7 @@ fn cli(eid : sgx_enclave_id_t){
     match opt.info {
         // show info only
         true =>{
-            let sign_key = web3_utils::deploy_scripts::get_signing_address(eid).expect("cannot load signing key");
+            let sign_key = deploy_scripts::get_signing_address(eid).expect("cannot load signing key");
             cli::options::print_info(&sign_key);
         },
         // run the node 
