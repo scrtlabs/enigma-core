@@ -54,10 +54,9 @@ pub fn run_miner(url : String ,accounts : &Vec<Address>, mining_interval : usize
     });
 }
 
-
-pub fn print_info(sign_key : &String){
-    println!("<>------------------------------------------<>");
-    print!("
+pub fn print_logo(){
+println!("<>------------------------------------------<>");
+print!("
 \t╔═╗ ┌┐┌ ┬ ┌─┐ ┌┬┐ ┌─┐         
 \t║╣  │││ │ │ ┬ │││ ├─┤         
 \t╚═╝ ┘└┘ ┴ └─┘ ┴ ┴ ┴ ┴ \n        
@@ -67,6 +66,10 @@ pub fn print_info(sign_key : &String){
 \t╔╗╔ ┌─┐ ┌┬┐ ┌─┐             
 \t║║║ │ │  ││ ├┤              
 \t╝╚╝ └─┘ ─┴┘ └─┘\n");
+println!("<>------------------------------------------<>");
+}
+pub fn print_info(sign_key : &String){
+    print_logo();
     println!("<>------------------------------------------<>");
     println!("--info                                 => Print the signing key and help.");
     println!("--deploy                               => Optional, deploy the Enigma contract." );

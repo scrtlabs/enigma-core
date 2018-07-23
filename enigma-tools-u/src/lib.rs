@@ -15,6 +15,9 @@ extern crate rustc_hex;
 extern crate tiny_keccak;
 // enigma contract 
 extern crate sgx_types;
+// esgx 
+extern crate sgx_urts;
+extern crate base64;
 
 pub mod attestation_service;
 pub mod common_u;

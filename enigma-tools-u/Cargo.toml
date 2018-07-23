@@ -17,7 +17,13 @@ web3 = { git = 'https://github.com/tomusdrw/rust-web3.git' }
 libc = "0.2.41"
 rustc-hex = "1.0.0"
 tiny-keccak = "1.4.2"
+base64 = "0.9.1"
 # enigma contract 
 [dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
+# esgx
+[dependencies.sgx_urts]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+

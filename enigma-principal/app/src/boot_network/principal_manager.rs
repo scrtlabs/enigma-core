@@ -327,9 +327,9 @@ impl Sampler for PrincipalManager {
                     break;
                 }
                 thread::sleep(time::Duration::from_secs(1));
-
-                if counter > 15 {
-                    println!("more than {} seconds without events" ,15);
+                let max_time = 30;
+                if counter > max_time {
+                    println!("more than {} seconds without events" ,max_time);
                     assert!(false);
                     break;
                 }
