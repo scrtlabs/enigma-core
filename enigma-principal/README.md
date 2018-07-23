@@ -34,7 +34,22 @@ cd enigma-core/enigma-principal
 make JOBS=8
 ```
 
- 
+## Principal Node Modes 
+
+### For more info check the screenshot above.
+
+* Deploy the Enigma/Token contract from scratch 
+```
+$./enigma_principal_app --deploy 
+```
+* Connect to deployed Enigma contract.
+```
+$./enigma_principal_app
+```
+* Run mining simulation in the background to move blocks forward in time (can be combined in any situation).
+```
+$./enigma_principal_app --mine <mining interval in seconds>
+```
 ### Run the tests (inside Docker)
 
 * The CI is running an Ethereum network locally.
