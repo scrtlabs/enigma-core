@@ -259,7 +259,10 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
     fn get_node_url()->String{
         let key = "NODE_URL";
         match env::var(key) {
-            Ok(val) => val,
+            Ok(val) => {
+                println!("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@2 returning shit {}",val );
+                val
+            },
             Err(e) => String::from("http://localhost:8545"),
         }
     }
