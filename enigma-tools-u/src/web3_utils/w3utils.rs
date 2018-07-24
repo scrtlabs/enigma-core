@@ -1,6 +1,6 @@
 // general 
 use failure::Error;
-use rustc_hex::FromHex;
+use hex::FromHex;
 use std::time;
 use std::thread;
 use std::str;

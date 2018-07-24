@@ -11,13 +11,14 @@ extern crate rlp;
 // webv3 utils 
 extern crate web3;
 extern crate libc;
-extern crate rustc_hex;
 extern crate tiny_keccak;
 // enigma contract 
 extern crate sgx_types;
 // esgx 
 extern crate sgx_urts;
 extern crate base64;
+extern crate openssl;
+extern crate rustc_hex as hex;
 
 pub mod attestation_service;
 pub mod common_u;

@@ -11,7 +11,7 @@ use web3::contract::{Contract, Options};
 use web3::types::{Address, U256, Bytes};
 use web3::transports::Http;
 use web3::Web3;
-use rustc_hex::FromHex;
+use hex::FromHex;
 use std::fs::File;
 use std::io::prelude::*;
 use serde_json;
