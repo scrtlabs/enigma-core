@@ -1,18 +1,36 @@
 pipeline:
-  build:
+  core:
+    group: tests
     image: enigmampc/enigma-core:0.0.1
     devices:
       - "/dev/isgx:/dev/isgx"
-    environment:
-      - NODE_URL="http://ganache:8545"
     commands:
       - /opt/intel/sgxpsw/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-core && RUSTFLAGS=-Awarnings make
       - cd app && cargo test
-      - cd ../../enigma-principal && RUSTFLAGS=-Awarnings make
+
+  principal:
+    group: tests
+    image: enigmampc/enigma-core:0.0.1
+    devices:
+      - "/dev/isgx:/dev/isgx"
+    commands:
       - export NODE_URL="http://ganache:8545"
-      - cd app && RUST_BACKTRACE=1 RUSTFLAGS=-Awarnings cargo test -- --nocapture
+      - /opt/intel/sgxpsw/aesm/aesm_service
+      - . /opt/sgxsdk/environment && . /root/.cargo/env
+      - cd enigma-principal && RUSTFLAGS=-Awarnings make
+      - cd app && cargo test
+
+  tools_u:
+    group: tests
+    image: enigmampc/enigma-core:0.0.1
+    commands:
+      - . /root/.cargo/env
+      - export NODE_URL="http://ganache:8545"
+      - cd enigma-tools-u
+      - cargo test
+
 services:
   ganache:
     image: trufflesuite/ganache-cli:v6.1.6
