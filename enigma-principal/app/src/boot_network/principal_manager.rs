@@ -237,12 +237,8 @@ impl Sampler for PrincipalManager {
     use esgx::general::init_enclave;
     use std::env;
 
-    fn get_node_url()->String{
-        let key = "NODE_URL";
-        match env::var(key) {
-            Ok(val) => val,
-            Err(e) => String::from("http://localhost:8545"),
-        }
+    fn get_node_url()-> String {
+        env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string())
     }
     
     fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
@@ -255,7 +251,7 @@ impl Sampler for PrincipalManager {
         let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
         let child = thread::spawn(move || {
             let url = get_node_url();
-            deploy_scripts::forward_blocks(1,deployer, url.to_string());
+            deploy_scripts::forward_blocks(1,deployer, url);
         });
     }
     pub fn filter_random(contract_addr : Option<String>, url : String , event_name : String)->Result<Vec<Log>,Error>{
