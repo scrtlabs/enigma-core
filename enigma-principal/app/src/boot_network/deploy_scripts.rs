@@ -129,7 +129,7 @@ pub fn deploy_base_contracts(eid : sgx_enclave_id_t,
     .expect("cannot deploy enigma token.");    
 
     // deploy the enigma contract
-    let token_addr = token_contract.address();//.to_string();
+    let token_addr = token_contract.address();
     let signer_addr = get_signing_address(eid).expect("cannot get signer address from sgx");
     let enigma_contract = deploy_enigma_contract
     (
@@ -241,8 +241,12 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
         let mut options = Options::default();
         let mut gas : U256 = U256::from_dec_str(&gas_limit).unwrap();
         options.gas = Some(gas);
-        contract.call("mine",(),deployer,options ).wait().unwrap();
-        println!("new block mined..." );
+        //contract.call("mine",(),deployer,options ).wait().expect("error calling mine on miner.");
+        let res =  contract.call("mine",(),deployer,options ).wait();
+        match res  {
+            Ok(res) => println!("\u{2692}" ),
+            Err(e) => println!("[-] error mining block =>{:?}",e),
+        };
         thread::sleep(time::Duration::from_secs(interval));
     }
 }
@@ -256,7 +260,11 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
     use esgx::general::init_enclave;
     use std::env;
 
-
+    /// This function is important to enable testing both on the CI server and local. 
+    /// On the CI Side: 
+    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there. 
+    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+    /// The default is set to ganache cli "http://localhost:8545"
     fn get_node_url()-> String {
         env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string())
     }

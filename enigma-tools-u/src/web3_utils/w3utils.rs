@@ -257,14 +257,16 @@ pub fn filter_blocks(contract_addr : Option<String> ,event_name : String ,url : 
     use super::*;
     use web3_utils::w3utils;
     use std::env;
-
+    
+    /// This function is important to enable testing both on the CI server and local. 
+    /// On the CI Side: 
+    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there. 
+    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+    /// The default is set to ganache cli "http://localhost:8545"
     fn get_node_url()-> String {
         env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string())
     }
     // helper: given a contract name return the bytecode and the abi 
-    ///home/wildermind/rust-sgx/enigma-core/enigma-tools-u/src/tests/web3_tests/contracts/Dummy.json
-    /// /root/enigma-core/enigma-tools-u/src/tests/web3_tests/contracts
-    /// //../../tests/web3_tests/contracts/Dummy.json
     fn get_contract(ctype : &String)->(String,String){
 
         let path = env::current_dir().unwrap();

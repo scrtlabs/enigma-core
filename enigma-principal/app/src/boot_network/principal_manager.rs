@@ -237,6 +237,11 @@ impl Sampler for PrincipalManager {
     use esgx::general::init_enclave;
     use std::env;
 
+    /// This function is important to enable testing both on the CI server and local. 
+    /// On the CI Side: 
+    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there. 
+    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+    /// The default is set to ganache cli "http://localhost:8545"
     fn get_node_url()-> String {
         env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string())
     }
@@ -247,6 +252,7 @@ impl Sampler for PrincipalManager {
         let accounts = w3.eth().accounts().wait().unwrap();
         (eloop,w3, accounts)
     }
+    /// Helper method to start 'miner' that simulates blocks. 
     pub fn run_miner(accounts : &Vec<Address> ){
         let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
         let child = thread::spawn(move || {
@@ -254,10 +260,19 @@ impl Sampler for PrincipalManager {
             deploy_scripts::forward_blocks(1,deployer, url);
         });
     }
+    /// helps in assertion to check if a random event was indeed broadcast.
     pub fn filter_random(contract_addr : Option<String>, url : String , event_name : String)->Result<Vec<Log>,Error>{
         let logs = w3utils::filter_blocks(contract_addr,event_name, url)?;
         Ok(logs)
     }
+    /// This test is more like a system-test than a unit-test. 
+    /// It is only dependent on an ethereum node running under the NODE_URL evn var or the default localhost:8545
+    /// First it deploys all the contracts related (EnigmaToken, Enigma) and runs miner to simulate blocks. 
+    /// Second, it spawns a background thread to poll for events and searchses for the WorkersParameterized event. 
+    /// Then, the principal register (full process including quote) and then,
+    ///  starts watching blocks and emits random with WorkersParameterized event.
+    /// The testing is looking for atleast 2 emmits of the WorkersParameterized event and compares the event triggerd 
+    /// If the event name is different or if it takes more than 30 seconds then the test will fail.
     #[test]
     //#[ignore]
     fn test_full_principal_logic(){
