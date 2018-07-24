@@ -55,11 +55,11 @@ impl Principal for EnigmaContract {
         println!("[---\u{25B6} seed: {} \u{25C0}---]",the_seed );
         // set gas options for the tx 
         let mut options = Options::default();
-        let mut gas : U256 = U256::from_dec_str(&gas_limit)?;
+        let mut gas : U256 = U256::from_dec_str(&gas_limit).unwrap();
         options.gas = Some(gas);
         
         // set random seed 
-        self.contract.call("setWorkersParams",(the_seed,sig.to_vec()),self.account,options ).wait()?;
+        self.contract.call("setWorkersParams",(the_seed,sig.to_vec()),self.account,options ).wait().unwrap();
         Ok(())
     }
 

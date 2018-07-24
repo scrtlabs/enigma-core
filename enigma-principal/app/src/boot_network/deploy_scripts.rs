@@ -224,7 +224,7 @@ fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &String)->Result<Contract<Htt
             poll_interval,
             confirmations);
     // deploy
-    let contract = w3utils::deploy_contract(&w3, tx,()).?;
+    let contract = w3utils::deploy_contract(&w3, tx,())?;
     Ok(contract)
 }
 
