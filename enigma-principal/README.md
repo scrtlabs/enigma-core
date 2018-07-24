@@ -1,5 +1,9 @@
 # Enigma Principal Node
 
+The Principal node is part of the Enigma node software stack. 
+The Principal component  is responsible for emitting random numbers from within an enclave into the Enigma contract. 
+Currently it is a centralized to maintain simplicity while testing and developing Core.
+
 <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=principal-node-isan" />
 
 ## To see all of the options available once compiled cd into /bin and type
@@ -10,13 +14,64 @@ $./enigma_principal_app --info
 
 ## Running in mining simulation mode
 ```
-$./enigma_principal_app --deploy --mine 1
+$./enigma_principal_app --deploy --mine <number: create blocks rate/seconds>
 ```
 <img src="https://image.ibb.co/hunpJd/mininig.png" />
 
-The Principal node is part of the Enigma node software stack. 
-The Principal component  is responsible for emitting random numbers from within an enclave into the Enigma contract. 
-Currently it is a centralized to maintain simplicity while testing and developing Core.
+## Configuration
+
+* Must have an ethereum network on like ganache. 
+
+All of the parameters can be configured programatically, with flags passed to the binary app or with config file. 
+There are generally 2 types of configuration files and 1 important feature - **mining simulation**. 
+
+### Principal Logic configuration 
+
+Responsible for all the logic of the app (i.e epoch size, polling interval etc.)
+
+* Default location (enigma-principal/app/tests/principal_node/contracts/principal_test_config.json")
+
+* The path parameter can be changed using the flag (use relative path to aboid docker/os conflicts)
+
+```
+--principal-config /some/path/some_config.json
+```
+### Deployment configuration - NOT for production
+
+The Principal Logic has to connect to the Enigma contract, In order to have this we must also implement the EnigmaToken contract.
+The Principal Node can connect to an existing environment or to deploy everything by itself. 
+
+* Default location (enigma-principal/app/tests/principal_node/contracts/deploy_config.json")
+
+* To run the principal node with a time limit in seconds use the flag 
+
+```
+--time-to-live <number>
+```
+
+* To run the Pricipal in deploy mode add the flag 
+
+```
+--deploy
+```
+
+* The path parameter can be changed using the flag (use relative path to aboid docker/os conflicts)
+
+```
+--deploy-config /some/path/some_config.json
+```
+
+### Mining Simulation mode
+
+The idea is that the principal node publishes a random number to the Enigma smart contract every X blocks (i.e epochs). 
+If running a private network like ganache we need a way to simulate mining of blocks and control the rate. 
+The mining mode will submit a new blocks as defined to the network and it does not depend on whether the contracts were deployed by this app or not. 
+
+* To run the mining simulation and create a new block every 2 seconds one should type: 
+
+``` 
+--mine 2
+```
 
 ## Getting Started (With the Enigma Docker)
 
@@ -83,7 +138,7 @@ cd root/enigma-core/enigma-principal/bin
 
 ## Versioning
 
-TBD 
+0.1
 
 ## Troubleshooting
 
