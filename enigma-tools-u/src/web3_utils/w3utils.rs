@@ -250,106 +250,116 @@ pub fn filter_blocks(contract_addr : Option<String> ,event_name : String ,url : 
 //////////////////////// TESTS  /////////////////////////////////////////
 
 
-//  #[cfg(test)]  
-//  mod test {
-//     use web3_utils;
-//     use enigma_tools_u::web3_utils::w3utils;
-//     use std::collections::HashMap;
-//     use super::*;
-    
-//     // helper: given a contract name return the bytecode and the abi 
-//     fn get_contract(ctype : &String)->(String,String){
-//         let EnigmaToken = "../app/tests/principal_node/contracts/EnigmaToken.json";
-//         let Enigma = "../app/tests/principal_node/contracts/Enigma.json";
-//         let Dummy =  "../app/tests/principal_node/contracts/Dummy.json";
+ #[cfg(test)]  
+ mod test {
+    use web3_utils;
+    use std::collections::HashMap;
+    use super::*;
+    use web3_utils::w3utils;
+    use std::env;
 
-//         let to_load = match ctype.as_ref() {
-//             "EnigmaToken" => {
-//                 EnigmaToken
-//             },
-//             "Enigma"=> {
-//                 Enigma
-//             },
-//             "Dummy"=> {
-//                 Dummy
-//             },
-//             _ => {
-//                 ""
-//             }
-//         };
-//         assert_ne!(to_load,"" , "wrong contract type");
+    fn get_node_url()-> String {
+        env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string())
+    }
+    // helper: given a contract name return the bytecode and the abi 
+    ///home/wildermind/rust-sgx/enigma-core/enigma-tools-u/src/tests/web3_tests/contracts/Dummy.json
+    /// /root/enigma-core/enigma-tools-u/src/tests/web3_tests/contracts
+    /// //../../tests/web3_tests/contracts/Dummy.json
+    fn get_contract(ctype : &String)->(String,String){
 
-//         let (abi,bytecode) = w3utils::load_contract_abi_bytecode(to_load).unwrap();
-//         (abi,bytecode)
-//     }
-//     // helper to quickly mock params for deployment of a contract to generate DeployParams 
-//     fn get_deploy_params(accounts : &Vec<Address>,ctype : &str)->w3utils::DeployParams{
-//         let deployer = w3utils::address_to_string_addr(&accounts[0]);
-//         let gas_limit = "5999999";
-//         let poll_interval : u64 = 1;
-//         let confirmations : usize = 0;
-//         let (abi,bytecode) = get_contract(&ctype.to_string());
+        let path = env::current_dir().unwrap();
+        println!("The current directory is {}", path.display());
 
-//         w3utils::DeployParams::new(
-//             deployer.to_string(),
-//             abi,bytecode,
-//             gas_limit.to_string(),
-//             poll_interval,
-//             confirmations)
-//     }
-//     // helper connect to web3 
-//     fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
-//         let uri = "http://localhost:8545";
-//         let (eloop,w3) = w3utils::connect(uri).unwrap();
-//         let accounts = w3.eth().accounts().wait().unwrap();
-//         (eloop,w3, accounts)
-//     }
-//     // helper deploy a dummy contract and return the contract instance
-//     fn deploy_dummy(w3 : &Web3<Http>, accounts : &Vec<Address>)->Contract<Http>{
+        let EnigmaToken = "./src/tests/web3_tests/contracts/EnigmaToken.json";
+        let Enigma = "./src/tests/web3_tests/contracts/Enigma.json";
+        let Dummy =  "./src/tests/web3_tests/contracts/Dummy.json";
+
+        let to_load = match ctype.as_ref() {
+            "EnigmaToken" => {
+                EnigmaToken
+            },
+            "Enigma"=> {
+                Enigma
+            },
+            "Dummy"=> {
+                Dummy
+            },
+            _ => {
+                ""
+            }
+        };
+        assert_ne!(to_load,"" , "wrong contract type");
+
+        let (abi,bytecode) = w3utils::load_contract_abi_bytecode(to_load).unwrap();
+        (abi,bytecode)
+    }
+    // helper to quickly mock params for deployment of a contract to generate DeployParams 
+    fn get_deploy_params(accounts : &Vec<Address>,ctype : &str)->w3utils::DeployParams{
+        let deployer = w3utils::address_to_string_addr(&accounts[0]);
+        let gas_limit = "5999999";
+        let poll_interval : u64 = 1;
+        let confirmations : usize = 0;
+        let (abi,bytecode) = get_contract(&ctype.to_string());
+        w3utils::DeployParams::new(
+            deployer.to_string(),
+            abi,bytecode,
+            gas_limit.to_string(),
+            poll_interval,
+            confirmations)
+    }
+    // helper connect to web3 
+    fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
+        let uri = get_node_url();
+        let (eloop,w3) = w3utils::connect(&uri).unwrap();
+        let accounts = w3.eth().accounts().wait().unwrap();
+        (eloop,w3, accounts)
+    }
+    // helper deploy a dummy contract and return the contract instance
+    fn deploy_dummy(w3 : &Web3<Http>, accounts : &Vec<Address>)->Contract<Http>{
         
-//         let tx = get_deploy_params(accounts,"Dummy");
-//         let contract = w3utils::deploy_contract(&w3, tx,()).unwrap();
-//         contract
-//     }
-//     #[test] 
-//     #[ignore]
-//     fn test_deploy_dummy_contract(){
-//         let (eloop,w3,accounts) = connect();
-//         let contract = deploy_dummy(&w3,&accounts);
-//         // validate deployment 
-//         // mine func add to a uint256=0 1 and returns it's value 
-//         let result = contract.query("mine", (), None, Options::default(), None);
-//         let param : U256 = result.wait().unwrap();
-//         assert_eq!(param.as_u64(), 1);
+        let tx = get_deploy_params(accounts,"Dummy");
+        let contract = w3utils::deploy_contract(&w3, tx,()).unwrap();
+        contract
+    }
+    #[test] 
+    //#[ignore]
+    fn test_deploy_dummy_contract(){
+        let (eloop,w3,accounts) = connect();
+        let contract = deploy_dummy(&w3,&accounts);
+        // validate deployment 
+        // mine func add to a uint256=0 1 and returns it's value 
+        let result = contract.query("mine", (), None, Options::default(), None);
+        let param : U256 = result.wait().unwrap();
+        assert_eq!(param.as_u64(), 1);
 
-//     }
-//      #[test]
-//      #[ignore]
-//      fn test_deploy_enigma_contract(){ 
-//         // 1) generate ctor input 
-//         // the enigma contract requires 2 addresses in the constructor 
-//         let account = String::from("627306090abab3a6e1400e9345bc60c78a8bef57");
-//         let fake_input: Address = account.parse().expect("unable to parse account address");
-//         let fake_input = (fake_input,fake_input);
-//         // 2) connect to ethereum network 
-//         let (eloop,w3,accounts) = connect();
-//         // 3) get mock of the deploy params 
-//         let tx = get_deploy_params(&accounts,"Enigma");
-//         // 4) deploy the contract
-//         w3utils::deploy_contract(&w3, tx,fake_input).unwrap();
-//      }
-//      #[test]
-//      #[ignore]
-//      fn test_deployed_contract(){
-//          // deploy the dummy contract 
-//          let (eloop,w3,accounts) = connect();
-//          let contract = deploy_dummy(&w3,&accounts);
-//          // the deployed contract address
-//          let address = contract.address();
-//          let (abi,bytecode) = get_contract(&String::from("Dummy"));
-//          let contract = w3utils::deployed_contract(&w3, address , &abi).unwrap();
-//          let result = contract.query("mine", (), None, Options::default(), None);
-//          let param : U256 = result.wait().unwrap();
-//          assert_eq!(param.as_u64(), 1);
-//      }
-//  }
+    }
+     #[test]
+     //#[ignore]
+     fn test_deploy_enigma_contract(){ 
+        // 1) generate ctor input 
+        // the enigma contract requires 2 addresses in the constructor 
+        let account = String::from("627306090abab3a6e1400e9345bc60c78a8bef57");
+        let fake_input: Address = account.parse().expect("unable to parse account address");
+        let fake_input = (fake_input,fake_input);
+        // 2) connect to ethereum network 
+        let (eloop,w3,accounts) = connect();
+        // 3) get mock of the deploy params 
+        let tx = get_deploy_params(&accounts,"Enigma");
+        // 4) deploy the contract
+        w3utils::deploy_contract(&w3, tx,fake_input).unwrap();
+     }
+     #[test]
+     //#[ignore]
+     fn test_deployed_contract(){
+         // deploy the dummy contract 
+         let (eloop,w3,accounts) = connect();
+         let contract = deploy_dummy(&w3,&accounts);
+         // the deployed contract address
+         let address = contract.address();
+         let (abi,bytecode) = get_contract(&String::from("Dummy"));
+         let contract = w3utils::deployed_contract(&w3, address , &abi).unwrap();
+         let result = contract.query("mine", (), None, Options::default(), None);
+         let param : U256 = result.wait().unwrap();
+         assert_eq!(param.as_u64(), 1);
+     }
+ }
