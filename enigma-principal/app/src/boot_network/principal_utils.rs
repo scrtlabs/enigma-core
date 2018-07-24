@@ -106,7 +106,7 @@ impl Principal for EnigmaContract {
                             match emitter_builder(params).set_worker_params(eid,gas_limit){
                                 Ok(_)=>{},
                                 Err(e)=>{
-                                    red!("[-] Error setting worker params in principale {:?}\n",e );
+                                    println!("[-] Error setting worker params in principale {:?}",e );
                                 },
                             };
                         }
