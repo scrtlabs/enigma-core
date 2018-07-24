@@ -63,7 +63,7 @@ lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_ke
 pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
     println!("Generating Report with: {:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
     println!("Ethereum Address: {}", &SIGNINING_KEY.get_pubkey().address());
-    quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey().address().as_bytes())
+    quote_t::create_report_with_data(&target_info ,real_report, &SIGNINING_KEY.get_pubkey().address().as_bytes())
 }
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {

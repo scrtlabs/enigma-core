@@ -2,18 +2,27 @@
 
 #[macro_use]
 extern crate failure;
+extern crate reqwest;
+extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
 extern crate serde;
-extern crate reqwest;
+extern crate rlp;
+// webv3 utils 
+extern crate web3;
+extern crate libc;
+extern crate tiny_keccak;
+// enigma contract 
+extern crate sgx_types;
+// esgx 
+extern crate sgx_urts;
 extern crate base64;
 extern crate openssl;
 extern crate rustc_hex as hex;
 
 pub mod attestation_service;
 pub mod common_u;
-
+pub mod web3_utils;
 
 #[cfg(test)]
 mod tests {
