@@ -52,14 +52,14 @@ impl Principal for EnigmaContract {
         // get seed,signature
         let (rand_seed, sig) = random_u::get_signed_random(eid);
         let the_seed : U256 = U256::from_big_endian(&rand_seed);
-        yellow!("[---\u{25B6} seed: {} \u{25C0}---]\n",the_seed );
+        println!("[---\u{25B6} seed: {} \u{25C0}---]",the_seed );
         // set gas options for the tx 
         let mut options = Options::default();
-        let mut gas : U256 = U256::from_dec_str(&gas_limit).unwrap();
+        let mut gas : U256 = U256::from_dec_str(&gas_limit)?;
         options.gas = Some(gas);
         
         // set random seed 
-        self.contract.call("setWorkersParams",(the_seed,sig.to_vec()),self.account,options ).wait().unwrap();
+        self.contract.call("setWorkersParams",(the_seed,sig.to_vec()),self.account,options ).wait()?;
         Ok(())
     }
 
@@ -90,7 +90,7 @@ impl Principal for EnigmaContract {
 
                             prev_epoch.swap(cur_block,  Ordering::Relaxed);
                             
-                            green!("[\u{1F50A} ] @ block {}, prev block @ {} [\u{1F50A} ]\n", cur_block, prev_block_ref);
+                            println!("[\u{1F50A} ] @ block {}, prev block @ {} [\u{1F50A} ]", cur_block, prev_block_ref);
                             
                             let params = EmittParams{
                                 eid : eid,
@@ -121,7 +121,7 @@ impl Principal for EnigmaContract {
             thread::sleep(time::Duration::from_secs(polling_interval));
             epoch_counter+=1;
             if MAX_EPOCHS != 0 && epoch_counter == MAX_EPOCHS{
-                red!("[+] Principal: reached MAX_EPOCHS {} , stopping.\n",MAX_EPOCHS );
+                println!("[+] Principal: reached MAX_EPOCHS {} , stopping.",MAX_EPOCHS );
                 break;
             }
         }

@@ -255,7 +255,7 @@ impl Sampler for PrincipalManager {
         });
     }
     pub fn filter_random(contract_addr : Option<String>, url : String , event_name : String)->Result<Vec<Log>,Error>{
-        let logs = w3utils::filter_blocks(contract_addr,event_name, url).unwrap();
+        let logs = w3utils::filter_blocks(contract_addr,event_name, url)?;
         Ok(logs)
     }
     #[test]

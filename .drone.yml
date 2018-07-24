@@ -10,9 +10,9 @@ pipeline:
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-core && RUSTFLAGS=-Awarnings make
       - cd app && cargo test
-      - cd ../../enigma-principal && RUSTFLAGS=-Awarnings make JOBS=8
+      - cd ../../enigma-principal && RUSTFLAGS=-Awarnings make
       - export NODE_URL="http://ganache:8545"
-      - cd app && RUSTFLAGS=-Awarnings cargo test -j8 -- --nocapture
+      - cd app && RUST_BACKTRACE=1 RUSTFLAGS=-Awarnings cargo test -- --nocapture
 services:
   ganache:
     image: trufflesuite/ganache-cli:v6.1.6

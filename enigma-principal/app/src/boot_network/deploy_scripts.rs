@@ -224,13 +224,13 @@ fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &String)->Result<Contract<Htt
             poll_interval,
             confirmations);
     // deploy
-    let contract = w3utils::deploy_contract(&w3, tx,()).unwrap();
+    let contract = w3utils::deploy_contract(&w3, tx,()).?;
     Ok(contract)
 }
 
 /// TESTING: mimic block creation to test the watch blocks method of the principal node 
 pub fn forward_blocks(interval : u64, deployer : String, url : String){
-    let (eloop,w3) = w3utils::connect(&url.as_str()).expect("cannot connect to ethereum network (miner)");
+    let (eloop,w3) = w3utils::connect(url.as_str()).expect("cannot connect to ethereum network (miner)");
     let contract = deploy_dummy_miner(&w3, &deployer).expect("cannot deploy dummy miner");
     println!("deployed dummy contract at address = {:?}",contract.address() );
     let deployer : Address = deployer
