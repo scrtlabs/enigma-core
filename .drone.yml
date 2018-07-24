@@ -26,6 +26,7 @@ pipeline:
     group: tests
     image: enigmampc/enigma-core:0.0.1
     commands:
+      - . /root/.cargo/env
       - export NODE_URL="http://ganache:8545"
       - cd enigma-tools-u
       - cargo test
