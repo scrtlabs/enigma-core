@@ -256,12 +256,9 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
     use esgx::general::init_enclave;
     use std::env;
 
-    fn get_node_url()->String{
-        let key = "NODE_URL";
-        match env::var(key) {
-            Ok(val) => val,
-            Err(e) => String::from("http://localhost:8545"),
-        }
+
+    fn get_node_url()-> String {
+        env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string())
     }
     
     fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
