@@ -8,7 +8,7 @@ build = "build.rs"
 base64 = "0.9.1"
 libc = "0.2.41"
 enigma-tools-u = {path = "../../enigma-tools-u"}
-etcommon-rlp = {rev = "0.2.3", default-features = false}
+etcommon-rlp = "0.2.3"
 failure = "0.1.1"
 web3 = { git = 'https://github.com/tomusdrw/rust-web3.git' }
 rustc-hex = "1.0.0"
