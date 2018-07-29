@@ -16,14 +16,14 @@ use failure::Error;
     pub fn ecall_get_registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
                                report: *mut sgx_report_t) -> sgx_status_t ;
 }
-#[link(name = "sgx_uae_service")] extern {
+extern {
     pub fn sgx_init_quote(p_target_info: * mut sgx_target_info_t, p_gid: * mut sgx_epid_group_id_t) -> sgx_status_t;
 }
-#[link(name = "sgx_uae_service")] extern {
+extern {
     pub fn sgx_calc_quote_size(p_sig_rl: * const ::uint8_t, sig_rl_size: ::uint32_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;        
 }
 
-#[link(name = "sgx_uae_service")] extern {
+extern {
     pub fn sgx_get_quote(p_report: * const sgx_report_t,
                          quote_type: sgx_quote_sign_type_t,
                          p_spid: * const sgx_spid_t,
