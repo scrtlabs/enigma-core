@@ -1,37 +1,36 @@
+#[macro_use]
+extern crate structopt;
+#[macro_use]
+extern crate failure;
+#[macro_use]
+extern crate colour;
+extern crate url;
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate base64;
+extern crate rlp;
+extern crate enigma_tools_u;
+extern crate tiny_keccak;
+extern crate serde_json;
+extern crate serde;
+extern crate serde_derive;
+extern crate web3;
+extern crate rustc_hex;
+extern crate tokio_core;
 // enigma modules
 mod esgx;
+mod common_u;
+mod boot_network;
+mod cli;
+// general modules
 use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use esgx::equote;
 pub use esgx::general::ocall_get_home;
-
-extern { fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 42]) -> sgx_status_t; }
-extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
-
-
-/// Returns a 32 bytes signed random seed.
-/// # Examples
-/// ```
-/// let enclave = esgx::general::init_enclave().unwrap();
-/// let (rand_seed, sig) = get_signed_random(enclave.geteid());
-/// ```
-fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
-    let mut rand_out: [u8; 32] = [0; 32];
-    let mut sig_out: [u8; 65] = [0; 65];
-    let mut retval = sgx_status_t::default();
-    unsafe { ecall_get_random_seed(eid, &mut retval, &mut rand_out, &mut sig_out); }
-    assert_eq!(retval, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
-    (rand_out, sig_out)
-}
-
 
 #[allow(unused_variables, unused_mut)]
 fn main() {
-    /* this is an example of initiating an enclave */
 
+    /// init enclave 
     let enclave = match esgx::general::init_enclave() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
@@ -42,18 +41,13 @@ fn main() {
             return;
         },
     };
-//    let spid = String::from("3DDB338BD52EE314B01F1E4E1E84E8AA");
-    let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE");
-    let tested_encoded_quote = equote::produce_quote(&enclave, &spid);
-    println!("{:?}", &tested_encoded_quote);
-
-    let mut pubme: [u8; 42] = [0; 42];
-    unsafe { ecall_get_signing_address(enclave.geteid(), &mut pubme) };
-    println!("Returned Address: {:?}", &pubme[..]);
-
-    let (rand_seed, sig) = get_signed_random(enclave.geteid());
-    println!("Random Outside Enclave:{:?}", &rand_seed[..]);
-    println!("Signature Outside Enclave: {:?}\n", &sig[..]);
+    
+    /// run THE app 
+    /// 
+    let eid = enclave.geteid();
+    cli::app::start(eid);
+    
+    /// drop enclave when done 
     enclave.destroy();
 }
 

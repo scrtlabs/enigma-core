@@ -12,6 +12,8 @@ RUN rm -rf /root/sgx
 RUN git clone https://github.com/baidu/rust-sgx-sdk.git sgx -b v1.0.0
 
 # dependency for https://github.com/erickt/rust-zmq
-RUN apt-get install -y libzmq3-dev
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends libzmq3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN echo '/opt/intel/sgxpsw/aesm/aesm_service &' >> /root/.bashrc
