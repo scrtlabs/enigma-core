@@ -8,7 +8,7 @@ pipeline:
       - /opt/intel/sgxpsw/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-core && RUSTFLAGS=-Awarnings make
-      - cd app && cargo test
+      - cd app && RUSTFLAGS=-Awarnings cargo test
 
   principal:
     group: tests
@@ -20,7 +20,7 @@ pipeline:
       - /opt/intel/sgxpsw/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-principal && RUSTFLAGS=-Awarnings make
-      - cd app && cargo test
+      - cd app && RUSTFLAGS=-Awarnings cargo test
 
   tools_u:
     group: tests
@@ -29,7 +29,7 @@ pipeline:
       - . /root/.cargo/env
       - export NODE_URL="http://ganache:8545"
       - cd enigma-tools-u
-      - cargo test
+      - RUSTFLAGS=-Awarnings cargo test
 
 services:
   ganache:
