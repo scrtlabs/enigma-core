@@ -30,7 +30,7 @@ use sgx_trts::trts::rsgx_read_rand;
 
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::common::utils_t::{ToHex, FromHex};
+use enigma_tools_t::common::utils_t::{ToHex, FromHex, EthereumAddress};
 use enigma_tools_t::storage_t;
 use enigma_tools_t::quote_t;
 
@@ -41,7 +41,7 @@ lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_w
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
     println!("Generating Report with: {:?}", SIGNINING_KEY.get_pubkey()[..].to_hex());
-    quote_t::create_report_with_data(&target_info ,real_report,&SIGNINING_KEY.get_pubkey())
+    quote_t::create_report_with_data(&target_info ,real_report, &SIGNINING_KEY.get_pubkey().address().as_bytes())
 }
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
@@ -51,7 +51,11 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
 
-    cryptography_t::get_sealed_keys(&sealed_path).unwrap()
+        // TODO: Decide what to do if failed to obtain keys.
+    match cryptography_t::get_sealed_keys(&sealed_path) {
+        Ok(key) => return key,
+        Err(err) => panic!("Failed obtaining keys: {:?}", err)
+    };
 }
 
 #[no_mangle]
@@ -75,10 +79,10 @@ pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
 pub extern "C" fn ecall_get_random_seed(rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t  {
     // TODO: Check if needs to check the random is within the curve.
     let status = rsgx_read_rand(&mut rand_out[..]);
-    let sig = SIGNINING_KEY.sign(&rand_out[..]);
+    let sig = SIGNINING_KEY.sign(&rand_out[..]).unwrap();
     sig_out.copy_from_slice(sig.as_slice());
-    println!("Random inside Enclave: {:?}", &rand_out[..]);
-    println!("Signature inside Enclave: {:?}\n", &sig.as_slice());
+    // println!("Random inside Enclave: {:?}", &rand_out[..]);
+    // println!("Signature inside Enclave: {:?}\n", &sig.as_slice());
     match status {
         Ok(_) => sgx_status_t::SGX_SUCCESS,
         Err(err) => err

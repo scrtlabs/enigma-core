@@ -1,6 +1,8 @@
 # Enigma Core library 
 
-<img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=master" />
+| Service | Master | Develop |
+|---------|--------|---------|
+| CI Badge | <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=master"/> | <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=develop"/> |
 
 Pure Rust Enclave && Untrusted in Rust. 
 Core is part of the Enigma node software stack. The Core component as it's name suggests is responsible for the core operations. The core includes Remote Attestation (SGX SDK), Cryptography and the Ethereum EVM.
@@ -115,6 +117,17 @@ Running this test will require to
 * running the tests with -- --nocapture
 * using the Python client that mimics surface.
 
+### Simulation Mode
+
+If you want to run this in a computer that doesn't support SGX you can run both `enigma-core` and `surface` in simulation mode.  
+To do this, run `surface` with `--simulation`, then fire up the docker and run:   
+```
+$ cd enigma-core
+$ make full-clean
+$ export SGX_MODE=SW
+$ make # Here you can add JOBS=N to pass on to cargo the number of jobs to run simultaneously.
+```
+
 ### Principal Node 
 
 Has a seperate [trsuted + untrusted](https://github.com/enigmampc/enigma-core/tree/develop/enigma-principal). 
@@ -166,8 +179,4 @@ rm -rf /root/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/
 
 ## License
 
-Enigma-Core is provided under the BSD license. Please refer to the [License file](LICENSE) file for details.
-
-## Acknowledgements
-
-Thanks to [Baidu X-Lab](https://github.com/BaiduXLab) for their great work on [Rust SGX SDK](https://github.com/baidu/rust-sgx-sdk).
+TBD

@@ -3,6 +3,7 @@ name = "enigma-tools-u"
 version = "0.1.0"
 authors = ["Isan-Rivkin <isanrivkin@gmail.com>"]
 description = "Tools used by the untrusted part of the Enigma core and Principal node."
+build = "build.rs"
 
 [dependencies]
 serde_json = "1.0"
@@ -11,3 +12,19 @@ serde_derive = "1.0.66"
 failure = "0.1.1"
 httparse = "=1.2.5"
 reqwest = "0.8.6"
+etcommon-rlp = "0.2.3"
+base64 = "0.9.2"
+openssl = "0.10.10"
+rustc-hex = "1.0.0"
+# web3 utils
+web3 = { git = 'https://github.com/tomusdrw/rust-web3.git' }
+libc = "0.2.41"
+tiny-keccak = "1.4.2"
+
+[dependencies.sgx_types]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+# esgx
+[dependencies.sgx_urts]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"

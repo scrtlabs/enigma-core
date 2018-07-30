@@ -115,7 +115,7 @@ pub mod tests {
     use std::fs::File;
     use std::io::{ BufReader, BufRead};
     use evm_u::evm;
-    use super::{EvmRequest,EvmInput};
+    use super::EvmRequest;
     use sgx_urts::SgxEnclave;
 
     fn read_input_from_file(path: &str) -> evm::EvmInput {
@@ -136,7 +136,7 @@ pub mod tests {
     }
 
     fn init_enclave() -> SgxEnclave{
-        let enclave = match esgx::general::init_enclave() {
+        let enclave = match esgx::general::init_enclave_wrapper() {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r

@@ -1,0 +1,6 @@
+{
+    "ENIGMA_CONTRACT_PATH" : "../app/tests/principal_node/contracts/Enigma.json",
+    "ENIGMA_TOKEN_CONTRACT_PATH" : "../app/tests/principal_node/contracts/EnigmaToken.json",
+    "ACCOUNT_ADDRESS" : "627306090abab3a6e1400e9345bc60c78a8bef57",
+    "URL" : "http://localhost:8545"
+}

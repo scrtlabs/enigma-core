@@ -8,6 +8,13 @@ pub struct ProduceQuoteErr {
     pub status : sgx_status_t,
     pub message : String,
 }
+
+#[derive(Fail, Debug)]
+#[fail(display = "Error while decoding the quote = ({})", message)]
+pub struct QuoteErr{
+    pub message : String,
+}
+
 // error while requesting the public signing key (the registration key)
 #[derive(Fail, Debug)]
 #[fail(display = "Error while retrieving the registration signing public key sgx_status = {}. info = ({})", status, message)]
