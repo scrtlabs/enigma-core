@@ -1,5 +1,7 @@
 #![allow(dead_code,unused_assignments)]
 use std;
+use std::thread::sleep;
+use std::time;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::*;
@@ -17,11 +19,11 @@ use failure::Error;
                                report: *mut sgx_report_t) -> sgx_status_t ;
 }
 
-#[link(name = "sgx_uae_service")] extern {
+extern {
     pub fn sgx_init_quote(p_target_info: * mut sgx_target_info_t, p_gid: * mut sgx_epid_group_id_t) -> sgx_status_t;
 }
 
-#[link(name = "sgx_uae_service")] extern {
+extern {
     pub fn sgx_calc_quote_size(p_sig_rl: * const ::uint8_t, sig_rl_size: ::uint32_t, p_quote_size: * mut ::uint32_t) -> sgx_status_t;        
 }
 
@@ -50,6 +52,18 @@ pub struct GetRegisterResult{
     pub errored : bool,
     pub quote : String, 
     pub address : String,
+}
+
+
+
+pub fn retry_quote(eid: sgx_enclave_id_t, spid : &String, times: usize) -> Result<String, Error> {
+    let mut quote = String::new();
+    for _ in 0..times {
+        quote = produce_quote(eid, spid)?;
+        if !quote.chars().all(|cur_c| cur_c == 'A') { return Ok(quote); }
+        sleep(time::Duration::new(2, 0));
+    }
+    Err(errors::QuoteErr{ message : quote }.into())
 }
 
 // TODO:: handle stat return with error handling 
@@ -132,7 +146,7 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) ->Result<String,Error
  #[cfg(test)]  
  mod test {
     use esgx::general::init_enclave;
-    use esgx::equote::produce_quote;
+    use esgx::equote::retry_quote;
      #[test]
      fn test_produce_quote(){ 
             // initiate the enclave 
@@ -151,7 +165,7 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) ->Result<String,Error
         // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
         // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0
         let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE"); // Elichai's SPID
-        let tested_encoded_quote = match produce_quote(enclave.geteid(), &spid){
+        let tested_encoded_quote = match retry_quote(enclave.geteid(), &spid, 8){
             Ok(encoded_quote)=>{
                 encoded_quote
             },
