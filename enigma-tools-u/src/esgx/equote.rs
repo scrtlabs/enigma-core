@@ -5,7 +5,7 @@ use std::thread::sleep;
 use std::{self, time};
 use common_u::errors;
 
-#[link(name = "sgx_tservice")] extern {
+extern {
     pub fn ecall_get_registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, target_info : *const sgx_target_info_t,
                                         report: *mut sgx_report_t) -> sgx_status_t ;
 }
