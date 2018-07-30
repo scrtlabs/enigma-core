@@ -2,15 +2,14 @@
 use failure::Error;
 use hex::FromHex;
 use std::time;
-use std::thread;
 use std::str;
 use tiny_keccak::Keccak;
 //web3
 use web3;
 use web3::types::BlockNumber;
-use web3::futures::{Future, Stream};
+use web3::futures::Future;
 use web3::contract::{Contract, Options};
-use web3::types::{Address, U256, Bytes,Log};
+use web3::types::{Address, U256, Log};
 use web3::types::FilterBuilder;
 use web3::transports::Http;
 use web3::Web3;
@@ -18,7 +17,6 @@ use web3::contract::tokens::Tokenize;
 // files 
 use std::fs::File;
 use std::io::prelude::*;
-use serde_derive::*;
 use serde_json;
 use serde_json::{Value};
 
@@ -117,7 +115,7 @@ pub fn deployed_contract(web3: &Web3<Http>, contract_addr: Address , abi : &Stri
 // 2) serde_json reads the bytecode as string with '"0x..."' so 4 chars needs to be removed.
 // TODO:: solve the fact that serde dont ignore `"`
 pub fn trunace_bytecode(bytecode : &String)->Result<Vec<u8>,Error>{
-    let mut b = bytecode.as_bytes();
+    let b = bytecode.as_bytes();
     let sliced = &b[3..b.len()-1];
     let result = str::from_utf8(&sliced.to_vec()).unwrap().from_hex()?;
     Ok(result)
@@ -175,7 +173,7 @@ pub fn to_keccak256(value : Vec<u8>)->[u8; 32]{
 
 /// get list of current accounts from web3 isolated 
 pub fn get_accounts(url: &str)->Result<Vec<Address>,Error>{
-    let ( eloop,w3 ) =connect(url).unwrap();
+    let ( _eloop,w3 ) =connect(url).unwrap();
     let accounts = w3.eth().accounts().wait().unwrap();
     Ok(accounts)
 }
@@ -205,7 +203,7 @@ fn build_event_fuilder(event_name : String,contract_addr : Option<String>)->web3
 /// TESTING: filter the network for events 
 pub fn filter_blocks(contract_addr : Option<String> ,event_name : String ,url : String)->Result<Vec<Log>,Error>{
 
-    let (eloop,w3) = connect(&url.as_str())
+    let (_eloop,w3) = connect(&url.as_str())
         .expect("cannot connect to ethereum");
 
     let filter = build_event_fuilder(event_name,contract_addr);

@@ -17,6 +17,7 @@ extern crate serde_derive;
 extern crate web3;
 extern crate rustc_hex;
 extern crate tokio_core;
+extern crate dirs;
 // enigma modules
 mod esgx;
 mod common_u;
@@ -31,7 +32,7 @@ pub use esgx::general::ocall_get_home;
 fn main() {
 
     /// init enclave 
-    let enclave = match esgx::general::init_enclave() {
+    let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
             r
@@ -54,14 +55,14 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use esgx::general::init_enclave;
+    use esgx::general::init_enclave_wrapper;
     use sgx_types::{sgx_enclave_id_t, sgx_status_t};
     extern { fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t; }
 
     #[test]
     pub fn test_enclave_internal() {
         // initiate the enclave
-        let enclave = match init_enclave() {
+        let enclave = match init_enclave_wrapper() {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r

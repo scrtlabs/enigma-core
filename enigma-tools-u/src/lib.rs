@@ -8,21 +8,23 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate serde;
 extern crate rlp;
-// webv3 utils 
-extern crate web3;
 extern crate libc;
 extern crate tiny_keccak;
-// enigma contract 
-extern crate sgx_types;
-// esgx 
-extern crate sgx_urts;
 extern crate base64;
 extern crate openssl;
 extern crate rustc_hex as hex;
+// webv3 utils
+extern crate web3;
+// SGX Libraries
+extern crate sgx_types;
+extern crate sgx_urts;
 
 pub mod attestation_service;
 pub mod common_u;
 pub mod web3_utils;
+pub mod esgx;
+
+use sgx_types::*;
 
 #[cfg(test)]
 mod tests {

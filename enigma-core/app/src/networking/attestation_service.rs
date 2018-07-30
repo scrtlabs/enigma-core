@@ -1,7 +1,6 @@
  #[cfg(test)]  
  mod test {
     // enigma_tools 
-    use enigma_tools_u;
     use enigma_tools_u::attestation_service::service;
     use enigma_tools_u::attestation_service::constants;
     // this unit-test is for the attestation service 

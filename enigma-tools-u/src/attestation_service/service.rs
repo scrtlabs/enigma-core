@@ -3,7 +3,6 @@ use serde_json::{Value};
 use reqwest;
 use failure::Error;
 use common_u::errors;
-use attestation_service;
 use rlp;
 use base64;
 use std::io::Read;
@@ -225,8 +224,7 @@ impl ASResult {
 impl Quote {
     pub fn from_base64(encoded_quote: &str) -> Result<Quote, Error> {
         let quote_bytes =  base64::decode(encoded_quote)?;
-        let mut result: Quote = Default::default();
-//        let mut sig_len = [0u8; 4]; sig_len.copy_from_slice(&quote_bytes[432..436]);
+
         Ok(Quote {
             body: QBody::from_bytes_read(&mut &quote_bytes[..48])?,
             report_body: QReportBody::from_bytes_read(&mut &quote_bytes[48..432])?,

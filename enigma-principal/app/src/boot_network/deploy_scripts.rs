@@ -257,7 +257,7 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
     use enigma_tools_u::web3_utils;
     use enigma_tools_u::web3_utils::w3utils;
     use boot_network::deploy_scripts;
-    use esgx::general::init_enclave;
+    use esgx::general::init_enclave_wrapper;
     use std::env;
 
     /// This function is important to enable testing both on the CI server and local. 
@@ -288,7 +288,7 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
         
         // init enclave 
         
-        let enclave = match init_enclave() {
+        let enclave = match init_enclave_wrapper() {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r
