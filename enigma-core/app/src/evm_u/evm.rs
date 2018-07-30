@@ -136,7 +136,7 @@ pub mod tests {
     }
 
     fn init_enclave() -> SgxEnclave{
-        let enclave = match esgx::general::init_enclave() {
+        let enclave = match esgx::general::init_enclave_wrapper() {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r

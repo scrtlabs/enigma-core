@@ -2,6 +2,7 @@ extern crate sgx_types;
 extern crate sgx_urts;
 extern crate base64;
 extern crate reqwest;
+extern crate dirs;
 
 // networking apt install libzmq3-dev
 extern crate zmq; 
@@ -33,7 +34,7 @@ use networking::{surface_server, constants};
 fn main() {
     /* this is an example of initiating an enclave */
 
-    let enclave = match esgx::general::init_enclave() {
+    let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
             r
@@ -55,14 +56,14 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use esgx::general::init_enclave;
+    use esgx::general::init_enclave_wrapper;
     use sgx_types::*;
     extern { fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t; }
 
     #[test]
     pub fn test_enclave_internal() {
         // initiate the enclave
-        let enclave = match init_enclave() {
+        let enclave = match init_enclave_wrapper() {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r

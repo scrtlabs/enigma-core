@@ -29,6 +29,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use enigma_tools_u::web3_utils::enigma_contract;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use enigma_tools_u::web3_utils::w3utils;
+use enigma_tools_u::esgx::equote::retry_quote;
 use boot_network::deploy_scripts;
 use boot_network::principal_utils::Principal;
 use boot_network::principal_utils::{EmittParams};
@@ -150,7 +151,7 @@ impl Sampler for PrincipalManager {
     fn get_quote(&self)->Result<String,Error>{
 
         let eid = self.emitt_params.eid;
-         match esgx::equote::produce_quote(eid, &self.config.SPID){
+         match retry_quote(eid, &self.config.SPID, 8){
              Ok(quote) =>{
                 Ok(quote)
              },
@@ -234,7 +235,7 @@ impl Sampler for PrincipalManager {
     use enigma_tools_u::web3_utils::w3utils;
     use boot_network::deploy_scripts;
     use web3::types::{Log,H256};
-    use esgx::general::init_enclave;
+    use esgx::general::init_enclave_wrapper;
     use std::env;
 
     /// This function is important to enable testing both on the CI server and local. 
@@ -278,7 +279,7 @@ impl Sampler for PrincipalManager {
     fn test_full_principal_logic(){
                 // init enclave 
         
-        let enclave = match init_enclave() {
+        let enclave = match init_enclave_wrapper() {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r

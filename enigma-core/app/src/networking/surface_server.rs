@@ -5,12 +5,9 @@ use serde_json::{Value};
 use evm_u::evm;
 use esgx::equote;
 use networking::constants;
-use sgx_urts::SgxEnclave;
 use sgx_types::*;
-
-
-//failure 
 use failure::Error;
+use enigma_tools_u::esgx::equote::retry_quote;
 
 
 pub struct ClientHandler{}
@@ -85,7 +82,7 @@ impl ClientHandler {
     // private function : handle getregister
     fn handle_get_register(&self,eid :sgx_enclave_id_t)->  Result<(String), Error>{   
         // ecall a quote + key 
-        let encoded_quote = equote::retry_quote(eid, &constants::SPID.to_owned(), 8)?;
+        let encoded_quote = retry_quote(eid, &constants::SPID.to_owned(), 8)?;
         // ecall get the clear text public signing key 
         let pub_signing_address = equote::get_register_signing_address(eid)?;
         // serialize the result 
@@ -163,7 +160,7 @@ impl Server{
 
  #[cfg(test)]  
  mod test {
-    use esgx::general::init_enclave;
+    use esgx::general::init_enclave_wrapper;
     use networking::surface_server;
     use networking::constants;
     extern crate zmq;
@@ -178,7 +175,7 @@ impl Server{
      //#[ignore]
      fn test_run_server(){ 
             // initiate the enclave 
-            let enclave = match init_enclave() {
+            let enclave = match init_enclave_wrapper() {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r

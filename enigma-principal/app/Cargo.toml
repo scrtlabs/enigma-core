@@ -20,6 +20,7 @@ structopt = "0.2.10"
 url = "1.7.1"
 tiny-keccak = "1.4.2"
 colour = "0.2.1"
+dirs = "1.0"
 
 [dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"

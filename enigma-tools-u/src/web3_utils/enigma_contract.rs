@@ -1,6 +1,4 @@
-//sgx 
-use sgx_types::{uint8_t, uint32_t};
-use sgx_types::{sgx_enclave_id_t, sgx_status_t};
+//sgx
 // general 
 use rlp;
 use failure::Error;
