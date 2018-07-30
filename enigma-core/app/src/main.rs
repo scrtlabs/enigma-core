@@ -19,7 +19,7 @@ extern crate enigma_tools_u;
 extern crate serde_derive;
 extern crate serde;
 
-use sgx_types::*;
+//use sgx_types::*;
 use std::thread;
 // enigma modules 
 mod esgx;
@@ -49,7 +49,7 @@ fn main() {
         let mut server = surface_server::Server::new(constants::CONNECTION_STR, eid);
         server.run();
     });
-    child.join();
+    child.join().unwrap();
    
     enclave.destroy();
 }

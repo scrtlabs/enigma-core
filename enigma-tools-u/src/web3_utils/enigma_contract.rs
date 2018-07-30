@@ -1,23 +1,12 @@
-//sgx
-// general 
-use rlp;
 use failure::Error;
 //web3
 use web3;
-use web3::futures::{Future, Stream};
+use web3::futures::Future;
 use web3::contract::{Contract, Options};
-use web3::types::{Address, U256, Bytes};
+use web3::types::{Address, U256};
 use web3::transports::Http;
 use web3::Web3;
-use hex::FromHex;
-use std::fs::File;
-use std::io::prelude::*;
-use serde_json;
-use serde_json::{Value};
 // enigma modules
-use attestation_service;
-use attestation_service::service;
-use attestation_service::constants;
 use web3_utils::w3utils;
 
 pub struct EnigmaContract{
@@ -99,7 +88,7 @@ impl EnigmaContract{
         // register 
         let signer_addr : Address = signer.parse().unwrap();
         let mut options = Options::default();
-        let mut gas : U256 = U256::from_dec_str(gas_limit).unwrap();
+        let gas : U256 = U256::from_dec_str(gas_limit).unwrap();
         options.gas = Some(gas);
         // call the register function
         self.contract.call("register",(signer_addr,report.to_vec(),),self.account,options ).wait().expect("error registering to the enigma smart contract.");

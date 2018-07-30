@@ -1,9 +1,8 @@
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use std::io::{Read, Write};
+use std::io::Write;
 use std::fs;
 use std::path;
-use std::env;
 use std::ptr;
 use dirs;
 use enigma_tools_u;

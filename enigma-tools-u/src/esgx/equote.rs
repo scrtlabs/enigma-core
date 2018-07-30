@@ -40,8 +40,8 @@ pub fn retry_quote(eid: sgx_enclave_id_t, spid : &String, times: usize) -> Resul
     Err(errors::QuoteErr{ message : quote }.into())
 }
 
-
 // TODO:: handle stat return with error handling
+#[allow(unused_variables, unused_mut)]
 pub fn produce_quote(eid: sgx_enclave_id_t, spid : &String) -> Result<String,Error>{
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let mut stat = sgx_status_t::SGX_SUCCESS;
@@ -68,7 +68,7 @@ pub fn produce_quote(eid: sgx_enclave_id_t, spid : &String) -> Result<String,Err
     arr.copy_from_slice(&v);
 
     let final_spid : sgx_spid_t = sgx_spid_t { id:arr };
-    let the_quote = vec![0u8; quote_size as usize].into_boxed_slice();
+    let mut the_quote = vec![0u8; quote_size as usize].into_boxed_slice();
     let nonce =  sgx_quote_nonce_t::default();;
     let mut qe_report = sgx_report_t::default();
 
