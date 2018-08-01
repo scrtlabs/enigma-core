@@ -1,4 +1,5 @@
 #![crate_type = "lib"]
+#[derive(Fail, Debug)]
 
 #[macro_use]
 extern crate failure;
