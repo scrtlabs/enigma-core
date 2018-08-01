@@ -1,5 +1,5 @@
 #![crate_type = "lib"]
-#[derive(Fail, Debug)]
+#![feature(dyn_trait)]
 
 #[macro_use]
 extern crate failure;
