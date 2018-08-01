@@ -3,6 +3,8 @@ name = "enigma-tools-t"
 version = "0.1.0"
 authors = ["Elichai-Turkel <elichai@enigma.co>"]
 description = "Tools used by the trusted part of the Enigma core and Principal node."
+repository="https://github.com/enigmampc/enigma-core/tree/master/enigma-tools-t"
+keywords =["enigma","enclave","sgx","remote attestation"]
 
 [dependencies]
 tiny-keccak = "1.4.1"

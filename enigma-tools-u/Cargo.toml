@@ -3,6 +3,8 @@ name = "enigma-tools-u"
 version = "0.1.0"
 authors = ["Isan-Rivkin <isanrivkin@gmail.com>"]
 description = "Tools used by the untrusted part of the Enigma core and Principal node."
+repository="https://github.com/enigmampc/enigma-core/tree/master/enigma-tools-u"
+keywords =["enigma","enclave","sgx","web3"]
 build = "build.rs"
 
 [dependencies]
