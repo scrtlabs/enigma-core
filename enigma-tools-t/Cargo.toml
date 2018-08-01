@@ -9,8 +9,8 @@ tiny-keccak = "1.4.1"
 libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
 ring = { git = "https://github.com/enigmampc/ring.git", rev = "sgx-0.12.1" }
 # errors handling 
-failure = { version = "0.1.1", default-features = false, features = ["derive"] }
-
+failure_derive="=0.1.1"
+failure = { version = "=0.1.1", default-features = false, features = ["derive"] }
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tstd]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
