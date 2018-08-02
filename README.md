@@ -105,18 +105,6 @@ cd root/enigma-core/enigma-core/bin
 ./app
 ```
 
-### Testing with the Surface server
-
-This is the server that accepts commands from the surface component. 
-Currently its unit-test is #[ignored] simply because testing it requires manually sending requests and watching the output. 
-For now there's a compatible [Python client provided](https://github.com/enigmampc/enigma-core/tree/develop/enigma-core/app/tests/surface_listener),
-the unit-test can be found [here](https://github.com/enigmampc/enigma-core/blob/246dc727f3e5d54ffe039b0b880b7bfecbcd1d8e/enigma-core/app/src/networking/surface_server.rs#L152).
-
-Running this test will require to 
-* comment out #[ignore]
-* running the tests with -- --nocapture
-* using the Python client that mimics surface.
-
 ### Simulation Mode
 
 If you want to run this in a computer that doesn't support SGX you can run both `enigma-core` and `surface` in simulation mode.  
@@ -130,8 +118,7 @@ $ make # Here you can add JOBS=N to pass on to cargo the number of jobs to run s
 
 ### Principal Node 
 
-Has a seperate [trsuted + untrusted](https://github.com/enigmampc/enigma-core/tree/develop/enigma-principal). 
-There is a 100% code [reuse](https://github.com/enigmampc/enigma-core/tree/develop/enigma-tools-t)
+[Principal Node README](https://github.com/enigmampc/enigma-core/blob/master/enigma-principal/README.md). 
 
 TBD
 
