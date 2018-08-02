@@ -2,10 +2,10 @@
 #![allow(dead_code,unused_assignments,unused_variables)]
 /// A Command enum to identify given command input from the surface listener.
 pub enum Command {
-    Execevm, /// execute evm bytecode 
-    GetRegister, /// register (produce a quote with a signing key)
-    Stop, /// stop running the server
-    Unknown, /// anything else 
+    Execevm, // execute evm bytecode 
+    GetRegister, // register (produce a quote with a signing key)
+    Stop, // stop running the server
+    Unknown, // anything else 
 }
 /// turn a string into a command. (utility)
 impl<'a> From<&'a str> for Command {
