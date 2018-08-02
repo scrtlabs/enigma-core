@@ -1,8 +1,14 @@
 [package]
-name = "app"
-version = "0.9.8"
+
+name = "enigma-worker-surface"
+version = "0.1.0"
 authors = ["enigma <support@enigma.co>"]
 build = "build.rs"
+description = "The so called untrusted part of the Enigma node."
+keywords =["enigma","sgx","web3"]
+categories=["api-bindings","cryptography","development-tools"]
+repository="https://github.com/enigmampc/enigma-core.git"
+license="non-standard"
 
 [dependencies]
 base64 = "0.9.1"
@@ -17,12 +23,7 @@ rustc-hex = "1.0.0"
 httparse = "=1.2.5"
 reqwest = "0.8.6"
 dirs = "1.0"
-enigma-tools-u = {path = "../../enigma-tools-u"}
+enigma-tools-u = "0.1.2"
+sgx_types = "1.0.0"
+sgx_urts="1.0.0"
 
-[dependencies.sgx_types]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-[dependencies.sgx_urts]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
