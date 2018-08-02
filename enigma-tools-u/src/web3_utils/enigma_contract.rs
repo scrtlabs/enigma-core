@@ -1,3 +1,5 @@
+//! This is a wrapper to the Enigma contract on the Ethereum network. 
+//! It does not implement the Random functionality, this is a trait implemented in the Principal Node 
 use failure::Error;
 //web3
 use web3;
@@ -8,22 +10,26 @@ use web3::transports::Http;
 use web3::Web3;
 // enigma modules
 use web3_utils::w3utils;
-
+/// Main interface to the enigma contract functions on ethereum.
 pub struct EnigmaContract{
 
     pub web3 : Web3<Http>,
     pub contract : Contract<Http>, 
+    /// The ethereum account that interacts with the contract.
     pub account : Address,
     pub eloop : web3::transports::EventLoopHandle,
     pub abi_path : String,
+    /// Enigma contract address
     pub address_str : String,
     pub account_str : String,
+    /// Ethereum network url
     pub url : String,
     pub abi_str : String,
 }
 
 
 impl EnigmaContract{
+    /// create a new Enigma contract.
     pub fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str, url : &str) -> Self{
 
         let account_str = account.to_string();
@@ -51,7 +57,7 @@ impl EnigmaContract{
             abi_str : abi_str,
         }
      }
-        /// Fetch the Enigma contract deployed on Ethereum using an HTTP Web3 provider
+    /// Fetch the Enigma contract deployed on Ethereum using an HTTP Web3 provider
     pub fn deployed(web3: &Web3<Http>, address: Address, path: &str) -> (Contract<Http>, String) {
        let (abi,_bytecode) = EnigmaContract::load_abi(path).unwrap();
        let abi_str = abi.clone();
@@ -73,17 +79,18 @@ impl EnigmaContract{
          ).expect("unable to fetch the deployed contract on the Ethereum provider");
         Ok(contract)
     }
-    // given a path load EnigmaContract.json and extract the ABI
+    /// given a path load EnigmaContract.json and extract the ABI
     pub fn load_abi(path: &str) -> Result<(String,String),Error>{
         let (abi,bytecode) = w3utils::load_contract_abi_bytecode(path)?;
         Ok((abi,bytecode))
     }
+    /// given a path load contract bytecode 
     pub fn load_bytecode(path: &str) -> Result<String,Error>{
        let (_abi,bytecode) = w3utils::load_contract_abi_bytecode(path)?;
     
         Ok(bytecode)
     }
-
+    /// contract function, register as a new worker. 
     pub fn register_as_worker(&self, signer : &String, report : &Vec<u8>, gas_limit: &String)->Result<(),Error>{
         // register 
         let signer_addr : Address = signer.parse().unwrap();
@@ -94,6 +101,7 @@ impl EnigmaContract{
         self.contract.call("register",(signer_addr,report.to_vec(),),self.account,options ).wait().expect("error registering to the enigma smart contract.");
         Ok(())
     }
+    /// connect to the ethereum network 
     pub fn connect(url : &str) -> (web3::transports::EventLoopHandle, Web3<Http>) {
         let (_eloop, http) = web3::transports::Http::new(url)
             .expect("unable to create Web3 HTTP provider");

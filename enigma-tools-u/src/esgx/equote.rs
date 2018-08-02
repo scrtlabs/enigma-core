@@ -29,7 +29,11 @@ extern {
                          p_quote: * mut sgx_quote_t,
                          quote_size: ::uint32_t) -> sgx_status_t;
 }
-
+/// This is a wrapper function for produce_quote(eid,spid)
+/// It will try to produce a quote for times and if it failed this function will return an error Result.
+/// The reason for this wrapper is because enclaves canno't handle context switch in the OS. 
+/// Sometimes if the requesting process was moved from `running` mode to `waiting` by the OS Scheduler it will error. 
+/// This is why sometimes few attempts are required.
 pub fn retry_quote(eid: sgx_enclave_id_t, spid : &String, times: usize) -> Result<String, Error> {
     let mut quote = String::new();
     for _ in 0..times {
@@ -41,6 +45,7 @@ pub fn retry_quote(eid: sgx_enclave_id_t, spid : &String, times: usize) -> Resul
 }
 
 // TODO:: handle stat return with error handling
+/// Produce a quote from the enclave that describes the enclave in base64 format.
 #[allow(unused_variables, unused_mut)]
 pub fn produce_quote(eid: sgx_enclave_id_t, spid : &String) -> Result<String,Error>{
     let mut retval = sgx_status_t::SGX_SUCCESS;

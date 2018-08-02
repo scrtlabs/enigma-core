@@ -5,6 +5,7 @@ use std::io::Read;
 use std::fs;
 use std::path;
 
+/// This function will initialize an Enclave and return an SgxResult.
 pub fn init_enclave(token_path: &path::PathBuf, use_token: bool, enclave_location: &str) -> SgxResult<(SgxEnclave, Option<sgx_launch_token_t>)> {
     let mut launch_token: sgx_launch_token_t = [0; 1024];
     let mut launch_token_updated: i32 = 0;

@@ -1,3 +1,6 @@
+//! # enigma-tools-u 
+//! This is the Enigma protocol utility crate. 
+//! The u stands for untrusted because it includes untrusted SGX functions. 
 #![crate_type = "lib"]
 
 #[macro_use]

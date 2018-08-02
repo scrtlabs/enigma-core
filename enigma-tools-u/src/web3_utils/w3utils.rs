@@ -1,3 +1,5 @@
+//! Web3 utility functions for general purposes.
+
 // general 
 use failure::Error;
 use hex::FromHex;
@@ -20,7 +22,7 @@ use std::io::prelude::*;
 use serde_json;
 use serde_json::{Value};
 
-// hash traits, same as ethereum's hash function
+/// hash traits, same as ethereum's hash function
 pub trait Keccak256<T> {
     fn keccak256(&self) -> T where T: Sized;
 }
@@ -34,7 +36,7 @@ impl Keccak256<[u8; 32]> for [u8] {
     }
 }
 
-
+/// Parameters for deploying a contract
 pub struct DeployParams{
     pub deployer : Address,
     pub abi : String, 
@@ -65,7 +67,7 @@ impl DeployParams{
     }
 }
 
-// given a path load EnigmaContract.json and extract the ABI and the bytecode
+/// Given a path load EnigmaContract.json and extract the ABI and the bytecode
 pub fn load_contract_abi_bytecode(path: &str) -> Result<(String,String),Error>{
 
     let mut f = File::open(path)
@@ -86,7 +88,7 @@ pub fn load_contract_abi_bytecode(path: &str) -> Result<(String,String),Error>{
 
     Ok((abi,bytecode))
 }
-// connect to ethereum 
+/// connect to ethereum 
 pub fn connect( url : &str)->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>{
         let (_eloop, http) = web3::transports::Http::new(url)
             .expect("unable to create Web3 HTTP provider");
@@ -94,8 +96,7 @@ pub fn connect( url : &str)->Result<(web3::transports::EventLoopHandle, Web3<Htt
         Ok((_eloop, w3))
 }
 
-// connect to an existing deployed smart contract 
-
+/// connect to an existing deployed smart contract 
 pub fn deployed_contract(web3: &Web3<Http>, contract_addr: Address , abi : &String)->Result<Contract<Http>,Error>{
        
 
@@ -109,10 +110,10 @@ pub fn deployed_contract(web3: &Web3<Http>, contract_addr: Address , abi : &Stri
 
         Ok(contract)
 }
-// private:: truncate the bytecode from solidity json 
-// this method does 2 things:
-// 1) web3 requires byte array of the hex byte code from_hex 
-// 2) serde_json reads the bytecode as string with '"0x..."' so 4 chars needs to be removed.
+/// private:: truncate the bytecode from solidity json 
+/// this method does 2 things:
+/// 1) web3 requires byte array of the hex byte code from_hex 
+/// 2) serde_json reads the bytecode as string with '"0x..."' so 4 chars needs to be removed.
 // TODO:: solve the fact that serde dont ignore `"`
 pub fn trunace_bytecode(bytecode : &String)->Result<Vec<u8>,Error>{
     let b = bytecode.as_bytes();
@@ -120,7 +121,7 @@ pub fn trunace_bytecode(bytecode : &String)->Result<Vec<u8>,Error>{
     let result = str::from_utf8(&sliced.to_vec()).unwrap().from_hex()?;
     Ok(result)
 }
-// deploy any smart contract 
+/// deploy any smart contract 
 pub fn deploy_contract<P>(web3 : &Web3<Http>, tx_params : DeployParams  ,ctor_params : P)-> Result<Contract<Http>,Error>
 where 
 P : Tokenize
@@ -171,7 +172,7 @@ pub fn to_keccak256(value : Vec<u8>)->[u8; 32]{
     return value.as_slice().keccak256();
 }
 
-/// get list of current accounts from web3 isolated 
+/// Get list of current accounts from web3 isolated 
 pub fn get_accounts(url: &str)->Result<Vec<Address>,Error>{
     let ( _eloop,w3 ) =connect(url).unwrap();
     let accounts = w3.eth().accounts().wait().unwrap();

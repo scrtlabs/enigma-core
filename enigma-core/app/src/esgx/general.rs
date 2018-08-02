@@ -38,11 +38,10 @@ pub fn storage_dir()-> path::PathBuf{
 
 
 pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
-    // Step 1: try to retrieve the launch token saved by last transaction
-    //         if there is no token, then create a new one.
-    // 
-    // try to get the token saved in $HOME */
-    //let mut home_dir = path::PathBuf::new();
+    /// Step 1: try to retrieve the launch token saved by last transaction
+    ///         if there is no token, then create a new one.
+    /// 
+    /// try to get the token saved in $HOME */
     let use_token = match dirs::home_dir() {
         Some(path) => {
             println!("[+] Home dir is {}", path.display());
@@ -55,9 +54,9 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
         }
     };
 
-    // Step : try to create a .enigma folder for storing all the files 
-    // Create a directory, returns `io::Result<()>`
-    //let storage_path = home_dir.join(ENCLAVE_DIR);    
+    /// Step 2: try to create a .enigma folder for storing all the files 
+    /// Create a directory, returns `io::Result<()>`
+    /// let storage_path = home_dir.join(ENCLAVE_DIR);    
     let storage_path = storage_dir();
     match fs::create_dir(&storage_path) {
         Err(why) => {
@@ -67,11 +66,11 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
             println!("[+] Created new .enigma folder => {:?}", storage_path);
         },
     };
-    // Create the home/dir/.enigma folder for storage (Sealed, token , etc )
+    /// Create the home/dir/.enigma folder for storage (Sealed, token , etc )
     let token_file: path::PathBuf = storage_path.join(ENCLAVE_TOKEN);;
 
     let (enclave, launch_token) = enigma_tools_u::esgx::init_enclave(&token_file, use_token, &ENCLAVE_FILE)?;
-    // Step 3: save the launch token if it is updated 
+    /// Step 3: save the launch token if it is updated 
     if use_token == true && launch_token.is_some() {
         // reopen the file with write capablity 
         match fs::File::create(&token_file) {

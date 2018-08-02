@@ -1,3 +1,8 @@
+//! This is the interface for the attestation service of the Enigma protocol. 
+//! This service acts as a proxy to the Intel Attestation Service (IAS).
+//! It any enclave to verify it's quote using the proxy server with Enigma's SPID. 
+//! AS = Enigmas Attestation Service (IAS proxy) 
+//! IAS = Intel Attestation Service 
 use serde_json;
 use serde_json::{Value};
 use reqwest;
@@ -13,6 +18,7 @@ use openssl::sign::Verifier;
 use openssl::hash::MessageDigest;
 use hex::FromHex;
 
+ /// Specific Intel report returned from the IAS service. 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ASReport {
     pub id : String, 
@@ -21,6 +27,7 @@ pub struct ASReport {
     pub platformInfoBlob : String,
     pub isvEnclaveQuoteBody : String
 }
+/// Attestation Service Result object. 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ASResult {
     pub ca : String, 
@@ -30,6 +37,7 @@ pub struct ASResult {
     pub signature : String, 
     pub validate : bool
 }
+/// The main object returned from the Attestation Service.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ASResponse {
     pub id : i64,
@@ -40,6 +48,7 @@ pub struct ASResponse {
 pub struct Params {
     pub quote : String,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QuoteRequest {
     pub jsonrpc : String, 
@@ -47,13 +56,13 @@ pub struct QuoteRequest {
     pub params : Params, 
     pub id : i32, 
 }
-
+/// The quote that is being send from the enclave to the AS.
 #[derive(Default)]
 pub struct Quote {
     pub body: QBody,
     pub report_body: QReportBody,
 }
-
+/// The quote body
 pub struct QBody { // size: 48
     pub version: [u8; 2],
     pub signature_type: [u8; 2],
@@ -63,7 +72,7 @@ pub struct QBody { // size: 48
     pub reserved: [u8; 4],
     pub base_name: [u8; 32],
 }
-
+/// the IAS report body. This field is used to verify the expected enclave data on the verifying side.
 pub struct QReportBody { // size: 384
     pub cpu_svn: [u8; 16],
     pub misc_select: [u8; 4],
@@ -78,7 +87,7 @@ pub struct QReportBody { // size: 384
     pub reserved4: [u8; 60],
     pub report_data: [u8; 64],
 }
-
+/// Functional Struct to interact with the AS (Attestation Service).
 pub struct AttestationService {
     connection_str : String,
 }
@@ -88,13 +97,22 @@ impl AttestationService{
             connection_str : conn_str.to_string()
         }
     }
+    /// # Example 
+    /// ```rust
+    /// use attestation_service;
+    /// 
+    /// let service : AttestationService = AttestationService::new(AS url);
+    /// let quote = String::from("enclave quote in base64 encoding...");
+    /// let as_response : ASResponse = service.get_report(&quote).unwrap();
+    /// assert_eq!(true, as_response.result.validate);
+    /// ```
     pub fn get_report(&self,quote : &String)-> Result<ASResponse,Error>{
         let request : QuoteRequest = self.build_request(quote);
         let response : ASResponse =  self.send_request(request)?;
         Ok(response)
     }
-    // input: encrypted enclave quote 
-    // output : JSON-RPC request object
+    /// input: encrypted enclave quote 
+    /// output : JSON-RPC request object
     pub fn build_request(&self, quote : &String) -> QuoteRequest{
         QuoteRequest{
             jsonrpc : "2.0".to_string(),
@@ -105,7 +123,7 @@ impl AttestationService{
             id : 1
         }
     }
-    // request the report object 
+    /// request the report object 
     pub fn send_request(&self,quote_req : QuoteRequest)-> Result<ASResponse,Error>{
         
         let client = reqwest::Client::new();
@@ -116,7 +134,7 @@ impl AttestationService{
         let json_response : Value = serde_json::from_str(response_str.as_str()).unwrap();
 
         if res.status().is_success(){
-            // parse the Json object into an ASResponse struct 
+            /// parse the Json object into an ASResponse struct 
             let response : ASResponse = self.unwrap_response(&json_response);
             Ok(response)
 
@@ -138,7 +156,17 @@ impl AttestationService{
 
         }
 }
-    // encode to rlp the report -> registration for the enigma contract 
+    /// encode to rlp the report -> registration for the enigma contract 
+    /// # Example 
+    /// ```rust
+    /// use attestation_service;
+    /// 
+    /// let service : AttestationService = AttestationService::new(AS url);
+    /// let quote = String::from("...base64 encoded quote ...");
+    /// let (rlp_encoded, as_response ) = service.rlp_encode_registration_params(&quote).unwrap();
+    /// assert_eq!(true, as_response.result.validate);
+    /// assert_eq!("2.0",as_response.jsonrpc );
+    /// ```
     pub fn rlp_encode_registration_params(&self,quote : &String)->Result<(Vec<u8>,ASResponse),Error>{
         let as_response = self.get_report(quote).unwrap();
         // certificate,signature,report_string are all need to be rlp encoded and send to register() func in enigma contract
@@ -200,12 +228,14 @@ impl AttestationService{
 }
 
 impl ASResponse {
+    /// Get a Quote struct from the returned report.
     pub fn get_quote(&self) -> Result<Quote, Error> {
         Quote::from_base64(&self.result.report.isvEnclaveQuoteBody)
     }
 }
 
 impl ASResult {
+    /// Verify the report using chain of trust verification.
     pub fn verify_report(&self) -> Result<bool, Error> {
         let ca = X509::from_pem(&self.ca.as_bytes())?;
         let cert = X509::from_pem(&self.certificate.as_bytes())?;
@@ -222,6 +252,7 @@ impl ASResult {
 }
 
 impl Quote {
+    /// Quote String into Struct Quote
     pub fn from_base64(encoded_quote: &str) -> Result<Quote, Error> {
         let quote_bytes =  base64::decode(encoded_quote)?;
 
@@ -294,20 +325,20 @@ impl Default for QReportBody {
      use attestation_service::service::*;
      use attestation_service;
      use std::str::from_utf8;
-    // this unit-test is for the attestation service
-    // it uses a hardcoded quote that is validated 
-    // the test requests a report from the attestation service construct an object with the response 
-    // for signing the report there's additional field that can be accessed via ASResponse.result.report_string
+    /// this unit-test is for the attestation service
+    /// it uses a hardcoded quote that is validated 
+    /// the test requests a report from the attestation service construct an object with the response 
+    /// for signing the report there's additional field that can be accessed via ASResponse.result.report_string
      #[test]
      fn test_get_response_attestation_service(){ 
-        // build a request 
+        /// build a request 
         let service : AttestationService = AttestationService::new(attestation_service::constants::ATTESTATION_SERVICE_URL);
         let quote = String::from("AgAAANoKAAAHAAYAAAAAABYB+Vw5ueowf+qruQGtw+54eaWW7MiyrIAooQw/uU3eBAT/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAALcVy53ugrfvYImaDi1ZW5RueQiEekyu/HmLIKYvg6OxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACGcCDM4cgbYe6zQSwWQINFsDvd21kXGeteDakovCXPDwjJ31WG0K+wyDDRo8PFi293DtIr6DgNqS/guQSkglPJqAIAALbvs91Ugh9/yhBpAyGQPth+UWXRboGkTaZ3DY8U+Upkb2NWbLPkXbcMbB7c3SAfV4ip/kPswyq0OuTTiJijsUyOBOV3hVLIWM4f2wVXwxiVRXrfeFs/CGla6rGdRQpFzi4wWtrdKisVK5+Cyrt2y38Ialm0NqY9FIjxlodD9D7TC8fv0Xog29V1HROlY+PvRNa+f2qp858w8j+9TshkvOAdE1oVzu0F8KylbXfsSXhH7d+n0c8fqSBoLLEjedoDBp3KSO0bof/uzX2lGQJkZhJ/RSPPvND/1gVj9q1lTM5ccbfVfkmwdN0B5iDA5fMJaRz5o8SVILr3uWoBiwx7qsUceyGX77tCn2gZxfiOICNrpy3vv384TO2ovkwvhq1Lg071eXAlxQVtPvRYOGgBAABydn7bEWdP2htRd46nBkGIAoNAnhMvbGNbGCKtNVQAU0N9f7CROLPOTrlw9gVlKK+G5vM1X95KTdcOjs8gKtTkgEos021zBs9R+whyUcs9npo1SJ8GzowVwTwWfVz9adw2jL95zwJ/qz+y5x/IONw9iXspczf7W+bwyQpNaetO9xapF6aHg2/1w7st9yJOd0OfCZsowikJ4JRhAMcmwj4tiHovLyo2fpP3SiNGzDfzrpD+PdvBpyQgg4aPuxqGW8z+4SGn+vwadsLr+kIB4z7jcLQgkMSAplrnczr0GQZJuIPLxfk9mp8oi5dF3+jqvT1d4CWhRwocrs7Vm1tAKxiOBzkUElNaVEoFCPmUYE7uZhfMqOAUsylj3Db1zx1F1d5rPHgRhybpNpxThVWWnuT89I0XLO0WoQeuCSRT0Y9em1lsozSu2wrDKF933GL7YL0TEeKw3qFTPKsmUNlWMIow0jfWrfds/Lasz4pbGA7XXjhylwum8e/I");
         let as_response : ASResponse = service.get_report(&quote).unwrap();
-        // THE report as a string ready for signing 
-        //println!("report to be signed string => {}",as_response.result.report_string );
-        // example on how to access some param inside ASResponse
-        //println!("report isv enclave quote status  => {}",as_response.result.report.isvEnclaveQuoteStatus );
+        /// THE report as a string ready for signing 
+        ///println!("report to be signed string => {}",as_response.result.report_string );
+        /// example on how to access some param inside ASResponse
+        ////println!("report isv enclave quote status  => {}",as_response.result.report.isvEnclaveQuoteStatus );
         assert_eq!(true, as_response.result.validate);
         assert_eq!("2.0",as_response.jsonrpc );
      }
