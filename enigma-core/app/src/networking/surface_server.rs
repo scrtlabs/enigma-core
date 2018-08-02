@@ -1,3 +1,5 @@
+//! This is a listener for inter-process communication with surface part.
+//! The communication is done with the surface locally only.
 #![allow(dead_code)]
 use zmq;
 use serde_json;
@@ -9,11 +11,11 @@ use sgx_types::*;
 use failure::Error;
 use enigma_tools_u::esgx::equote::retry_quote;
 
-
+/// Interface for a client handler.
 pub struct ClientHandler{}
 
 impl ClientHandler {
-    // public function to handle the surface requests 
+    /// public function to handle the surface requests 
     pub fn handle(&self, eid : sgx_enclave_id_t,responder : &zmq::Socket,msg :& str) -> Result<(bool), Error> {
         
         let mut keep_running : bool = true;
@@ -47,6 +49,7 @@ impl ClientHandler {
         responder.send_str(&result, 0).unwrap();
         Ok(keep_running)  
     }
+    /// handle unkown command
     fn handle_unkown(&self ,  msg : Value) -> Result<(String),Error>{
         let str_result = serde_json::to_string(
             &constants::UnkownCmd{
@@ -110,7 +113,7 @@ impl ClientHandler {
         msg["callback"].as_str().unwrap().to_string())  
     }
 }
-
+/// The surface listener.
 pub struct Server{
     context : zmq::Context,
     responder : zmq::Socket,
@@ -119,10 +122,9 @@ pub struct Server{
 }
 
 impl Server{
-    
+    /// Create a new Server.   
     pub fn new(conn_str: &str , eid : sgx_enclave_id_t) -> Server {
         let ctx = zmq::Context::new();
-        // Maybe this doesn't need to be mut?
         let rep = ctx.socket(zmq::REP).unwrap();
         rep.bind(conn_str).unwrap();
         let client_handler = ClientHandler{};
@@ -133,7 +135,37 @@ impl Server{
             enclave_id : eid,
         }
     }
-
+    /// Run the server. (blocking by default can be wrapper with a thread)
+    /// ```rust
+    ///     // initiate the enclave 
+    ///     let enclave = match init_enclave_wrapper() {
+    ///     Ok(r) => {
+    ///         println!("[+] Init Enclave Successful {}!", r.geteid());
+    ///         r
+    ///     },
+    ///     Err(x) => {
+    ///         println!("[-] Init Enclave Failed {}!", x.as_str());
+    ///         return;
+    ///     },
+    ///    };
+    /// 
+    /// // run the server 
+    ///     let eid = enclave.geteid();
+    ///     let child_server = thread::spawn(move || {
+    ///         let mut server = surface_server::Server::new("surface url", eid);
+    ///         server.run();
+    ///     });
+    ///     {
+    ///         //HOW TO CREATE A CLIENT FOR TESTING PURPOSES Client example:  
+    ///         let context = zmq::Context::new();
+    ///         let requester = context.socket(zmq::REQ).unwrap();
+    ///         assert!(requester.connect("surface url").is_ok());
+    ///         // test commands 
+    ///     }
+    /// child_server.join();
+    /// // destroy the enclave 
+    /// enclave.destroy();
+    /// ```
     pub fn run(& mut self){
         let mut msg = zmq::Message::new().unwrap();
         loop {

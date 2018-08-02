@@ -1,3 +1,4 @@
+//! Interface to the enclave for everything quote related.
 use sgx_types::*;
 use std::*;
 use common_u::errors;
@@ -5,9 +6,9 @@ use failure::Error;
 
 extern { fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 42]) -> sgx_status_t; }
 
-// this struct is returned during the process registration back to the surface.
-// quote: the base64 encoded quote 
-// address : the clear text public key for ecdsa signing and registration
+/// this struct is returned during the process registration back to the surface.
+/// quote: the base64 encoded quote 
+/// address : the clear text public key for ecdsa signing and registration
 #[derive(Serialize, Deserialize, Debug)]
 pub struct GetRegisterResult{
     pub errored : bool,
@@ -16,7 +17,7 @@ pub struct GetRegisterResult{
 }
 
 
-// wrapper function for getting the enclave public sign key (the one attached with produce_quote()) 
+/// wrapper function for getting the enclave public sign key (the one attached with produce_quote()) 
 // TODO:: replace the error type in the Result once established
 pub fn get_register_signing_address(eid: sgx_enclave_id_t) ->Result<String,Error>{
     let mut address: [u8; 42] = [0; 42];

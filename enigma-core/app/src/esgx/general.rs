@@ -1,3 +1,4 @@
+//! Interface to general enclave functions. 
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::io::Write;
@@ -11,7 +12,7 @@ static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 pub static ENCLAVE_DIR: &'static str = ".enigma";
 
-
+/// Get the gome dir ~/.enigma
 #[no_mangle]
 pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
     let path = storage_dir();
@@ -36,7 +37,19 @@ pub fn storage_dir()-> path::PathBuf{
      home_dir.join(ENCLAVE_DIR)
 }
 
-
+/// init the enclave module.
+/// ```rust
+///  let enclave = match esgx::general::init_enclave_wrapper() {
+///     Ok(r) => {
+///         println!("[+] Init Enclave Successful {}!", r.geteid());
+///         r
+///     },
+///     Err(x) => {
+///         println!("[-] Init Enclave Failed {}!", x.as_str());
+///         return;
+///    },
+/// };
+/// ```
 pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     /// Step 1: try to retrieve the launch token saved by last transaction
     ///         if there is no token, then create a new one.
@@ -70,7 +83,7 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     let token_file: path::PathBuf = storage_path.join(ENCLAVE_TOKEN);;
 
     let (enclave, launch_token) = enigma_tools_u::esgx::init_enclave(&token_file, use_token, &ENCLAVE_FILE)?;
-    /// Step 3: save the launch token if it is updated 
+    /// Step 3: save the launch token when it is updated 
     if use_token == true && launch_token.is_some() {
         // reopen the file with write capablity 
         match fs::File::create(&token_file) {

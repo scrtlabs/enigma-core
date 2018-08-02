@@ -1,6 +1,6 @@
 [package]
 
-name = "enigma-worker-surface"
+name = "enigma-core"
 version = "0.1.0"
 authors = ["enigma <support@enigma.co>"]
 build = "build.rs"

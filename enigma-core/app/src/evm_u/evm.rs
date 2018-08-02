@@ -1,3 +1,4 @@
+//! The EVM interface to the enclave.
 #![allow(dead_code,unused_assignments,unused_variables)]
 extern crate sgx_types;
 extern crate sgx_urts;
@@ -21,13 +22,13 @@ extern {
                  result_length: &mut usize) -> sgx_status_t;
 }
 
-
+/// from surface input
 pub struct EvmInput {
     code: String,
     data: String,
 }
 
-// this is the input after its being parsed from the server (originally came from surface)
+/// this is the input after its being parsed from the server (originally came from surface)
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EvmRequest{
     #[allow(dead_code)]
@@ -51,7 +52,7 @@ impl EvmRequest {
     }
 }   
 
-// this is the result from the evm computation that will be send to the server and propagated to surface. 
+/// this is the result from the evm computation that will be send to the server and propagated to surface. 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct EvmResponse{
     errored : bool,
@@ -60,12 +61,11 @@ pub struct EvmResponse{
 }
 
 
-// this function is called by the the server componenet upon an execevm command from surface
+/// this function is called by the the server componenet upon an execevm command from surface
 // very likely that this functions will require an SgxEnclave object.
-
 // TODO:: handle error and failure correctly with the 'result' variable returned from the enclave
 // This should be changed
-// the length of the result returned by EVM should be checked in advance
+/// the length of the result returned by EVM should be checked in advance
 const MAX_EVM_RESULT: usize = 100000;
 pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmResponse,Error>{
     let mut out = vec![0u8; MAX_EVM_RESULT];
