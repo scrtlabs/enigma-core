@@ -8,7 +8,7 @@ keywords =["enigma","sgx","web3"]
 categories=["api-bindings","cryptography","development-tools"]
 repository="https://github.com/enigmampc/enigma-core.git"
 documentation="https://enigma.co/protocol/"
-
+license="MIT"
 [dependencies]
 serde_json = "1.0"
 serde = "1.0.66"
