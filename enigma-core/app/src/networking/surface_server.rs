@@ -6,7 +6,7 @@ use serde_json;
 use serde_json::{Value};
 use evm_u::evm;
 use esgx::equote;
-use networking::constants;
+use networking::constants;  
 use sgx_types::*;
 use failure::Error;
 use enigma_tools_u::esgx::equote::retry_quote;
