@@ -10,6 +10,7 @@ use cryptography_t::symmetric::{decrypt, encrypt};
 use common::utils_t::{ToHex, FromHex};
 use evm_t::get_key;
 use common::errors_t::EnclaveError;
+use bigint::U256;
 
 enum SolidityType {
     Uint,
@@ -114,9 +115,7 @@ fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, 
                             }
                         },
                         &SolidityType::Uint => {
-                            let mut static_type_num= [0u8; mem::size_of::<usize>()];
-                            static_type_num[..v.len()].clone_from_slice(&v);
-                            let num = unsafe { mem::transmute::<[u8; mem::size_of::<usize>()], usize>(static_type_num) };
+                            let num: U256 = v[..].into();
                             decrypted_str = complete_to_u256(num.to_string());
                         },
                         &SolidityType::Bool => {
