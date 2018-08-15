@@ -62,16 +62,22 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityTy
                 Ok(v) => {
                     match arg_type {
                         &SolidityType::Address => {
-                            let iter = v.into_iter();
-                            for item in iter {
-                                result.push(item as char);
-                            }
+                            let string_result: Result<String, DecoderError> = rlp.as_val();
+                            result = match string_result {
+                                Ok(v) => v,
+                                Err(_e) => v[..].to_hex(),
+                            };
                             if result.starts_with("0x") {
                                 result.remove(0);
                                 result.remove(0);
                             }
                         },
-                        _ => result = v[..].to_hex(),
+                        _ => {
+                            let iter = v.into_iter();
+                            for item in iter {
+                                result.push(item as char);
+                            }
+                        },
                     }
                 },
                 Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
