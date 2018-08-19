@@ -11,6 +11,7 @@ crate-type = ["staticlib"]
 default = []
 
 [dependencies]
+spin = "=0.4.8"
 lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
 enigma-tools-t = {path = "../../enigma-tools-t"}
 rustc-hex = { git = "https://github.com/enigmampc/rustc-hex.git", rev = "sgx-master" }
