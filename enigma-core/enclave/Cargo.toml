@@ -1,7 +1,7 @@
 [package]
-name = "enigmacoreenclave"
-version = "0.9.8"
-authors = ["Enigma"]
+name = "enigma-core-enclave"
+version = "0.1.3"
+authors = ["Enigma <support@enigma.co>"]
 
 [lib]
 name = "enigmacoreenclave"
