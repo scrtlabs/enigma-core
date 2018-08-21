@@ -1,0 +1,8 @@
+[package]
+name = "enigma-runtime-t"
+version = "0.1.0"
+authors = ["Elichai Turkel <elichai@enigma.co>"]
+
+[dependencies]
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
+serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }

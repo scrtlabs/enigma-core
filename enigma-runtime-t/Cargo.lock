@@ -1,0 +1,121 @@
+[[package]]
+name = "dtoa"
+version = "0.4.2"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "sgx_tstd 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "enigma-runtime-t"
+version = "0.1.0"
+dependencies = [
+ "serde_json 1.0.17 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_tstd 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "itoa"
+version = "0.3.4"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "sgx_tstd 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "num-traits"
+version = "0.1.40"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "sgx_tstd 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "serde"
+version = "1.0.16"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "sgx_tstd 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.17"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "dtoa 0.4.2 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "itoa 0.3.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "num-traits 0.1.40 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "serde 1.0.16 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_tstd 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "sgx_alloc"
+version = "1.0.0"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "sgx_trts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "sgx_build_helper"
+version = "0.1.0"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+
+[[package]]
+name = "sgx_tprotected_fs"
+version = "1.0.0"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "sgx_trts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "sgx_trts"
+version = "1.0.0"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "sgx_tstd"
+version = "1.0.0"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "sgx_alloc 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_build_helper 0.1.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_tprotected_fs 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_trts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_unwind 0.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "sgx_types"
+version = "1.0.0"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+
+[[package]]
+name = "sgx_unwind"
+version = "0.0.0"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
+dependencies = [
+ "sgx_trts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[metadata]
+"checksum dtoa 0.4.2 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum itoa 0.3.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum num-traits 0.1.40 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum serde 1.0.16 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum serde_json 1.0.17 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_alloc 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_build_helper 0.1.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_tprotected_fs 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_trts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_tstd 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_unwind 0.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
