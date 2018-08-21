@@ -11,3 +11,9 @@ pub struct AttestationServiceErr{
 pub struct QuoteErr{
     pub message : String,
 }
+
+#[derive(Fail, Debug)]
+#[fail(display = "Error while decoding the quote = ({})", message)]
+pub struct WasmError{
+    pub message : String,
+}

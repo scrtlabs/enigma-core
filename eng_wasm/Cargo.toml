@@ -1,0 +1,6 @@
+[package]
+name = "eng_wasm"
+version = "0.1.0"
+authors = ["moria <moria@enigma.co>"]
+
+[dependencies]

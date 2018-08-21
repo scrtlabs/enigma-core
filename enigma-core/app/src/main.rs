@@ -26,6 +26,7 @@ mod esgx;
 mod evm_u;
 mod networking;
 mod common_u;
+mod wasm_u;
 
 pub use esgx::general::ocall_get_home;
 use networking::{surface_server, constants};

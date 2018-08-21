@@ -24,6 +24,9 @@ enclave {
 	                                  [out, size=100000] uint8_t* output, [out] uint8_t signiture[65], [out] uint64_t* result_length);
 
 
+        public sgx_status_t ecall_deploy([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
+    	                              [out, size=100000] uint8_t* output, [out] uint64_t* output_len);
+
         public void ecall_get_signing_address([out] uint8_t arr[42]);
     };
     untrusted {

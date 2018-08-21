@@ -45,6 +45,11 @@ pub enum EnclaveError {
     SgxErr {
         err: String,
         description: String,
+    },
+    #[fail(display = "Error in execution of {}: {}", code, err)]
+    ExecutionErr {
+        code: String,
+        err: String,
     }
 }
 

@@ -18,6 +18,8 @@ httparse = "=1.2.5"
 reqwest = "0.8.6"
 dirs = "1.0"
 enigma-tools-u = {path = "../../enigma-tools-u"}
+parity-wasm = "0.31"
+pwasm-utils = "0.5"
 
 [dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"

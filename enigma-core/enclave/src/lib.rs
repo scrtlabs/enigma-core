@@ -29,6 +29,7 @@ extern crate hexutil;
 extern crate bigint;
 extern crate sputnikvm_network_classic;
 extern crate enigma_tools_t;
+extern crate wasmi;
 
 #[macro_use]
 extern crate error_chain;
@@ -37,6 +38,7 @@ extern crate ethabi;
 extern crate rlp;
 mod evm_t;
 mod ocalls_t;
+mod wasm_g;
 
 use sgx_types::*;
 
@@ -54,6 +56,7 @@ use evm_t::abi::{prepare_evm_input, create_callback};
 use evm_t::EvmResult;
 use std::vec::Vec;
 use common::errors_t::EnclaveError;
+use wasm_g::execution;
 
 
 lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -160,6 +163,31 @@ fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8
     println!("Combined hash: {:?}", &to_be_signed.keccak256().to_hex());
     SIGNINING_KEY.sign(&to_be_signed)
 }
+
+#[no_mangle]
+pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output: *mut u8, output_len: &mut usize) -> sgx_status_t {
+
+    let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
+    let bytecode = bytecode_slice.to_vec();
+
+    println!("From enclave: {:?}" , bytecode);
+
+    match execution::execute_constructor(&bytecode){
+        Ok(mut v)=> {
+           let s: &mut [u8] = &mut v[..];
+            *output_len = s.len();
+            unsafe {
+                ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
+            }
+            sgx_status_t::SGX_SUCCESS
+        }
+        Err(e)=>{
+            println!("ERROR {}", e);
+            sgx_status_t::SGX_ERROR_UNEXPECTED
+        }
+    }
+}
+
 
 pub mod tests {
     extern crate sgx_tunittest;
