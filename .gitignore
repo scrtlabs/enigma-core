@@ -110,3 +110,6 @@ fabric.properties
 
 # Editor-based Rest Client
 .idea/httpRequests
+
+# Elichai's Tests
+sgx-tests
