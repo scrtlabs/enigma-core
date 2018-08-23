@@ -11,6 +11,7 @@ ring = { git = "https://github.com/enigmampc/ring.git", rev = "sgx-0.12.1" }
 # errors handling 
 failure_derive="=0.1.1"
 failure = { version = "=0.1.1", default-features = false, features = ["derive"] }
+rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev = "sgx" }
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tstd]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"

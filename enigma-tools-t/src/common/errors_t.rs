@@ -1,5 +1,6 @@
 use std::string::{String, ToString};
 use sgx_types::sgx_status_t;
+use rmps;
 
 #[derive(Debug, Fail)]
 pub enum EnclaveError {
@@ -50,11 +51,28 @@ pub enum EnclaveError {
     ExecutionErr {
         code: String,
         err: String,
+    },
+    #[fail(display = "There's a State error with: {}", err)]
+    StateErr {
+        err: String,
     }
+
 }
 
 impl From<sgx_status_t> for EnclaveError {
     fn from(err: sgx_status_t) -> EnclaveError {
         EnclaveError::SgxErr { err: err.as_str().to_string(), description: err.__description().to_string() }
+    }
+}
+
+impl From<rmps::decode::Error> for EnclaveError {
+    fn from(err: rmps::decode::Error) -> EnclaveError {
+        EnclaveError::StateErr { err: format!("{:?}", err)}
+    }
+}
+
+impl From<rmps::encode::Error> for EnclaveError {
+    fn from(err: rmps::encode::Error) -> EnclaveError {
+        EnclaveError::StateErr { err: format!("{:?}", err)}
     }
 }
