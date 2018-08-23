@@ -28,8 +28,10 @@ extern crate sputnikvm;
 extern crate hexutil;
 extern crate bigint;
 extern crate sputnikvm_network_classic;
-extern crate enigma_tools_t;
 extern crate wasmi;
+
+extern crate enigma_tools_t;
+extern crate enigma_runtime_t;
 
 #[macro_use]
 extern crate error_chain;
@@ -201,6 +203,8 @@ pub mod tests {
     use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::cryptography_t::symmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
+    use enigma_runtime_t::tests::*;
+    use enigma_runtime_t::state::tests::*;
     #[cfg(test)]
     use secp256k1;
     use super::ecall_evm;
@@ -215,7 +219,12 @@ pub mod tests {
         test_rand_encrypt_decrypt,
         test_encryption,
         test_decryption,
-        test_ecall_evm_signning
+        test_ecall_evm_signning,
+        test_serialization,
+        test_deserialization,
+        test_reserialization,
+        test_write,
+        test_read
         );
     }
 

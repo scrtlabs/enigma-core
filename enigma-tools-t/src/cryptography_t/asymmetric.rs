@@ -6,7 +6,6 @@ use common::errors_t::EnclaveError;
 use std::string::ToString;
 //use std::str;
 use std::vec::Vec;
-use std::str::from_utf8;
 
 #[derive(Debug)]
 pub struct KeyPair {
@@ -100,7 +99,8 @@ impl KeyPair {
 
 pub mod tests {
     use cryptography_t::asymmetric::*;
-    use common::utils_t::*;
+    use common::utils_t::ToHex;
+    use std::str::from_utf8;
 
     pub fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
