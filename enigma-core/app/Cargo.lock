@@ -210,6 +210,7 @@ dependencies = [
  "serde_json 1.0.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
  "sgx_urts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "tempdir 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "zmq 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 

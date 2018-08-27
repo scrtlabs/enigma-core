@@ -2,19 +2,14 @@ use std::path::PathBuf;
 use failure::Error;
 use leveldb::options::{Options,WriteOptions,ReadOptions};
 use leveldb::database::Database;
+use leveldb::kv::KV;
 
-
-pub struct DB<'a> {
+pub struct DB {
     location: PathBuf,
-    database: Database<T>,
-    options: Options,
-    read_opts: ReadOptions<'a, K>,
-    write_opts: WriteOptions,
-
-
+    database: Database<i32>,
 }
 
-pub trait DBInterface {
+impl DB {
     /// Constructs a new `DB<'a>`. with a db file accordingly.
     ///
     /// You need to pass a path for the db file
@@ -25,7 +20,18 @@ pub trait DBInterface {
     /// ```
     /// let db = DB::new(PathBuf::from("/test/test.db", false);
     /// ```
-    fn new(path: PathBuf, create_if_missing: boolean) -> DB;
+    fn new(path: PathBuf, create_if_missing: bool) -> Result<DB, Error> {
+        let mut options = Options::new();
+        options.create_if_missing = create_if_missing;
+        let mut db = Database::open(path.as_path(), options)?;
+        Ok( DB {
+            location: path,
+            database: db
+        } )
+    }
+}
+
+pub trait CRUDInterface {
     /// Creates a new Key-Value pair
     ///
     /// # Examples
@@ -55,4 +61,18 @@ pub trait DBInterface {
     /// db.delete("test").unwrap();
     /// ```
     fn delete(&mut self, key: &str) -> Result<(), Error>;
+}
+
+#[cfg(test)]
+mod test {
+    extern crate tempdir;
+    use db::dal::DB;
+    use std::fs;
+
+    #[test]
+    fn test_new_db() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let db = DB::new(tempdir.clone(), true).unwrap();
+        fs::remove_dir_all(tempdir).unwrap();
+    }
 }
