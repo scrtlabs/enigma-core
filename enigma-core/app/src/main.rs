@@ -3,6 +3,7 @@ extern crate sgx_urts;
 extern crate base64;
 extern crate reqwest;
 extern crate dirs;
+extern crate leveldb;
 
 // networking apt install libzmq3-dev
 extern crate zmq; 
@@ -27,6 +28,7 @@ mod evm_u;
 mod networking;
 mod common_u;
 mod wasm_u;
+mod db;
 
 pub use esgx::general::ocall_get_home;
 use networking::{surface_server, constants};

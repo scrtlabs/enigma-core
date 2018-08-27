@@ -17,6 +17,7 @@ rustc-hex = "1.0.0"
 httparse = "=1.2.5"
 reqwest = "0.8.6"
 dirs = "1.0"
+leveldb = "0.8"
 enigma-tools-u = {path = "../../enigma-tools-u"}
 parity-wasm = "0.31"
 pwasm-utils = "0.5"
