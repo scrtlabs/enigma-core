@@ -11,24 +11,16 @@ pub struct ContractState {
     json: Value,
 }
 
-pub trait ContractStateInterface {
-    fn new(contract_id: &str) -> ContractState;
-    fn parse(contract_id: &str, buf: Vec<u8>) -> Result<ContractState, EnclaveError>;
-    fn read_key<T>(&self, key: &str) -> Result<T, Error> where for<'de> T: Deserialize<'de>;
-    fn write_key(&mut self, key: &str, value: Value) -> Result<(), EnclaveError>;
-    fn serialize(&self) -> Result<Vec<u8>, EnclaveError>;
-}
+impl ContractState {
 
-impl ContractStateInterface for ContractState {
-
-    fn new(contract_id: &str) -> ContractState {
+    pub fn new(contract_id: &str) -> ContractState {
         ContractState {
             contract_id: String::from(contract_id),
             json: Value::default()
         }
     }
 
-    fn parse(contract_id: &str, buf: Vec<u8>) -> Result<ContractState, EnclaveError> {
+    pub fn parse(contract_id: &str, buf: Vec<u8>) -> Result<ContractState, EnclaveError> {
         let mut de = Deserializer::new(&buf[..]);
         let backed: Value = Deserialize::deserialize(&mut de)?;
 
@@ -37,6 +29,16 @@ impl ContractStateInterface for ContractState {
             json: backed
         })
     }
+}
+
+
+pub trait IOInterface {
+    fn read_key<T>(&self, key: &str) -> Result<T, Error> where for<'de> T: Deserialize<'de>;
+    fn write_key(&mut self, key: &str, value: Value) -> Result<(), EnclaveError>;
+    fn serialize(&self) -> Result<Vec<u8>, EnclaveError>;
+}
+
+impl IOInterface for ContractState {
 
     fn read_key<T>(&self, key: &str) -> Result<T, Error>
     where for<'de> T: Deserialize<'de> {
