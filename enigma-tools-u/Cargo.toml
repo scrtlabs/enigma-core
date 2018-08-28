@@ -21,6 +21,7 @@ rustc-hex = "1.0.0"
 web3 = { git = 'https://github.com/tomusdrw/rust-web3.git' }
 libc = "0.2.41"
 tiny-keccak = "1.4.2"
+ethereum-types = "=0.3.2"
 
 [dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
