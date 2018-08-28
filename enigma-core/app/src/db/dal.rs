@@ -3,13 +3,17 @@ use failure::Error;
 use leveldb::options::{Options,WriteOptions,ReadOptions};
 use leveldb::database::Database;
 use leveldb::kv::KV;
+use db_key::Key;
+use common_u::errors;
+use db::primitives::Array32u8;
 
-pub struct DB {
+
+pub struct DB<K: Key> {
     location: PathBuf,
-    database: Database<i32>,
+    database: Database<K>,
 }
 
-impl DB {
+impl<K: Key> DB<K> {
     /// Constructs a new `DB<'a>`. with a db file accordingly.
     ///
     /// You need to pass a path for the db file
@@ -20,25 +24,26 @@ impl DB {
     /// ```
     /// let db = DB::new(PathBuf::from("/test/test.db", false);
     /// ```
-    fn new(path: PathBuf, create_if_missing: bool) -> Result<DB, Error> {
+    pub fn new(path: PathBuf, create_if_missing: bool) -> Result<DB<K>, Error> {
         let mut options = Options::new();
         options.create_if_missing = create_if_missing;
         let mut db = Database::open(path.as_path(), options)?;
-        Ok( DB {
+        let db_par = DB{
             location: path,
             database: db
-        } )
+        };
+        Ok( db_par )
     }
 }
 
-pub trait CRUDInterface {
+pub trait CRUDInterface<E, K, T, V> {
     /// Creates a new Key-Value pair
     ///
     /// # Examples
     /// ```
     /// db.create("test", "abc".as_bytes()).unwrap();
     /// ```
-    fn create(&mut self, key: &str, value: &[u8]) -> Result<(), Error>; // TODO: Decide what to do if key doesn't exist
+    fn create(&mut self, key: K, value: V) -> Result<(), E>; // TODO: Decide what to do if key doesn't exist
     /// Reads the Value in a specific Key
     ///
     /// # Examples
@@ -46,21 +51,52 @@ pub trait CRUDInterface {
     /// let res = db.read("test").unwrap();
     /// assert_eq!("abc".as_bytes, res);
     /// ```
-    fn read(&mut self, key: &str) -> Result<Vec<u8>, Error>;
+    fn read(&mut self, key: K) -> Result<T, E>;
     /// Updates an existing Key with a new value
     ///
     /// # Examples
     /// ```
     /// db.update("test", "abc".as_bytes()).unwrap();
     /// ```
-    fn update(&mut self, key: &str, value: &[u8]) -> Result<(), Error>;
+    fn update(&mut self, key: K, value: V) -> Result<(), E>;
     /// Deletes an existing key
     ///
     /// # Examples
     /// ```
     /// db.delete("test").unwrap();
     /// ```
-    fn delete(&mut self, key: &str) -> Result<(), Error>;
+    fn delete(&mut self, key: K) -> Result<(), E>;
+}
+
+
+impl<'a> CRUDInterface<Error, &'a [u8; 32], Vec<u8>, &'a [u8]> for DB<Array32u8> {
+
+    fn create(&mut self, key: &'a [u8; 32], value: &'a [u8]) -> Result<(), Error> {
+        let write_opts = WriteOptions::new();
+        let k = Array32u8{bits: *key};
+        if self.database.get(ReadOptions::new(), k)?.is_some() {
+            return Err(errors::DBErr {
+                command: "create".to_string(), message: "Key already exist".to_string()
+            }.into())
+        }
+
+        Ok(())
+    }
+    fn read(&mut self, key: &'a [u8; 32]) -> Result<Vec<u8>, Error> {
+        Ok(vec![])
+    }
+
+    fn update(&mut self, key: &'a [u8; 32], value: &'a [u8]) -> Result<(), Error> {
+        let write_opts = WriteOptions::new();
+        Ok(())
+    }
+
+    fn delete(&mut self, key: &'a [u8; 32]) -> Result<(), Error> {
+        let write_opts = WriteOptions::new();
+        Ok(())
+
+    }
+
 }
 
 #[cfg(test)]
@@ -68,11 +104,12 @@ mod test {
     extern crate tempdir;
     use db::dal::DB;
     use std::fs;
+    use db::primitives::Array32u8;
 
     #[test]
     fn test_new_db() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let db = DB::new(tempdir.clone(), true).unwrap();
+        let db = DB::<Array32u8>::new(tempdir.clone(), true).unwrap();
         fs::remove_dir_all(tempdir).unwrap();
     }
 }

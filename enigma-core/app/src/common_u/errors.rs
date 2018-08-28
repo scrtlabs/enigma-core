@@ -38,5 +38,12 @@ pub struct AttestationServiceErr{
     pub message : String,
 }
 
+#[derive(Fail, Debug)]
+#[fail(display = "Error while trying to {}, Because: {}", command, message)]
+pub struct DBErr{
+    pub command: String,
+    pub message : String,
+}
+
 
 

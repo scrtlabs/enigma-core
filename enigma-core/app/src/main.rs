@@ -4,6 +4,7 @@ extern crate base64;
 extern crate reqwest;
 extern crate dirs;
 extern crate leveldb;
+extern crate db_key;
 
 // networking apt install libzmq3-dev
 extern crate zmq; 
