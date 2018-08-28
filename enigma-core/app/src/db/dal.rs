@@ -4,9 +4,13 @@ use leveldb::options::{Options,WriteOptions,ReadOptions};
 use leveldb::database::Database;
 use leveldb::kv::KV;
 use db_key::Key;
-use common_u::errors;
+use common_u::errors::DBErr;
 use db::primitives::Array32u8;
 
+// These are global variables for Reade/Write/Create Options
+const PARANOID_CHECK: bool = true;
+const VERIFY_CHECKSUMS: bool = true;
+const SYNC: bool = true;
 
 pub struct DB<K: Key> {
     location: PathBuf,
@@ -27,6 +31,7 @@ impl<K: Key> DB<K> {
     pub fn new(path: PathBuf, create_if_missing: bool) -> Result<DB<K>, Error> {
         let mut options = Options::new();
         options.create_if_missing = create_if_missing;
+        options.paranoid_checks = PARANOID_CHECK;
         let mut db = Database::open(path.as_path(), options)?;
         let db_par = DB{
             location: path,
@@ -69,30 +74,60 @@ pub trait CRUDInterface<E, K, T, V> {
 }
 
 
-impl<'a> CRUDInterface<Error, &'a [u8; 32], Vec<u8>, &'a [u8]> for DB<Array32u8> {
+impl<'a> CRUDInterface<Error, &'a Array32u8, Vec<u8>, &'a [u8]> for DB<Array32u8> {
 
-    fn create(&mut self, key: &'a [u8; 32], value: &'a [u8]) -> Result<(), Error> {
-        let write_opts = WriteOptions::new();
-        let k = Array32u8{bits: *key};
-        if self.database.get(ReadOptions::new(), k)?.is_some() {
-            return Err(errors::DBErr {
-                command: "create".to_string(), message: "Key already exist".to_string()
-            }.into())
+    fn create(&mut self, key: &'a Array32u8, value: &'a [u8]) -> Result<(), Error> {
+        // This verifies that the key doesn't already exist.
+        let mut read_opts = ReadOptions::new();
+        read_opts.verify_checksums = VERIFY_CHECKSUMS;
+        if self.database.get(read_opts, key)?.is_some() {
+            return Err( DBErr { command: "create".to_string(), message: "Key already exist".to_string() }.into())
         }
 
-        Ok(())
+        let mut write_opts = WriteOptions::new();
+        write_opts.sync = SYNC;
+        match self.database.put(write_opts, key, value) {
+            Ok(_) => return Ok(()),
+            Err(e) => return Err(DBErr { command: "create".to_string(), message: "Failed to create the key".to_string() }.into())
+        };
     }
-    fn read(&mut self, key: &'a [u8; 32]) -> Result<Vec<u8>, Error> {
-        Ok(vec![])
+    fn read(&mut self, key: &'a Array32u8) -> Result<Vec<u8>, Error> {
+        let mut read_opts = ReadOptions::new();
+        read_opts.verify_checksums = VERIFY_CHECKSUMS;
+
+        match self.database.get(read_opts, key)? {
+            Some(data) => return Ok(data),
+            None => return Err(DBErr { command: "get".to_string(), message: "Failed to fetch the data".to_string() }.into())
+        }
     }
 
-    fn update(&mut self, key: &'a [u8; 32], value: &'a [u8]) -> Result<(), Error> {
-        let write_opts = WriteOptions::new();
-        Ok(())
+    fn update(&mut self, key: &'a Array32u8, value: &'a [u8]) -> Result<(), Error> {
+        // Make sure the key already exists.
+        let mut read_opts = ReadOptions::new();
+        read_opts.verify_checksums = VERIFY_CHECKSUMS;
+        if self.database.get(read_opts, key)?.is_none() {
+            return Err(DBErr { command: "update".to_string(), message: "The Key doesn't exist".to_string() }.into())
+        }
+        else {
+            let mut write_opts = WriteOptions::new();
+            write_opts.sync = SYNC;
+            match self.database.put(write_opts, key, value) {
+                Ok(_) => return Ok(()),
+                Err(e) => return Err(DBErr { command: "create".to_string(), message: "Failed to create the key".to_string() }.into())
+            };
+        }
     }
 
-    fn delete(&mut self, key: &'a [u8; 32]) -> Result<(), Error> {
-        let write_opts = WriteOptions::new();
+    fn delete(&mut self, key: &'a Array32u8) -> Result<(), Error> {
+        // This verifies that the key really doesn't exist.
+        let mut read_opts = ReadOptions::new();
+        read_opts.verify_checksums = VERIFY_CHECKSUMS;
+        if self.database.get(read_opts, key)?.is_none() {
+            return Err( DBErr { command: "delete".to_string(), message: "Key Doesn't exist".to_string() }.into())
+        }
+        let mut write_opts = WriteOptions::new();
+        write_opts.sync = SYNC;
+        self.database.delete(write_opts, key)?;
         Ok(())
 
     }
@@ -105,6 +140,7 @@ mod test {
     use db::dal::DB;
     use std::fs;
     use db::primitives::Array32u8;
+    use db::dal::CRUDInterface;
 
     #[test]
     fn test_new_db() {
