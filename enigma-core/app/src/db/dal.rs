@@ -74,9 +74,9 @@ pub trait CRUDInterface<E, K, T, V> {
 }
 
 
-impl<'a> CRUDInterface<Error, &'a Array32u8, Vec<u8>, &'a [u8]> for DB<Array32u8> {
+impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
 
-    fn create(&mut self, key: &'a Array32u8, value: &'a [u8]) -> Result<(), Error> {
+    fn create(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         // This verifies that the key doesn't already exist.
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
@@ -91,7 +91,7 @@ impl<'a> CRUDInterface<Error, &'a Array32u8, Vec<u8>, &'a [u8]> for DB<Array32u8
             Err(e) => return Err(DBErr { command: "create".to_string(), message: "Failed to create the key".to_string() }.into())
         };
     }
-    fn read(&mut self, key: &'a Array32u8) -> Result<Vec<u8>, Error> {
+    fn read(&mut self, key: &'a K) -> Result<Vec<u8>, Error> {
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
 
@@ -101,7 +101,7 @@ impl<'a> CRUDInterface<Error, &'a Array32u8, Vec<u8>, &'a [u8]> for DB<Array32u8
         }
     }
 
-    fn update(&mut self, key: &'a Array32u8, value: &'a [u8]) -> Result<(), Error> {
+    fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         // Make sure the key already exists.
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
@@ -118,7 +118,7 @@ impl<'a> CRUDInterface<Error, &'a Array32u8, Vec<u8>, &'a [u8]> for DB<Array32u8
         }
     }
 
-    fn delete(&mut self, key: &'a Array32u8) -> Result<(), Error> {
+    fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         // This verifies that the key really doesn't exist.
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
