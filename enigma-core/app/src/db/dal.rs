@@ -148,4 +148,91 @@ mod test {
         let db = DB::<Array32u8>::new(tempdir.clone(), true).unwrap();
         fs::remove_dir_all(tempdir).unwrap();
     }
+
+    #[test]
+    fn test_create_read() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::<Array32u8>::new(tempdir.clone(), true).unwrap();
+        fs::remove_dir_all(tempdir).unwrap();
+        let mut arr = [0u8; 32];
+        arr[0..3].clone_from_slice( &[1,2,3]);
+        let v = b"Enigma";
+        db.create(&Array32u8{bits:arr}, &v[..]).unwrap();
+        assert_eq!(db.read(&Array32u8{bits:arr}).unwrap(), v);
+    }
+
+    #[test]
+    fn test_create_update_read() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::<Array32u8>::new(tempdir.clone(), true).unwrap();
+        fs::remove_dir_all(tempdir).unwrap();
+        let mut arr = [0u8; 32];
+        arr[0..3].clone_from_slice( &[1,2,3]);
+        let v = b"Enigma";
+        db.create(&Array32u8{bits:arr}, &v[..]).unwrap();
+        assert_eq!(db.read(&Array32u8{bits:arr}).unwrap(), v);
+        let v = b"MPC";
+        db.update(&Array32u8{bits:arr}, &v[..]).unwrap();
+        assert_eq!(db.read(&Array32u8{bits:arr}).unwrap(), v);
+    }
+
+    #[test]
+    fn test_create_delete() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::<Array32u8>::new(tempdir.clone(), true).unwrap();
+        fs::remove_dir_all(tempdir).unwrap();
+        let mut arr = [0u8; 32];
+        arr[0..3].clone_from_slice( &[1,2,3]);
+        let v = b"Enigma";
+        db.create(&Array32u8{bits:arr}, &v[..]).unwrap();
+        db.delete(&Array32u8{bits:arr}).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_create_read_delete_fail_reading() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::<Array32u8>::new(tempdir.clone(), true).unwrap();
+        fs::remove_dir_all(tempdir).unwrap();
+        let mut arr = [0u8; 32];
+        arr[0..3].clone_from_slice( &[1,2,3]);
+        let v = b"Enigma";
+        db.create(&Array32u8{bits:arr}, &v[..]).unwrap();
+        assert_eq!(db.read(&Array32u8{bits:arr}).unwrap(), v);
+        db.delete(&Array32u8{bits:arr}).unwrap();
+        db.read(&Array32u8{bits:arr}).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_fail_reading() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::<Array32u8>::new(tempdir.clone(), true).unwrap();
+        fs::remove_dir_all(tempdir).unwrap();
+        let mut arr = [0u8; 32];
+        arr[0..3].clone_from_slice( &[1,2,3]);
+        db.read(&Array32u8{bits:arr}).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_fail_updating() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::<Array32u8>::new(tempdir.clone(), true).unwrap();
+        fs::remove_dir_all(tempdir).unwrap();
+        let mut arr = [0u8; 32];
+        arr[0..3].clone_from_slice( &[1,2,3]);
+        db.update(&Array32u8{bits:arr}, b"Enigma").unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_fail_deleting() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::<Array32u8>::new(tempdir.clone(), true).unwrap();
+        fs::remove_dir_all(tempdir).unwrap();
+        let mut arr = [0u8; 32];
+        arr[0..3].clone_from_slice( &[1,2,3]);
+        db.delete(&Array32u8{bits:arr}).unwrap();
+    }
 }
