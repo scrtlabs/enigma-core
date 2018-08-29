@@ -10,3 +10,4 @@ serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
 
 rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev = "sgx"}
 enigma-tools-t = { path = "../enigma-tools-t" }
+json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2" }

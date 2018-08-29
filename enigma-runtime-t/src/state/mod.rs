@@ -45,7 +45,7 @@ impl IOInterface for ContractState {
         from_value(self.json[key].clone())
     }
 
-    fn write_key(&mut self, key: &str, value: Value) -> Result<(), EnclaveError>{
+    fn write_key(&mut self, key: &str, value: Value) -> Result<(), EnclaveError> {
         self.json[key] = value;
         Ok(())
     }
