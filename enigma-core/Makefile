@@ -1,6 +1,6 @@
 ######## My portable ############
-SGX_SDK_RUST := /root/sgx
-EDL_PATH := /root/sgx/edl
+SGX_SDK_RUST ?= /root/sgx
+EDL_PATH := $(SGX_SDK_RUST)/edl
 
 ######## SGX SDK Settings ########
 
