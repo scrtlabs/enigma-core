@@ -18,7 +18,7 @@ pub fn execute_constructor(bytecode: &Vec<u8>) -> Result<Vec<u8>, EnclaveError>{
     let imports = ImportsBuilder::new().with_resolver("env", &instantiation_resolver);
 
     // Instantiate a module
-/*    let instance = ModuleInstance::new(&module, &imports).
+    let instance = ModuleInstance::new(&module, &imports).
         expect("failed to instantiate wasm module")
         .assert_no_start();
 
@@ -32,7 +32,5 @@ pub fn execute_constructor(bytecode: &Vec<u8>) -> Result<Vec<u8>, EnclaveError>{
             println!("Error in invocation of the external function: {}", e);
             Err(EnclaveError::ExecutionErr{code: "deployment code".to_string(), err: e.to_string()})
         }
-    }*/
-    Ok(Vec::new())
-
+    }
 }
