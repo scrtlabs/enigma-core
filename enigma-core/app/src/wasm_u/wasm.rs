@@ -116,7 +116,7 @@ pub mod tests {
 
     #[test]
     pub fn contract() {
-        let mut f = File::open("../../examples/eng_wasm_contracts/simplest/target/wasm32-unknown-unknown/release/contract.wasm").unwrap();
+        let mut f = File::open("../../examples/eng_wasm_contracts/simplest/contract.wasm").unwrap();
         let mut wasm_code = Vec::new();
         f.read_to_end(&mut wasm_code);
         let enclave = init_enclave();
