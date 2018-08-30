@@ -170,8 +170,6 @@ pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output:
     let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
     let bytecode = bytecode_slice.to_vec();
 
-    println!("From enclave: {:?}" , bytecode);
-
     match execution::execute_constructor(&bytecode){
         Ok(mut v)=> {
            let s: &mut [u8] = &mut v[..];
