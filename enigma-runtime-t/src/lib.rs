@@ -4,6 +4,8 @@
 extern crate sgx_tstd as std;
 #[macro_use]
 extern crate serde_json;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde;
 extern crate rmp_serde as rmps;
 extern crate enigma_tools_t;

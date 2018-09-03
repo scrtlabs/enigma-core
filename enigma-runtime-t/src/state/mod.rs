@@ -4,13 +4,16 @@ use std::vec::Vec;
 use serde::{Deserialize, Serialize};
 use rmps::{Deserializer, Serializer};
 use enigma_tools_t::common::errors_t::EnclaveError;
-use json_patch::Patch;
+use json_patch;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ContractState {
     contract_id: String,
     json: Value,
 }
+
+#[derive(Debug, Clone, Deserialize, PartialEq)]
+pub struct StatePatch ( json_patch::Patch );
 
 impl ContractState {
 
@@ -33,13 +36,37 @@ impl ContractState {
 }
 
 
-pub trait IOInterface {
+pub trait IOInterface<E, U> {
     fn read_key<T>(&self, key: &str) -> Result<T, Error> where for<'de> T: Deserialize<'de>;
-    fn write_key(&mut self, key: &str, value: Value) -> Result<(), EnclaveError>;
-    fn serialize(&self) -> Result<Vec<u8>, EnclaveError>;
+    fn write_key(&mut self, key: &str, value: Value) -> Result<(), E>;
+    fn serialize(&self) -> Result<Vec<U>, E>;
 }
 
-impl IOInterface for ContractState {
+pub trait DeltasInterface<E, T> {
+    fn apply_delta(&mut self, delta: &T) -> Result<(), E>;
+    fn generate_delta(&self, old: Option<Self>, new: Option<Self>) -> Result<T, E> where Self: Sized;
+}
+
+pub trait SerializeToVec<E, T> {
+    fn serialize(&self) -> Result<Vec<T>, E>;
+    fn parse(ser: &Vec<T>) -> Result<Self, E> where Self: Sized;
+}
+
+impl SerializeToVec<EnclaveError, u8> for StatePatch {
+    fn serialize(&self) -> Result< Vec<u8>, EnclaveError> {
+        let mut buf = Vec::new();
+        self.0.serialize(&mut Serializer::new(&mut buf))?;
+        Ok(buf)
+    }
+
+    fn parse(ser: &Vec<u8>) -> Result<StatePatch, EnclaveError> {
+        let mut de = Deserializer::new(&ser[..]);
+        let back: StatePatch = Deserialize::deserialize(&mut de).unwrap();
+        Ok(back)
+    }
+}
+
+impl IOInterface<EnclaveError, u8> for ContractState {
 
     fn read_key<T>(&self, key: &str) -> Result<T, Error>
     where for<'de> T: Deserialize<'de> {

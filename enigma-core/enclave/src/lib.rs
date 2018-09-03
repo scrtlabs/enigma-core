@@ -225,7 +225,10 @@ pub mod tests {
         test_reserialization,
         test_write,
         test_read,
-        test_macros
+        test_macros,
+        test_diff_patch,
+        test_serialize,
+        test_deserialize
         );
     }
 
