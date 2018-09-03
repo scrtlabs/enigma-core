@@ -113,8 +113,8 @@ pub mod tests {
     #[macro_use]
     use state::*;
     use std::string::{ToString, String};
-    use serde_json::{Value, Map};
-
+    use serde_json::{Value, Map, self};
+    use json_patch;
 
     pub fn test_macros() {
         write_state!("Hey!" => "We!");
@@ -171,5 +171,26 @@ pub mod tests {
         assert_eq!(con.read_key::<bool>("success").unwrap(), true);
         assert_eq!(con.read_key::<Map<String, Value>>("payload").unwrap()["features"], json!(["serde","json"]));
 
+    }
+
+    pub fn test_diff_patch() {
+        let left = json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] });
+        let right = json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] });
+        let patch = StatePatch( json_patch::diff(&left, &right) );
+        assert_eq!(serde_json::to_string(&patch.0).unwrap(), "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]");
+    }
+
+    pub fn test_serialize() {
+        let s = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
+        let patch: StatePatch = serde_json::from_str(s).unwrap();
+        let ser = patch.serialize().unwrap();
+        assert_eq!(ser, vec![147, 147, 167, 114, 101, 112, 108, 97, 99, 101, 173, 47, 97, 117, 116, 104, 111, 114, 47, 110, 97, 109, 101, 50, 166, 76, 101, 110, 110, 111, 110, 147, 163, 97, 100, 100, 167, 47, 116, 97, 103, 115, 47, 50, 165, 116, 104, 105, 114, 100, 146, 166, 114, 101, 109, 111, 118, 101, 166, 47, 116, 105, 116, 108, 101]);
+    }
+
+    pub fn test_deserialize() {
+        let s = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
+        let patch: StatePatch = serde_json::from_str(s).unwrap();
+        let ser = patch.serialize().unwrap();
+        assert_eq!( patch, StatePatch::parse(&ser).unwrap() );
     }
 }
