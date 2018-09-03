@@ -24,13 +24,10 @@ impl ClientHandler {
         let result = match cmd {
             constants::Command::Execevm =>{
                 let result = self.handle_execevm(eid, v.clone()).unwrap();
-                println!("EVM Output result : {}",result );
-
                 result
             },
             constants::Command::GetRegister =>{
                 let result = self.handle_get_register(eid).unwrap();
-                println!("Enclave quote : {}", result);
                 result
             },
             constants::Command::Stop=>{
@@ -167,8 +164,7 @@ impl Server{
     use std::thread;
     use serde_json;
     use serde_json::{Value};
-    use evm_u::evm::EvmRequest;
-    
+
     // can be tested with a client /app/tests/surface_listener/surface_client.pu
     // network message defitnitions can be found in /app/tests/surface_listener/message_type.definition
      #[test]
@@ -202,7 +198,7 @@ impl Server{
                 test_execevm_cmd(&requester);
                 test_stop_cmd(&requester);
             }
-            child_server.join();
+            child_server.join().unwrap();
         // destroy the enclave 
         enclave.destroy();
      }
@@ -271,13 +267,15 @@ impl Server{
         let mut msg = zmq::Message::new().unwrap();
         requester.recv(&mut msg, 0).unwrap();
         let v: Value = serde_json::from_str(msg.as_str().unwrap()).unwrap();
-        let errored  = v["errored"].as_bool().unwrap();//{
-        let signature  = v["signature"].as_str().unwrap();
+        let errored  = v["errored"].as_bool().unwrap();
+        let _signature  = v["signature"].as_str().unwrap();
         let result = v["result"].as_str().unwrap();
+
         // 3. validate result
-        assert!((result == "85e3c4630000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000004b8d2c72980af7e6a0952f87146d6a225922acd70000000000000000000000001d1b9890d277de99fa953218d4c02cac764641d7")
-        ||
-                    (result == "85e3c4630000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000001d1b9890d277de99fa953218d4c02cac764641d70000000000000000000000004b8d2c72980af7e6a0952f87146d6a225922acd7"));
+         assert_eq!(errored,false );
+         assert!( (result == "85e3c4630000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000004b8d2c72980af7e6a0952f87146d6a225922acd70000000000000000000000001d1b9890d277de99fa953218d4c02cac764641d7")
+             ||
+             (result == "85e3c4630000000000000000000000000000000000000000000000000000000000000050000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000001d1b9890d277de99fa953218d4c02cac764641d70000000000000000000000004b8d2c72980af7e6a0952f87146d6a225922acd7") );
      }
     fn test_stop_cmd(requester : &zmq::Socket){
         #[derive(Serialize, Deserialize, Debug)]

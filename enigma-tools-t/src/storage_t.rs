@@ -129,7 +129,6 @@ pub mod tests {
         load_sealed_key( &p, &mut sealed_log_out);
         // unseal data
         let unsealed_data = SecretKeyStorage::unseal_key(&mut sealed_log_out).unwrap();
-        println!("unsealed data => {:?}",unsealed_data );
         // compare data
         assert_eq!(data.data,unsealed_data.data);
         // delete the file

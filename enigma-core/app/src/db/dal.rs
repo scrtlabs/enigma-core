@@ -11,11 +11,13 @@ const PARANOID_CHECK: bool = true;
 const VERIFY_CHECKSUMS: bool = true;
 const SYNC: bool = true;
 
+#[allow(dead_code)] // TODO: Remove in the future
 pub struct DB<K: Key> {
     location: PathBuf,
     database: Database<K>,
 }
 
+#[allow(dead_code)] // TODO: Remove in the future
 impl<K: Key> DB<K> {
     /// Constructs a new `DB<'a>`. with a db file accordingly.
     ///
@@ -87,7 +89,7 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
         write_opts.sync = SYNC;
         match self.database.put(write_opts, key, value) {
             Ok(_) => return Ok(()),
-            Err(e) => return Err(DBErr { command: "create".to_string(), message: "Failed to create the key".to_string() }.into())
+            Err(e) => return Err(DBErr { command: "create".to_string(), message: format!("Failed to create the key {:?}", e) }.into())
         };
     }
     fn read(&mut self, key: &'a K) -> Result<Vec<u8>, Error> {
@@ -112,7 +114,7 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
             write_opts.sync = SYNC;
             match self.database.put(write_opts, key, value) {
                 Ok(_) => return Ok(()),
-                Err(e) => return Err(DBErr { command: "create".to_string(), message: "Failed to create the key".to_string() }.into())
+                Err(e) => return Err(DBErr { command: "create".to_string(), message: format!("Failed to create the key {:?}", e) }.into())
             };
         }
     }
