@@ -29,8 +29,8 @@ pub mod tests {
                     "json"]
             }
         });
-        s.write_key("a", value).unwrap();
-        s.write_key("b", json!(9)).unwrap();
+        s.write_key("a", &value).unwrap();
+        s.write_key("b", &json!(9)).unwrap();
 //        let b = s.read_key("ab").clone();
         let a: Map<String, serde_json::Value> = s.read_key("a").unwrap();
         println!("a: {:?}", a);

@@ -225,7 +225,9 @@ pub mod tests {
         test_macros,
         test_diff_patch,
         test_serialize,
-        test_deserialize
+        test_deserialize,
+        test_apply_delta,
+        test_generate_delta,
         );
     }
 

@@ -1,6 +1,7 @@
 use std::string::{String, ToString};
 use sgx_types::sgx_status_t;
 use rmps;
+use json_patch;
 
 #[derive(Debug, Fail)]
 pub enum EnclaveError {
@@ -74,5 +75,11 @@ impl From<rmps::decode::Error> for EnclaveError {
 impl From<rmps::encode::Error> for EnclaveError {
     fn from(err: rmps::encode::Error) -> EnclaveError {
         EnclaveError::StateErr { err: format!("{:?}", err)}
+    }
+}
+
+impl From<json_patch::PatchError> for EnclaveError {
+    fn from(err: json_patch::PatchError) -> EnclaveError {
+        EnclaveError::StateErr { err: format!("{}", err) }
     }
 }

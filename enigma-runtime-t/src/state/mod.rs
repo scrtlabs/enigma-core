@@ -1,5 +1,5 @@
 use serde_json::{Value, from_value, Error};
-use std::string::String;
+use std::string::{String, ToString};
 use std::vec::Vec;
 use serde::{Deserialize, Serialize};
 use rmps::{Deserializer, Serializer};
@@ -38,19 +38,56 @@ impl ContractState {
 
 pub trait IOInterface<E, U> {
     fn read_key<T>(&self, key: &str) -> Result<T, Error> where for<'de> T: Deserialize<'de>;
-    fn write_key(&mut self, key: &str, value: Value) -> Result<(), E>;
+    fn write_key(&mut self, key: &str, value: &Value) -> Result<(), E>;
     fn serialize(&self) -> Result<Vec<U>, E>;
 }
 
 pub trait DeltasInterface<E, T> {
     fn apply_delta(&mut self, delta: &T) -> Result<(), E>;
-    fn generate_delta(&self, old: Option<Self>, new: Option<Self>) -> Result<T, E> where Self: Sized;
+    fn generate_delta(&self, old: Option<&Self>, new: Option<&Self>) -> Result<T, E> where Self: Sized;
 }
 
 pub trait SerializeToVec<E, T> {
     fn serialize(&self) -> Result<Vec<T>, E>;
     fn parse(ser: &Vec<T>) -> Result<Self, E> where Self: Sized;
 }
+
+
+impl IOInterface<EnclaveError, u8> for ContractState {
+
+    fn read_key<T>(&self, key: &str) -> Result<T, Error>
+    where for<'de> T: Deserialize<'de> {
+        from_value(self.json[key].clone())
+    }
+
+    fn write_key(&mut self, key: &str, value: &Value) -> Result<(), EnclaveError> {
+        self.json[key] = value.clone();
+        Ok(())
+    }
+
+    fn serialize(&self) -> Result<Vec<u8>, EnclaveError> {
+        let mut buf = Vec::new();
+        self.json.serialize(&mut Serializer::new(&mut buf))?;
+        Ok(buf)
+    }
+
+}
+
+impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
+    fn apply_delta(&mut self, delta: &StatePatch) -> Result<(), EnclaveError> {
+        json_patch::patch(&mut self.json, &delta.0)?;
+        Ok( () )
+    }
+    fn generate_delta(&self, old: Option<&Self>, new: Option<&Self>) -> Result<StatePatch, EnclaveError> {
+        if old.is_some() { return Ok(StatePatch( json_patch::diff(&old.unwrap().json, &self.json) )) }
+
+        else if new.is_some() { return Ok(StatePatch( json_patch::diff(&self.json, &new.unwrap().json) )) }
+
+       else { return Err( EnclaveError::StateErr {  err: "Generating a delta, Both old and new are None".to_string() } ) }
+
+    }
+}
+
 
 impl SerializeToVec<EnclaveError, u8> for StatePatch {
     fn serialize(&self) -> Result< Vec<u8>, EnclaveError> {
@@ -66,25 +103,7 @@ impl SerializeToVec<EnclaveError, u8> for StatePatch {
     }
 }
 
-impl IOInterface<EnclaveError, u8> for ContractState {
 
-    fn read_key<T>(&self, key: &str) -> Result<T, Error>
-    where for<'de> T: Deserialize<'de> {
-        from_value(self.json[key].clone())
-    }
-
-    fn write_key(&mut self, key: &str, value: Value) -> Result<(), EnclaveError> {
-        self.json[key] = value;
-        Ok(())
-    }
-
-    fn serialize(&self) -> Result<Vec<u8>, EnclaveError> {
-        let mut buf = Vec::new();
-        self.json.serialize(&mut Serializer::new(&mut buf))?;
-        Ok(buf)
-    }
-
-}
 // TODO: All these macros should be in eng_wasm
 macro_rules! write_state {
     ( $($key: expr => $val: expr),+ ) => {
@@ -93,7 +112,7 @@ macro_rules! write_state {
         let mut con = ContractState::new("Enigma");
             $(
             // TODO: How are we handling errors in wasm?
-                con.write_key($key, json!($val)).unwrap();
+                con.write_key($key, &json!($val)).unwrap();
             )+
         }
     }
@@ -151,9 +170,9 @@ pub mod tests {
 
     pub fn test_write() {
         let mut con = ContractState::new("Enigma");
-        con.write_key("code", json!(200)).unwrap();
-        con.write_key("success", json!(true)).unwrap();
-        con.write_key("payload", json!({ "features": ["serde", "json"] })).unwrap();
+        con.write_key("code", &json!(200)).unwrap();
+        con.write_key("success", &json!(true)).unwrap();
+        con.write_key("payload", &json!({ "features": ["serde", "json"] })).unwrap();
 
         let cmp = ContractState {
             contract_id: "Enigma".to_string(),
@@ -174,9 +193,9 @@ pub mod tests {
     }
 
     pub fn test_diff_patch() {
-        let left = json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] });
-        let right = json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] });
-        let patch = StatePatch( json_patch::diff(&left, &right) );
+        let before = json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] });
+        let after = json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] });
+        let patch = StatePatch( json_patch::diff(&before, &after) );
         assert_eq!(serde_json::to_string(&patch.0).unwrap(), "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]");
     }
 

@@ -6,6 +6,7 @@ extern crate sgx_tstd as std;
 #[macro_use]
 extern crate failure;
 extern crate rmp_serde as rmps;
+extern crate json_patch;
 extern crate sgx_types;
 extern crate sgx_trts;
 extern crate sgx_tse;
