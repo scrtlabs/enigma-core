@@ -7,6 +7,7 @@ extern crate serde_json;
 extern crate serde;
 extern crate rmp_serde as rmps;
 extern crate enigma_tools_t;
+extern crate json_patch;
 
 pub mod state;
 

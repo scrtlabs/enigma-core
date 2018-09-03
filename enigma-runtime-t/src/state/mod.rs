@@ -4,6 +4,7 @@ use std::vec::Vec;
 use serde::{Deserialize, Serialize};
 use rmps::{Deserializer, Serializer};
 use enigma_tools_t::common::errors_t::EnclaveError;
+use json_patch::Patch;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ContractState {
@@ -57,13 +58,42 @@ impl IOInterface for ContractState {
     }
 
 }
+// TODO: All these macros should be in eng_wasm
+macro_rules! write_state {
+    ( $($key: expr => $val: expr),+ ) => {
+        {
+        // TODO: How do we maintain contract state?
+        let mut con = ContractState::new("Enigma");
+            $(
+            // TODO: How are we handling errors in wasm?
+                con.write_key($key, json!($val)).unwrap();
+            )+
+        }
+    }
+}
+
+macro_rules! read_state {
+    ( $key: expr ) => {
+        {
+            let con = ContractState { contract_id: "Enigma".to_string(), json: json!({"Hey!": "We!"}) };
+            con.read_key($key).unwrap()
+        }
+    }
+}
 
 
 pub mod tests {
+    #[macro_use]
     use state::*;
-    use std::string::ToString;
+    use std::string::{ToString, String};
     use serde_json::{Value, Map};
 
+
+    pub fn test_macros() {
+        write_state!("Hey!" => "We!");
+        let a: String = read_state!("Hey!");
+        assert_eq!(a, "We!");
+    }
     pub fn test_serialization() {
         let con = ContractState {
             contract_id: "Enigma".to_string(),
