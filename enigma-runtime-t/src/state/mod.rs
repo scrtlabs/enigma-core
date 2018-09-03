@@ -212,4 +212,33 @@ pub mod tests {
         let ser = patch.serialize().unwrap();
         assert_eq!( patch, StatePatch::parse(&ser).unwrap() );
     }
+
+    pub fn test_apply_delta() {
+        let p = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
+        let patch: StatePatch = serde_json::from_str(p).unwrap();
+        let mut contract = ContractState{
+            contract_id: "Enigma".to_string(),
+            json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] })
+        };
+        contract.apply_delta(&patch).unwrap();
+        assert_eq!(contract, ContractState { contract_id: "Enigma".to_string(),  json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] })} );
+    }
+
+    pub fn test_generate_delta() {
+        let p = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
+        let result: StatePatch = serde_json::from_str(p).unwrap();
+        let id = "Enigma".to_string();
+        let before = ContractState {
+            contract_id: id.clone(),
+            json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] })
+        };
+        let after = ContractState {
+            contract_id: id.clone(),
+            json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] })
+        };
+
+        let delta_old = after.generate_delta(Some(&before), None).unwrap();
+        let delta_new = before.generate_delta(None, Some(&after)).unwrap();
+        assert!(delta_old == result && result == delta_new);
+    }
 }
