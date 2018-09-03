@@ -227,7 +227,7 @@ pub mod tests {
         test_serialize,
         test_deserialize,
         test_apply_delta,
-        test_generate_delta,
+        test_generate_delta
         );
     }
 
