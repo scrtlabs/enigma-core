@@ -10,6 +10,7 @@ use json_patch;
 pub struct ContractState {
     contract_id: String,
     json: Value,
+    pub bytecode: Vec<u8>
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq)]
@@ -17,10 +18,11 @@ pub struct StatePatch ( json_patch::Patch );
 
 impl ContractState {
 
-    pub fn new(contract_id: &str) -> ContractState {
+    pub fn new(contract_id: &str, bytecode: Vec<u8>) -> ContractState {
         ContractState {
             contract_id: String::from(contract_id),
-            json: Value::default()
+            json: Value::default(),
+            bytecode
         }
     }
 
@@ -30,7 +32,8 @@ impl ContractState {
 
         Ok(ContractState {
             contract_id: String::from(contract_id),
-            json: backed
+            json: backed,
+            bytecode: Vec::new()
         })
     }
 }
@@ -109,7 +112,7 @@ macro_rules! write_state {
     ( $($key: expr => $val: expr),+ ) => {
         {
         // TODO: How do we maintain contract state?
-        let mut con = ContractState::new("Enigma");
+        let mut con = ContractState::new("Enigma", Vec::new());
             $(
             // TODO: How are we handling errors in wasm?
                 con.write_key($key, &json!($val)).unwrap();
@@ -121,7 +124,7 @@ macro_rules! write_state {
 macro_rules! read_state {
     ( $key: expr ) => {
         {
-            let con = ContractState { contract_id: "Enigma".to_string(), json: json!({"Hey!": "We!"}) };
+            let con = ContractState { contract_id: "Enigma".to_string(), json: json!({"Hey!": "We!"}), bytecode: Vec::new() };
             con.read_key($key).unwrap()
         }
     }
@@ -132,6 +135,7 @@ pub mod tests {
     #[macro_use]
     use state::*;
     use std::string::{ToString, String};
+    use std::vec::Vec;
     use serde_json::{Value, Map, self};
     use json_patch;
 
@@ -143,7 +147,8 @@ pub mod tests {
     pub fn test_serialization() {
         let con = ContractState {
             contract_id: "Enigma".to_string(),
-            json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}})
+            json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
+            bytecode: Vec::new()
         };
         assert_eq!(con.serialize().unwrap(), vec![129, 166, 119, 105, 100, 103, 101, 116, 132, 165, 100, 101, 98, 117, 103, 162, 111, 110, 165, 105, 109, 97, 103, 101, 133, 169, 97, 108, 105, 103, 110, 109, 101, 110, 116, 166, 99, 101, 110, 116, 101, 114, 167, 104, 79, 102, 102, 115, 101, 116, 204, 250, 164, 110, 97, 109, 101, 164, 115, 117, 110, 49, 163, 115, 114, 99, 174, 73, 109, 97, 103, 101, 115, 47, 83, 117, 110, 46, 112, 110, 103, 167, 118, 79, 102, 102, 115, 101, 116, 204, 250, 164, 116, 101, 120, 116, 136, 169, 97, 108, 105, 103, 110, 109, 101, 110, 116, 166, 99, 101, 110, 116, 101, 114, 164, 100, 97, 116, 97, 170, 67, 108, 105, 99, 107, 32, 72, 101, 114, 101, 167, 104, 79, 102, 102, 115, 101, 116, 204, 250, 164, 110, 97, 109, 101, 165, 116, 101, 120, 116, 49, 169, 111, 110, 77, 111, 117, 115, 101, 85, 112, 217, 41, 115, 117, 110, 49, 46, 111, 112, 97, 99, 105, 116, 121, 32, 61, 32, 40, 115, 117, 110, 49, 46, 111, 112, 97, 99, 105, 116, 121, 32, 47, 32, 49, 48, 48, 41, 32, 42, 32, 57, 48, 59, 164, 115, 105, 122, 101, 36, 165, 115, 116, 121, 108, 101, 164, 98, 111, 108, 100, 167, 118, 79, 102, 102, 115, 101, 116, 100, 166, 119, 105, 110, 100, 111, 119, 132, 166, 104, 101, 105, 103, 104, 116, 205, 1, 244, 164, 110, 97, 109, 101, 171, 109, 97, 105, 110, 95, 119, 105, 110, 100, 111, 119, 165, 116, 105, 116, 108, 101, 186, 83, 97, 109, 112, 108, 101, 32, 75, 111, 110, 102, 97, 98, 117, 108, 97, 116, 111, 114, 32, 87, 105, 100, 103, 101, 116, 165, 119, 105, 100, 116, 104, 205, 1, 244]);
     }
@@ -151,7 +156,8 @@ pub mod tests {
     pub fn test_deserialization() {
         let con = ContractState {
             contract_id: "Enigma".to_string(),
-            json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}})
+            json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
+            bytecode: Vec::new()
         };
 
         assert_eq!(con, ContractState::parse("Enigma", vec![129, 166, 119, 105, 100, 103, 101, 116, 132, 165, 100, 101, 98, 117, 103, 162, 111, 110, 165, 105, 109, 97, 103, 101, 133, 169, 97, 108, 105, 103, 110, 109, 101, 110, 116, 166, 99, 101, 110, 116, 101, 114, 167, 104, 79, 102, 102, 115, 101, 116, 204, 250, 164, 110, 97, 109, 101, 164, 115, 117, 110, 49, 163, 115, 114, 99, 174, 73, 109, 97, 103, 101, 115, 47, 83, 117, 110, 46, 112, 110, 103, 167, 118, 79, 102, 102, 115, 101, 116, 204, 250, 164, 116, 101, 120, 116, 136, 169, 97, 108, 105, 103, 110, 109, 101, 110, 116, 166, 99, 101, 110, 116, 101, 114, 164, 100, 97, 116, 97, 170, 67, 108, 105, 99, 107, 32, 72, 101, 114, 101, 167, 104, 79, 102, 102, 115, 101, 116, 204, 250, 164, 110, 97, 109, 101, 165, 116, 101, 120, 116, 49, 169, 111, 110, 77, 111, 117, 115, 101, 85, 112, 217, 41, 115, 117, 110, 49, 46, 111, 112, 97, 99, 105, 116, 121, 32, 61, 32, 40, 115, 117, 110, 49, 46, 111, 112, 97, 99, 105, 116, 121, 32, 47, 32, 49, 48, 48, 41, 32, 42, 32, 57, 48, 59, 164, 115, 105, 122, 101, 36, 165, 115, 116, 121, 108, 101, 164, 98, 111, 108, 100, 167, 118, 79, 102, 102, 115, 101, 116, 100, 166, 119, 105, 110, 100, 111, 119, 132, 166, 104, 101, 105, 103, 104, 116, 205, 1, 244, 164, 110, 97, 109, 101, 171, 109, 97, 105, 110, 95, 119, 105, 110, 100, 111, 119, 165, 116, 105, 116, 108, 101, 186, 83, 97, 109, 112, 108, 101, 32, 75, 111, 110, 102, 97, 98, 117, 108, 97, 116, 111, 114, 32, 87, 105, 100, 103, 101, 116, 165, 119, 105, 100, 116, 104, 205, 1, 244]).unwrap());
@@ -160,7 +166,8 @@ pub mod tests {
     pub fn test_reserialization() {
         let con = ContractState {
             contract_id: "Enigma".to_string(),
-            json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}})
+            json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
+            bytecode: Vec::new()
         };
         let ser = con.serialize().unwrap();
         let de = ContractState::parse("Enigma", ser).unwrap();
@@ -169,14 +176,15 @@ pub mod tests {
     }
 
     pub fn test_write() {
-        let mut con = ContractState::new("Enigma");
+        let mut con = ContractState::new("Enigma", Vec::new());
         con.write_key("code", &json!(200)).unwrap();
         con.write_key("success", &json!(true)).unwrap();
         con.write_key("payload", &json!({ "features": ["serde", "json"] })).unwrap();
 
         let cmp = ContractState {
             contract_id: "Enigma".to_string(),
-            json: json!({"code": 200,"success": true,"payload": {"features": ["serde","json"]}})
+            json: json!({"code": 200,"success": true,"payload": {"features": ["serde","json"]}}),
+            bytecode: Vec::new()
         };
         assert_eq!(con, cmp);
     }
@@ -184,7 +192,8 @@ pub mod tests {
     pub fn test_read() {
         let con = ContractState {
             contract_id: "Enigma".to_string(),
-            json: json!({"code": 200,"success": true,"payload": {"features": ["serde","json"]}})
+            json: json!({"code": 200,"success": true,"payload": {"features": ["serde","json"]}}),
+            bytecode: Vec::new()
         };
         assert_eq!(con.read_key::<u64>("code").unwrap(), 200);
         assert_eq!(con.read_key::<bool>("success").unwrap(), true);
@@ -218,10 +227,11 @@ pub mod tests {
         let patch: StatePatch = serde_json::from_str(p).unwrap();
         let mut contract = ContractState{
             contract_id: "Enigma".to_string(),
-            json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] })
+            json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] }),
+            bytecode: Vec::new()
         };
         contract.apply_delta(&patch).unwrap();
-        assert_eq!(contract, ContractState { contract_id: "Enigma".to_string(),  json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] })} );
+        assert_eq!(contract, ContractState { contract_id: "Enigma".to_string(),  json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] }), bytecode: Vec::new()  } );
     }
 
     pub fn test_generate_delta() {
@@ -230,11 +240,13 @@ pub mod tests {
         let id = "Enigma".to_string();
         let before = ContractState {
             contract_id: id.clone(),
-            json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] })
+            json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] }),
+            bytecode: Vec::new()
         };
         let after = ContractState {
             contract_id: id.clone(),
-            json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] })
+            json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] }),
+            bytecode: Vec::new()
         };
 
         let delta_old = after.generate_delta(Some(&before), None).unwrap();

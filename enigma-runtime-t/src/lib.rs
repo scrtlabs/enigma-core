@@ -16,10 +16,11 @@ pub mod state;
 pub mod tests {
     use state::{ContractState, IOInterface};
     use std::string::String;
+    use std::vec::Vec;
     use serde_json;
     use serde_json::map::Map;
     pub fn it_works() {
-        let mut s = ContractState::new("Hi!");
+        let mut s = ContractState::new("Hi!", Vec::new());
         let value = json!({
             "code": 200,
             "success": true,
