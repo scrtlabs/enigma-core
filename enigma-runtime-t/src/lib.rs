@@ -117,7 +117,7 @@ impl Runtime {
         let key1 = from_utf8(&buf).unwrap();
         //let value1 = from_utf8(&val).unwrap();
 //        self.state.write_key(key1, json!(value1)).unwrap();
-        self.state.write_key(key1, json!(val)).unwrap();
+        self.state.write_key(key1, &json!(val)).unwrap();
         Ok(())
     }
 
