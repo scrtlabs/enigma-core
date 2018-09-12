@@ -13,14 +13,13 @@ extern crate json_patch;
 extern crate wasmi;
 extern crate hexutil;
 
-use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue, Error as InterpreterError, Trap, TrapKind, Externals, FromRuntimeValue};
+use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue, Trap, Externals};
 use std::vec::Vec;
 use std::string::String;
 use std::string::ToString;
 use std::borrow::ToOwned;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use std::str::from_utf8;
-use hexutil::read_hex;
 
 pub mod state;
 pub mod eng_resolver;
@@ -54,12 +53,12 @@ impl Runtime {
             buf.push(0);
         }
         match self.memory.get_into(0, &mut buf[..]){
-            Ok(v) => {
+            Ok(_v) => {
                 match self.memory.set(value, &buf[..]){
-                    Ok(v) => {
+                    Ok(_v) => {
                         self.result = match self.memory.get(0, value_len as usize){
                             Ok(v)=>v,
-                            Err(e)=>return Err(EnclaveError::ExecutionErr{code: "ret code".to_string(), err: "".to_string()}),
+                            Err(_e)=>return Err(EnclaveError::ExecutionErr{code: "ret code".to_string(), err: "".to_string()}),
                         };
                     },
                     Err(e) => return Err(EnclaveError::ExecutionErr{code: "memory".to_string(), err: e.to_string()}),
@@ -128,7 +127,7 @@ impl Runtime {
 
         self.result = match self.memory.get(ptr, len as usize){
             Ok(v)=>v,
-            Err(e)=>return Err(EnclaveError::ExecutionErr{code: "ret code".to_string(), err: "".to_string()}),
+            Err(_e)=>return Err(EnclaveError::ExecutionErr{code: "ret code".to_string(), err: "".to_string()}),
         };
         Ok(())
     }
