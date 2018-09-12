@@ -14,13 +14,13 @@ extern crate json_patch;
 pub mod state;
 
 pub mod tests {
-    use state::{ContractState, IOInterface};
+    use state::{ContractState, IOInterface, SerializeToVec};
     use std::string::String;
     use std::vec::Vec;
     use serde_json;
     use serde_json::map::Map;
     pub fn it_works() {
-        let mut s = ContractState::new("Hi!", Vec::new());
+        let mut s = ContractState::new("Hi!" );
         let value = json!({
             "code": 200,
             "success": true,
@@ -40,9 +40,9 @@ pub mod tests {
         let qq: Map<String, serde_json::Value> = s.read_key("a").unwrap();
         println!("WHY: {:?}", wha);
         println!("WHY: {:?}", qq);
-        let ser =  s.serialize();
+        let ser =  s.serialize_to_vec();
         println!("serialized: {:?}", ser);
-        let back = ContractState::parse("WOO", ser.unwrap());
+        let back = ContractState::parse(&ser.unwrap());
         println!("{:?}", back);
 
         assert_eq!(2 + 2, 4);
