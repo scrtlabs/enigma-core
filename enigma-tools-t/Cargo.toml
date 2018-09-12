@@ -35,3 +35,8 @@ rev = "v1.0.0"
 [target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tseal]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
 rev = "v1.0.0"
+
+[target.'cfg(not(target_env = "sgx"))'.dependencies.wasmi]
+git = "https://github.com/baidu/rust-sgx-sdk.git"
+rev = "v1.0.0"
+
