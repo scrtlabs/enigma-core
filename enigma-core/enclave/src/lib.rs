@@ -52,10 +52,9 @@ use evm_t::evm::call_sputnikvm;
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::common;
 use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::common::utils_t::{ToHex, Keccak256, EthereumAddress};
+use enigma_tools_t::common::utils_t::EthereumAddress;
 use enigma_tools_t::quote_t;
 use evm_t::abi::{prepare_evm_input, create_callback};
-use evm_t::EvmResult;
 use std::vec::Vec;
 use common::errors_t::EnclaveError;
 use wasm_g::execution;
@@ -114,7 +113,6 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
         },
     };
     let mut res = call_sputnikvm(&bytecode, data);
-    let mut out_signature = Vec::<u8>::new();
     let mut callback_data = vec![];
     if callback_slice.len() > 0 {
         callback_data = match create_callback(&mut res.1, callback_slice){
@@ -124,7 +122,7 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
                 return sgx_status_t::SGX_ERROR_UNEXPECTED
             },
         };
-        out_signature = match sign(&callable_args, & mut callback_data, &bytecode) {
+        let out_signature = match sign(&callable_args, & mut callback_data, &bytecode) {
             Ok(v) => v,
             Err(e) => {
                 println!("{:?}", e);
@@ -193,19 +191,14 @@ pub mod tests {
     extern crate secp256k1;
 
     use sgx_tunittest::*;
-    use core::iter::FromIterator;
     use std::vec::Vec;
     use std::string::{String, ToString};
-    use enigma_tools_t::common::utils_t::{FromHex, ToHex, Keccak256, EthereumAddress};
+    use enigma_tools_t::common::utils_t::{FromHex, Keccak256, EthereumAddress};
     use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::cryptography_t::symmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
-    use enigma_runtime_t::tests::*;
     use enigma_runtime_t::state::tests::*;
-    #[cfg(test)]
-    use secp256k1;
-    use super::ecall_evm;
-    use super::{SIGNINING_KEY, sign};
+    use super::SIGNINING_KEY;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {

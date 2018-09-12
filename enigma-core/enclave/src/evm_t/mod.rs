@@ -4,7 +4,7 @@ pub mod error;
 pub mod rlp;
 
 use std::vec::Vec;
-use enigma_tools_t::common::utils_t::{Sha256, FromHex};
+use enigma_tools_t::common::utils_t::FromHex;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 
 pub enum EvmResult{
@@ -28,7 +28,6 @@ pub mod preprocessor{
     use sgx_trts::trts::rsgx_read_rand;
     use common::errors_t::EnclaveError;
     use std::string::ToString;
-    use common::utils_t::{ToHex, FromHex};
 
 
     // TODO: Implement Errors

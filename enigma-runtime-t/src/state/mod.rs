@@ -184,10 +184,9 @@ macro_rules! read_state {
 }
 
 pub mod tests {
-    #[macro_use]
+//    #[macro_use]
     use state::*;
     use std::string::{ToString, String};
-    use std::vec::Vec;
     use serde_json::{Value, Map, self};
     use json_patch;
     use enigma_tools_t::common::utils_t::Sha256;
@@ -197,7 +196,6 @@ pub mod tests {
         let a: String = read_state!("Hey!");
         assert_eq!(a, "We!");
     }
-
 
     pub fn test_encrypt_state() {
         let id = "Enigma".to_string();
@@ -280,6 +278,7 @@ pub mod tests {
         assert_eq!( patch.encrypt_with_nonce(&key, Some( &iv )).unwrap(), vec![197, 39, 187, 56, 29, 96, 229, 230, 172, 82, 74, 89, 152, 72, 183, 136, 80, 182, 222, 4, 47, 197, 200, 233, 105, 90, 207, 14, 20, 220, 170, 226, 21, 241, 24, 231, 69, 27, 177, 234, 110, 132, 253, 115, 87, 205, 167, 142, 163, 170, 37, 239, 240, 98, 20, 49, 185, 223, 162, 115, 194, 220, 75, 218, 160, 17, 83, 134, 247, 239, 213, 207, 59, 32, 76, 204, 206, 134, 80, 234, 88, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] )
 
     }
+
     pub fn test_decrypt_patch() {
         let s = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
         let patch: StatePatch = serde_json::from_str(s).unwrap();

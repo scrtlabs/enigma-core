@@ -7,7 +7,6 @@ use std::vec::Vec;
 use sputnikvm_network_classic::MainnetFrontierPatch;
 use std::ops::DerefMut;
 use evm_t::EvmResult;
-use common::utils_t::{ToHex, FromHex};
 
 
 fn handle_fire_without_rpc(vm: &mut VM) {
