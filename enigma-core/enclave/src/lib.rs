@@ -162,13 +162,51 @@ fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8
 }
 
 #[no_mangle]
+pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
+                                callable: *const u8, callable_len: usize,
+                                output: *mut u8, output_len: &mut usize) -> sgx_status_t {
+
+    let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
+    let bytecode = bytecode_slice.to_vec();
+    let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
+    let callable = from_utf8(callable_slice).unwrap();
+    match execution::execute(&bytecode, callable) {
+        Ok(mut res) => {
+            let s: &mut [u8] = &mut res[..];
+            *output_len = s.len();
+            unsafe {
+                ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
+            }
+            sgx_status_t::SGX_SUCCESS
+        },
+        Err(e) => {
+            println!("ERROR {}", e);
+            sgx_status_t::SGX_ERROR_UNEXPECTED
+        }
+    }
+}
+
+#[no_mangle]
 pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output: *mut u8, output_len: &mut usize) -> sgx_status_t {
 
     let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
     let bytecode = bytecode_slice.to_vec();
 
-    match execution::execute_constructor(&bytecode){
-        Ok(mut v)=> {
+    match execution::execute_constructor(&bytecode) {
+        Ok(mut res) => {
+            let s: &mut [u8] = &mut res[..];
+            *output_len = s.len();
+            unsafe {
+                ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
+            }
+            sgx_status_t::SGX_SUCCESS
+        },
+        Err(e) => {
+            println!("ERROR {}", e);
+            sgx_status_t::SGX_ERROR_UNEXPECTED
+        }
+    }
+  /*      Ok(mut v)=> {
            let s: &mut [u8] = &mut v[..];
             *output_len = s.len();
             unsafe {
@@ -180,7 +218,7 @@ pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output:
             println!("ERROR {}", e);
             sgx_status_t::SGX_ERROR_UNEXPECTED
         }
-    }
+    }*/
 }
 
 
@@ -248,5 +286,7 @@ pub mod tests {
         recovered.copy_from_slice(&recovered_pubkey.serialize()[1..65]);
         assert_eq!(recovered.address(), SIGNINING_KEY.get_pubkey().address())
     }
+
+
 
 }
