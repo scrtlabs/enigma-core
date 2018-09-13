@@ -199,6 +199,7 @@ pub mod tests {
     use enigma_tools_t::storage_t::tests::*;
     use enigma_runtime_t::state::tests::*;
     use super::SIGNINING_KEY;
+    use ocalls_t::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {

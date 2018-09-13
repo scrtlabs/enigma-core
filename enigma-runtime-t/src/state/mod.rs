@@ -12,13 +12,13 @@ pub struct StatePatch ( json_patch::Patch );
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct ContractState {
-    contract_id: String,
-    json: Value,
+    pub contract_id: String,
+    pub json: Value,
 }
 #[derive(Debug, PartialEq, Clone)]
 pub struct EncryptedContractState<T> {
-    contract_id: String,
-    json: Vec<T>,
+    pub contract_id: String,
+    pub json: Vec<T>,
 }
 
 impl ContractState {

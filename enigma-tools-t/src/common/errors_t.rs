@@ -56,6 +56,11 @@ pub enum EnclaveError {
     #[fail(display = "There's a State error with: {}", err)]
     StateErr {
         err: String,
+    },
+    #[fail(display = "There's an error with the ocall: {}; {}", command, err)]
+    OcallErr {
+        command: String,
+        err: String,
     }
 
 }
