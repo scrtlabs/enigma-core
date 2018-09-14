@@ -22,12 +22,10 @@ db-key = "0.0.5"
 
 enigma-tools-u = {path = "../../enigma-tools-u"}
 parity-wasm = "0.31"
+pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git" } # TODO: add a version specific branch.
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
-
-[dependencies.pwasm-utils]
-git = "https://github.com/enigmampc/wasm-utils.git"
 
 [dev-dependencies]
 tempdir = "0.3.7"

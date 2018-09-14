@@ -14,11 +14,5 @@ rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev = "sgx"
 enigma-tools-t = { path = "../enigma-tools-t" }
 json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2" }
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies.wasmi]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-[dependencies.etcommon-hexutil]
-git = "https://github.com/enigmampc/etcommon-rs.git"
-rev = "develop"
-default-features = false
+wasmi = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
+etcommon-hexutil = { git = "https://github.com/enigmampc/etcommon-rs.git", rev = "develop", default-features = false }
