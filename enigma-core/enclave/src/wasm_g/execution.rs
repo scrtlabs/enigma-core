@@ -1,19 +1,16 @@
-//extern crate wasmi;
-
 use std::vec::Vec;
-use std::slice;
 use std::string::ToString;
-use wasmi::{Module, ImportsBuilder, ModuleInstance, memory_units, MemoryInstance};
+use std::borrow::ToOwned;
+use wasmi::{Module, ImportsBuilder, ModuleInstance};
 use common::errors_t::EnclaveError;
-use wasm_g::eng_resolver;
-use wasm_g::eng_runtime;
+use enigma_runtime_t::eng_resolver;
+use enigma_runtime_t::Runtime;
 
 
-pub fn execute_constructor(bytecode: &Vec<u8>) -> Result<Vec<u8>, EnclaveError>{
-    // Load wasm binary and prepare it for instantiation.
-    let module = Module::from_buffer(&bytecode).unwrap();
+pub fn execute(code: &Vec<u8>, callable: &str) -> Result<Vec<u8>, EnclaveError> {
+    let module = Module::from_buffer(&code).unwrap();
 
-    let instantiation_resolver = eng_resolver::ImportResolver::with_limit(16);
+    let instantiation_resolver = eng_resolver::ImportResolver::with_limit(32);
 
     let imports = ImportsBuilder::new().with_resolver("env", &instantiation_resolver);
 
@@ -22,15 +19,20 @@ pub fn execute_constructor(bytecode: &Vec<u8>) -> Result<Vec<u8>, EnclaveError>{
         expect("failed to instantiate wasm module")
         .assert_no_start();
 
-    let mut runtime = eng_runtime::Runtime::new(instantiation_resolver.memory_ref(),Vec::new());
+    let mut runtime = Runtime::new(instantiation_resolver.memory_ref(), Vec::new(), "Enigma".to_string());
 
-    match instance.invoke_export("call", &[], &mut runtime){
-        Ok(_v)=> {
-            Ok(runtime.into_result())
+    match instance.invoke_export(callable, &[], &mut runtime) {
+        Ok(_v) => {
+                let result = runtime.into_result();
+                Ok(result.to_owned())
         }
-        Err(e)=>{
+        Err(e) => {
             println!("Error in invocation of the external function: {}", e);
-            Err(EnclaveError::ExecutionErr{code: "deployment code".to_string(), err: e.to_string()})
+            Err(EnclaveError::ExecutionErr { code: "deployment code".to_string(), err: e.to_string() })
         }
     }
+}
+
+pub fn execute_constructor(code: &Vec<u8>) -> Result<Vec<u8>, EnclaveError>{
+    execute(code, "call")
 }

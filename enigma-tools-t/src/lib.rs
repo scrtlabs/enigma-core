@@ -15,6 +15,7 @@ extern crate sgx_tseal;
 extern crate ring;
 extern crate tiny_keccak;
 extern crate secp256k1;
+extern crate wasmi;
 
 pub mod cryptography_t;
 pub mod common;

@@ -2,6 +2,7 @@ use std::string::{String, ToString};
 use sgx_types::sgx_status_t;
 use rmps;
 use json_patch;
+use wasmi::{Trap, TrapKind};
 
 #[derive(Debug, Fail)]
 pub enum EnclaveError {
@@ -86,5 +87,19 @@ impl From<rmps::encode::Error> for EnclaveError {
 impl From<json_patch::PatchError> for EnclaveError {
     fn from(err: json_patch::PatchError) -> EnclaveError {
         EnclaveError::StateErr { err: format!("{}", err) }
+    }
+}
+
+impl From<Trap> for EnclaveError {
+    fn from(trap: Trap) -> Self {
+        match *trap.kind() {
+            TrapKind::Unreachable => EnclaveError::ExecutionErr{code: "".to_string(), err: "unreachable".to_string()},
+            TrapKind::MemoryAccessOutOfBounds => EnclaveError::ExecutionErr{code: "".to_string(), err: "memory access out of bounds".to_string()},
+            TrapKind::TableAccessOutOfBounds | TrapKind::ElemUninitialized => EnclaveError::ExecutionErr{code: "".to_string(), err: "table access out of bounds".to_string()},
+            TrapKind::DivisionByZero => EnclaveError::ExecutionErr{code: "".to_string(), err: "division by zero".to_string()},
+            TrapKind::InvalidConversionToInt => EnclaveError::ExecutionErr{code: "".to_string(), err: "invalid conversion to int".to_string()},
+            TrapKind::UnexpectedSignature => EnclaveError::ExecutionErr{code: "".to_string(), err: "unexpected signature".to_string()},
+            TrapKind::StackOverflow => EnclaveError::ExecutionErr{code: "".to_string(), err: "stack overflow".to_string()},
+        }
     }
 }
