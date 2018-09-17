@@ -236,6 +236,7 @@ pub mod tests {
     use enigma_tools_t::cryptography_t::symmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
     use enigma_runtime_t::state::tests::*;
+    use enigma_runtime_t::ocalls_t::*;
     use super::SIGNINING_KEY;
     use ocalls_t::*;
 
@@ -260,7 +261,8 @@ pub mod tests {
         test_decrypt_patch,
         test_encrypt_decrypt_patch,
         test_apply_delta,
-        test_generate_delta
+        test_generate_delta,
+        test_me
         );
     }
 

@@ -37,8 +37,9 @@ enclave {
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);
 
-        int8_t ocall_update_state( [in, string] char *id, [in, size=len] const uint8_t* enc_state, size_t len);
-        int8_t ocall_new_delta( uint64_t id, [in, size=len] const uint8_t* enc_delta, size_t len);
+        // TODO: Add explicit size wherever is possible.
+        int8_t ocall_update_state( [in, string] char *id, [in, size=len] const uint8_t* enc_state, size_t len );
+        int8_t ocall_new_delta( [in, size=len] const uint8_t* enc_delta, size_t len );
 
     };
 };

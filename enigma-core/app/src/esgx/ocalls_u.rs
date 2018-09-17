@@ -15,18 +15,21 @@ pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
 
 #[no_mangle]
 pub extern "C" fn ocall_update_state(id: *const c_char, enc_state: *const u8, state_len: usize) -> i8 {
-    let id_str = unsafe { CStr::from_ptr(id) }.to_str().unwrap();
-    println!("*********** {}", id_str);
+    let id_str = unsafe { CStr::from_ptr(id) };
+    let id_str = id_str.to_str().expect(&format!("Failed converting this to string in ocall_update_state: {:?}", &to_str));
+    println!("#### DEBUG: {:?}", id_str);
+    println!("#### DEBUG: {:?}", id_str.to_string_lossy());
+//    println!("state: *********** {}", id_str);
     let encrypted_state = unsafe { slice::from_raw_parts(enc_state, state_len) };
-    println!("************** {:?}", encrypted_state);
+    println!("state: ************** {:?}", encrypted_state);
 
     return 0;
 }
 
 #[no_mangle]
-pub extern "C" fn ocall_new_delta(id: u64, enc_delta: *const u8, delta_len: usize) -> i8 {
+pub extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize) -> i8 {
     let encrypted_delta = unsafe { slice::from_raw_parts(enc_delta, delta_len) };
-    println!("************** {:?}", encrypted_delta);
+    println!("delta: ************** {:?}", encrypted_delta);
 
 
     return 0;
