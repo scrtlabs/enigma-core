@@ -8,7 +8,7 @@ use enigma_tools_t::cryptography_t::symmetric;
 use json_patch;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct StatePatch ( json_patch::Patch );
+pub struct StatePatch ( pub json_patch::Patch );
 
 pub type EncryptedPatch = Vec<u8>;
 

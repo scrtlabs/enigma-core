@@ -1,5 +1,7 @@
 #![no_std]
 
+/// Enigma runtime implementation
+
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_types;
@@ -26,14 +28,20 @@ pub mod state;
 pub mod ocalls_t;
 pub mod eng_resolver;
 use state::IOInterface;
-use state::ContractState;
+use state::{ContractState, StatePatch, DeltasInterface};
 
+#[derive(Debug, Clone)]
+pub struct RuntimeResult{
+    pub state_delta: Option<StatePatch>,
+    pub result: Vec<u8>,
+}
 
 pub struct Runtime {
     memory: MemoryRef,
     args: Vec<u8>,
-    result: Vec<u8>,
-    state: ContractState,
+    result: RuntimeResult,
+    init_state: ContractState,
+    current_state: ContractState,
 }
 
 impl Runtime {
@@ -42,11 +50,27 @@ impl Runtime {
         Runtime {
             memory: memory,
             args: args,
-            result: Vec::new(),
-            state: ContractState::new(&contract_id),
+            result: RuntimeResult{result: Vec::new(), state_delta: None},
+            init_state: ContractState::new(&contract_id),
+            current_state: ContractState::new(&contract_id),
         }
     }
 
+    pub fn new_with_state(memory: MemoryRef, args: Vec<u8>, state: &ContractState) -> Runtime{
+        Runtime {
+            memory: memory,
+            args: args,
+            result: RuntimeResult{result: Vec::new(), state_delta: None},
+            init_state: state.clone(),
+            current_state: state.clone(),
+        }
+    }
+
+    /// args:
+    /// * `value` - value holder: the start address of value in memory
+    /// * `value_len` - the length of value holder
+    ///
+    /// Copy memory starting address 0 of length 'value_len' to `value` and to `self.result.result`
     pub fn from_memory(&mut self, args: RuntimeArgs) -> Result<(), EnclaveError> {
         let value: u32 = args.nth_checked(0).unwrap();
         let value_len: i32 = args.nth_checked(1).unwrap();
@@ -58,7 +82,7 @@ impl Runtime {
             Ok(_v) => {
                 match self.memory.set(value, &buf[..]){
                     Ok(_v) => {
-                        self.result = match self.memory.get(0, value_len as usize){
+                        self.result.result = match self.memory.get(0, value_len as usize){
                             Ok(v)=>v,
                             Err(_e)=>return Err(EnclaveError::ExecutionErr{code: "ret code".to_string(), err: "".to_string()}),
                         };
@@ -71,6 +95,12 @@ impl Runtime {
         }
     }
 
+    /// args:
+    /// * `key` - the start address of key in memory
+    /// * `key_len` - the length of key
+    ///
+    /// Read `key` from the memory, then read from the state the value under the `key`
+    /// and copy it to the memory at address 0.
     pub fn read_state (&mut self, args: RuntimeArgs) -> Result<i32, EnclaveError> {
         let key = args.nth_checked(0);
         let key_len: u32 = args.nth_checked(1).unwrap();
@@ -83,10 +113,8 @@ impl Runtime {
             Err(e) => return Err(EnclaveError::ExecutionErr{code: "read state".to_string(), err: e.to_string()}),
         }
         let key1 = from_utf8(&buf).unwrap();
-//        match self.state.read_key::<String>(key1){
-          match self.state.read_key::<Vec<u8>>(key1){
+          match self.current_state.read_key::<Vec<u8>>(key1){
             Ok(v) => {
-                // value = read_hex(&v).unwrap();
                 self.memory.set(0, &v);
                 Ok(v.len() as i32)
             },
@@ -95,6 +123,13 @@ impl Runtime {
 
     }
 
+    /// args:
+    /// * `key` - the start address of key in memory
+    /// * `key_len` - the length of the key
+    /// * `value` - the start address of value in memory
+    /// * `value_len` - the length of the value
+    ///
+    /// Read `key` and `value` from memory, and write (key, value) pair to the state
     pub fn write_state (&mut self, args: RuntimeArgs) -> Result<(), EnclaveError>{
         let key = args.nth_checked(0);
         let key_len: u32 = args.nth_checked(1).unwrap();
@@ -117,28 +152,37 @@ impl Runtime {
             Err(e) => return Err(EnclaveError::ExecutionErr{code: "write state".to_string(), err: e.to_string()}),
         }
         let key1 = from_utf8(&buf).unwrap();
-        //let value1 = from_utf8(&val).unwrap();
-//        self.state.write_key(key1, json!(value1)).unwrap();
-        self.state.write_key(key1, &json!(val)).unwrap();
+        self.current_state.write_key(key1, &json!(val)).unwrap();
         Ok(())
     }
 
+    /// args:
+    /// * `ptr` - the start address in memory
+    /// * `len` - the length
+    ///
+    /// Copy the memory of length `len` starting at address `ptr` to `self.result.result`
     pub fn ret(&mut self, args: RuntimeArgs) -> Result<(), EnclaveError> {
         let ptr: u32 = args.nth_checked(0)?;
         let len: u32 = args.nth_checked(1)?;
 
-        self.result = match self.memory.get(ptr, len as usize){
+        self.result.result = match self.memory.get(ptr, len as usize){
             Ok(v)=>v,
-            Err(_e)=>return Err(EnclaveError::ExecutionErr{code: "ret code".to_string(), err: "".to_string()}),
+            Err(e)=>return Err(EnclaveError::ExecutionErr{code: "Error in getting value from runtime memory".to_string(), err: e.to_string()}),
         };
         Ok(())
     }
 
     /// Destroy the runtime, returning currently recorded result of the execution
-    pub fn into_result(self) -> Vec<u8> {
-        self.result.to_owned()
-    }
+    pub fn into_result(mut self) -> /*Vec<u8>*/Result<RuntimeResult, EnclaveError> {
+        //self.result.result.to_owned()
+        self.result.state_delta =
+            match self.current_state.generate_delta(Some(&self.init_state), None){
+                Ok(v) => Some(v),
+                Err(e) => return Err(EnclaveError::ExecutionErr{code: "Error in generating state delta".to_string(), err: e.to_string()}),
+            };
 
+        Ok(self.result.clone())
+    }
 }
 
 impl Externals for Runtime {

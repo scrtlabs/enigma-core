@@ -1,3 +1,6 @@
+/// This file is based on https://github.com/paritytech/parity-ethereum/blob/master/ethcore/wasm/src/env.rs
+/// This is Enigma glue for wasmi interpreter
+
 extern crate wasmi;
 use std::cell::RefCell;
 use std::borrow::ToOwned;

@@ -1,3 +1,6 @@
+/// Enigma implementation of bindings to the Enigma runtime.
+/// This crate should be used in contracts.
+
 mod external {
     extern "C" {
         pub fn write_state (key: *const u8, key_len: u32, value: *const u8, value_len: u32);
@@ -7,11 +10,13 @@ mod external {
 }
 
 #[no_mangle]
+/// Write to state
 pub fn write(key: &str, value: &[u8]) {
     unsafe { external::write_state(key.as_ptr(), key.len() as u32, value.as_ptr(), value.len() as u32) }
 }
 
 #[no_mangle]
+/// Read from state
 pub fn read(key: &str) -> Vec<u8> {
     let mut val_len = 0;
     unsafe {

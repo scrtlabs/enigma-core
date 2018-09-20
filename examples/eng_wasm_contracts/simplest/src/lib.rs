@@ -1,8 +1,11 @@
+/// Very simple Rust contract.
+
 extern crate eng_wasm;
 
-pub struct Error;
-
 #[no_mangle]
+/// Writes value to state and reads it.
+/// As a temporary solution the value is converted to a stream of bytes.
+/// Later as part of runtime there will be created a macros for writing and reading any type.
 pub fn call() {
     let key = "code";
     let value = "157";
@@ -12,8 +15,3 @@ pub fn call() {
 
 #[no_mangle]
 pub fn deploy() {}
-
-#[no_mangle]
-pub fn problem() ->Result<i32, Error>{
-    Err(Error)
-}

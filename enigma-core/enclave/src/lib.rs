@@ -19,6 +19,9 @@ extern crate sgx_trts;
 // sealing
 extern crate sgx_tseal;
 extern crate sgx_rand;
+extern crate json_patch;
+#[macro_use]
+extern crate serde_json;
 
 
 #[macro_use]
@@ -58,6 +61,7 @@ use evm_t::abi::{prepare_evm_input, create_callback};
 use std::vec::Vec;
 use common::errors_t::EnclaveError;
 use wasm_g::execution;
+use enigma_runtime_t::state::ContractState;
 
 
 lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -162,6 +166,15 @@ fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8
 }
 
 #[no_mangle]
+/// arguments:
+/// * `bytecode` - deployed Wasm bytecode
+/// * `bytecode_len` - the length of the `bytecode`.
+/// * `callable` - the name of the function to call
+/// * `callable_len` - the length of the callable function name
+/// * `output` - the output holder, which will hold the result of the invocation of the `callable`
+/// * `output_len` - the length of the output
+/// Ecall for invocation of the external function `callable` of deployed contract `bytecode`.
+// TODO: add arguments of callable.
 pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                 callable: *const u8, callable_len: usize,
                                 output: *mut u8, output_len: &mut usize) -> sgx_status_t {
@@ -170,9 +183,10 @@ pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     let bytecode = bytecode_slice.to_vec();
     let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
     let callable = from_utf8(callable_slice).unwrap();
-    match execution::execute(&bytecode, callable) {
+    let state = execution::get_state();
+    match execution::execute(&bytecode, &state, callable) {
         Ok(mut res) => {
-            let s: &mut [u8] = &mut res[..];
+            let s: &mut [u8] = &mut res.result[..];
             *output_len = s.len();
             unsafe {
                 ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
@@ -187,6 +201,14 @@ pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 }
 
 #[no_mangle]
+/// Ecall for deploying contract
+/// arguments:
+/// * `bytecode` - Wasm bytecode built in unguarded part by wasm.rs from the original contract.
+///    `bytecode` contains one function `call`, which invokes `deploy` from the original Wasm
+///    contract and returns bytecode for deployment.
+/// * `bytecode_len` - the length of the `bytecode`.
+/// * `output` - the output holder, which will hold the bytecode for deployment
+/// * `output_len` - the length of the output
 pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output: *mut u8, output_len: &mut usize) -> sgx_status_t {
 
     let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
@@ -194,7 +216,7 @@ pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output:
 
     match execution::execute_constructor(&bytecode) {
         Ok(mut res) => {
-            let s: &mut [u8] = &mut res[..];
+            let s: &mut [u8] = &mut res.result[..];
             *output_len = s.len();
             unsafe {
                 ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
@@ -239,6 +261,7 @@ pub mod tests {
     use enigma_runtime_t::ocalls_t::*;
     use super::SIGNINING_KEY;
     use ocalls_t::*;
+    use wasm_g::execution::tests::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
@@ -263,6 +286,7 @@ pub mod tests {
         test_apply_delta,
         test_generate_delta,
         test_me
+        test_execute_contract
         );
     }
 
@@ -289,7 +313,5 @@ pub mod tests {
         recovered.copy_from_slice(&recovered_pubkey.serialize()[1..65]);
         assert_eq!(recovered.address(), SIGNINING_KEY.get_pubkey().address())
     }
-
-
 
 }

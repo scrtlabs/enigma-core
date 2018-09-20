@@ -21,6 +21,8 @@ ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "sgx-v5.1.0", 
 error-chain = { git = "https://github.com/enigmampc/error-chain.git", rev = "sgx-0.11.0", default-features = false }
 etcommon-rlp = {version = "0.2.3", default-features = false}
 libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
+json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2" }
+serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
 
 [dependencies.sputnikvm-network-classic]
 git = "https://github.com/enigmampc/sputnikvm.git"
