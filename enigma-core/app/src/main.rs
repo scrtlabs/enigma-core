@@ -1,11 +1,15 @@
+// SGX
 extern crate sgx_types;
 extern crate sgx_urts;
+
 extern crate base64;
 extern crate reqwest;
 extern crate dirs;
+//DB
 extern crate leveldb;
 extern crate db_key;
-
+#[macro_use]
+extern crate lazy_static;
 // networking apt install libzmq3-dev
 extern crate zmq; 
 extern crate serde_json;
@@ -13,13 +17,13 @@ extern crate serde_json;
 #[macro_use]
 extern crate failure;
 extern crate rustc_hex as hex;
-
 //enigma utils 
 extern crate enigma_tools_u;
-
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
+
+extern crate byteorder;
 
 //use sgx_types::*;
 use std::thread;

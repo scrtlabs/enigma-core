@@ -19,6 +19,8 @@ reqwest = "0.8.6"
 dirs = "1.0"
 leveldb = "0.8"
 db-key = "0.0.5"
+lazy_static = "1.1.0"
+byteorder = "1.2.6"
 
 enigma-tools-u = {path = "../../enigma-tools-u"}
 parity-wasm = "0.31"
