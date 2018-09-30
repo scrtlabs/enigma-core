@@ -19,6 +19,7 @@ impl Key for DeltaKey {
 
         DeltaKey { hash, n }
     }
+
     fn as_slice<T, F: Fn(&[u8]) -> T> (&self, f: F) -> T {
         let mut slice = Vec::new();
         slice.extend_from_slice(&self.hash);

@@ -24,11 +24,10 @@ use std::borrow::ToOwned;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use std::str::from_utf8;
 
-pub mod state;
+pub mod data;
 pub mod ocalls_t;
 pub mod eng_resolver;
-use state::IOInterface;
-use state::{ContractState, StatePatch, DeltasInterface};
+use data::{ContractState, StatePatch, DeltasInterface, IOInterface};
 
 #[derive(Debug, Clone)]
 pub struct RuntimeResult{

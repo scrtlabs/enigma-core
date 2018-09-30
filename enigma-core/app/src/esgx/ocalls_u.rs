@@ -4,7 +4,6 @@ use std::ffi::CStr;
 use std::os::raw::c_char;
 use esgx::general;
 use db::DATABASE;
-use db::primitives::Array32u8;
 use db::dal::CRUDInterface;
 
 #[no_mangle]
@@ -24,9 +23,12 @@ pub extern "C" fn ocall_update_state(id: *const c_char, enc_state: *const u8, st
 }
 
 #[no_mangle]
-pub extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize) -> i8 {
+pub extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32], _delta_index: *const u32) -> i8 {
+    let delta_index = unsafe { ptr::read(_delta_index) };
     let encrypted_delta = unsafe { slice::from_raw_parts(enc_delta, delta_len) };
-//    println!("delta: ************** {:?}", encrypted_delta);
+    println!("delta: ************** {:?}", encrypted_delta);
+    println!("delta_hash: ************** {:?}", &delta_hash);
+    println!("delta_index: ************** {:?}", delta_index);
     DATABASE.lock().expect("Database mutex is poison").create(&Default::default(), encrypted_delta);
 
     return 0;

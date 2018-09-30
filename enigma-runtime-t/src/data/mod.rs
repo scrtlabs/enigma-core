@@ -1,38 +1,11 @@
-use serde_json::{Value, from_value, Error};
-use std::string::{String, ToString};
+mod delta;
+mod state;
+
+pub use data::delta::{StatePatch, EncryptedPatch};
+pub use data::state::{ContractState, EncryptedContractState};
+use serde_json::{Error, Value};
+use serde::Deserialize;
 use std::vec::Vec;
-use serde::{Deserialize, Serialize};
-use rmps::{Deserializer, Serializer};
-use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::cryptography_t::symmetric;
-use json_patch;
-
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
-pub struct StatePatch ( pub json_patch::Patch );
-
-pub type EncryptedPatch = Vec<u8>;
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct ContractState {
-    pub contract_id: String,
-    pub json: Value,
-}
-#[derive(Debug, PartialEq, Clone)]
-pub struct EncryptedContractState<T> {
-    pub contract_id: String,
-    pub json: Vec<T>,
-}
-
-impl ContractState {
-
-    pub fn new(contract_id: &str) -> ContractState {
-        ContractState {
-            contract_id: String::from(contract_id),
-            json: Value::default(),
-        }
-    }
-}
-
 
 pub trait IOInterface<E, U> {
     fn read_key<T>(&self, key: &str) -> Result<T, Error> where for<'de> T: Deserialize<'de>;
@@ -48,84 +21,6 @@ pub trait Encryption<T, E, R, N> {
     fn encrypt(&self, key: T) -> Result<R, E> where R: Sized;
     fn encrypt_with_nonce(&self, key: T, _iv: Option< &N>) -> Result<R, E> where R: Sized;
     fn decrypt(enc: &R, key: T) -> Result<Self, E> where Self: Sized;
-}
-
-
-impl IOInterface<EnclaveError, u8> for ContractState {
-    fn read_key<T>(&self, key: &str) -> Result<T, Error>
-    where for<'de> T: Deserialize<'de> {
-        from_value(self.json[key].clone())
-    }
-
-    fn write_key(&mut self, key: &str, value: &Value) -> Result<(), EnclaveError> {
-        self.json[key] = value.clone();
-        Ok(())
-    }
-
-}
-
-
-impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
-    fn apply_delta(&mut self, delta: &StatePatch) -> Result<(), EnclaveError> {
-        json_patch::patch(&mut self.json, &delta.0)?;
-        Ok( () )
-    }
-    fn generate_delta(&self, old: Option<&Self>, new: Option<&Self>) -> Result<StatePatch, EnclaveError> {
-        if old.is_some() { return Ok(StatePatch( json_patch::diff(&old.unwrap().json, &self.json) )) }
-
-        else if new.is_some() { return Ok(StatePatch( json_patch::diff(&self.json, &new.unwrap().json) )) }
-
-       else { return Err( EnclaveError::StateErr {  err: "Generating a delta, Both old and new are None".to_string() } ) }
-
-    }
-}
-
-
-impl<'a> Encryption<&'a [u8], EnclaveError, EncryptedContractState<u8>, [u8; 12]> for ContractState {
-    fn encrypt(&self, key: &[u8]) -> Result<EncryptedContractState<u8>, EnclaveError> {
-        self.encrypt_with_nonce(key, None)
-    }
-    fn encrypt_with_nonce(&self, key: &[u8], _iv: Option< &[u8; 12] >) -> Result<EncryptedContractState<u8>, EnclaveError> {
-        let mut buf = Vec::new();
-        self.json.serialize(&mut Serializer::new(&mut buf))?;
-        let enc = symmetric::encrypt_with_nonce(&buf, &key[..], _iv)?;
-        Ok( EncryptedContractState {
-            contract_id: self.contract_id.clone(),
-            json: enc.clone()
-        } )
-    }
-    fn decrypt(enc: &EncryptedContractState<u8>, key: &[u8]) -> Result<ContractState, EnclaveError> {
-        let dec = symmetric::decrypt(&enc.json, &key[..])?;
-        let mut des = Deserializer::new(&dec[..]);
-        let json: Value = Deserialize::deserialize(&mut des)?;
-
-        Ok ( ContractState {
-            contract_id: enc.contract_id.clone(),
-            json
-        } )
-    }
-}
-
-
-
-impl<'a> Encryption<&'a [u8], EnclaveError, EncryptedPatch, [u8; 12]> for StatePatch {
-    fn encrypt(&self, key: &[u8]) -> Result<EncryptedPatch, EnclaveError> {
-        self.encrypt_with_nonce(key, None)
-    }
-
-    fn encrypt_with_nonce(&self, key: &[u8], _iv: Option< &[u8; 12] >) -> Result<EncryptedPatch, EnclaveError> {
-        let mut buf = Vec::new();
-        self.0.serialize(&mut Serializer::new(&mut buf))?;
-        let enc = symmetric::encrypt_with_nonce(&buf, &key[..], _iv)?;
-        Ok( enc )
-    }
-
-    fn decrypt(enc: &EncryptedPatch, key: &[u8]) -> Result<StatePatch, EnclaveError> {
-        let dec = symmetric::decrypt(&enc, &key[..])?;
-        let mut des = Deserializer::new(&dec[..]);
-        let back: json_patch::Patch = Deserialize::deserialize(&mut des).unwrap();
-        Ok( StatePatch(back) )
-    }
 }
 
 
@@ -154,7 +49,7 @@ macro_rules! read_state {
 
 pub mod tests {
 //    #[macro_use]
-    use state::*;
+    use data::*;
     use std::string::{ToString, String};
     use serde_json::{Value, Map, self};
     use json_patch;
@@ -244,8 +139,15 @@ pub mod tests {
         let key = b"EnigmaMPC".sha256();
         let iv = [0,1,2,3,4,5,6,7,8,9,10,11];
 
-        assert_eq!( patch.encrypt_with_nonce(&key, Some( &iv )).unwrap(), vec![197, 39, 187, 56, 29, 96, 229, 230, 172, 82, 74, 89, 152, 72, 183, 136, 80, 182, 222, 4, 47, 197, 200, 233, 105, 90, 207, 14, 20, 220, 170, 226, 21, 241, 24, 231, 69, 27, 177, 234, 110, 132, 253, 115, 87, 205, 167, 142, 163, 170, 37, 239, 240, 98, 20, 49, 185, 223, 162, 115, 194, 220, 75, 218, 160, 17, 83, 134, 247, 239, 213, 207, 59, 32, 76, 204, 206, 134, 80, 234, 88, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] )
+        let enc_data = vec![197, 39, 187, 56, 29, 96, 229, 230, 172, 82, 74, 89, 152, 72, 183, 136, 80, 182, 222, 4, 47, 197, 200, 233, 105, 90, 207, 14, 20, 220, 170, 226, 21, 241, 24, 231, 69, 27, 177, 234, 110, 132, 253, 115, 87, 205, 167, 142, 163, 170, 37, 239, 240, 98, 20, 49, 185, 223, 162, 115, 194, 220, 75, 218, 160, 17, 83, 134, 247, 239, 213, 207, 59, 32, 76, 204, 206, 134, 80, 234, 88, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        let enc_hash = enc_data.sha256();
+        let enc_patch = EncryptedPatch {
+            data: enc_data,
+            hash: enc_hash,
+            index: 0 // TODO: Change this
+        };
 
+        assert_eq!( patch.encrypt_with_nonce(&key, Some( &iv )).unwrap(), enc_patch)
     }
 
     pub fn test_decrypt_patch() {
@@ -253,8 +155,10 @@ pub mod tests {
         let patch: StatePatch = serde_json::from_str(s).unwrap();
 
         let key = b"EnigmaMPC".sha256();
-        let enc_patch: Vec<u8> = vec![197, 39, 187, 56, 29, 96, 229, 230, 172, 82, 74, 89, 152, 72, 183, 136, 80, 182, 222, 4, 47, 197, 200, 233, 105, 90, 207, 14, 20, 220, 170, 226, 21, 241, 24, 231, 69, 27, 177, 234, 110, 132, 253, 115, 87, 205, 167, 142, 163, 170, 37, 239, 240, 98, 20, 49, 185, 223, 162, 115, 194, 220, 75, 218, 160, 17, 83, 134, 247, 239, 213, 207, 59, 32, 76, 204, 206, 134, 80, 234, 88, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+        let enc_data: Vec<u8> = vec![197, 39, 187, 56, 29, 96, 229, 230, 172, 82, 74, 89, 152, 72, 183, 136, 80, 182, 222, 4, 47, 197, 200, 233, 105, 90, 207, 14, 20, 220, 170, 226, 21, 241, 24, 231, 69, 27, 177, 234, 110, 132, 253, 115, 87, 205, 167, 142, 163, 170, 37, 239, 240, 98, 20, 49, 185, 223, 162, 115, 194, 220, 75, 218, 160, 17, 83, 134, 247, 239, 213, 207, 59, 32, 76, 204, 206, 134, 80, 234, 88, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
 
+        let mut enc_patch = EncryptedPatch::default();
+        enc_patch.data = enc_data;
         assert_eq!(patch, StatePatch::decrypt(&enc_patch, &key).unwrap())
     }
 

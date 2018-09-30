@@ -39,7 +39,6 @@ enclave {
 
         // TODO: Add explicit size wherever is possible.
         int8_t ocall_update_state( [in, string] char *id, [in, size=len] const uint8_t* enc_state, size_t len );
-        int8_t ocall_new_delta( [in, size=len] const uint8_t* enc_delta, size_t len );
-
+        int8_t ocall_new_delta( [in, size=len] const uint8_t* enc_delta, size_t len, [in] uint8_t delta_hash[32], [in] uint32_t* delta_index);
     };
 };

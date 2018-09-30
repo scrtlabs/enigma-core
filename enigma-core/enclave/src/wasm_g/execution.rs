@@ -3,7 +3,7 @@ use std::string::ToString;
 use std::borrow::ToOwned;
 use wasmi::{Module, ImportsBuilder, ModuleInstance};
 use common::errors_t::EnclaveError;
-use enigma_runtime_t::{eng_resolver, Runtime, RuntimeResult, state::ContractState};
+use enigma_runtime_t::{eng_resolver, Runtime, RuntimeResult, data::ContractState};
 
 
 pub fn execute(code: &Vec<u8>, state: &ContractState, callable: &str) -> Result<RuntimeResult, EnclaveError> {
@@ -45,7 +45,7 @@ pub mod tests {
 
     use std::vec::Vec;
     use std::string::ToString;
-    use enigma_runtime_t::state::DeltasInterface;
+    use enigma_runtime_t::data::DeltasInterface;
     use serde_json::{Value, Map, self};
     use json_patch;
 
