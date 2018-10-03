@@ -3,7 +3,7 @@ use std::slice;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use esgx::general;
-use db::DATABASE;
+use db::{DATABASE, DeltaKey};
 use db::dal::CRUDInterface;
 
 #[no_mangle]
@@ -15,10 +15,16 @@ pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
 }
 
 #[no_mangle]
-pub extern "C" fn ocall_update_state(id: *const c_char, enc_state: *const u8, state_len: usize) -> i8 {
-    let id_str = unsafe { CStr::from_ptr(id) };
-    let id_str = id_str.to_str().expect(&format!("Failed converting this to string in ocall_update_state: {:?}", &id_str));
+pub extern "C" fn ocall_update_state(id: &[u8; 32], enc_state: *const u8, state_len: usize) -> i8 {
     let encrypted_state = unsafe { slice::from_raw_parts(enc_state, state_len) };
+
+//    match DATABASE.lock().expect("Database mutex is poison").create(&key, encrypted_delta) {
+//        Ok(_) => () , // No Error
+//        Err(e) => {
+//            println!("Failed creating key in db: {:?} with: \"{}\" ", &key,  &e);
+//            return 17; // according to errno.h and errno-base.h (maybe use https://docs.rs/nix/0.11.0/src/nix/errno.rs.html, or something else)
+//        }
+//    }
     return 0;
 }
 
@@ -26,11 +32,16 @@ pub extern "C" fn ocall_update_state(id: *const c_char, enc_state: *const u8, st
 pub extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32], _delta_index: *const u32) -> i8 {
     let delta_index = unsafe { ptr::read(_delta_index) };
     let encrypted_delta = unsafe { slice::from_raw_parts(enc_delta, delta_len) };
-    println!("delta: ************** {:?}", encrypted_delta);
-    println!("delta_hash: ************** {:?}", &delta_hash);
-    println!("delta_index: ************** {:?}", delta_index);
-    DATABASE.lock().expect("Database mutex is poison").create(&Default::default(), encrypted_delta);
+    let key = DeltaKey::new(*delta_hash, Some(delta_index));
 
+    // TODO: How should we handle the already existing error?
+    match DATABASE.lock().expect("Database mutex is poison").create(&key, encrypted_delta) {
+        Ok(_) => () , // No Error
+        Err(e) => {
+            println!("Failed creating key in db: {:?} with: \"{}\" ", &key,  &e);
+            return 17; // according to errno.h and errno-base.h (maybe use https://docs.rs/nix/0.11.0/src/nix/errno.rs.html, or something else)
+        }
+    }
     return 0;
 
 }

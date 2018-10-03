@@ -6,6 +6,7 @@ pub use data::state::{ContractState, EncryptedContractState};
 use serde_json::{Error, Value};
 use serde::Deserialize;
 use std::vec::Vec;
+use enigma_tools_t::common::utils_t::Sha256;
 
 pub trait IOInterface<E, U> {
     fn read_key<T>(&self, key: &str) -> Result<T, Error> where for<'de> T: Deserialize<'de>;
@@ -29,7 +30,7 @@ macro_rules! write_state {
     ( $($key: expr => $val: expr),+ ) => {
         {
         // TODO: How do we maintain contract state?
-        let mut con = ContractState::new( "Enigma" );
+        let mut con = ContractState::new( b"Enigma".sha256() );
             $(
             // TODO: How are we handling errors in wasm?
                 con.write_key($key, &json!($val)).unwrap();
@@ -41,7 +42,7 @@ macro_rules! write_state {
 macro_rules! read_state {
     ( $key: expr ) => {
         {
-            let con = ContractState { contract_id: "Enigma".to_string(), json: json!({"Hey!": "We!"}) };
+            let con = ContractState { contract_id: b"Enigma".sha256(), json: json!({"Hey!": "We!"}) };
             con.read_key($key).unwrap()
         }
     }
@@ -50,7 +51,7 @@ macro_rules! read_state {
 pub mod tests {
 //    #[macro_use]
     use data::*;
-    use std::string::{ToString, String};
+    use std::string::String;
     use serde_json::{Value, Map, self};
     use json_patch;
     use enigma_tools_t::common::utils_t::Sha256;
@@ -62,7 +63,7 @@ pub mod tests {
     }
 
     pub fn test_encrypt_state() {
-        let id = "Enigma".to_string();
+        let id = b"Enigma".sha256();
         let con = ContractState {
             contract_id: id.clone(),
             json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
@@ -77,7 +78,7 @@ pub mod tests {
     pub fn test_decrypt_state() {
         let key = b"EnigmaMPC".sha256();
         let enc_json = vec![215, 18, 107, 35, 28, 119, 236, 243, 75, 146, 131, 19, 155, 72, 164, 66, 80, 170, 84, 3, 35, 201, 202, 190, 74, 191, 203, 12, 19, 212, 170, 28, 211, 254, 8, 37, 129, 81, 171, 255, 108, 133, 117, 41, 189, 223, 169, 148, 180, 186, 123, 179, 38, 105, 24, 51, 170, 30, 119, 41, 216, 132, 156, 197, 183, 105, 14, 131, 142, 77, 205, 8, 17, 139, 152, 196, 117, 216, 241, 102, 227, 171, 158, 39, 228, 4, 232, 98, 253, 149, 139, 31, 177, 182, 199, 130, 233, 217, 38, 156, 203, 196, 157, 68, 171, 26, 225, 129, 58, 143, 42, 127, 97, 158, 93, 55, 214, 123, 232, 240, 250, 44, 168, 203, 156, 207, 172, 211, 169, 52, 241, 219, 186, 94, 201, 111, 185, 180, 219, 222, 123, 201, 167, 154, 173, 54, 51, 242, 121, 136, 203, 254, 135, 68, 127, 14, 248, 187, 99, 223, 19, 184, 108, 182, 230, 191, 89, 255, 103, 127, 183, 89, 166, 37, 93, 56, 147, 68, 184, 19, 20, 150, 241, 5, 45, 120, 254, 238, 164, 26, 154, 232, 54, 213, 1, 215, 248, 58, 172, 41, 195, 147, 68, 83, 34, 208, 23, 127, 95, 240, 87, 53, 202, 60, 224, 60, 209, 225, 33, 65, 193, 204, 185, 207, 146, 221, 251, 161, 31, 144, 237, 152, 209, 130, 146, 177, 37, 54, 107, 137, 111, 191, 134, 92, 0, 5, 46, 252, 136, 105, 37, 49, 143, 144, 45, 104, 79, 157, 87, 177, 199, 172, 67, 245, 44, 163, 102, 103, 240, 41, 159, 215, 149, 182, 103, 92, 144, 213, 112, 5, 248, 129, 128, 0, 55, 185, 137, 255, 87, 138, 231, 128, 222, 235, 253, 136, 166, 187, 21, 73, 238, 116, 89, 96, 3, 140, 193, 168, 142, 8, 247, 167, 246, 89, 199, 214, 199, 61, 92, 44, 203, 209, 211, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-        let id = "Enigma".to_string();
+        let id = b"Enigma".sha256();
         let enc = EncryptedContractState { contract_id: id.clone(), json: enc_json };
         let result = ContractState {
             contract_id: id.clone(),
@@ -88,7 +89,7 @@ pub mod tests {
     }
 
     pub fn test_encrypt_decrypt_state() {
-        let id = "Enigma".to_string();
+        let id = b"Enigma".sha256();
         let con = ContractState {
             contract_id: id.clone(),
             json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
@@ -102,13 +103,13 @@ pub mod tests {
     }
 
     pub fn test_write_state() {
-        let mut con = ContractState::new("Enigma" );
+        let mut con = ContractState::new(b"Enigma".sha256() );
         con.write_key("code", &json!(200)).unwrap();
         con.write_key("success", &json!(true)).unwrap();
         con.write_key("payload", &json!({ "features": ["serde", "json"] })).unwrap();
 
         let cmp = ContractState {
-            contract_id: "Enigma".to_string(),
+            contract_id: b"Enigma".sha256(),
             json: json!({"code": 200,"success": true,"payload": {"features": ["serde","json"]}}),
         };
         assert_eq!(con, cmp);
@@ -116,7 +117,7 @@ pub mod tests {
 
     pub fn test_read_state() {
         let con = ContractState {
-            contract_id: "Enigma".to_string(),
+            contract_id: b"Enigma".sha256(),
             json: json!({"code": 200,"success": true,"payload": {"features": ["serde","json"]}}),
         };
         assert_eq!(con.read_key::<u64>("code").unwrap(), 200);
@@ -179,17 +180,17 @@ pub mod tests {
         let p = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
         let patch: StatePatch = serde_json::from_str(p).unwrap();
         let mut contract = ContractState{
-            contract_id: "Enigma".to_string(),
+            contract_id: b"Enigma".sha256(),
             json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] }),
         };
         contract.apply_delta(&patch).unwrap();
-        assert_eq!(contract, ContractState { contract_id: "Enigma".to_string(),  json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] }) } );
+        assert_eq!(contract, ContractState { contract_id: b"Enigma".sha256(),  json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] }) } );
     }
 
     pub fn test_generate_delta() {
         let p = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
         let result: StatePatch = serde_json::from_str(p).unwrap();
-        let id = "Enigma".to_string();
+        let id = b"Enigma".sha256();
         let before = ContractState {
             contract_id: id.clone(),
             json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] }),

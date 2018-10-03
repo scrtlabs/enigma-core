@@ -3,6 +3,7 @@ use std::string::ToString;
 use std::borrow::ToOwned;
 use wasmi::{Module, ImportsBuilder, ModuleInstance};
 use common::errors_t::EnclaveError;
+use common::utils_t::Sha256;
 use enigma_runtime_t::{eng_resolver, Runtime, RuntimeResult, data::ContractState};
 
 
@@ -38,7 +39,7 @@ pub fn execute_constructor(code: &Vec<u8>) -> Result<RuntimeResult, EnclaveError
 
 // This is dummy function, it is used until state is not finished
 pub fn get_state() -> ContractState {
-    ContractState::new("Enigma")
+    ContractState::new(b"Enigma".sha256())
 }
 
 pub mod tests {
@@ -46,6 +47,7 @@ pub mod tests {
     use std::vec::Vec;
     use std::string::ToString;
     use enigma_runtime_t::data::DeltasInterface;
+    use enigma_tools_t::common::utils_t::Sha256;
     use serde_json::{Value, Map, self};
     use json_patch;
 
@@ -55,7 +57,7 @@ pub mod tests {
         match super::execute(&bytecode, &initial_state, "call"){
             Ok(v) => {
                 let after = super::ContractState {
-                    contract_id: "Enigma".to_string(),
+                    contract_id: b"Enigma".sha256(),
                     json: json!({ "code" : b"157" }),
                 };
                 let delta = after.generate_delta(Some(&initial_state), None).unwrap();

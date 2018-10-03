@@ -1,6 +1,7 @@
 use data;
 use enigma_tools_t::cryptography_t::symmetric;
 use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::utils_t::Sha256;
 use std::vec::Vec;
 use std::string::{String, ToString};
 use serde_json::{Value, from_value, Error};
@@ -12,21 +13,21 @@ use json_patch;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct ContractState {
-    pub contract_id: String,
+    pub contract_id: [u8; 32],
     pub json: Value,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EncryptedContractState<T> {
-    pub contract_id: String,
+    pub contract_id: [u8; 32],
     pub json: Vec<T>,
 }
 
 
 impl ContractState {
-    pub fn new(contract_id: &str) -> ContractState {
+    pub fn new(contract_id: [u8; 32]) -> ContractState {
         ContractState {
-            contract_id: String::from(contract_id),
+            contract_id,
             json: Value::default(),
         }
     }

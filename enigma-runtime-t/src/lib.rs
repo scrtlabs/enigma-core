@@ -45,13 +45,13 @@ pub struct Runtime {
 
 impl Runtime {
 
-    pub fn new(memory: MemoryRef, args: Vec<u8>, contract_id: String) -> Runtime {
+    pub fn new(memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32]) -> Runtime {
         Runtime {
             memory: memory,
             args: args,
             result: RuntimeResult{result: Vec::new(), state_delta: None},
-            init_state: ContractState::new(&contract_id),
-            current_state: ContractState::new(&contract_id),
+            init_state: ContractState::new(contract_id.clone()),
+            current_state: ContractState::new(contract_id),
         }
     }
 
