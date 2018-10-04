@@ -1,5 +1,7 @@
 #![allow(dead_code,unused_assignments,unused_variables)]
 use sgx_types::*;
+use std::fmt;
+use failure::Error;
 
 // error while requesting to produce a quote (registration)
 #[derive(Fail, Debug)]
@@ -39,11 +41,32 @@ pub struct AttestationServiceErr{
 }
 
 #[derive(Fail, Debug)]
-#[fail(display = "Error while trying to {}, Because: {}", command, message)]
-pub struct DBErr{
+#[fail(display = "Error while trying to {}, Because: {}", command, kind)]
+pub struct DBErr {
     pub command: String,
-    pub message : String,
+    pub kind: DBErrKind,
+    #[fail(cause)]
+    pub previous: Option<Error>
 }
 
+#[derive(Debug)]
+pub enum DBErrKind {
+    KeyExists,
+    CreateError,
+    FetchError,
+    MissingKey,
+    UpdateError,
+}
 
-
+impl fmt::Display for DBErrKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let printable = match *self {
+            DBErrKind::KeyExists => "The Key already exists",
+            DBErrKind::CreateError => "Failed to create the key",
+            DBErrKind::FetchError => "Failed to fetch the data",
+            DBErrKind::MissingKey => "The Key doesn't exist",
+            DBErrKind::UpdateError => "Failed to update the key",
+        };
+        write!(f, "{}", printable)
+    }
+}

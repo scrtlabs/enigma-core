@@ -140,7 +140,7 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
         return sgx_status_t::SGX_ERROR_UNEXPECTED
     }
 
-    match res.0{
+    match res.0 {
         0 => {
             let s: &mut [u8] = &mut callback_data[..];
             *result_len = s.len();

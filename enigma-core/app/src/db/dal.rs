@@ -4,7 +4,7 @@ use leveldb::options::{Options,WriteOptions,ReadOptions};
 use leveldb::database::Database;
 use leveldb::kv::KV;
 use db_key::Key;
-use common_u::errors::DBErr;
+use common_u::errors::{DBErr, DBErrKind};
 
 // These are global variables for Reade/Write/Create Options
 const PARANOID_CHECK: bool = true;
@@ -72,6 +72,14 @@ pub trait CRUDInterface<E, K, T, V> {
     /// db.delete("test").unwrap();
     /// ```
     fn delete(&mut self, key: K) -> Result<(), E>;
+    /// This is the same as update but it will create the key if it doesn't exist.
+    ///
+    /// # Examples
+    /// ```
+    /// db.force_update("test", "abc".as_bytes()).unwrap();
+    /// ```
+    fn force_update(&mut self, key: K, value: V) -> Result<(), E>;
+
 }
 
 
@@ -82,14 +90,14 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
         if self.database.get(read_opts, key)?.is_some() {
-            return Err( DBErr { command: "create".to_string(), message: "Key already exist".to_string() }.into())
+            return Err( DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists, previous: None }.into())
         }
 
         let mut write_opts = WriteOptions::new();
         write_opts.sync = SYNC;
         match self.database.put(write_opts, key, value) {
             Ok(_) => return Ok(()),
-            Err(e) => return Err(DBErr { command: "create".to_string(), message: format!("Failed to create the key {:?}", e) }.into())
+            Err(e) => return Err(DBErr { command: "create".to_string(), kind: DBErrKind::CreateError, previous: Some(e.into()) }.into())
         };
     }
     fn read(&mut self, key: &'a K) -> Result<Vec<u8>, Error> {
@@ -98,7 +106,7 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
 
         match self.database.get(read_opts, key)? {
             Some(data) => return Ok(data),
-            None => return Err(DBErr { command: "get".to_string(), message: "Failed to fetch the data".to_string() }.into())
+            None => return Err(DBErr { command: "get".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
         }
     }
 
@@ -107,14 +115,14 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
         if self.database.get(read_opts, key)?.is_none() {
-            return Err(DBErr { command: "update".to_string(), message: "The Key doesn't exist".to_string() }.into())
+            return Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
         }
         else {
             let mut write_opts = WriteOptions::new();
             write_opts.sync = SYNC;
             match self.database.put(write_opts, key, value) {
                 Ok(_) => return Ok(()),
-                Err(e) => return Err(DBErr { command: "create".to_string(), message: format!("Failed to create the key {:?}", e) }.into())
+                Err(e) => return Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some( e.into() ) }.into())
             };
         }
     }
@@ -124,13 +132,23 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
         if self.database.get(read_opts, key)?.is_none() {
-            return Err( DBErr { command: "delete".to_string(), message: "Key Doesn't exist".to_string() }.into())
+            return Err( DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
         }
         let mut write_opts = WriteOptions::new();
         write_opts.sync = SYNC;
         self.database.delete(write_opts, key)?;
         Ok(())
 
+    }
+
+    fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
+        // this updates the DB without checking for existence
+        let mut write_opts = WriteOptions::new();
+        write_opts.sync = SYNC;
+        match self.database.put(write_opts, key, value) {
+            Ok(_) => return Ok( () ),
+            Err(e) => return Err( DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some( e.into() ) }.into() )
+        }
     }
 
 }

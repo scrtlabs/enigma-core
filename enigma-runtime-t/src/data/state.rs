@@ -1,7 +1,6 @@
 use data;
 use enigma_tools_t::cryptography_t::symmetric;
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::utils_t::Sha256;
 use std::vec::Vec;
 use std::string::{String, ToString};
 use serde_json::{Value, from_value, Error};

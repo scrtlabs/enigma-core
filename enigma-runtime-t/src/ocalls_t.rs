@@ -1,5 +1,4 @@
 use sgx_types::sgx_status_t;
-use std::ffi::CString;
 use std::string::ToString;
 use enigma_tools_t::common::errors_t::EnclaveError::{self, OcallErr};
 use enigma_tools_t::common::utils_t::Sha256;
@@ -28,6 +27,7 @@ pub fn save_state(enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> 
 
 
 pub fn save_delta(enc: &EncryptedPatch) -> Result<(), EnclaveError> {
+
     let mut res_int: i8 = -1;
     let res_status: sgx_status_t = unsafe {
         ocall_new_delta(&mut res_int as *mut i8,  enc.data.as_ptr(), enc.data.len(), &enc.hash, &enc.index as *const u32)
