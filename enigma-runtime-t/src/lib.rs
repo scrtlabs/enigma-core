@@ -114,6 +114,8 @@ impl Runtime {
         let key1 = from_utf8(&buf).unwrap();
           match self.current_state.read_key::<Vec<u8>>(key1){
             Ok(v) => {
+                println!("read_state vec: {:?}", &v);
+                println!("read_state vec len: {:?}", &v.len());
                 self.memory.set(0, &v);
                 Ok(v.len() as i32)
             },

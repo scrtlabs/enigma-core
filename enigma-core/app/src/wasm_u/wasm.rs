@@ -116,6 +116,8 @@ pub mod tests {
     use sgx_urts::SgxEnclave;
     use wasm_u::wasm;
     use std::str::from_utf8;
+    use std::process::Command;
+    use std::path::PathBuf;
 
     fn init_enclave() -> SgxEnclave{
         let enclave = match esgx::general::init_enclave_wrapper() {
@@ -130,14 +132,38 @@ pub mod tests {
         enclave
     }
 
+
+    #[test]
+    fn compile_test_contract() {
+        let mut dir = PathBuf::new();
+        dir.push("../../examples/eng_wasm_contracts/simplest");
+        let mut output = Command::new("cargo")
+            .current_dir(&dir)
+            .args(&["build", "--release"])
+            .spawn()
+            .expect("Failed compiling simplest wasm exmaple");
+
+        assert!(output.wait().unwrap().success());
+        dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
+
+        let mut f = File::open(&dir).unwrap();
+        let mut wasm_code = Vec::new();
+        f.read_to_end(&mut wasm_code).unwrap();
+        println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
+        let enclave = init_enclave();
+        let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
+        let result = wasm::execute(enclave.geteid(),contract_code, "call");
+        assert_eq!(from_utf8(&result.unwrap()).unwrap(), "157");
+    }
+
     #[test]
     pub fn contract() {
         let mut f = File::open("../../examples/eng_wasm_contracts/simplest/contract.wasm").unwrap();
         let mut wasm_code = Vec::new();
-        f.read_to_end(&mut wasm_code);
+        f.read_to_end(&mut wasm_code).unwrap();
         let enclave = init_enclave();
         let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
-        println!("Deployed contract code: {:?}", contract_code);
+//        println!("Deployed contract code: {:?}", contract_code);
         let result = wasm::execute(enclave.geteid(),contract_code, "call");
         assert_eq!(from_utf8(&result.unwrap()).unwrap(),"157");
     }

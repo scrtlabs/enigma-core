@@ -3,9 +3,6 @@ use std::slice;
 use esgx::general;
 use db::{DATABASE, DeltaKey};
 use db::dal::CRUDInterface;
-use db_key::Key;
-use hex::ToHex;
-use common_u::errors::{DBErr, DBErrKind};
 
 #[no_mangle]
 pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
