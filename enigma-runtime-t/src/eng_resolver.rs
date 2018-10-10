@@ -12,6 +12,7 @@ pub mod ids {
     pub const WRITE_STATE_FUNC: usize = 2;
     pub const READ_STATE_FUNC: usize = 3;
     pub const FROM_MEM_FUNC: usize = 4;
+    pub const EPRINT_FUNC: usize = 5;
 }
 
 pub mod signatures {
@@ -36,6 +37,11 @@ pub mod signatures {
     );
 
     pub const FROM_MEM: StaticSignature = StaticSignature(
+        &[I32, I32],
+        None,
+    );
+
+    pub const EPRINT: StaticSignature = StaticSignature(
         &[I32, I32],
         None,
     );
@@ -100,6 +106,7 @@ impl ModuleImportResolver for ImportResolver {
             "write_state" => FuncInstance::alloc_host(signatures::WRITE_STATE.into(), ids::WRITE_STATE_FUNC),
             "read_state" => FuncInstance::alloc_host(signatures::READ_STATE.into(), ids::READ_STATE_FUNC),
             "from_memory" => FuncInstance::alloc_host(signatures::FROM_MEM.into(), ids::FROM_MEM_FUNC),
+            "eprint" => FuncInstance::alloc_host(signatures::EPRINT.into(), ids::EPRINT_FUNC),
             _ => {
                 return Err(wasmi::Error::Instantiation(
                     format!("Export {} not found", field_name),

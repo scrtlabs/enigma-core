@@ -184,6 +184,22 @@ impl Runtime {
 
         Ok(self.result.clone())
     }
+
+    pub fn eprint(&mut self, args: RuntimeArgs) -> Result<(), EnclaveError> {
+        let msg_ptr: u32 = args.nth_checked(0)?;
+        let msg_len: u32 = args.nth_checked(1)?;
+        match self.memory.get(msg_ptr, msg_len as usize) {
+            Ok(res) => {
+                let st = String::from_utf8(res).unwrap();
+                println!("PRINT: {}", st);
+
+            },
+            Err(e) => return Err(EnclaveError::ExecutionErr{code: "Error in Logging debug".to_string(), err: e.to_string()}),
+        }
+        Ok(())
+    }
+
+
 }
 
 impl Externals for Runtime {
@@ -206,6 +222,11 @@ impl Externals for Runtime {
             }
             eng_resolver::ids::FROM_MEM_FUNC => {
                 &mut Runtime::from_memory(self, args);
+                Ok(None)
+            }
+
+            eng_resolver::ids::EPRINT_FUNC => {
+                &mut Runtime::eprint(self, args);
                 Ok(None)
             }
             _ => panic!("Unimplemented function at {}", index),
