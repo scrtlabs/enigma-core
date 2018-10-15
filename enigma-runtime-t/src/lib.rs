@@ -73,17 +73,19 @@ impl Runtime {
     pub fn from_memory(&mut self, args: RuntimeArgs) -> Result<(), EnclaveError> {
         let value: u32 = args.nth_checked(0).unwrap();
         let value_len: i32 = args.nth_checked(1).unwrap();
+
         let mut buf = Vec::with_capacity(value_len as usize);
-        for i in 0..value_len{
+        for _ in 0..value_len{
             buf.push(0);
         }
-        match self.memory.get_into(0, &mut buf[..]){
-            Ok(_v) => {
-                match self.memory.set(value, &buf[..]){
-                    Ok(_v) => {
-                        self.result.result = match self.memory.get(0, value_len as usize){
-                            Ok(v)=>v,
-                            Err(_e)=>return Err(EnclaveError::ExecutionErr{code: "ret code".to_string(), err: "".to_string()}),
+
+        match self.memory.get_into(0, &mut buf[..]) {
+            Ok( () ) => {
+                match self.memory.set(value, &buf[..]) {
+                    Ok( () ) => {
+                        self.result.result = match self.memory.get(0, value_len as usize) {
+                            Ok(v) => v,
+                            Err(e) => return Err(EnclaveError::ExecutionErr{code: "ret code".to_string(), err: e.to_string()}),
                         };
                     },
                     Err(e) => return Err(EnclaveError::ExecutionErr{code: "memory".to_string(), err: e.to_string()}),
@@ -104,23 +106,29 @@ impl Runtime {
         let key = args.nth_checked(0);
         let key_len: u32 = args.nth_checked(1).unwrap();
         let mut buf = Vec::with_capacity(key_len as usize);
-        for i in 0..key_len{
+        for _ in 0..key_len{
             buf.push(0);
         }
-        match self.memory.get_into(key.unwrap(), &mut buf[..]){
-            Ok(v) => v,
+        match self.memory.get_into(key.unwrap(), &mut buf[..]) {
+            Ok( () ) => (),
             Err(e) => return Err(EnclaveError::ExecutionErr{code: "read state".to_string(), err: e.to_string()}),
         }
         let key1 = from_utf8(&buf).unwrap();
+        let value_vec = serde_json::to_vec(&self.current_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
+        self.memory.set(0, &value_vec).unwrap(); // TODO: Impl From so we could use `?`
+        Ok( value_vec.len() as i32 )
+
+            /*
           match self.current_state.read_key::<Vec<u8>>(key1){
             Ok(v) => {
                 println!("read_state vec: {:?}", &v);
                 println!("read_state vec len: {:?}", &v.len());
-                self.memory.set(0, &v);
+                self.memory.set(0, &v).unwrap(); // TODO: Impl From so we could use `?`
                 Ok(v.len() as i32)
             },
             Err(e) => return Err(EnclaveError::ExecutionErr{code: "read state".to_string(), err: e.to_string()}),
         }
+        */
 
     }
 
@@ -136,24 +144,30 @@ impl Runtime {
         let key_len: u32 = args.nth_checked(1).unwrap();
         let value: u32 = args.nth_checked(2).unwrap();
         let value_len: u32 = args.nth_checked(3).unwrap();
+
         let mut buf = Vec::with_capacity(key_len as usize);
-        for i in 0..key_len{
+        for _ in 0..key_len {
             buf.push(0);
         }
+
         match self.memory.get_into(key.unwrap(), &mut buf[..]){
             Ok(v) => v,
             Err(e) => return Err(EnclaveError::ExecutionErr{code: "write state".to_string(), err: e.to_string()}),
         }
+
         let mut val = Vec::with_capacity(value_len as usize);
-        for i in 0..value_len{
+        for _ in 0..value_len {
             val.push(0);
         }
+
         match self.memory.get_into(value, &mut val[..]){
             Ok(v) => v,
             Err(e) => return Err(EnclaveError::ExecutionErr{code: "write state".to_string(), err: e.to_string()}),
         }
+
         let key1 = from_utf8(&buf).unwrap();
-        self.current_state.write_key(key1, &json!(val)).unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&val).expect("Failed converting into Value while writing state in Runtime");
+        self.current_state.write_key(key1, &value).unwrap();
         Ok(())
     }
 

@@ -141,12 +141,12 @@ pub mod tests {
             .current_dir(&dir)
             .args(&["build", "--release"])
             .spawn()
-            .expect("Failed compiling simplest wasm exmaple");
+            .expect(&format!("Failed compiling simplest wasm exmaple: {:?}", &dir) );
 
         assert!(output.wait().unwrap().success());
         dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
 
-        let mut f = File::open(&dir).unwrap();
+        let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir) );
         let mut wasm_code = Vec::new();
         f.read_to_end(&mut wasm_code).unwrap();
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
@@ -158,9 +158,10 @@ pub mod tests {
 
     #[test]
     pub fn contract() {
-        let mut f = File::open("../../examples/eng_wasm_contracts/simplest/contract.wasm").unwrap();
+        let mut f = File::open("../../examples/eng_wasm_contracts/simplest/target/wasm32-unknown-unknown/release/contract.wasm").unwrap();
         let mut wasm_code = Vec::new();
         f.read_to_end(&mut wasm_code).unwrap();
+        println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
         let enclave = init_enclave();
         let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
 //        println!("Deployed contract code: {:?}", contract_code);

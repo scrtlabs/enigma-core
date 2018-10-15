@@ -3,13 +3,15 @@
 /// This crate should be used in contracts.
 #[macro_use]
 extern crate serde_json;
+extern crate serde;
+
 #[macro_use]
 mod internal_std;
 pub use internal_std::*;
 use internal_std::std_macro::*;
+
 pub use serde_json::Value;
 
-use serde_json::{from_value, to_value};
 
 mod external {
     extern "C" {
@@ -20,25 +22,7 @@ mod external {
     }
 }
 
-#[no_mangle]
-/// Write to state
-pub fn write(key: &str, value: &[u8]) {
-    unsafe { external::write_state(key.as_ptr(), key.len() as u32, value.as_ptr(), value.len() as u32) }
-}
 
-#[no_mangle]
-/// Read from state
-pub fn read(key: &str) -> Vec<u8> {
-    let mut val_len = 0;
-    unsafe {
-        val_len = external::read_state(key.as_ptr(), key.len() as u32);
-    }
-    let mut value_holder: Vec<u8> = Vec::with_capacity(val_len as usize);
-    unsafe {
-        external::from_memory(value_holder.as_ptr(), val_len);
-    }
-    value_holder
-}
 
 #[no_mangle]
 pub fn print(msg: &str) -> i32 {
@@ -49,9 +33,40 @@ pub fn print(msg: &str) -> i32 {
 #[macro_export]
 macro_rules! eprint {
     ( $($arg: tt)* ) => (
-    $crate::print(&eformat!($($arg)*))
+    $crate::print( &eformat!( $($arg)* ) )
     );
 }
+
+
+
+
+//#[no_mangle]
+/// Write to state
+pub fn write<T>(key: &str, _value: T) where T: serde::Serialize {
+    let value = json!(_value);
+    let value_vec = serde_json::to_vec(&value).unwrap();
+    unsafe { external::write_state(key.as_ptr(), key.len() as u32, value_vec.as_ptr(), value_vec.len() as u32) }
+}
+
+#[no_mangle]
+/// Read from state
+//pub fn read<T>(key: &str) -> Result<T, serde_json::Error> where for<'de> T: serde::Deserialize<'de> {
+pub fn read(key: &str) -> String {
+    eprint!("Reading start!");
+    let mut val_len = 0;
+    val_len = unsafe { external::read_state(key.as_ptr(), key.len() as u32) };
+    let mut value_holder: Vec<u8> = iter::repeat(0).take(val_len as usize).collect();
+    unsafe { external::from_memory(value_holder.as_ptr(), val_len) };
+    eprint!("SLICE BEFORE: {:?}", &value_holder);
+    let value: Value = serde_json::from_slice(&value_holder).map_err(|_| print("failed unwrapping from_slice")).unwrap();
+//    let s: String = serde_json::from_value(value.clone()).map_err(|_| print("failed unwrapping from_value")).expect("failed");
+
+    let vv: Value = serde_json::from_slice(&value_holder).unwrap();
+    let a = json!("WHYYYY");
+    let s: String = serde_json::from_value(a).unwrap();
+    "dat".to_string()
+}
+
 
 
 
