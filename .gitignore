@@ -113,3 +113,4 @@ fabric.properties
 
 # Elichai's Tests
 sgx-tests
+CMakeLists.txt
