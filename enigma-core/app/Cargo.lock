@@ -886,7 +886,7 @@ dependencies = [
 [[package]]
 name = "pwasm-utils"
 version = "0.5.0"
-source = "git+https://github.com/enigmampc/wasm-utils.git#ae7e4483472aacddde3ce0713ead138ad82523c5"
+source = "git+https://github.com/enigmampc/wasm-utils.git#5d398dc760339524cf4fc598cfc83f7b4edf6ca8"
 dependencies = [
  "byteorder 1.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)",

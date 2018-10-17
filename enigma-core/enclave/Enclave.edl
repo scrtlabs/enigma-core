@@ -25,7 +25,7 @@ enclave {
 
 
         public sgx_status_t ecall_deploy([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
-    	                              [out, size=100000] uint8_t* output, [out] uint64_t* output_len);
+    	                              [out, size=1000000] uint8_t* output, [out] uint64_t* output_len);
 
         public sgx_status_t ecall_execute([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
                                         [in, size=callable_len] const uint8_t* callable, size_t callable_len,
