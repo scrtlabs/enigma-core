@@ -11,20 +11,13 @@ use eng_wasm::String;
 #[no_mangle]
 pub fn call() {
     let mut a  = String::new();
-    a.push_str("Hey");
+    a.push_str("157");
     let key = "code";
-
-    eng_wasm::write(key, "157".as_bytes());
-    let read_val = eng_wasm::read(key);
-//    eng_wasm::print(&a);
-    eprint!("Hey!");
     eprint!("{}", a);
-//    let read_val = eng_wasm::read(key);
-//    let value_after = from_utf8(&read_val).unwrap();
-//
-//    eng_wasm::write(key, value_after.as_bytes());
-//    let read_val = eng_wasm::read(key);
-//    assert_eq!(value, value_after);
+    write_state!(key => &a);
+    let read_val: String = read_state!(key);
+
+    assert_eq!(read_val, a);
 
 }
 

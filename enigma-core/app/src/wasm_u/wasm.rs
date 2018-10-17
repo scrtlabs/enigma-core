@@ -154,9 +154,10 @@ pub mod tests {
         let enclave = init_enclave();
         let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
         let result = wasm::execute(enclave.geteid(),contract_code, "call");
-        assert_eq!(from_utf8(&result.unwrap()).unwrap(), "157");
+        assert_eq!(from_utf8(&result.unwrap()).unwrap(), "\"157\"");
     }
 
+    #[ignore]
     #[test]
     pub fn contract() {
         let mut f = File::open("../../examples/eng_wasm_contracts/simplest/target/wasm32-unknown-unknown/release/contract.wasm").unwrap();

@@ -58,7 +58,7 @@ pub mod tests {
             Ok(v) => {
                 let after = super::ContractState {
                     contract_id: b"Enigma".sha256(),
-                    json: json!({ "code" : b"157" }),
+                    json: json!({ "code" : 157 }),
                 };
                 let delta = after.generate_delta(Some(&initial_state), None).unwrap();
                 assert_eq!(v.state_delta.unwrap(), delta);

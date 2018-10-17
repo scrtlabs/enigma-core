@@ -7,9 +7,9 @@ extern crate serde;
 
 #[macro_use]
 mod internal_std;
-pub use internal_std::*;
 use internal_std::std_macro::*;
 
+pub use internal_std::*;
 pub use serde_json::Value;
 
 
@@ -21,8 +21,6 @@ mod external {
         pub fn eprint(str_ptr: *const u8, str_len: u32);
     }
 }
-
-
 
 #[no_mangle]
 pub fn print(msg: &str) -> i32 {
@@ -37,10 +35,6 @@ macro_rules! eprint {
     );
 }
 
-
-
-
-//#[no_mangle]
 /// Write to state
 pub fn write<T>(key: &str, _value: T) where T: serde::Serialize {
     let value = json!(_value);
@@ -48,45 +42,42 @@ pub fn write<T>(key: &str, _value: T) where T: serde::Serialize {
     unsafe { external::write_state(key.as_ptr(), key.len() as u32, value_vec.as_ptr(), value_vec.len() as u32) }
 }
 
-#[no_mangle]
 /// Read from state
-//pub fn read<T>(key: &str) -> Result<T, serde_json::Error> where for<'de> T: serde::Deserialize<'de> {
-pub fn read(key: &str) -> String {
-    eprint!("Reading start!");
+pub fn read<T>(key: &str) -> T where for<'de> T: serde::Deserialize<'de> {
     let mut val_len = 0;
     val_len = unsafe { external::read_state(key.as_ptr(), key.len() as u32) };
     let mut value_holder: Vec<u8> = iter::repeat(0).take(val_len as usize).collect();
     unsafe { external::from_memory(value_holder.as_ptr(), val_len) };
-    eprint!("SLICE BEFORE: {:?}", &value_holder);
     let value: Value = serde_json::from_slice(&value_holder).map_err(|_| print("failed unwrapping from_slice")).unwrap();
-//    let s: String = serde_json::from_value(value.clone()).map_err(|_| print("failed unwrapping from_value")).expect("failed");
-
-    let vv: Value = serde_json::from_slice(&value_holder).unwrap();
-    let a = json!("WHYYYY");
-    let s: String = serde_json::from_value(a).unwrap();
-    "dat".to_string()
+    serde_json::from_value(value.clone()).map_err(|_| print("failed unwrapping from_value")).expect("failed")
 }
 
+#[macro_export]
+ macro_rules! write_state {
+     ( $($key: expr => $val: expr),+ ) => {
+         {
+             $(
+                 $crate::write($key, $val);
+             )+
+         }
+     }
+ }
 
+#[macro_export]
+ macro_rules! read_state {
+     ( $key: expr ) => {
+         {
+             $crate::read($key)
+         }
+     }
+ }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn what() {
+        print("TEST!");
+    }
+}
 
-// // TODO: All these macros should be in eng_wasm
-// macro_rules! write_state {
-//     ( $($key: expr => $val: expr),+ ) => {
-//         {
-//             $(
-//             // TODO: How are we handling errors in wasm?
-
-//                 con.write_key($key, &json!($val)).unwrap();
-//             )+
-//         }
-//     }
-// }
-
-// macro_rules! read_state {
-//     ( $key: expr ) => {
-//         {
-//             read($key)
-//         }
-//     }
-// }
