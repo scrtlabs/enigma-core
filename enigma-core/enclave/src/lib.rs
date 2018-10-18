@@ -44,6 +44,7 @@ extern crate rlp;
 mod evm_t;
 mod ocalls_t;
 mod wasm_g;
+mod km;
 
 use sgx_types::*;
 
@@ -189,6 +190,10 @@ pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
             *output_len = s.len();
             unsafe {
                 ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
+            }
+            if res.state_delta.is_some() {
+                let enc_delta = km::db::encrypt_delta(res.state_delta.unwrap());
+                enigma_runtime_t::ocalls_t::save_delta(&enc_delta).unwrap();
             }
             sgx_status_t::SGX_SUCCESS
         },
