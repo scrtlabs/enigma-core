@@ -36,12 +36,10 @@ impl ContractState {
 impl IOInterface<EnclaveError, u8> for ContractState {
     fn read_key<T>(&self, key: &str) -> Result<T, Error>
         where for<'de> T: Deserialize<'de> {
-        println!("Reading key: {:?}", self.json[key]);
         from_value(self.json[key].clone())
     }
 
     fn write_key(&mut self, key: &str, value: &Value) -> Result<(), EnclaveError> {
-        println!("Writing new key: {:?} ", value);
         self.json[key] = value.clone();
         Ok(())
     }

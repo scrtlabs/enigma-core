@@ -2,7 +2,8 @@ use std::string::{String, ToString};
 use sgx_types::sgx_status_t;
 use rmps;
 use json_patch;
-use wasmi::{Trap, TrapKind};
+use wasmi::{self, TrapKind};
+use std::str;
 
 #[derive(Debug, Fail)]
 pub enum EnclaveError {
@@ -90,8 +91,8 @@ impl From<json_patch::PatchError> for EnclaveError {
     }
 }
 
-impl From<Trap> for EnclaveError {
-    fn from(trap: Trap) -> Self {
+impl From<wasmi::Trap> for EnclaveError {
+    fn from(trap: wasmi::Trap) -> Self {
         match *trap.kind() {
             TrapKind::Unreachable => EnclaveError::ExecutionErr{code: "".to_string(), err: "unreachable".to_string()},
             TrapKind::MemoryAccessOutOfBounds => EnclaveError::ExecutionErr{code: "".to_string(), err: "memory access out of bounds".to_string()},
@@ -101,5 +102,11 @@ impl From<Trap> for EnclaveError {
             TrapKind::UnexpectedSignature => EnclaveError::ExecutionErr{code: "".to_string(), err: "unexpected signature".to_string()},
             TrapKind::StackOverflow => EnclaveError::ExecutionErr{code: "".to_string(), err: "stack overflow".to_string()},
         }
+    }
+}
+
+impl From<str::Utf8Error> for EnclaveError {
+    fn from(err: str::Utf8Error) -> Self {
+        EnclaveError::ExecutionErr { code: "Failed formatting utf-8 in Runtime".to_string(), err: format!("{:?}", err) }
     }
 }

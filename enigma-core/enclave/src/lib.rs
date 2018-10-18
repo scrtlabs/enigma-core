@@ -61,7 +61,6 @@ use evm_t::abi::{prepare_evm_input, create_callback};
 use std::vec::Vec;
 use common::errors_t::EnclaveError;
 use wasm_g::execution;
-use enigma_runtime_t::data::ContractState;
 
 
 lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -260,9 +259,7 @@ pub mod tests {
     use enigma_runtime_t::data::tests::*;
     use enigma_runtime_t::ocalls_t::*;
     use super::SIGNINING_KEY;
-    use ocalls_t::*;
     use wasm_g::execution::tests::*;
-    use evm_t::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {

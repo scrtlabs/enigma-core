@@ -22,7 +22,7 @@ use std::string::String;
 use std::string::ToString;
 use std::borrow::ToOwned;
 use enigma_tools_t::common::errors_t::EnclaveError;
-use std::str::from_utf8;
+use std::str;
 
 pub mod data;
 pub mod ocalls_t;
@@ -113,22 +113,10 @@ impl Runtime {
             Ok( () ) => (),
             Err(e) => return Err(EnclaveError::ExecutionErr{code: "read state".to_string(), err: e.to_string()}),
         }
-        let key1 = from_utf8(&buf).unwrap();
+        let key1 = str::from_utf8(&buf)?;
         let value_vec = serde_json::to_vec(&self.current_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
         self.memory.set(0, &value_vec).unwrap(); // TODO: Impl From so we could use `?`
         Ok( value_vec.len() as i32 )
-
-            /*
-          match self.current_state.read_key::<Vec<u8>>(key1){
-            Ok(v) => {
-                println!("read_state vec: {:?}", &v);
-                println!("read_state vec len: {:?}", &v.len());
-                self.memory.set(0, &v).unwrap(); // TODO: Impl From so we could use `?`
-                Ok(v.len() as i32)
-            },
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "read state".to_string(), err: e.to_string()}),
-        }
-        */
 
     }
 
@@ -165,7 +153,7 @@ impl Runtime {
             Err(e) => return Err(EnclaveError::ExecutionErr{code: "write state".to_string(), err: e.to_string()}),
         }
 
-        let key1 = from_utf8(&buf).unwrap();
+        let key1 = str::from_utf8(&buf)?;
         let value: serde_json::Value = serde_json::from_slice(&val).expect("Failed converting into Value while writing state in Runtime");
         self.current_state.write_key(key1, &value).unwrap();
         Ok(())
@@ -204,7 +192,7 @@ impl Runtime {
         let msg_len: u32 = args.nth_checked(1)?;
         match self.memory.get(msg_ptr, msg_len as usize) {
             Ok(res) => {
-                let st = String::from_utf8(res).unwrap();
+                let st = str::from_utf8(&res)?;
                 println!("PRINT: {}", st);
 
             },

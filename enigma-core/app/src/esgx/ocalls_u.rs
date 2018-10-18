@@ -25,6 +25,7 @@ pub extern "C" fn ocall_update_state(id: &[u8; 32], enc_state: *const u8, state_
             return 17; // according to errno.h and errno-base.h (maybe use https://docs.rs/nix/0.11.0/src/nix/errno.rs.html, or something else)
         }
     }
+    println!("logging: saving state {:?} in {:?}", key, encrypted_state);
     return 0;
 }
 
@@ -41,6 +42,7 @@ pub extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, delta_
             return 17; // according to errno.h and errno-base.h (maybe use https://docs.rs/nix/0.11.0/src/nix/errno.rs.html, or something else)
         }
     }
+    println!("logging: saving delta {:?} in {:?}", key, encrypted_delta);
     return 0;
 
 }
