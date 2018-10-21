@@ -18,9 +18,7 @@ extern crate hexutil;
 
 use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue, Trap, Externals};
 use std::vec::Vec;
-use std::string::String;
 use std::string::ToString;
-use std::borrow::ToOwned;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use std::str;
 
@@ -32,6 +30,7 @@ use data::{ContractState, StatePatch, DeltasInterface, IOInterface};
 #[derive(Debug, Clone)]
 pub struct RuntimeResult{
     pub state_delta: Option<StatePatch>,
+    pub updated_state: Option<ContractState>,
     pub result: Vec<u8>,
 }
 
@@ -46,23 +45,19 @@ pub struct Runtime {
 impl Runtime {
 
     pub fn new(memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32]) -> Runtime {
-        Runtime {
-            memory: memory,
-            args: args,
-            result: RuntimeResult{result: Vec::new(), state_delta: None},
-            init_state: ContractState::new(contract_id.clone()),
-            current_state: ContractState::new(contract_id),
-        }
+        let init_state = ContractState::new( contract_id.clone() );
+        let current_state = ContractState::new(contract_id);
+        let result = RuntimeResult{ result: Vec::new(), state_delta: None, updated_state: None };
+
+        Runtime { memory, args, result, init_state, current_state }
     }
 
-    pub fn new_with_state(memory: MemoryRef, args: Vec<u8>, state: &ContractState) -> Runtime{
-        Runtime {
-            memory: memory,
-            args: args,
-            result: RuntimeResult{result: Vec::new(), state_delta: None},
-            init_state: state.clone(),
-            current_state: state.clone(),
-        }
+    pub fn new_with_state(memory: MemoryRef, args: Vec<u8>, state: ContractState) -> Runtime{
+        let init_state = state.clone();
+        let current_state = state;
+        let result = RuntimeResult{ result: Vec::new(), state_delta: None, updated_state: None };
+
+        Runtime { memory, args, result, init_state, current_state }
     }
 
     /// args:
@@ -184,6 +179,7 @@ impl Runtime {
                 Err(e) => return Err(EnclaveError::ExecutionErr{code: "Error in generating state delta".to_string(), err: e.to_string()}),
             };
 
+        self.result.updated_state = Some(self.current_state);
         Ok(self.result.clone())
     }
 

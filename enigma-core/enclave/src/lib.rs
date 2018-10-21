@@ -183,17 +183,22 @@ pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     let bytecode = bytecode_slice.to_vec();
     let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
     let callable = from_utf8(callable_slice).unwrap();
+
     let state = execution::get_state();
-    match execution::execute(&bytecode, &state, callable) {
+    match execution::execute(&bytecode, state, callable) {
         Ok(mut res) => {
-            let s: &mut [u8] = &mut res.result[..];
+            let s = &res.result[..];
             *output_len = s.len();
-            unsafe {
-                ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
-            }
-            if res.state_delta.is_some() {
+            unsafe { ptr::copy_nonoverlapping(s.as_ptr(), output, s.len()) };
+
+            if res.state_delta.is_some() { // Saving the delta to the db
                 let enc_delta = km::db::encrypt_delta(res.state_delta.unwrap());
                 enigma_runtime_t::ocalls_t::save_delta(&enc_delta).unwrap();
+            }
+
+            if res.updated_state.is_some() { // Saving the updated state into the db
+                let enc_state = km::db::encrypt_state(res.updated_state.unwrap());
+                enigma_runtime_t::ocalls_t::save_state(&enc_state).unwrap();
             }
             sgx_status_t::SGX_SUCCESS
         },
@@ -220,7 +225,7 @@ pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output:
 
     match execution::execute_constructor(&bytecode) {
         Ok(mut res) => {
-            let s: &mut [u8] = &mut res.result[..];
+            let s = &res.result[..];
             *output_len = s.len();
             unsafe {
                 ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
