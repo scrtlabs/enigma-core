@@ -1,3 +1,6 @@
+/// This file is based on https://github.com/paritytech/parity-ethereum/blob/master/ethcore/wasm/src/env.rs
+/// This is Enigma glue for wasmi interpreter
+
 extern crate wasmi;
 use std::cell::RefCell;
 use std::borrow::ToOwned;
@@ -5,8 +8,11 @@ use std::borrow::ToOwned;
 use wasmi::{FuncInstance, Signature, FuncRef, Error, ModuleImportResolver, MemoryInstance, memory_units, MemoryRef, MemoryDescriptor};
 
 pub mod ids {
-    pub const EXTERNAL_FUNC: usize = 0;
     pub const RET_FUNC: usize = 1;
+    pub const WRITE_STATE_FUNC: usize = 2;
+    pub const READ_STATE_FUNC: usize = 3;
+    pub const FROM_MEM_FUNC: usize = 4;
+    pub const EPRINT_FUNC: usize = 5;
 }
 
 pub mod signatures {
@@ -15,12 +21,27 @@ pub mod signatures {
 
     pub struct StaticSignature(pub &'static [ValueType], pub Option<ValueType>);
 
-    pub const EXTERNAL: StaticSignature = StaticSignature(
-        &[],
+    pub const RET: StaticSignature = StaticSignature(
+        &[I32, I32],
+        None,
+    );
+
+    pub const WRITE_STATE: StaticSignature = StaticSignature(
+        &[I32, I32, I32, I32],
+        None,
+    );
+
+    pub const READ_STATE: StaticSignature = StaticSignature(
+        &[I32, I32],
         Some(I32),
     );
 
-    pub const RET: StaticSignature = StaticSignature(
+    pub const FROM_MEM: StaticSignature = StaticSignature(
+        &[I32, I32],
+        None,
+    );
+
+    pub const EPRINT: StaticSignature = StaticSignature(
         &[I32, I32],
         None,
     );
@@ -81,8 +102,11 @@ impl ImportResolver {
 impl ModuleImportResolver for ImportResolver {
     fn resolve_func(&self, field_name: &str, _signature: &Signature) -> Result<FuncRef, Error> {
         let func_ref = match field_name {
-           // "moria" => 	FuncInstance::alloc_host(signatures::EXTERNAL.into(), ids::EXTERNAL_FUNC),
             "ret" => FuncInstance::alloc_host(signatures::RET.into(), ids::RET_FUNC),
+            "write_state" => FuncInstance::alloc_host(signatures::WRITE_STATE.into(), ids::WRITE_STATE_FUNC),
+            "read_state" => FuncInstance::alloc_host(signatures::READ_STATE.into(), ids::READ_STATE_FUNC),
+            "from_memory" => FuncInstance::alloc_host(signatures::FROM_MEM.into(), ids::FROM_MEM_FUNC),
+            "eprint" => FuncInstance::alloc_host(signatures::EPRINT.into(), ids::EPRINT_FUNC),
             _ => {
                 return Err(wasmi::Error::Instantiation(
                     format!("Export {} not found", field_name),

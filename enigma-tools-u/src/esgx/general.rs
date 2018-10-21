@@ -4,8 +4,11 @@ use sgx_urts::SgxEnclave;
 use std::io::Read;
 use std::fs;
 use std::path;
+use std::env;
 
 pub fn init_enclave(token_path: &path::PathBuf, use_token: bool, enclave_location: &str) -> SgxResult<(SgxEnclave, Option<sgx_launch_token_t>)> {
+    let path = env::current_dir().unwrap();
+    println!("The current directory is {}", path.display());
     let mut launch_token: sgx_launch_token_t = [0; 1024];
     let mut launch_token_updated: i32 = 0;
 

@@ -1,7 +1,7 @@
 pipeline:
   core:
     group: tests
-    image: enigmampc/enigma-core:0.0.1
+    image: enigmampc/enigma-core:0.0.2
     devices:
       - "/dev/isgx:/dev/isgx"
     commands:

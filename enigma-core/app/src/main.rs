@@ -1,9 +1,15 @@
+// SGX
 extern crate sgx_types;
 extern crate sgx_urts;
+
 extern crate base64;
 extern crate reqwest;
 extern crate dirs;
-
+//DB
+extern crate leveldb;
+extern crate db_key;
+#[macro_use]
+extern crate lazy_static;
 // networking apt install libzmq3-dev
 extern crate zmq; 
 extern crate serde_json;
@@ -11,13 +17,13 @@ extern crate serde_json;
 #[macro_use]
 extern crate failure;
 extern crate rustc_hex as hex;
-
 //enigma utils 
 extern crate enigma_tools_u;
-
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
+
+extern crate byteorder;
 
 //use sgx_types::*;
 use std::thread;
@@ -27,8 +33,9 @@ mod evm_u;
 mod networking;
 mod common_u;
 mod wasm_u;
+mod db;
 
-pub use esgx::general::ocall_get_home;
+pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_update_state};
 use networking::{surface_server, constants};
 
 #[allow(unused_variables, unused_mut)]

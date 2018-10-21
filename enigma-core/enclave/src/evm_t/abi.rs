@@ -8,11 +8,9 @@ use std::string::String;
 use std::vec::Vec;
 use std::string::ToString;
 use std::str::from_utf8;
-use evm_t::error::{ErrorKind};
 use evm_t::rlp::{decode_args, complete_to_u256};
-use error_chain::State;
 use evm_t::preprocessor;
-use common::utils_t::{ToHex, FromHex};
+use common::utils_t::ToHex;
 use common::errors_t::EnclaveError;
 
 
@@ -72,7 +70,7 @@ fn get_args(callable_args: &[u8], types: &Vec<String>) -> Result<Vec<String>, En
 
 fn get_preprocessor(preproc: &[u8]) -> Result<Vec<String>, EnclaveError> {
     let prep_string = from_utf8(preproc).unwrap();
-    let mut split = prep_string.split(",");
+    let split = prep_string.split(",");
     let mut preprocessors = vec![];
     for preprocessor in split{
         let preprocessor_result = preprocessor::run(preprocessor);
@@ -123,7 +121,7 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
     }
     let params = match encode_params(&types_vector[..], &args_vector[..], false){
         Ok(v) => v,
-        Err(e) => return Err(EnclaveError::InputError{message: "Error in encoding of ".to_string()+&function_name+&": ".to_string()+&e.to_string()}),
+        Err(e) => return Err(EnclaveError::InputError{message: format!( "Error in encoding of funciton: {}, {}", function_name, &e ) }),
     };
 
     let mut types: Vec<ParamType> = vec![];

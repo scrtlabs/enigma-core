@@ -16,4 +16,5 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends libzmq3-dev \
     && rm -rf /var/lib/apt/lists/*
 
+RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
 RUN echo '/opt/intel/sgxpsw/aesm/aesm_service &' >> /root/.bashrc

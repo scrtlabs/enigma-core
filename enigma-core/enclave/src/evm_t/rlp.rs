@@ -1,4 +1,4 @@
-use rlp::{RlpStream, UntrustedRlp};
+use rlp::UntrustedRlp;
 use hexutil::read_hex;
 use std::str::from_utf8;
 use std::string::ToString;
@@ -6,8 +6,8 @@ use std::mem;
 use rlp::DecoderError;
 use std::vec::Vec;
 use std::string::String;
-use cryptography_t::symmetric::{decrypt, encrypt};
-use common::utils_t::{ToHex, FromHex};
+use cryptography_t::symmetric::decrypt;
+use common::utils_t::ToHex;
 use evm_t::get_key;
 use common::errors_t::EnclaveError;
 use bigint::U256;
@@ -89,7 +89,7 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityTy
 
 pub fn complete_to_u256(num: String) -> String {
     let mut result: String = "".to_string();
-    for i in num.len()..64 {
+    for _ in num.len()..64 {
         result.push('0');
     }
     result.push_str(&num);
@@ -99,10 +99,10 @@ pub fn complete_to_u256(num: String) -> String {
 fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, EnclaveError> {
     let encrypted_value = match from_utf8(&v){
         Ok(value) => value,
-        Err(e) => return Err(EnclaveError::InputError { message: "".to_string() }),
+        Err(_e) => return Err(EnclaveError::InputError { message: "".to_string() }),
     };
     match read_hex(encrypted_value) {
-        Err(e) => Err(EnclaveError::InputError { message: "".to_string() }),
+        Err(_e) => Err(EnclaveError::InputError { message: "".to_string() }),
         Ok(v) => {
             let decrypted_value = decrypt(&v, key);
             match decrypted_value {
@@ -151,7 +151,7 @@ fn decode_rlp(rlp: &UntrustedRlp, result: &mut String, key: &[u8], arg_type: &So
         result.push_str("[");
         let iter = rlp.iter();
         for item in iter {
-            decode_rlp(&item, result, key, arg_type);
+            decode_rlp(&item, result, key, arg_type)?;
             result.push_str(",");
         }
 //Replace the last ',' with ']'

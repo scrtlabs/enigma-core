@@ -18,7 +18,7 @@ base64 = "0.9.2"
 openssl = "0.10.10"
 rustc-hex = "1.0.0"
 # web3 utils
-web3 = { git = 'https://github.com/tomusdrw/rust-web3.git' }
+web3 = { git = 'https://github.com/tomusdrw/rust-web3.git', rev = "v0.3.1" }
 libc = "0.2.41"
 tiny-keccak = "1.4.2"
 ethabi = "=5.1.1"

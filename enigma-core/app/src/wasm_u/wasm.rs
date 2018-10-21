@@ -2,9 +2,9 @@
 extern crate sgx_types;
 extern crate sgx_urts;
 
+
 use sgx_types::*;
 use failure::Error;
-use enigma_tools_u::common_u::errors::WasmError;
 use std::iter::FromIterator;
 
 extern {
@@ -12,6 +12,11 @@ extern {
                  retval: *mut sgx_status_t,
                  bytecode: *const u8, bytecode_len: usize,
                  output: *mut u8, output_len: &mut usize) -> sgx_status_t;
+
+    fn ecall_execute(eid: sgx_enclave_id_t,
+                     retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
+                                    callable: *const u8, callable_len: usize,
+                                    output: *mut u8, output_len: &mut usize) -> sgx_status_t;
 }
 
 
@@ -22,15 +27,7 @@ extern {
 extern crate pwasm_utils as utils;
 extern crate parity_wasm;
 
-use self::parity_wasm::elements;
-use self::utils::{build, BuildError, SourceTarget};
-
-/*#[derive(Debug)]
-pub enum Error {
-    Decoding(elements::Error),
-    Encoding(elements::Error),
-    Build(BuildError),
-}*/
+use self::utils::{build, SourceTarget};
 
 /// Builds Wasm code for contract deployment from the Wasm contract.
 /// Gets byte vector with Wasm code.
@@ -40,7 +37,6 @@ pub enum Error {
 pub fn build_constructor(wasm_code: &Vec<u8>) -> Result<Vec<u8>, Error> {
 
     let module = parity_wasm::deserialize_buffer(wasm_code)?;
-       // .map_err(|e| Error::Decoding(e))?;
 
     let (module, ctor_module) = match build(
         module,
@@ -70,10 +66,11 @@ pub fn build_constructor(wasm_code: &Vec<u8>) -> Result<Vec<u8>, Error> {
 }
 
 
-const MAX_EVM_RESULT: usize = 100000;
+const MAX_EVM_RESULT: usize = 100_000;
+const MAX_WASM_DEPLOYMENT_RESULT: usize = 1_000_000;
 pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>,Error>{
-    let mut deploy_bytecode = build_constructor(&bytecode)?;
-    let mut out = vec![0u8; MAX_EVM_RESULT];
+    let deploy_bytecode = build_constructor(&bytecode)?;
+    let mut out = vec![0u8; MAX_WASM_DEPLOYMENT_RESULT];
     let slice = out.as_mut_slice();
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     let mut output_len: usize = 0;
@@ -87,7 +84,26 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>,Error>
                   &mut output_len)
     };
     let part = Vec::from_iter(slice[0..output_len].iter().cloned());
-    println!("{:?}", part);
+    Ok(part)
+}
+
+pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str)-> Result<Vec<u8>,Error>{
+    let mut out = vec![0u8; MAX_EVM_RESULT];
+    let slice = out.as_mut_slice();
+    let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
+    let mut output_len: usize = 0;
+
+    let result = unsafe {
+        ecall_execute(eid,
+                     &mut retval,
+                     bytecode.as_ptr() as *const u8,
+                     bytecode.len(),
+                     callable.as_ptr() as *const u8,
+                     callable.len(),
+                     slice.as_mut_ptr() as *mut u8,
+                     &mut output_len)
+    };
+    let part = Vec::from_iter(slice[0..output_len].iter().cloned());
     Ok(part)
 }
 
@@ -100,6 +116,9 @@ pub mod tests {
     use std::io::Read;
     use sgx_urts::SgxEnclave;
     use wasm_u::wasm;
+    use std::str::from_utf8;
+    use std::process::Command;
+    use std::path::PathBuf;
 
     fn init_enclave() -> SgxEnclave{
         let enclave = match esgx::general::init_enclave_wrapper() {
@@ -114,12 +133,41 @@ pub mod tests {
         enclave
     }
 
+
+    #[test]
+    fn compile_test_contract() {
+        let mut dir = PathBuf::new();
+        dir.push("../../examples/eng_wasm_contracts/simplest");
+        let mut output = Command::new("cargo")
+            .current_dir(&dir)
+            .args(&["build", "--release"])
+            .spawn()
+            .expect(&format!("Failed compiling simplest wasm exmaple: {:?}", &dir) );
+
+        assert!(output.wait().unwrap().success());
+        dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
+
+        let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir) );
+        let mut wasm_code = Vec::new();
+        f.read_to_end(&mut wasm_code).unwrap();
+        println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
+        let enclave = init_enclave();
+        let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
+        let result = wasm::execute(enclave.geteid(),contract_code, "call");
+        assert_eq!(from_utf8(&result.unwrap()).unwrap(), "\"157\"");
+    }
+
+    #[ignore]
     #[test]
     pub fn contract() {
         let mut f = File::open("../../examples/eng_wasm_contracts/simplest/target/wasm32-unknown-unknown/release/contract.wasm").unwrap();
         let mut wasm_code = Vec::new();
-        f.read_to_end(&mut wasm_code);
+        f.read_to_end(&mut wasm_code).unwrap();
+        println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
         let enclave = init_enclave();
-        wasm::deploy(enclave.geteid(), wasm_code);
+        let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
+//        println!("Deployed contract code: {:?}", contract_code);
+        let result = wasm::execute(enclave.geteid(),contract_code, "call");
+        assert_eq!(from_utf8(&result.unwrap()).unwrap(),"157");
     }
 }

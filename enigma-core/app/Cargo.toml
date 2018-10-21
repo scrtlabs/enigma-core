@@ -5,26 +5,29 @@ authors = ["Enigma <support@enigma.co>"]
 build = "build.rs"
 
 [dependencies]
-base64 = "0.9.1"
-libc = "0.2.41"
-zmq = "0.8.2"
+base64 = "0.9"
+libc = "0.2"
+zmq = "0.8"
 serde_json = "1.0"
-serde = "1.0.66"
-serde_derive = "1.0.66"
+serde = "1.0"
+serde_derive = "1.0"
 failure = "=0.1.1"
 failure_derive="=0.1.1"
 rustc-hex = "1.0.0"
 httparse = "=1.2.5"
-reqwest = "0.8.6"
+reqwest = "0.8"
 dirs = "1.0"
+leveldb = "0.8"
+db-key = "0.0.5"
+lazy_static = "1.1.0"
+byteorder = "1.2"
+
 enigma-tools-u = {path = "../../enigma-tools-u"}
 parity-wasm = "0.31"
-pwasm-utils = "0.5"
+pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git" } # TODO: add a version specific branch.
 
-[dependencies.sgx_types]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
+sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
 
-[dependencies.sgx_urts]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+[dev-dependencies]
+tempdir = "0.3.7"

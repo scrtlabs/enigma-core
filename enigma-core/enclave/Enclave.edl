@@ -25,12 +25,20 @@ enclave {
 
 
         public sgx_status_t ecall_deploy([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
-    	                              [out, size=100000] uint8_t* output, [out] uint64_t* output_len);
+    	                              [out, size=1000000] uint8_t* output, [out] uint64_t* output_len);
+
+        public sgx_status_t ecall_execute([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
+                                        [in, size=callable_len] const uint8_t* callable, size_t callable_len,
+        	                            [out, size=100000] uint8_t* output, [out] uint64_t* output_len);
+
 
         public void ecall_get_signing_address([out] uint8_t arr[42]);
     };
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);
 
+        // TODO: Add explicit size wherever is possible.
+        int8_t ocall_update_state( [in] uint8_t contract_id[32], [in, size=len] const uint8_t* enc_state, size_t len );
+        int8_t ocall_new_delta( [in, size=len] const uint8_t* enc_delta, size_t len, [in] uint8_t delta_hash[32], [in] uint32_t* delta_index);
     };
 };
