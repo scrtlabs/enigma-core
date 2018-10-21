@@ -124,18 +124,13 @@ impl AttestationService{
 
              let mut message = String::from("[-] AttestationService: Server Error happened. Status code: ");
              message.push_str(res.status().to_string().as_str());
-             Err(errors::AttestationServiceErr{
-                 message : message
-             }.into())
+             Err(errors::AttestationServiceErr{ message }.into())
 
         }else{
 
              let mut message = String::from("[-] AttestationService: Unkown Error happened. Status code: ");
              message.push_str(res.status().to_string().as_str());
-             Err(errors::AttestationServiceErr{
-                 message : message
-             }.into())
-
+             Err(errors::AttestationServiceErr{ message }.into())
         }
 }
     // encode to rlp the report -> registration for the enigma contract 
@@ -185,7 +180,7 @@ impl AttestationService{
         result_obj
     }
 
-    fn unwrap_response(&self,r : & Value) -> ASResponse{
+    fn unwrap_response(&self, r : &Value) -> ASResponse{
         let result : ASResult = self.unwrap_result(r);
         let id = r["id"].as_i64().unwrap();
         let jsonrpc = r["jsonrpc"].as_str().unwrap();

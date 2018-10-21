@@ -1,8 +1,7 @@
-use data;
 use enigma_tools_t::cryptography_t::symmetric;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use std::vec::Vec;
-use std::string::{String, ToString};
+use std::string::ToString;
 use serde_json::{Value, from_value, Error};
 use data::{IOInterface, StatePatch, DeltasInterface, Encryption};
 use serde::{Deserialize, Serialize};

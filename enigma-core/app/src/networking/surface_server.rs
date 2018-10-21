@@ -22,23 +22,15 @@ impl ClientHandler {
 
         let cmd : constants::Command = v["cmd"].as_str().unwrap().into();
         let result = match cmd {
-            constants::Command::Execevm =>{
-                let result = self.handle_execevm(eid, v.clone()).unwrap();
-                result
-            },
-            constants::Command::GetRegister =>{
-                let result = self.handle_get_register(eid).unwrap();
-                result
-            },
+            constants::Command::Execevm => { self.handle_execevm(eid, v.clone()).unwrap() },
+            constants::Command::GetRegister => { self.handle_get_register(eid).unwrap() },
             constants::Command::Stop=>{
                   keep_running = false;
-                  let result = self.handle_stop().unwrap();
-                  result
+                  self.handle_stop().unwrap()
             },
             constants::Command::Unknown =>{
-                println!("[-] Server unkown command ");    
-                let result = self.handle_unkown(v.clone())?;
-                result
+                println!("[-] Server unkown command ");
+                self.handle_unkown(v.clone())?
             },
         };
         responder.send_str(&result, 0).unwrap();

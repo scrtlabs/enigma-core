@@ -66,8 +66,8 @@ pub fn build_constructor(wasm_code: &Vec<u8>) -> Result<Vec<u8>, Error> {
 }
 
 
-const MAX_EVM_RESULT: usize = 100000;
-const MAX_WASM_DEPLOYMENT_RESULT: usize = 1000000;
+const MAX_EVM_RESULT: usize = 100_000;
+const MAX_WASM_DEPLOYMENT_RESULT: usize = 1_000_000;
 pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>,Error>{
     let deploy_bytecode = build_constructor(&bytecode)?;
     let mut out = vec![0u8; MAX_WASM_DEPLOYMENT_RESULT];

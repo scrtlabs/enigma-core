@@ -96,17 +96,18 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
         let mut write_opts = WriteOptions::new();
         write_opts.sync = SYNC;
         match self.database.put(write_opts, key, value) {
-            Ok(_) => return Ok(()),
-            Err(e) => return Err(DBErr { command: "create".to_string(), kind: DBErrKind::CreateError, previous: Some(e.into()) }.into())
-        };
+            Ok(_) => Ok( () ),
+            Err(e) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::CreateError, previous: Some(e.into()) }.into())
+        }
     }
+
     fn read(&mut self, key: &'a K) -> Result<Vec<u8>, Error> {
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
 
         match self.database.get(read_opts, key)? {
-            Some(data) => return Ok(data),
-            None => return Err(DBErr { command: "get".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
+            Some(data) => Ok(data),
+            None => Err(DBErr { command: "get".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
         }
     }
 
@@ -115,16 +116,18 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
         if self.database.get(read_opts, key)?.is_none() {
-            return Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
+            Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
         }
+
         else {
             let mut write_opts = WriteOptions::new();
             write_opts.sync = SYNC;
             match self.database.put(write_opts, key, value) {
-                Ok(_) => return Ok(()),
-                Err(e) => return Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some( e.into() ) }.into())
-            };
+                Ok(_) => Ok( () ),
+                Err(e) => Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some( e.into() ) }.into())
+            }
         }
+
     }
 
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
@@ -132,13 +135,12 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
         let mut read_opts = ReadOptions::new();
         read_opts.verify_checksums = VERIFY_CHECKSUMS;
         if self.database.get(read_opts, key)?.is_none() {
-            return Err( DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
+            return Err( DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into() )
         }
         let mut write_opts = WriteOptions::new();
         write_opts.sync = SYNC;
         self.database.delete(write_opts, key)?;
-        Ok(())
-
+        Ok( () )
     }
 
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
@@ -146,8 +148,8 @@ impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB<K> {
         let mut write_opts = WriteOptions::new();
         write_opts.sync = SYNC;
         match self.database.put(write_opts, key, value) {
-            Ok(_) => return Ok( () ),
-            Err(e) => return Err( DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some( e.into() ) }.into() )
+            Ok(_) => Ok( () ),
+            Err(e) => Err( DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some( e.into() ) }.into() )
         }
     }
 

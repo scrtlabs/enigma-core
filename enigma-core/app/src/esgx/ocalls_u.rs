@@ -13,8 +13,8 @@ pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
 }
 
 #[no_mangle]
-pub extern "C" fn ocall_update_state(id: &[u8; 32], enc_state: *const u8, state_len: usize) -> i8 {
-    let encrypted_state = unsafe { slice::from_raw_parts(enc_state, state_len) };
+pub unsafe extern "C" fn ocall_update_state(id: &[u8; 32], enc_state: *const u8, state_len: usize) -> i8 {
+    let encrypted_state = slice::from_raw_parts(enc_state, state_len);
 
     let key = DeltaKey::new(*id, None);
 
@@ -26,13 +26,13 @@ pub extern "C" fn ocall_update_state(id: &[u8; 32], enc_state: *const u8, state_
         }
     }
     println!("logging: saving state {:?} in {:?}", key, encrypted_state);
-    return 0;
+    0
 }
 
 #[no_mangle]
-pub extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32], _delta_index: *const u32) -> i8 {
-    let delta_index = unsafe { ptr::read(_delta_index) };
-    let encrypted_delta = unsafe { slice::from_raw_parts(enc_delta, delta_len) };
+pub unsafe extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32], _delta_index: *const u32) -> i8 {
+    let delta_index = ptr::read(_delta_index) ;
+    let encrypted_delta = slice::from_raw_parts(enc_delta, delta_len);
     let key = DeltaKey::new(*delta_hash, Some(delta_index));
     // TODO: How should we handle the already existing error?
     match DATABASE.lock().expect("Database mutex is poison").create(&key, encrypted_delta) {
@@ -43,6 +43,6 @@ pub extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, delta_
         }
     }
     println!("logging: saving delta {:?} in {:?}", key, encrypted_delta);
-    return 0;
+    0
 
 }

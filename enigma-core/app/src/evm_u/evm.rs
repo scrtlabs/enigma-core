@@ -66,7 +66,7 @@ pub struct EvmResponse{
 // TODO:: handle error and failure correctly with the 'result' variable returned from the enclave
 // This should be changed
 // the length of the result returned by EVM should be checked in advance
-const MAX_EVM_RESULT: usize = 100000;
+const MAX_EVM_RESULT: usize = 100_000;
 pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmResponse,Error>{
     let mut out = vec![0u8; MAX_EVM_RESULT];
     let slice = out.as_mut_slice();

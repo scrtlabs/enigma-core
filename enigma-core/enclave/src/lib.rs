@@ -5,8 +5,6 @@
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
-#![feature(slice_concat_ext)]
-
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
@@ -186,7 +184,7 @@ pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 
     let state = execution::get_state();
     match execution::execute(&bytecode, state, callable) {
-        Ok(mut res) => {
+        Ok(res) => {
             let s = &res.result[..];
             *output_len = s.len();
             unsafe { ptr::copy_nonoverlapping(s.as_ptr(), output, s.len()) };
@@ -224,7 +222,7 @@ pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output:
     let bytecode = bytecode_slice.to_vec();
 
     match execution::execute_constructor(&bytecode) {
-        Ok(mut res) => {
+        Ok(res) => {
             let s = &res.result[..];
             *output_len = s.len();
             unsafe {

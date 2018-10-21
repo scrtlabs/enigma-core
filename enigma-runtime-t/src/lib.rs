@@ -201,11 +201,8 @@ impl Runtime {
 }
 
 impl Externals for Runtime {
-    fn invoke_index(
-        &mut self,
-        index: usize,
-        args: RuntimeArgs,
-    ) -> Result<Option<RuntimeValue>, Trap> {
+
+    fn invoke_index(&mut self, index: usize, args: RuntimeArgs) -> Result<Option<RuntimeValue>, Trap> {
         match index {
             eng_resolver::ids::RET_FUNC => {
                 &mut Runtime::ret(self, args);
@@ -227,14 +224,7 @@ impl Externals for Runtime {
                 &mut Runtime::eprint(self, args);
                 Ok(None)
             }
-            _ => panic!("Unimplemented function at {}", index),
+            _ => unimplemented!("Unimplemented function at {}", index),
         }
-    }
-}
-
-
-pub mod tests {
-    pub fn it_works() {
-        assert_eq!(2 + 2, 4);
     }
 }

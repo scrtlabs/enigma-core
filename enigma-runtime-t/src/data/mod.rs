@@ -6,7 +6,6 @@ pub use data::state::{ContractState, EncryptedContractState};
 use serde_json::{Error, Value};
 use serde::Deserialize;
 use std::vec::Vec;
-use enigma_tools_t::common::utils_t::Sha256;
 
 pub trait IOInterface<E, U> {
     fn read_key<T>(&self, key: &str) -> Result<T, Error> where for<'de> T: Deserialize<'de>;
