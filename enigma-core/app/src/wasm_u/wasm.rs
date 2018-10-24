@@ -5,7 +5,6 @@ extern crate sgx_urts;
 
 use sgx_types::*;
 use failure::Error;
-use std::iter::FromIterator;
 
 extern {
     fn ecall_deploy(eid: sgx_enclave_id_t,
@@ -13,10 +12,11 @@ extern {
                  bytecode: *const u8, bytecode_len: usize,
                  output_ptr: *mut u64) -> sgx_status_t;
 
-    fn ecall_execute(eid: sgx_enclave_id_t,
-                     retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
-                                    callable: *const u8, callable_len: usize,
-                                    output: *mut u8, output_len: &mut usize) -> sgx_status_t;
+    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
+                     bytecode: *const u8, bytecode_len: usize,
+                     callable: *const u8, callable_len: usize,
+                     output: *mut u64, delta_data_ptr: *mut u64,
+                     delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t;
 }
 
 
@@ -67,7 +67,7 @@ pub fn build_constructor(wasm_code: &Vec<u8>) -> Result<Vec<u8>, Error> {
 
 
 const MAX_EVM_RESULT: usize = 100_000;
-pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>,Error> {
+pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>, Error> {
 
     let deploy_bytecode = build_constructor(&bytecode)?;
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
@@ -85,25 +85,42 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>,Error>
     Ok(part.to_vec())
 }
 
+
+// TODO: Make a struct as the result with the deltas, then it should be saved & transferred to the p2p
 pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str)-> Result<Vec<u8>,Error>{
-    let mut out = vec![0u8; MAX_EVM_RESULT];
-    let slice = out.as_mut_slice();
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
-    let mut output_len: usize = 0;
+    let mut output = 0u64;
+    let mut delta_data_ptr = 0u64;
+    let mut delta_hash = [0u8; 32];
+    let mut delta_index = 0u32;
+
 
     let result = unsafe {
-        ecall_execute(eid,
-                     &mut retval,
-                     bytecode.as_ptr() as *const u8,
-                     bytecode.len(),
-                     callable.as_ptr() as *const u8,
-                     callable.len(),
-                     slice.as_mut_ptr() as *mut u8,
-                     &mut output_len)
+        ecall_execute(eid, &mut retval,
+                      bytecode.as_ptr() as *const u8,
+                      bytecode.len(),
+                      callable.as_ptr() as *const u8,
+                      callable.len(),
+                      &mut output as *mut u64,
+                      &mut delta_data_ptr as *mut u64,
+                      &mut delta_hash,
+                      &mut delta_index as *mut u32)
     };
-    let part = Vec::from_iter(slice[0..output_len].iter().cloned());
-    Ok(part)
-}
+    let box_ptr = output as *mut Box<[u8]>;
+    let output = unsafe { Box::from_raw(box_ptr ) };
+    if delta_data_ptr == 0 && delta_hash == [0u8; 32] && delta_index == 0 {
+        Ok(output.to_vec())
+    }
+    else if delta_data_ptr != 0 && delta_hash != [0u8; 32] && delta_index != 0 {
+        let box_ptr = delta_data_ptr as *mut Box<[u8]>;
+        let delta_data = unsafe { Box::from_raw(box_ptr ) };
+        let key = ::db::DeltaKey::new(delta_hash, Some(delta_index));
+        println!("{:?}", key);
+        Ok(output.to_vec())
+    }
+    else {
+        bail!("Weird delta results")
+    }
 
 #[cfg(test)]
 pub mod tests {
