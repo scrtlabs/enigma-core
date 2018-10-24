@@ -3,6 +3,7 @@ use std::slice;
 use esgx::general;
 use db::{DATABASE, DeltaKey};
 use db::dal::CRUDInterface;
+use hex::ToHex;
 
 #[no_mangle]
 pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
@@ -44,5 +45,13 @@ pub unsafe extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize,
     }
     println!("logging: saving delta {:?} in {:?}", key, encrypted_delta);
     0
+}
 
+#[no_mangle]
+pub unsafe extern "C" fn ocall_save_to_memory( data_ptr: *const u8, data_len: usize) -> u64 {
+    let data = slice::from_raw_parts(data_ptr, data_len).to_vec();
+    let ptr = Box::into_raw(Box::new(data.into_boxed_slice())) as *const u8;
+    let res_ptr =  ptr as u64;
+    println!("ocall: const ptr: {:?} u64 ptr: {:?}", ptr, res_ptr);
+    res_ptr
 }

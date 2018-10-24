@@ -11,7 +11,7 @@ extern {
     fn ecall_deploy(eid: sgx_enclave_id_t,
                  retval: *mut sgx_status_t,
                  bytecode: *const u8, bytecode_len: usize,
-                 output: *mut u8, output_len: &mut usize) -> sgx_status_t;
+                 output_ptr: *mut u64) -> sgx_status_t;
 
     fn ecall_execute(eid: sgx_enclave_id_t,
                      retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
@@ -67,24 +67,22 @@ pub fn build_constructor(wasm_code: &Vec<u8>) -> Result<Vec<u8>, Error> {
 
 
 const MAX_EVM_RESULT: usize = 100_000;
-const MAX_WASM_DEPLOYMENT_RESULT: usize = 1_000_000;
-pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>,Error>{
+pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>,Error> {
+
     let deploy_bytecode = build_constructor(&bytecode)?;
-    let mut out = vec![0u8; MAX_WASM_DEPLOYMENT_RESULT];
-    let slice = out.as_mut_slice();
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
-    let mut output_len: usize = 0;
+    let mut output_ptr: u64 = 0;
 
     let result = unsafe {
         ecall_deploy(eid,
                   &mut retval,
                   deploy_bytecode.as_ptr() as *const u8,
                   deploy_bytecode.len(),
-                  slice.as_mut_ptr() as *mut u8,
-                  &mut output_len)
+                  &mut output_ptr as *mut u64)
     };
-    let part = Vec::from_iter(slice[0..output_len].iter().cloned());
-    Ok(part)
+    let box_ptr = output_ptr as *mut Box<[u8]>;
+    let part = unsafe { Box::from_raw(box_ptr ) };
+    Ok(part.to_vec())
 }
 
 pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str)-> Result<Vec<u8>,Error>{
@@ -133,7 +131,6 @@ pub mod tests {
         enclave
     }
 
-
     #[test]
     fn compile_test_contract() {
         let mut dir = PathBuf::new();
@@ -149,12 +146,14 @@ pub mod tests {
 
         let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir) );
         let mut wasm_code = Vec::new();
-        f.read_to_end(&mut wasm_code).unwrap();
+        f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
+
         let enclave = init_enclave();
-        let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
-        let result = wasm::execute(enclave.geteid(),contract_code, "call");
-        assert_eq!(from_utf8(&result.unwrap()).unwrap(), "\"157\"");
+        let contract_code = wasm::deploy(enclave.geteid(), wasm_code).expect("Deploy Failed");
+        let result = wasm::execute(enclave.geteid(),contract_code, "call").expect("Execution failed");
+        enclave.destroy();
+        assert_eq!(from_utf8(&result).unwrap(), "\"157\"");
     }
 
     #[ignore]
@@ -165,9 +164,8 @@ pub mod tests {
         f.read_to_end(&mut wasm_code).unwrap();
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
         let enclave = init_enclave();
-        let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
-//        println!("Deployed contract code: {:?}", contract_code);
-        let result = wasm::execute(enclave.geteid(),contract_code, "call");
-        assert_eq!(from_utf8(&result.unwrap()).unwrap(),"157");
+        let contract_code = wasm::deploy(enclave.geteid(), wasm_code).expect("Deploy Failed");
+        let result = wasm::execute(enclave.geteid(),contract_code, "call").expect("Execution failed");
+        assert_eq!(from_utf8(&result).unwrap(),"157");
     }
 }

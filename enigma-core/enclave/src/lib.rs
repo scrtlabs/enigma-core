@@ -59,6 +59,7 @@ use enigma_tools_t::quote_t;
 use evm_t::abi::{prepare_evm_input, create_callback};
 use std::vec::Vec;
 use common::errors_t::EnclaveError;
+use common::utils_t::Sha256;
 use wasm_g::execution;
 
 
@@ -216,18 +217,15 @@ pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 /// * `bytecode_len` - the length of the `bytecode`.
 /// * `output` - the output holder, which will hold the bytecode for deployment
 /// * `output_len` - the length of the output
-pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output: *mut u8, output_len: &mut usize) -> sgx_status_t {
+pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output_ptr: &mut u64) -> sgx_status_t {
 
     let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
     let bytecode = bytecode_slice.to_vec();
 
     match execution::execute_constructor(&bytecode) {
         Ok(res) => {
-            let s = &res.result[..];
-            *output_len = s.len();
-            unsafe {
-                ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
-            }
+            let result = &res.result[..];
+            *output_ptr = ocalls_t::save_to_untrusted_memory(&result).unwrap();
             sgx_status_t::SGX_SUCCESS
         },
         Err(e) => {

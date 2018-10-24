@@ -35,7 +35,7 @@ mod common_u;
 mod wasm_u;
 mod db;
 
-pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_update_state};
+pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_update_state, ocall_save_to_memory};
 use networking::{surface_server, constants};
 
 #[allow(unused_variables, unused_mut)]
