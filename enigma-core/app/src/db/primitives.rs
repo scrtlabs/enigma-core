@@ -12,6 +12,12 @@ pub struct DeltaKey {
     n: Option<u32>
 }
 
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+pub struct Delta {
+    pub key: DeltaKey,
+    pub value: Vec<u8>,
+}
+
 impl DeltaKey {
     pub fn new(hash: [u8; 32], n: Option<u32>) -> DeltaKey {
         DeltaKey { hash, n }
