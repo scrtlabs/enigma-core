@@ -87,7 +87,7 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>, Error
 
 
 // TODO: Make a struct as the result with the deltas, then it should be saved & transferred to the p2p
-pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str)-> Result<Vec<u8>,Error>{
+pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str)-> Result<Vec<u8>,Error> {
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
@@ -107,20 +107,19 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str)-> Resu
                       &mut delta_index as *mut u32)
     };
     let box_ptr = output as *mut Box<[u8]>;
-    let output = unsafe { Box::from_raw(box_ptr ) };
+    let output = unsafe { Box::from_raw(box_ptr) };
     if delta_data_ptr == 0 && delta_hash == [0u8; 32] && delta_index == 0 {
         Ok(output.to_vec())
-    }
-    else if delta_data_ptr != 0 && delta_hash != [0u8; 32] && delta_index != 0 {
+    } else if delta_data_ptr != 0 && delta_hash != [0u8; 32] && delta_index != 0 {
         let box_ptr = delta_data_ptr as *mut Box<[u8]>;
-        let delta_data = unsafe { Box::from_raw(box_ptr ) };
+        let delta_data = unsafe { Box::from_raw(box_ptr) };
         let key = ::db::DeltaKey::new(delta_hash, Some(delta_index));
         println!("{:?}", key);
         Ok(output.to_vec())
-    }
-    else {
+    } else {
         bail!("Weird delta results")
     }
+}
 
 #[cfg(test)]
 pub mod tests {
