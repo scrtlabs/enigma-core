@@ -37,7 +37,7 @@ pub struct EmittParams{
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
      fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str,url: &str) -> Self;
-     fn set_worker_params(&self,eid: sgx_enclave_id_t, gas_limit : String)->Result<(),Error>;
+     fn set_worker_params(&self,eid: sgx_enclave_id_t, gas_limit : &str)->Result<(),Error>;
      fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : String,max_epochs : Option<usize>);
 }
 
@@ -47,7 +47,7 @@ impl Principal for EnigmaContract {
     }
 
     // set (seed,signature(seed)) into the enigma smart contract 
-     fn set_worker_params(&self,eid: sgx_enclave_id_t, gas_limit : String)->Result<(),Error>{
+     fn set_worker_params(&self,eid: sgx_enclave_id_t, gas_limit : &str)->Result<(),Error>{
         
         // get seed,signature
         let (rand_seed, sig) = random_u::get_signed_random(eid);
@@ -75,8 +75,7 @@ impl Principal for EnigmaContract {
             let account = self.account_str.clone();
             let abi =self.abi_str.clone();
             let abi_path = self.abi_path.clone();
-            let gas_limit = gas_limit.clone();
-            // loop 
+            // loop
             let prev_epoch = Arc::clone(&prev_epoch);
             let future = self.web3.eth().block_number().then(move |res|{
 

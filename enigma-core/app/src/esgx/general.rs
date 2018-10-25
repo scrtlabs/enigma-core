@@ -62,7 +62,7 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
 
     let (enclave, launch_token) = enigma_tools_u::esgx::init_enclave(&token_file, use_token, &ENCLAVE_FILE)?;
     // Step 3: save the launch token if it is updated 
-    if use_token == true && launch_token.is_some() {
+    if use_token && launch_token.is_some() {
         // reopen the file with write capablity 
         match fs::File::create(&token_file) {
             Ok(mut f) => {

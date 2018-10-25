@@ -91,7 +91,7 @@ pub fn save_sealed_key(path : &str , sealed_key : & [u8]){
 }
 
 
-pub fn load_sealed_key(path : &String , sealed_key : &mut [u8]){
+pub fn load_sealed_key(path : &str , sealed_key : &mut [u8]){
      let opt = File::open(path);
     if opt.is_ok(){
         println!("Created file => {} ",path);

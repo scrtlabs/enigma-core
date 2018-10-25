@@ -57,9 +57,8 @@ pub fn load_config(config_path : &str)->ScriptDeployConfig{
 /// delegate the config loading (mutation purposes) to the caller 
 /// TODO:: merge with deploy_base_contracts()
 /// 
-pub fn deploy_base_contracts_delegated(eid : sgx_enclave_id_t, 
-    config : ScriptDeployConfig,
-    url : Option<Url>)->Result<(Contract<Http>,Contract<Http>),Error>{
+pub fn deploy_base_contracts_delegated(eid : sgx_enclave_id_t, config : ScriptDeployConfig, url : Option<Url>)
+    -> Result<(Contract<Http>, Contract<Http>), Error> {
     // load all config 
         let config : ScriptDeployConfig = config;
         let (e_abi,e_bytecode) = w3utils::load_contract_abi_bytecode(&config.ENIGMA_CONTRACT_PATH.as_str())
@@ -162,7 +161,7 @@ pub fn deploy_enigma_token_contract(w3 : &Web3<Http>,
         polling_interval, 
         confirmations
     );
-    let contract = w3utils::deploy_contract(w3, tx_params, ())
+    let contract = w3utils::deploy_contract(w3, &tx_params, ())
         .expect("failed to deploy EnigmaToken contract");
     Ok(contract)
 }
@@ -193,13 +192,13 @@ pub fn deploy_enigma_contract(w3 : &Web3<Http>,
         confirmations
     );
     // deploy 
-    let contract = w3utils::deploy_contract(w3, tx_params, input)
+    let contract = w3utils::deploy_contract(w3, &tx_params, input)
         .expect("failed to deploy Enigma contract");
     Ok(contract)
 }
 
 /// get the signer addr 
-pub fn get_signing_address(eid : sgx_enclave_id_t)->Result<String,Error>{
+pub fn get_signing_address(eid : sgx_enclave_id_t)->Result<String, Error>{
         let eid = eid;
         let mut signing_address = esgx::equote::get_register_signing_address(eid)?;
         signing_address = signing_address[2..].to_string();
@@ -207,7 +206,7 @@ pub fn get_signing_address(eid : sgx_enclave_id_t)->Result<String,Error>{
 }
 
 /// TESTING: deploy the dummy contract 
-fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &String)->Result<Contract<Http>,Error>{
+fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &str)->Result<Contract<Http>,Error>{
     // contract path 
     let path = "../app/tests/principal_node/contracts/Dummy.json";
     // build deploy params 
@@ -224,7 +223,7 @@ fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &String)->Result<Contract<Htt
             poll_interval,
             confirmations);
     // deploy
-    let contract = w3utils::deploy_contract(&w3, tx,())?;
+    let contract = w3utils::deploy_contract(&w3, &tx,())?;
     Ok(contract)
 }
 

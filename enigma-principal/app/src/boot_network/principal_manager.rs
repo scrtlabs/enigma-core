@@ -104,7 +104,7 @@ pub trait Sampler {
     fn new_delegated(config_path : &str,emit : EmittParams, the_config : PrincipalConfig)->Self;
     fn get_contract_address(&self)->String;
     fn get_quote(&self)->Result<String,Error>;
-    fn get_report(&self,quote : &String)->Result<(Vec<u8>,service::ASResponse),Error>;
+    fn get_report(&self,quote : &str)->Result<(Vec<u8>,service::ASResponse),Error>;
     /// connect to the ethereum network 
     fn connect(&self)->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>;
     fn enigma_contract(&self,web3::transports::EventLoopHandle, Web3<Http>)->Result<EnigmaContract,Error>;
@@ -160,7 +160,7 @@ impl Sampler for PrincipalManager {
              }
          }
     }
-    fn get_report(&self, quote : &String)->Result<(Vec<u8>,service::ASResponse),Error>{
+    fn get_report(&self, quote : &str)->Result<(Vec<u8>,service::ASResponse),Error>{
         let (rlp_encoded, as_response ) = self.as_service.rlp_encode_registration_params(quote)?;
         Ok((rlp_encoded,as_response))
     }
@@ -262,7 +262,7 @@ impl Sampler for PrincipalManager {
         });
     }
     /// helps in assertion to check if a random event was indeed broadcast.
-    pub fn filter_random(contract_addr : Option<String>, url : String , event_name : String)->Result<Vec<Log>,Error>{
+    pub fn filter_random(contract_addr : Option<&str>, url : &str , event_name : &str)->Result<Vec<Log>,Error>{
         let logs = w3utils::filter_blocks(contract_addr,event_name, url)?;
         Ok(logs)
     }
@@ -338,12 +338,12 @@ impl Sampler for PrincipalManager {
             
             loop{   
                 counter +=1;
-                let logs = filter_random(Some(contract_addr.clone()), url.clone(), event_name.clone()).expect("err filtering random"); 
+                let logs = filter_random(Some(&contract_addr), &url, &event_name).expect("err filtering random");
                 // the test: if events recieved >2 (more than 2 emitts of random)
                 // assert topic (keccack(event_name))
                 if logs.len() > 2 {
                     for (idx, log) in logs.iter().enumerate(){
-                        let expected_topic = w3utils::to_keccak256(event_name.clone().into_bytes());
+                        let expected_topic = w3utils::to_keccak256(event_name.as_bytes());
                         assert!(log.topics[0].contains(&H256::from_slice(&expected_topic)));
                     }
                     break;

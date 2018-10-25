@@ -61,7 +61,7 @@ use std::vec::Vec;
 use common::errors_t::EnclaveError;
 use common::utils_t::Sha256;
 use wasm_g::execution;
-use enigma_runtime_t::data::{StatePatch, EncryptedPatch};
+use enigma_runtime_t::data::StatePatch;
 
 
 lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -74,7 +74,7 @@ pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t 
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     // Get Home path via Ocall
-    let mut path_buf = ocalls_t::get_home_path();
+    let mut path_buf = ocalls_t::get_home_path().unwrap();
     // add the filename to the path: `keypair.sealed`
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();

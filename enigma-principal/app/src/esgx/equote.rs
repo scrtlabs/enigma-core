@@ -15,7 +15,7 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) ->Result<String,Error
     let mut address: [u8; 42] = [0; 42];
     let status =  unsafe { ecall_get_signing_address(eid, &mut address) };
     if status == sgx_status_t::SGX_SUCCESS {
-        let address_str = str::from_utf8(&address).unwrap();
+        let address_str = str::from_utf8(&address)?;
         Ok(address_str.to_owned())
     } else {
         Err(errors::GetRegisterKeyErr {

@@ -3,13 +3,12 @@ use std::slice;
 use esgx::general;
 use db::{DATABASE, DeltaKey};
 use db::dal::CRUDInterface;
-use hex::ToHex;
 
 #[no_mangle]
-pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
+pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
     let path = general::storage_dir();
     let path_str = path.to_str().unwrap();
-    unsafe { ptr::copy_nonoverlapping(path_str.as_ptr(), output, path_str.len()); }
+    ptr::copy_nonoverlapping(path_str.as_ptr(), output, path_str.len());
     *result_len = path_str.len();
 }
 
@@ -51,6 +50,5 @@ pub unsafe extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize,
 pub unsafe extern "C" fn ocall_save_to_memory( data_ptr: *const u8, data_len: usize) -> u64 {
     let data = slice::from_raw_parts(data_ptr, data_len).to_vec();
     let ptr = Box::into_raw(Box::new(data.into_boxed_slice())) as *const u8;
-    let res_ptr =  ptr as u64;
-    res_ptr
+    ptr as u64
 }
