@@ -291,9 +291,9 @@ pub fn filter_blocks(contract_addr : Option<&str> ,event_name : &str ,url : &str
         let confirmations : usize = 0;
         let (abi,bytecode) = get_contract(&ctype.to_string());
         w3utils::DeployParams::new(
-            deployer.to_string(),
+            &deployer,
             abi,bytecode,
-            gas_limit.to_string(),
+            gas_limit,
             poll_interval,
             confirmations)
     }

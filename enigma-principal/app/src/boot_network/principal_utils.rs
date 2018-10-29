@@ -36,13 +36,13 @@ pub struct EmittParams{
 
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
-     fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str,url: &str) -> Self;
+     fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: String, account: &str, url: String) -> Self;
      fn set_worker_params(&self,eid: sgx_enclave_id_t, gas_limit : &str)->Result<(),Error>;
-     fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : String,max_epochs : Option<usize>);
+     fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : String, max_epochs : Option<usize>);
 }
 
 impl Principal for EnigmaContract {
-    fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str,url: &str) -> Self{
+    fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: String, account: &str, url: String) -> Self{
         Self::new(web3,eloop,address,path,account,url)
     }
 
@@ -55,7 +55,7 @@ impl Principal for EnigmaContract {
         println!("[---\u{25B6} seed: {} \u{25C0}---]",the_seed );
         // set gas options for the tx 
         let mut options = Options::default();
-        let mut gas : U256 = U256::from_dec_str(&gas_limit).unwrap();
+        let mut gas : U256 = U256::from_dec_str(gas_limit).unwrap();
         options.gas = Some(gas);
         
         // set random seed 
@@ -75,6 +75,7 @@ impl Principal for EnigmaContract {
             let account = self.account_str.clone();
             let abi =self.abi_str.clone();
             let abi_path = self.abi_path.clone();
+            let gas_limit = gas_limit.clone();
             // loop
             let prev_epoch = Arc::clone(&prev_epoch);
             let future = self.web3.eth().block_number().then(move |res|{
@@ -102,7 +103,7 @@ impl Principal for EnigmaContract {
                                 max_epochs : None
                             };
 
-                            match emitter_builder(params).set_worker_params(eid,gas_limit){
+                            match emitter_builder(params).set_worker_params(eid,&gas_limit){
                                 Ok(_)=>{},
                                 Err(e)=>{
                                     println!("[-] Error setting worker params in principale {:?}",e );
@@ -144,10 +145,10 @@ pub fn emitter_builder(params : EmittParams)->enigma_contract::EnigmaContract{
     // deployed contract address
     let address = params.address.as_str();
     // path to the build file of the contract 
-    let path =params.abi_path.as_str();
+    let path = params.abi_path.as_str();
     // the account owner that initializes 
     let account = params.account.as_str();
     let url = params.url.as_str();
-    let enigma_contract : enigma_contract::EnigmaContract = Principal::new(web3,eloop, address, path, account,url);
+    let enigma_contract : enigma_contract::EnigmaContract = Principal::new(web3,eloop, address, path.to_string(), account,url.to_string());
     enigma_contract
 }

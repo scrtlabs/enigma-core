@@ -188,7 +188,7 @@ impl Sampler for PrincipalManager {
         let account = self.config.ACCOUNT_ADDRESS.clone();
         // the ethereum node url
         let url = self.config.URL.clone();
-        let enigma_contract = Principal::new(web3,eloop, &address, &path, &account, &url);
+        let enigma_contract = Principal::new(web3,eloop, &address, path, &account, url);
         Ok(enigma_contract)
     }
     fn get_signing_address(&self)->Result<String,Error>{
