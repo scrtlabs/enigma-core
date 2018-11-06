@@ -13,7 +13,7 @@ failure = "=0.1.1"
 failure_derive="=0.1.1"
 httparse = "=1.2.5"
 reqwest = "0.8.6"
-etcommon-rlp = "0.2.3"
+etcommon-rlp = "0.2"
 base64 = "0.9.2"
 openssl = "0.10.10"
 rustc-hex = "1.0.0"
@@ -26,8 +26,8 @@ ethabi = "=5.1.1"
 
 [dependencies.sgx_types]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+rev = "v1.0.4"
 # esgx
 [dependencies.sgx_urts]
 git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+rev = "v1.0.4"

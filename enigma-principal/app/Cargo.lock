@@ -271,8 +271,8 @@ dependencies = [
  "serde 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.70 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.32 (registry+https://github.com/rust-lang/crates.io-index)",
- "sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
- "sgx_urts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+ "sgx_types 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
+ "sgx_urts 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "web3 0.3.1 (git+https://github.com/tomusdrw/rust-web3.git?rev=v0.3.1)",
 ]
@@ -1129,12 +1129,26 @@ version = "1.0.0"
 source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
 
 [[package]]
+name = "sgx_types"
+version = "1.0.4"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4#212d9f4bab149d967b73bc6eb0a48fe459cd98eb"
+
+[[package]]
 name = "sgx_urts"
 version = "1.0.0"
 source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0#378a4f0dc6f8530e377b143e99f0e079137e444f"
 dependencies = [
  "libc 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)",
  "sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)",
+]
+
+[[package]]
+name = "sgx_urts"
+version = "1.0.4"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4#212d9f4bab149d967b73bc6eb0a48fe459cd98eb"
+dependencies = [
+ "libc 0.2.43 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sgx_types 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
 ]
 
 [[package]]
@@ -1879,7 +1893,9 @@ dependencies = [
 "checksum serde_json 1.0.32 (registry+https://github.com/rust-lang/crates.io-index)" = "43344e7ce05d0d8280c5940cabb4964bea626aa58b1ec0e8c73fa2a8512a38ce"
 "checksum serde_urlencoded 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "aaed41d9fb1e2f587201b863356590c90c1157495d811430a0c0325fe8169650"
 "checksum sgx_types 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_types 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)" = "<none>"
 "checksum sgx_urts 1.0.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.0)" = "<none>"
+"checksum sgx_urts 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)" = "<none>"
 "checksum sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "cc30b1e1e8c40c121ca33b86c23308a090d19974ef001b4bf6e61fd1a0fb095c"
 "checksum siphasher 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0b8de496cf83d4ed58b6be86c3a275b8602f6ffe98d3024a869e124147a9a3ac"
 "checksum slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b4fcaed89ab08ef143da37bc52adbcc04d4a69014f4c1208d6b51f0c47bc23"

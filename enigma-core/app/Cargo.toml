@@ -5,6 +5,8 @@ authors = ["Enigma <support@enigma.co>"]
 build = "build.rs"
 
 [dependencies]
+enigma-tools-u = {path = "../../enigma-tools-u"}
+
 base64 = "0.9"
 libc = "0.2"
 zmq = "0.8"
@@ -22,14 +24,15 @@ db-key = "0.0.5"
 lazy_static = "1.1.0"
 byteorder = "1.2"
 tokio = "=0.1.11" # Fix for reqwest failing
+websocket="=0.20.3"
 
 
-enigma-tools-u = {path = "../../enigma-tools-u"}
+
 parity-wasm = "0.31"
 pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git" } # TODO: add a version specific branch.
 
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 
 [dev-dependencies]
 tempdir = "0.3.7"
