@@ -18,7 +18,6 @@ enigma-tools-t = {path = "../../enigma-tools-t"}
 enigma-runtime-t = {path = "../../enigma-runtime-t"}
 
 lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
-tiny-keccak = "1.4.1"
 etcommon-rlp = {version = "0.2", default-features = false}
 etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
