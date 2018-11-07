@@ -5,13 +5,13 @@ authors = ["Enigma <support@enigma.co>"]
 build = "build.rs"
 
 [dependencies]
-base64 = "0.9.1"
+base64 = "0.10.0"
 libc = "0.2.41"
 enigma-tools-u = {path = "../../enigma-tools-u"}
 etcommon-rlp = "0.2"
 failure = "=0.1.1"
 failure_derive="=0.1.1"
-web3 = { git = 'https://github.com/tomusdrw/rust-web3.git' , rev = "v0.3.1" }
+web3 = "0.4.0"
 rustc-hex = "1.0.0"
 tokio-core = "0.1.17"
 serde_json = "1.0"
@@ -23,10 +23,5 @@ tiny-keccak = "1.4.2"
 colour = "0.2.1"
 dirs = "1.0"
 
-[dependencies.sgx_types]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-[dependencies.sgx_urts]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

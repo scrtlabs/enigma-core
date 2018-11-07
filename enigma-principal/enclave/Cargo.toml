@@ -11,51 +11,16 @@ crate-type = ["staticlib"]
 default = []
 
 [dependencies]
-spin = "=0.4.8"
-lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
 enigma-tools-t = {path = "../../enigma-tools-t"}
+lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_types]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tstd]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_trts]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-# quote
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tse]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-# no real reason added while debugging create_report
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tdh]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tservice]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_alloc]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-# sealing testing not all required.
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tseal]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-# delete rand
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_rand]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-# end of sealing
-
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tunittest]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tse = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tdh = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tservice = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_alloc = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tseal = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_rand = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tunittest = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
