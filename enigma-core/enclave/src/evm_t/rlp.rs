@@ -21,35 +21,34 @@ enum SolidityType {
 }
 
 fn get_type(type_str: &str) -> SolidityType {
-    let t = match &type_str[0..4] {
+    match &type_str[0..4] {
         "uint" => SolidityType::Uint,
         "addr" => SolidityType::Address,
         "stri" => SolidityType::String,
         "bool" => SolidityType::Bool,
         _ => SolidityType::Bytes,
-    };
-    t
+    }
 }
 
 fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityType) -> Result<String, EnclaveError> {
     let rlp_error: String = "Bad RLP encoding".to_string();
     let mut result: String = "".to_string();
-    match arg_type {
-        &SolidityType::String => {
+    match *arg_type {
+        SolidityType::String => {
             let string_result: Result<String, DecoderError> = rlp.as_val();
             result = match string_result {
                 Ok(v) => v,
                 Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
             }
         },
-        &SolidityType::Uint => {
+        SolidityType::Uint => {
             let num_result: Result<u64, DecoderError> = rlp.as_val();
             result = match num_result {
-                Ok(v) => complete_to_u256(v.to_string()),
+                Ok(v) => complete_to_u256(&v.to_string()),
                 Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
             }
         },
-        &SolidityType::Bool => {
+        SolidityType::Bool => {
             let num_result: Result<bool, DecoderError> = rlp.as_val();
             result = match num_result {
                 Ok(v) => v.to_string(),
@@ -60,8 +59,8 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityTy
             let bytes_result: Result<Vec<u8>, DecoderError> = rlp.as_val();
             match bytes_result {
                 Ok(v) => {
-                    match arg_type {
-                        &SolidityType::Address => {
+                    match *arg_type {
+                        SolidityType::Address => {
                             let string_result: Result<String, DecoderError> = rlp.as_val();
                             result = match string_result {
                                 Ok(v) => v,
@@ -87,8 +86,8 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityTy
     Ok(result)
 }
 
-pub fn complete_to_u256(num: String) -> String {
-    let mut result: String = "".to_string();
+pub fn complete_to_u256(num: &str) -> String {
+    let mut result = String::new();
     for _ in num.len()..64 {
         result.push('0');
     }
@@ -110,8 +109,8 @@ fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, 
                     let iter = v.clone().into_iter();
                     let mut decrypted_str = "".to_string();
                     //Remove 0x from the beginning, if used in encryption
-                    match arg_type {
-                        &SolidityType::Address => {
+                    match *arg_type {
+                        SolidityType::Address => {
                             for item in iter {
                                 decrypted_str.push(item as char);
                             }
@@ -120,11 +119,11 @@ fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, 
                                 decrypted_str.remove(0);
                             }
                         },
-                        &SolidityType::Uint => {
+                        SolidityType::Uint => {
                             let num: U256 = v[..].into();
-                            decrypted_str = complete_to_u256(num.to_string());
+                            decrypted_str = complete_to_u256(&num.to_string());
                         },
-                        &SolidityType::Bool => {
+                        SolidityType::Bool => {
                             let mut static_type_num= [0u8; 1];
                             static_type_num[..v.len()].clone_from_slice(&v);
                             let bool_val = unsafe { mem::transmute::<[u8; 1], bool>(static_type_num) };
@@ -185,7 +184,7 @@ fn decode_rlp(rlp: &UntrustedRlp, result: &mut String, key: &[u8], arg_type: &So
     }
 }
 
-pub fn decode_args(encoded: &[u8], types: &Vec<String>) -> Result<Vec<String>, EnclaveError> {
+pub fn decode_args(encoded: &[u8], types: &[String]) -> Result<Vec<String>, EnclaveError> {
     let key = get_key();
     let rlp = UntrustedRlp::new(encoded);
     let mut result: Vec<String> = vec![];

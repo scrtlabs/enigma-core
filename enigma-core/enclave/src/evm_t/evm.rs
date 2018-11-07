@@ -34,7 +34,7 @@ fn handle_fire_without_rpc(vm: &mut VM) {
 }
 
 
-pub fn call_sputnikvm(code: &Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
+pub fn call_sputnikvm(code: &[u8], data: Vec<u8>) -> (u8, Vec<u8>){
     let caller = Address::from_str("0x0000000000000000000000000000000000000000").unwrap();
     let address = Address::from_str("0x0000000000000000000000000000000000000000").unwrap();
     let gas_limit = Gas::from_str("0x2540be400").unwrap();

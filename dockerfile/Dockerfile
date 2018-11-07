@@ -17,4 +17,4 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
-RUN echo '/opt/intel/libsgx-enclave-common/aesm/aesm_service & &' >> /root/.bashrc
+RUN echo '/opt/intel/libsgx-enclave-common/aesm/aesm_service &' >> /root/.bashrc
