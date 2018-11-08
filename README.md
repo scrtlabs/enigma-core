@@ -159,7 +159,7 @@ error[E0463]: can't find crate for `std`
 ```
 * Temp Solution: 
 ```
-rm -rf /root/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/
+rm -rf ~/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/
 ```
 ##### 1. wrong wasmi:
 ```
@@ -172,7 +172,7 @@ error[E0599]: no function or associated item named `new` found for type `std::op
 ```
 * Temp Solution:  
 ```
-rm -rf /root/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/samplecode/wasmi
+rm -rf ~/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/samplecode/wasmi
 ```
 
 

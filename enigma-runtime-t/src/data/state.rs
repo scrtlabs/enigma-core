@@ -51,6 +51,7 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
         json_patch::patch(&mut self.json, &delta.0)?;
         Ok( () )
     }
+    // TODO: Why did I do that?. This should be 1 function, and if necessary another to wrap the first and just switch places. Or maybe even a class method?
     fn generate_delta(&self, old: Option<&Self>, new: Option<&Self>) -> Result<StatePatch, EnclaveError> {
         if old.is_some() { return Ok(StatePatch( json_patch::diff(&old.unwrap().json, &self.json) )) }
 

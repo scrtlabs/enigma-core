@@ -12,6 +12,12 @@ pub struct DeltaKey {
     n: Option<u32>
 }
 
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+pub struct Delta {
+    pub key: DeltaKey,
+    pub value: Vec<u8>,
+}
+
 impl DeltaKey {
     pub fn new(hash: [u8; 32], n: Option<u32>) -> DeltaKey {
         DeltaKey { hash, n }
@@ -22,11 +28,7 @@ impl Key for DeltaKey {
     fn from_u8(key: &[u8]) -> Self {
         let mut hash = [0u8; 32];
         hash.copy_from_slice(&key[..32]);
-        let mut n = None;
-
-        if key.len() > 32 {
-            n = Some( BigEndian::read_u32(&key[32..]) );
-        }
+        let n = if key.len() > 32 { Some( BigEndian::read_u32(&key[32..]) ) } else { None };
         DeltaKey { hash, n }
     }
 

@@ -22,7 +22,7 @@ impl ClientHandler {
 
         let cmd : constants::Command = v["cmd"].as_str().unwrap().into();
         let result = match cmd {
-            constants::Command::Execevm => { self.handle_execevm(eid, v.clone()).unwrap() },
+            constants::Command::Execevm => { self.handle_execevm(eid, &v).unwrap() },
             constants::Command::GetRegister => { self.handle_get_register(eid).unwrap() },
             constants::Command::Stop=>{
                   keep_running = false;
@@ -30,13 +30,13 @@ impl ClientHandler {
             },
             constants::Command::Unknown =>{
                 println!("[-] Server unkown command ");
-                self.handle_unkown(v.clone())?
+                self.handle_unkown(&v)?
             },
         };
         responder.send_str(&result, 0).unwrap();
         Ok(keep_running)  
     }
-    fn handle_unkown(&self ,  msg : Value) -> Result<(String),Error>{
+    fn handle_unkown(&self ,  msg : &Value) -> Result<(String),Error>{
         let str_result = serde_json::to_string(
             &constants::UnkownCmd{
                 errored: false,
@@ -56,7 +56,7 @@ impl ClientHandler {
         Ok(str_result)
     }
     // private function : handle execevm cmd 
-    fn handle_execevm(&self, eid: sgx_enclave_id_t, msg : Value)-> Result<(String), Error>{
+    fn handle_execevm(&self, eid: sgx_enclave_id_t, msg : &Value)-> Result<(String), Error>{
 
             // get the EVM inputs 
             let evm_input = self.unwrap_execevm(msg);
@@ -84,7 +84,7 @@ impl ClientHandler {
         Ok(str_result)
     }
     // private function : turn all JSON values to strings
-    fn unwrap_execevm(&self, msg : Value) -> evm::EvmRequest {
+    fn unwrap_execevm(&self, msg : &Value) -> evm::EvmRequest {
         let mut preprocessors: Vec<String> = vec![];
         let val = msg["preprocessors"].as_array().unwrap();
 

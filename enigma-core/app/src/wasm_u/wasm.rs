@@ -5,18 +5,18 @@ extern crate sgx_urts;
 
 use sgx_types::*;
 use failure::Error;
-use std::iter::FromIterator;
 
 extern {
     fn ecall_deploy(eid: sgx_enclave_id_t,
                  retval: *mut sgx_status_t,
                  bytecode: *const u8, bytecode_len: usize,
-                 output: *mut u8, output_len: &mut usize) -> sgx_status_t;
+                 output_ptr: *mut u64) -> sgx_status_t;
 
-    fn ecall_execute(eid: sgx_enclave_id_t,
-                     retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
-                                    callable: *const u8, callable_len: usize,
-                                    output: *mut u8, output_len: &mut usize) -> sgx_status_t;
+    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
+                     bytecode: *const u8, bytecode_len: usize,
+                     callable: *const u8, callable_len: usize,
+                     output: *mut u64, delta_data_ptr: *mut u64,
+                     delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t;
 }
 
 
@@ -34,7 +34,7 @@ use self::utils::{build, SourceTarget};
 /// Writes created code to a file constructor.wasm in a current directory.
 /// This code is based on https://github.com/paritytech/wasm-utils/blob/master/cli/build/main.rs#L68
 /// The parameters' values to build function are default parameters as they appear in the original code.
-pub fn build_constructor(wasm_code: &Vec<u8>) -> Result<Vec<u8>, Error> {
+pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, Error> {
 
     let module = parity_wasm::deserialize_buffer(wasm_code)?;
 
@@ -67,44 +67,63 @@ pub fn build_constructor(wasm_code: &Vec<u8>) -> Result<Vec<u8>, Error> {
 
 
 const MAX_EVM_RESULT: usize = 100_000;
-const MAX_WASM_DEPLOYMENT_RESULT: usize = 1_000_000;
-pub fn deploy(eid: sgx_enclave_id_t,  bytecode: Vec<u8>)-> Result<Vec<u8>,Error>{
+pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8])-> Result<Vec<u8>, Error> {
+
     let deploy_bytecode = build_constructor(&bytecode)?;
-    let mut out = vec![0u8; MAX_WASM_DEPLOYMENT_RESULT];
-    let slice = out.as_mut_slice();
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
-    let mut output_len: usize = 0;
+    let mut output_ptr: u64 = 0;
 
     let result = unsafe {
         ecall_deploy(eid,
                   &mut retval,
                   deploy_bytecode.as_ptr() as *const u8,
                   deploy_bytecode.len(),
-                  slice.as_mut_ptr() as *mut u8,
-                  &mut output_len)
+                  &mut output_ptr as *mut u64)
     };
-    let part = Vec::from_iter(slice[0..output_len].iter().cloned());
-    Ok(part)
+    let box_ptr = output_ptr as *mut Box<[u8]>;
+    let part = unsafe { Box::from_raw(box_ptr ) };
+    Ok(part.to_vec())
 }
 
-pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str)-> Result<Vec<u8>,Error>{
-    let mut out = vec![0u8; MAX_EVM_RESULT];
-    let slice = out.as_mut_slice();
+#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+pub struct WasmResult {
+    pub bytecode: Vec<u8>,
+    pub output: Vec<u8>,
+    pub delta: ::db::Delta,
+}
+
+pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str)-> Result<WasmResult, Error> {
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
-    let mut output_len: usize = 0;
+    let mut output = 0u64;
+    let mut delta_data_ptr = 0u64;
+    let mut delta_hash = [0u8; 32];
+    let mut delta_index = 0u32;
+
 
     let result = unsafe {
-        ecall_execute(eid,
-                     &mut retval,
-                     bytecode.as_ptr() as *const u8,
-                     bytecode.len(),
-                     callable.as_ptr() as *const u8,
-                     callable.len(),
-                     slice.as_mut_ptr() as *mut u8,
-                     &mut output_len)
+        ecall_execute(eid, &mut retval,
+                      bytecode.as_ptr() as *const u8,
+                      bytecode.len(),
+                      callable.as_ptr() as *const u8,
+                      callable.len(),
+                      &mut output as *mut u64,
+                      &mut delta_data_ptr as *mut u64,
+                      &mut delta_hash,
+                      &mut delta_index as *mut u32)
     };
-    let part = Vec::from_iter(slice[0..output_len].iter().cloned());
-    Ok(part)
+
+    let mut result: WasmResult = Default::default();
+    let box_ptr = output as *mut Box<[u8]>;
+    let output = unsafe { Box::from_raw(box_ptr) };
+    result.output = output.to_vec();
+
+    if delta_data_ptr != 0 && delta_hash != [0u8; 32] && delta_index != 0 { // TODO: Replace 0 with maybe max int(accordingly).
+        let box_ptr = delta_data_ptr as *mut Box<[u8]>;
+        let delta_data = unsafe { Box::from_raw(box_ptr) };
+        result.delta.value = delta_data.to_vec();
+        result.delta.key = ::db::DeltaKey::new(delta_hash, Some(delta_index));
+    } else { bail!("Weird delta results") }
+    Ok(result)
 }
 
 #[cfg(test)]
@@ -133,7 +152,6 @@ pub mod tests {
         enclave
     }
 
-
     #[test]
     fn compile_test_contract() {
         let mut dir = PathBuf::new();
@@ -149,12 +167,14 @@ pub mod tests {
 
         let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir) );
         let mut wasm_code = Vec::new();
-        f.read_to_end(&mut wasm_code).unwrap();
+        f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
+
         let enclave = init_enclave();
-        let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
-        let result = wasm::execute(enclave.geteid(),contract_code, "call");
-        assert_eq!(from_utf8(&result.unwrap()).unwrap(), "\"157\"");
+        let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
+        let result = wasm::execute(enclave.geteid(),&contract_code, "call").expect("Execution failed");
+        enclave.destroy();
+        assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
     }
 
     #[ignore]
@@ -165,9 +185,8 @@ pub mod tests {
         f.read_to_end(&mut wasm_code).unwrap();
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
         let enclave = init_enclave();
-        let contract_code = wasm::deploy(enclave.geteid(), wasm_code).unwrap();
-//        println!("Deployed contract code: {:?}", contract_code);
-        let result = wasm::execute(enclave.geteid(),contract_code, "call");
-        assert_eq!(from_utf8(&result.unwrap()).unwrap(),"157");
+        let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
+        let result = wasm::execute(enclave.geteid(),&contract_code, "call").expect("Execution failed");
+        assert_eq!(from_utf8(&result.output).unwrap(),"157");
     }
 }

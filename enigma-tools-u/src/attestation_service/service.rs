@@ -88,14 +88,14 @@ impl AttestationService{
             connection_str : conn_str.to_string()
         }
     }
-    pub fn get_report(&self,quote : &String)-> Result<ASResponse,Error>{
+    pub fn get_report(&self,quote : &str)-> Result<ASResponse,Error>{
         let request : QuoteRequest = self.build_request(quote);
-        let response : ASResponse =  self.send_request(request)?;
+        let response : ASResponse =  self.send_request(&request)?;
         Ok(response)
     }
     // input: encrypted enclave quote 
     // output : JSON-RPC request object
-    pub fn build_request(&self, quote : &String) -> QuoteRequest{
+    pub fn build_request(&self, quote : &str) -> QuoteRequest{
         QuoteRequest{
             jsonrpc : "2.0".to_string(),
             method : "validate".to_string(),
@@ -106,14 +106,14 @@ impl AttestationService{
         }
     }
     // request the report object 
-    pub fn send_request(&self,quote_req : QuoteRequest)-> Result<ASResponse,Error>{
+    pub fn send_request(&self,quote_req : &QuoteRequest)-> Result<ASResponse,Error>{
         
         let client = reqwest::Client::new();
         let mut res = client.post(self.connection_str.as_str())
             .json(&quote_req)
-            .send().unwrap();
-        let response_str =  res.text().unwrap();
-        let json_response : Value = serde_json::from_str(response_str.as_str()).unwrap();
+            .send()?;
+        let response_str =  res.text()?;
+        let json_response : Value = serde_json::from_str(response_str.as_str())?;
 
         if res.status().is_success(){
             // parse the Json object into an ASResponse struct 
@@ -134,8 +134,8 @@ impl AttestationService{
         }
 }
     // encode to rlp the report -> registration for the enigma contract 
-    pub fn rlp_encode_registration_params(&self,quote : &String)->Result<(Vec<u8>,ASResponse),Error>{
-        let as_response = self.get_report(quote).unwrap();
+    pub fn rlp_encode_registration_params(&self,quote : &str)->Result<(Vec<u8>,ASResponse),Error>{
+        let as_response = self.get_report(quote)?;
         // certificate,signature,report_string are all need to be rlp encoded and send to register() func in enigma contract
         let certificate = as_response.result.certificate.clone();
         let signature = as_response.result.signature.clone();
@@ -153,43 +153,26 @@ impl AttestationService{
     }
 
     fn unwrap_result(&self,r : & Value) -> ASResult{
-        let ca = r["result"]["ca"].as_str().unwrap();
-        let certificate = r["result"]["certificate"].as_str().unwrap();
-        let signature = r["result"]["signature"].as_str().unwrap();
+        let ca = r["result"]["ca"].as_str().unwrap().to_string();
+        let certificate = r["result"]["certificate"].as_str().unwrap().to_string();
+        let signature = r["result"]["signature"].as_str().unwrap().to_string();
+        let report_string = r["result"]["report"].as_str().unwrap().to_string();
         let validate = match r["result"]["validate"].as_str() {
-            Some(v)=>{
-                if v == "True"{
-                    true
-                }else{
-                    false
-                }
-            },
-            None =>{
+            Some(v)=> v == "True",
+            None => {
                 false
             },
         };
         let report : ASReport =  self.unwrap_report_obj(r);
-        let result_obj : ASResult  = ASResult{
-            ca: ca.to_string(), 
-            certificate : certificate.to_string(), 
-            signature : signature.to_string(), 
-            validate : validate , 
-            report : report , 
-            report_string :  r["result"]["report"].as_str().unwrap().to_string()
-        };
-        result_obj
+        ASResult{ ca, certificate, signature, validate, report, report_string }
     }
 
     fn unwrap_response(&self, r : &Value) -> ASResponse{
         let result : ASResult = self.unwrap_result(r);
         let id = r["id"].as_i64().unwrap();
-        let jsonrpc = r["jsonrpc"].as_str().unwrap();
-        let response_obj : ASResponse = ASResponse {
-            id : id , 
-            jsonrpc : jsonrpc.to_string(),
-            result : result
-        };
-        response_obj
+        let jsonrpc = r["jsonrpc"].as_str().unwrap().to_string();
+
+        ASResponse { id, jsonrpc, result }
     }
 
 }

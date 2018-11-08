@@ -30,7 +30,7 @@ extern {
                          quote_size: ::uint32_t) -> sgx_status_t;
 }
 
-pub fn retry_quote(eid: sgx_enclave_id_t, spid : &String, times: usize) -> Result<String, Error> {
+pub fn retry_quote(eid: sgx_enclave_id_t, spid : &str, times: usize) -> Result<String, Error> {
     let mut quote = String::new();
     for _ in 0..times {
         quote = produce_quote(eid, spid)?;
@@ -42,7 +42,7 @@ pub fn retry_quote(eid: sgx_enclave_id_t, spid : &String, times: usize) -> Resul
 
 // TODO:: handle stat return with error handling
 #[allow(unused_variables, unused_mut)]
-pub fn produce_quote(eid: sgx_enclave_id_t, spid : &String) -> Result<String,Error>{
+pub fn produce_quote(eid: sgx_enclave_id_t, spid : &str) -> Result<String,Error>{
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let mut stat = sgx_status_t::SGX_SUCCESS;
 

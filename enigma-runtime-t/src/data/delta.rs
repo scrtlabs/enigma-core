@@ -31,7 +31,7 @@ impl<'a> Encryption<&'a [u8], EnclaveError, EncryptedPatch, [u8; 12]> for StateP
         self.0.serialize(&mut Serializer::new(&mut buf))?;
         let data = symmetric::encrypt_with_nonce(&buf, &key[..], _iv)?;
         let hash = data.sha256();
-        let index = 0; // TODO: determine who stores the index
+        let index = 99; // TODO: determine who stores the index
         Ok( EncryptedPatch { data, hash, index } )
     }
 

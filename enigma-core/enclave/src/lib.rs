@@ -59,7 +59,9 @@ use enigma_tools_t::quote_t;
 use evm_t::abi::{prepare_evm_input, create_callback};
 use std::vec::Vec;
 use common::errors_t::EnclaveError;
+use common::utils_t::Sha256;
 use wasm_g::execution;
+use enigma_runtime_t::data::StatePatch;
 
 
 lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -72,7 +74,7 @@ pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t 
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     // Get Home path via Ocall
-    let mut path_buf = ocalls_t::get_home_path();
+    let mut path_buf = ocalls_t::get_home_path().unwrap();
     // add the filename to the path: `keypair.sealed`
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
@@ -163,6 +165,42 @@ fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8
     SIGNINING_KEY.sign(&to_be_signed)
 }
 
+
+
+//#[repr(C)]
+//pub struct DeltaResultInUntrusted {
+//    pub data_ptr: uint64_t,
+//    pub hash: [uint8_t; 32],
+//    pub index: *const uint32_t,
+//}
+//impl DeltaResult {
+//    pub fn get_untrusted_pointers(delta: EncryptedPatch) -> DeltaResultInUntrusted {
+//
+//    }
+//}
+
+unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8], delta_data_out: *mut u64,
+                       delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32, execute_result_out: *mut u64) -> Result<(), EnclaveError> {
+    *execute_result_out = ocalls_t::save_to_untrusted_memory(&execute_result)?;
+
+    match delta_option {
+        Some(delta) => {
+            let enc_delta = km::db::encrypt_delta(delta);
+            *delta_data_out = ocalls_t::save_to_untrusted_memory(&enc_delta.data)?;
+            *delta_hash_out = enc_delta.hash;
+            *delta_index_out = enc_delta.index;
+        },
+        None => {
+            *delta_data_out = 0;
+            *delta_hash_out = [0u8; 32];
+            *delta_index_out = 0;
+        },
+    }
+    Ok(())
+}
+
+
+
 #[no_mangle]
 /// arguments:
 /// * `bytecode` - deployed Wasm bytecode
@@ -173,27 +211,20 @@ fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8
 /// * `output_len` - the length of the output
 /// Ecall for invocation of the external function `callable` of deployed contract `bytecode`.
 // TODO: add arguments of callable.
-pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
-                                callable: *const u8, callable_len: usize,
-                                output: *mut u8, output_len: &mut usize) -> sgx_status_t {
+pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
+                                       callable: *const u8, callable_len: usize, output_ptr: *mut u64,
+                                       delta_data_ptr: *mut u64, delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t {
 
-    let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
+    let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let bytecode = bytecode_slice.to_vec();
-    let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
+    let callable_slice = slice::from_raw_parts(callable, callable_len);
     let callable = from_utf8(callable_slice).unwrap();
 
     let state = execution::get_state();
     match execution::execute(&bytecode, state, callable) {
         Ok(res) => {
-            let s = &res.result[..];
-            *output_len = s.len();
-            unsafe { ptr::copy_nonoverlapping(s.as_ptr(), output, s.len()) };
-
-            if res.state_delta.is_some() { // Saving the delta to the db
-                let enc_delta = km::db::encrypt_delta(res.state_delta.unwrap());
-                enigma_runtime_t::ocalls_t::save_delta(&enc_delta).unwrap();
-            }
-
+            prepare_wasm_result(res.state_delta, &res.result[..], delta_data_ptr,
+                                delta_hash_out, delta_index_out, output_ptr).unwrap();
             if res.updated_state.is_some() { // Saving the updated state into the db
                 let enc_state = km::db::encrypt_state(res.updated_state.unwrap());
                 enigma_runtime_t::ocalls_t::save_state(&enc_state).unwrap();
@@ -216,18 +247,15 @@ pub extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 /// * `bytecode_len` - the length of the `bytecode`.
 /// * `output` - the output holder, which will hold the bytecode for deployment
 /// * `output_len` - the length of the output
-pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output: *mut u8, output_len: &mut usize) -> sgx_status_t {
+pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output_ptr: *mut u64) -> sgx_status_t {
 
-    let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
+    let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let bytecode = bytecode_slice.to_vec();
 
     match execution::execute_constructor(&bytecode) {
         Ok(res) => {
-            let s = &res.result[..];
-            *output_len = s.len();
-            unsafe {
-                ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
-            }
+            let result = &res.result[..];
+            *output_ptr = ocalls_t::save_to_untrusted_memory(&result).unwrap();
             sgx_status_t::SGX_SUCCESS
         },
         Err(e) => {
@@ -235,19 +263,6 @@ pub extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output:
             sgx_status_t::SGX_ERROR_UNEXPECTED
         }
     }
-  /*      Ok(mut v)=> {
-           let s: &mut [u8] = &mut v[..];
-            *output_len = s.len();
-            unsafe {
-                ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
-            }
-            sgx_status_t::SGX_SUCCESS
-        }
-        Err(e)=>{
-            println!("ERROR {}", e);
-            sgx_status_t::SGX_ERROR_UNEXPECTED
-        }
-    }*/
 }
 
 

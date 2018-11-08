@@ -88,7 +88,7 @@ magenta!("
 \t╝╚╝ └─┘ ─┴┘ └─┘\n");
 yellow!("<>------------------------------------------<>\n");
 }
-pub fn print_info(sign_key : &String){
+pub fn print_info(sign_key : &str){
     print_logo();
     yellow!("<>------------------------------------------<>\n");
     green!("--info                                 => Print the signing key and help.\n");

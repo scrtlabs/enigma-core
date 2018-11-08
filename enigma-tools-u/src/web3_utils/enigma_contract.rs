@@ -24,7 +24,7 @@ pub struct EnigmaContract{
 
 
 impl EnigmaContract{
-    pub fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, path: &str, account: &str, url : &str) -> Self{
+    pub fn new(web3: Web3<Http>, eloop : web3::transports::EventLoopHandle ,address: &str, abi_path: String, account: &str, url : String) -> Self{
 
         let account_str = account.to_string();
         let address_str =  address.to_string();
@@ -33,23 +33,14 @@ impl EnigmaContract{
             .parse()
             .expect("unable to parse contract address");
 
-        let (contract, abi_str) = EnigmaContract::deployed(&web3, contract_address, path);
+        let (contract, abi_str) = EnigmaContract::deployed(&web3, contract_address, &abi_path);
 
         let account: Address = account
             .parse()
             .expect("unable to parse account address");
                     
-        EnigmaContract {
-            web3: web3, 
-            contract: contract, 
-            account : account , 
-            eloop : eloop , 
-            abi_path : path.to_string(), 
-            address_str :address_str, 
-            account_str : account_str,
-            url : url.to_string(),
-            abi_str : abi_str,
-        }
+        EnigmaContract { web3, contract, account, eloop, abi_path, address_str, account_str, url, abi_str }
+
      }
         /// Fetch the Enigma contract deployed on Ethereum using an HTTP Web3 provider
     pub fn deployed(web3: &Web3<Http>, address: Address, path: &str) -> (Contract<Http>, String) {
@@ -64,8 +55,8 @@ impl EnigmaContract{
         (contract,abi_str)
     }
     /// connect to web3 and Fetch the Enigma contract deployed on Ethereum using an HTTP Web3 provider
-    pub fn connect_to_deployed(url : String, address: Address , abi : String) -> Result<Contract<Http>,Error> {
-       let (_eloop, w3) = EnigmaContract::connect(url.as_str());
+    pub fn connect_to_deployed(url : &str, address: Address , abi : &str) -> Result<Contract<Http>,Error> {
+       let (_eloop, w3) = EnigmaContract::connect(url);
        let contract = Contract::from_json(
            w3.eth(), 
            address, 
@@ -84,9 +75,9 @@ impl EnigmaContract{
         Ok(bytecode)
     }
 
-    pub fn register_as_worker(&self, signer : &String, report : &Vec<u8>, gas_limit: &String)->Result<(),Error>{
+    pub fn register_as_worker(&self, signer : &str, report : &[u8], gas_limit: &str)->Result<(),Error>{
         // register 
-        let signer_addr : Address = signer.parse().unwrap();
+        let signer_addr : Address = signer.parse()?;
         let mut options = Options::default();
         let gas : U256 = U256::from_dec_str(gas_limit).unwrap();
         options.gas = Some(gas);
