@@ -6,7 +6,7 @@ use common::utils_t::Sha256;
 use enigma_runtime_t::{eng_resolver, Runtime, RuntimeResult, data::ContractState};
 
 
-pub fn execute(code: &Vec<u8>, state: ContractState, callable: &str) -> Result<RuntimeResult, EnclaveError> {
+pub fn execute(code: &[u8], state: ContractState, callable: &str) -> Result<RuntimeResult, EnclaveError> {
     let module = Module::from_buffer(&code).unwrap();
 
     let instantiation_resolver = eng_resolver::ImportResolver::with_limit(32);
@@ -32,7 +32,7 @@ pub fn execute(code: &Vec<u8>, state: ContractState, callable: &str) -> Result<R
     }
 }
 
-pub fn execute_constructor(code: &Vec<u8>) -> Result<RuntimeResult, EnclaveError>{
+pub fn execute_constructor(code: &[u8]) -> Result<RuntimeResult, EnclaveError>{
     execute(code, get_state(), "call")
 }
 
@@ -44,7 +44,6 @@ pub fn get_state() -> ContractState {
 pub mod tests {
 
     use std::vec::Vec;
-    use std::string::ToString;
     use enigma_runtime_t::data::DeltasInterface;
     use enigma_tools_t::common::utils_t::Sha256;
 

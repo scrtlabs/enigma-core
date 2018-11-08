@@ -5,11 +5,12 @@
 #![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
+#![feature(tool_lints)]
+#![warn(clippy::all)]
 
 #[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
-#[macro_use]
 extern crate sgx_tunittest;
 extern crate sgx_types;
 extern crate sgx_tse;
@@ -59,7 +60,6 @@ use enigma_tools_t::quote_t;
 use evm_t::abi::{prepare_evm_input, create_callback};
 use std::vec::Vec;
 use common::errors_t::EnclaveError;
-use common::utils_t::Sha256;
 use wasm_g::execution;
 use enigma_runtime_t::data::StatePatch;
 
@@ -81,9 +81,9 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
     // TODO: Decide what to do if failed to obtain keys.
     match cryptography_t::get_sealed_keys(&sealed_path) {
-        Ok(key) => return key,
+        Ok(key) => key,
         Err(err) => panic!("Failed obtaining keys: {:?}", err)
-    };
+    }
 }
 
 #[no_mangle]
@@ -92,18 +92,18 @@ pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
 }
 
 #[no_mangle]
-pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
+pub unsafe extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
                             callable: *const u8, callable_len: usize,
                             callable_args: *const u8, callable_args_len: usize,
                             preprocessor: *const u8, preprocessor_len: usize,
                             callback: *const u8, callback_len: usize,
                             output: *mut u8, signature: &mut [u8; 65], result_len: &mut usize) -> sgx_status_t {
 
-    let bytecode_slice = unsafe { slice::from_raw_parts(bytecode, bytecode_len) };
-    let callable_slice = unsafe { slice::from_raw_parts(callable, callable_len) };
-    let callable_args_slice = unsafe { slice::from_raw_parts(callable_args, callable_args_len) };
-    let preprocessor_slice = unsafe { slice::from_raw_parts(preprocessor, preprocessor_len) };
-    let callback_slice = unsafe { slice::from_raw_parts(callback, callback_len) };
+    let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
+    let callable_slice = slice::from_raw_parts(callable, callable_len);
+    let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
+    let preprocessor_slice = slice::from_raw_parts(preprocessor, preprocessor_len);
+    let callback_slice = slice::from_raw_parts(callback, callback_len);
 
     let callable_args = read_hex(from_utf8(callable_args_slice).unwrap()).unwrap();
     let bytecode = read_hex(from_utf8(bytecode_slice).unwrap()).unwrap();
@@ -118,7 +118,7 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
     };
     let mut res = call_sputnikvm(&bytecode, data);
     let mut callback_data = vec![];
-    if callback_slice.len() > 0 {
+    if !callback_slice.is_empty() {
         callback_data = match create_callback(&mut res.1, callback_slice){
             Ok(v) => v,
             Err(e) => {
@@ -126,7 +126,7 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
                 return sgx_status_t::SGX_ERROR_UNEXPECTED
             },
         };
-        let out_signature = match sign(&callable_args, & mut callback_data, &bytecode) {
+        let out_signature = match sign(&callable_args, &callback_data, &bytecode) {
             Ok(v) => v,
             Err(e) => {
                 println!("{:?}", e);
@@ -144,9 +144,7 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
         0 => {
             let s: &mut [u8] = &mut callback_data[..];
             *result_len = s.len();
-            unsafe {
-                ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
-            }
+            ptr::copy_nonoverlapping(s.as_ptr(), output, s.len());
             sgx_status_t::SGX_SUCCESS
 
         }

@@ -36,9 +36,8 @@ impl KeyPair {
     }
 
     pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<Vec<u8>, EnclaveError> {
-        // TODO: Maybe accept a slice [u8; 64] and add 0x04, and then make the PublicKey obj.
         let mut pubarr: [u8; 65] = [0; 65];
-        pubarr[0] = 04;
+        pubarr[0] = 4;
         pubarr[1..].copy_from_slice(&_pubarr[..]);
         let pubkey = match PublicKey::parse(&pubarr) {
             Ok(key) => key,
@@ -63,7 +62,7 @@ impl KeyPair {
     pub fn get_pubkey(&self) -> [u8; 64] {
         let mut sliced_pubkey: [u8; 64] = [0; 64];
         sliced_pubkey.clone_from_slice(&self.pubkey.serialize()[1..65]);
-        *&sliced_pubkey
+        sliced_pubkey
     }
 
     /// Sign a message using the Private Key.

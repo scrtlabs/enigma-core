@@ -6,37 +6,20 @@ description = "Tools used by the trusted part of the Enigma core and Principal n
 
 [dependencies]
 tiny-keccak = "1.4.1"
-libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
-ring = { git = "https://github.com/enigmampc/ring.git", rev = "sgx-0.12.1" }
-# errors handling 
 failure_derive="=0.1.1"
 failure = { version = "=0.1.1", default-features = false, features = ["derive"] }
-rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev = "sgx" }
-json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2" }
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tstd]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
+rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "sgx-v1.0.4" }
+json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2-v1.0.4" }
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_trts]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+wasmi = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+ring = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_types]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tse = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tseal = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 
-# quote
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tse]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-# sealing 
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tseal]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-
-[target.'cfg(not(target_env = "sgx"))'.dependencies.wasmi]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
 
