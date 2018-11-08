@@ -1,7 +1,7 @@
 pipeline:
   core:
     group: tests
-    image: enigmampc/enigma-core:0.0.2
+    image: enigmampc/enigma-core:0.0.3
     devices:
       - "/dev/isgx:/dev/isgx"
     commands:
@@ -12,7 +12,7 @@ pipeline:
 
   principal:
     group: tests
-    image: enigmampc/enigma-core:0.0.1
+    image: enigmampc/enigma-core:0.0.3
     devices:
       - "/dev/isgx:/dev/isgx"
     commands:
@@ -24,7 +24,7 @@ pipeline:
 
   tools_u:
     group: tests
-    image: enigmampc/enigma-core:0.0.1
+    image: enigmampc/enigma-core:0.0.3
     commands:
       - . /root/.cargo/env
       - export NODE_URL="http://ganache:8545"
