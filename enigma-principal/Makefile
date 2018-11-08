@@ -26,17 +26,20 @@ else
 	SGX_EDGER8R := $(SGX_SDK)/bin/x64/sgx_edger8r
 endif
 
-ifeq ($(SGX_DEBUG), 1)
+ifeq ($(DEBUG), 1)
 ifeq ($(SGX_PRERELEASE), 1)
-$(error Cannot set SGX_DEBUG and SGX_PRERELEASE at the same time!!)
+$(error Cannot set DEBUG and SGX_PRERELEASE at the same time!!)
 endif
 endif
 
 
-ifeq ($(SGX_DEBUG), 1)
+ifeq ($(DEBUG), 1)
 	SGX_COMMON_CFLAGS += -O0 -g
+	Rust_target_dir := debug
 else
 	SGX_COMMON_CFLAGS += -O2
+	App_Rust_Flags := --release
+	Rust_target_dir := release
 endif
 
 ######## CUSTOM Settings ########
@@ -52,13 +55,12 @@ Enclave_EDL_Files := enclave/Enclave_t.c enclave/Enclave_t.h app/Enclave_u.c app
 
 ######## APP Settings ########
 
-App_Rust_Flags := --release
 App_Rust_Flags += $(if $(JOBS),-j$(JOBS), )
 App_SRC_Files := $(shell find app/ -type f -name '*.rs') $(shell find app/ -type f -name 'Cargo.toml')
 App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
-App_Rust_Path := ./app/target/release
+App_Rust_Path := ./app/target/$(Rust_target_dir)
 App_Enclave_u_Object :=app/libEnclave_u.a
 App_Name := enigma_principal_app
 
@@ -135,10 +137,11 @@ $(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
 $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 	@$(SGX_ENCLAVE_SIGNER) sign -key enclave/Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config enclave/Enclave.config.xml
 	@echo "SIGN =>  $@"
+	@echo "Compiled as: " $(Rust_target_dir)
 
 .PHONY: enclave
 enclave:
-	$(MAKE) -C ./enclave/
+	$(MAKE) -C ./enclave/ CARGO_FLAGS=$(App_Rust_Flags) Rust_target_dir=$(Rust_target_dir)
 
 .PHONY: compiler-rt
 compiler-rt:

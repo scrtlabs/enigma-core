@@ -1,5 +1,7 @@
 #![no_std]
 #![crate_type = "lib"]
+#![feature(core_intrinsics)]
+
 #[macro_use]
 extern crate sgx_tstd as std;
 #[macro_use]
@@ -20,6 +22,16 @@ pub mod cryptography_t;
 pub mod common;
 pub mod quote_t;
 pub mod storage_t;
+
+
+#[cfg(debug_assertions)]
+#[no_mangle]
+pub extern "C"
+fn __assert_fail (__assertion: *const u8, __file: *const u8, __line: u32, __function: *const u8) -> ! {
+    use core::intrinsics::abort;
+    unsafe {abort()}
+}
+
 
 #[cfg(test)]
 mod tests {
