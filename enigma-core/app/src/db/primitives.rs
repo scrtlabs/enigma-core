@@ -1,4 +1,3 @@
-use db_key::Key;
 use byteorder::{WriteBytesExt, BigEndian, ByteOrder};
 use hex::{ToHex, FromHex};
 use std::str;
