@@ -13,7 +13,7 @@ RUN git clone https://github.com/baidu/rust-sgx-sdk.git sgx -b v1.0.4
 
 # dependency for https://github.com/erickt/rust-zmq
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libzmq3-dev \
+    apt-get install -y --no-install-recommends libzmq3-dev clang \
     && rm -rf /var/lib/apt/lists/*
 
 RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
