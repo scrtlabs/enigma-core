@@ -17,11 +17,14 @@ rustc-hex = "1.0.0"
 httparse = "=1.2.5"
 reqwest = "0.8"
 dirs = "1.0"
-leveldb = "0.8"
+rocksdb = "=0.9.1"
+librocksdb-sys = "=5.10.2"
+memchr = "=2.0.0"
+websocket="=0.20.3"
 db-key = "0.0.5"
 lazy_static = "1.1.0"
 byteorder = "1.2"
-tokio = "=0.1.11" # Fix for reqwest failing
+tokio = "=0.1.11" # Fix for request failing
 
 
 enigma-tools-u = {path = "../../enigma-tools-u"}

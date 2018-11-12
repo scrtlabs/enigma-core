@@ -6,7 +6,7 @@ extern crate base64;
 extern crate reqwest;
 extern crate dirs;
 //DB
-extern crate leveldb;
+extern crate rocksdb;
 extern crate db_key;
 #[macro_use]
 extern crate lazy_static;

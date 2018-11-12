@@ -121,7 +121,9 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str)-> Result
         let box_ptr = delta_data_ptr as *mut Box<[u8]>;
         let delta_data = unsafe { Box::from_raw(box_ptr) };
         result.delta.value = delta_data.to_vec();
-        result.delta.key = ::db::DeltaKey::new(delta_hash, Some(delta_index));
+        // TODO: Elichai look at this please.
+        use ::db::{DeltaKey,Stype};
+        result.delta.key = DeltaKey::new(delta_hash, Stype::Delta(delta_index));
     } else { bail!("Weird delta results") }
     Ok(result)
 }
