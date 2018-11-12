@@ -3,14 +3,15 @@ use ring::rand::{SystemRandom, SecureRandom};
 use std::vec::Vec;
 use std::string::ToString;
 use std::option::Option;
+use std::borrow::ToOwned;
 use common::utils_t::ToHex;
 use common::errors_t::EnclaveError;
 
 static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 
-pub fn encrypt(message: &Vec<u8>, key: &[u8]) -> Result<Vec<u8>, EnclaveError> { encrypt_with_nonce(message, key, None) }
+pub fn encrypt(message: &[u8], key: &[u8]) -> Result<Vec<u8>, EnclaveError> { encrypt_with_nonce(message, key, None) }
 
-pub fn encrypt_with_nonce(message: &Vec<u8>, key: &[u8], _iv: Option<&[u8; 12]>) -> Result<Vec<u8>, EnclaveError> {
+pub fn encrypt_with_nonce(message: &[u8], key: &[u8], _iv: Option<&[u8; 12]>) -> Result<Vec<u8>, EnclaveError> {
     let mut iv: [u8; 12];
     match _iv {
         Some(x) => {iv = *x;},
@@ -26,7 +27,7 @@ pub fn encrypt_with_nonce(message: &Vec<u8>, key: &[u8], _iv: Option<&[u8; 12]>)
         Ok(key) => key,
         Err(_) => return Err(EnclaveError::KeyErr{key: "".to_string(), key_type: "Encryption".to_string()})
     };
-    let mut in_out = message.clone();
+    let mut in_out = message.to_owned();
     let tag_size = AES_MODE.tag_len();
     for _ in 0..tag_size {
         in_out.push(0);
@@ -41,13 +42,13 @@ pub fn encrypt_with_nonce(message: &Vec<u8>, key: &[u8], _iv: Option<&[u8; 12]>)
     Ok(in_out)
 }
 
-pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+pub fn decrypt(cipheriv: &[u8], key: &[u8]) -> Result<Vec<u8>, EnclaveError> {
     let aes_decrypt = match aead::OpeningKey::new(&AES_MODE, key) {
         Ok(key) => key,
         Err(_) => return Err(EnclaveError::KeyErr{key: "".to_string(), key_type: "Encryption".to_string()})
     };
     let additional_data: [u8; 0] = [];
-    let mut ciphertext = cipheriv.clone();
+    let mut ciphertext = cipheriv.to_owned();
     let mut iv: [u8; 12] = [0; 12];
     for _i in (0..iv.len()).rev() {
         match ciphertext.pop(){
@@ -57,7 +58,7 @@ pub fn decrypt(cipheriv: &Vec<u8>, key: &[u8]) -> Result<Vec<u8>, EnclaveError> 
     }
     let decrypted_data = match aead::open_in_place(&aes_decrypt, &iv, &additional_data, 0, &mut ciphertext) {
         Ok(data) => data,
-        Err(_) => return Err(EnclaveError::DecryptionError{encrypted_parm: cipheriv.as_slice().to_hex()})
+        Err(_) => return Err(EnclaveError::DecryptionError{encrypted_parm: cipheriv.to_hex()})
     };
 
     Ok(decrypted_data.to_vec())

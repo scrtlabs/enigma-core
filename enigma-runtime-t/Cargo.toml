@@ -6,14 +6,15 @@ authors = ["Elichai Turkel <elichai@enigma.co>"]
 [dependencies]
 enigma-tools-t = { path = "../enigma-tools-t" }
 
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
+etcommon-hexutil = { version = "0.2", default-features = false }
 
-serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
-serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
-serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
-wasmi = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.0" }
+rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "sgx-v1.0.4"}
+json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2-v1.0.4" }
 
-rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev = "sgx"}
-json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2" }
-etcommon-hexutil = { git = "https://github.com/enigmampc/etcommon-rs.git", rev = "develop", default-features = false }
+serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+wasmi = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

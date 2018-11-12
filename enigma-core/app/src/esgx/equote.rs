@@ -1,5 +1,5 @@
 use sgx_types::*;
-use std::*;
+use std::str;
 use common_u::errors;
 use failure::Error;
 

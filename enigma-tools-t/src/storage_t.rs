@@ -26,7 +26,7 @@ impl SecretKeyStorage {
     /// param: sealed_log_out : the output of the sealed data
     pub fn seal_key(&self, sealed_log_out: &mut [u8; SEAL_LOG_SIZE]) {
         let additional: [u8; 0] = [0_u8; 0];
-        let attribute_mask = sgx_attributes_t { flags: 0xfffffffffffffff3, xfrm: 0 };
+        let attribute_mask = sgx_attributes_t { flags: 0xffff_ffff_ffff_fff3, xfrm: 0 };
         let sealed_data = SgxSealedData::<SecretKeyStorage>::seal_data_ex(
             0x0001, //key policy
             attribute_mask,
@@ -53,11 +53,11 @@ impl SecretKeyStorage {
         match unsealed_result {
             Ok(unsealed_data) => {
                 let mut udata = unsealed_data.get_decrypt_txt();
-                return Some(*udata)
+                Some(*udata)
             }
             Err(err) => {
                 // TODO: Handle this. It can causes panic in Simulation Mode until deleting the file.
-                if err == sgx_status_t::SGX_ERROR_MAC_MISMATCH { return None }
+                if err == sgx_status_t::SGX_ERROR_MAC_MISMATCH { None }
                 else { panic!(err) }
             }
         }
@@ -116,7 +116,7 @@ pub mod tests {
         let mut data = SecretKeyStorage::default();
         data.version = 0x1234;
         for i in 0..32{
-            data.data[i] = 'i' as u8;
+            data.data[i] = b'i';
         }
         // seal data
         let mut sealed_log_in:[u8;SEAL_LOG_SIZE] = [0;SEAL_LOG_SIZE];

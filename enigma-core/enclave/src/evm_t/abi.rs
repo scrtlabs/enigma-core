@@ -16,9 +16,9 @@ use common::errors_t::EnclaveError;
 
 fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, Error> {
     params.iter()
-        .map(|&(ref param, value)| match lenient {
-            true => LenientTokenizer::tokenize(param, value),
-            false => StrictTokenizer::tokenize(param, value)
+        .map(|&(ref param, value)| {
+            if lenient { LenientTokenizer::tokenize(param, value) }
+                else { StrictTokenizer::tokenize(param, value) }
         })
         .collect::<Result<_, _>>()
         .map_err(From::from)
@@ -57,20 +57,20 @@ fn get_types(function: &str) -> Result<(Vec<String>, String), EnclaveError>{
 
     let types_string: &str = &function[start_arg_index+1..end_arg_index];
     let mut types_vector: Vec<String> = vec![];
-    let types_iterator = types_string.split(",");
+    let types_iterator = types_string.split(',');
     for each_type in types_iterator{
         types_vector.push(each_type.to_string());
     }
     Ok(( types_vector, String::from(&function[..start_arg_index] )))
 }
 
-fn get_args(callable_args: &[u8], types: &Vec<String>) -> Result<Vec<String>, EnclaveError>{
+fn get_args(callable_args: &[u8], types: &[String]) -> Result<Vec<String>, EnclaveError>{
     decode_args(callable_args, types)
 }
 
 fn get_preprocessor(preproc: &[u8]) -> Result<Vec<String>, EnclaveError> {
     let prep_string = from_utf8(preproc).unwrap();
-    let split = prep_string.split(",");
+    let split = prep_string.split(',');
     let mut preprocessors = vec![];
     for preprocessor in split{
         let preprocessor_result = preprocessor::run(preprocessor);
@@ -83,7 +83,7 @@ fn get_preprocessor(preproc: &[u8]) -> Result<Vec<String>, EnclaveError> {
 
 }
 
-fn create_function_signature(types_vector: Vec<String>, function_name: String) -> Result<[u8;4],EnclaveError>{
+fn create_function_signature(types_vector: &[String], function_name: &str) -> Result<[u8;4],EnclaveError>{
     let mut types: Vec<ParamType> = vec![];
     match types_vector[..].iter()
         .map(|s| Reader::read(s))
@@ -107,13 +107,13 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
         Ok(v) => v,
         Err(e) => return Err(e),
     };
-    if preproc.len() > 0 {
+    if !preproc.is_empty() {
         let preprocessors = match get_preprocessor(preproc) {
             Ok(v) => v,
             Err(e) => return Err(e),
         };
         for preprocessor in preprocessors {
-            args_vector.push(complete_to_u256(preprocessor));
+            args_vector.push(complete_to_u256(&preprocessor));
         }
     }
     if types_vector.len() != args_vector.len(){
@@ -148,7 +148,7 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
     Ok(result_bytes)
 }
 
-pub fn create_callback(mut data: & mut Vec<u8>, callback: &[u8]) -> Result<Vec<u8>, EnclaveError>{
+pub fn create_callback(data: &mut Vec<u8>, callback: &[u8]) -> Result<Vec<u8>, EnclaveError>{
     let callback: &str = from_utf8(callback).unwrap();
 
     let (types_vector, function_name) = match get_types(callback) {
@@ -156,7 +156,7 @@ pub fn create_callback(mut data: & mut Vec<u8>, callback: &[u8]) -> Result<Vec<u
         Err(e) => return Err(e),
     };
 
-    let callback_signature = create_function_signature(types_vector, function_name);
+    let callback_signature = create_function_signature(&types_vector, &function_name);
     let mut result_bytes: Vec<u8> = vec![];
     match callback_signature{
         Err(e) => return Err(e),
@@ -164,6 +164,6 @@ pub fn create_callback(mut data: & mut Vec<u8>, callback: &[u8]) -> Result<Vec<u
             result_bytes.extend_from_slice(&v)
         },
     };
-    result_bytes.extend_from_slice(& mut data);
+    result_bytes.extend_from_slice(&data);
     Ok(result_bytes)
 }
