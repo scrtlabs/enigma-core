@@ -27,13 +27,6 @@ pub enum Stype {
     ByteCode,
 }
 
-impl Default for Stype {
-    fn default() -> Self {
-        Stype::State
-    }
-}
-
-
 pub trait SplitKey {
     // as_split should get self and divide it up into two components
     // as a tuple (&str, &[u8]) and send it into a function,
@@ -47,13 +40,17 @@ pub trait SplitKey {
     fn from_split(_hash: &str, _key_type: &[u8]) -> Result<Self, Error> where Self: Sized;
 }
 
+impl Default for Stype {
+    fn default() -> Self {
+        Stype::State
+    }
+}
 
 impl DeltaKey {
     pub fn new(hash: [u8; 32], key_type: Stype) -> DeltaKey {
         DeltaKey { hash, key_type }
     }
 }
-
 
 impl SplitKey for DeltaKey {
 
@@ -86,26 +83,8 @@ impl SplitKey for DeltaKey {
     }
 }
 
-//impl Key for DeltaKey {
-//    fn from_u8(key: &[u8]) -> Self {
-//        let mut hash = [0u8; 32];
-//        hash.copy_from_slice(&key[..32]);
-//        let n = if key.len() > 32 { Some( BigEndian::read_u32(&key[32..]) ) } else { None };
-//        DeltaKey { hash, t }
-//    }
-//
-//    fn as_slice< T, F: Fn(&[u8]) -> T > (&self, f: F) -> T {
-//        let mut slice = Vec::new();
-//        slice.extend_from_slice(&self.hash);
-//        if self.n.is_some() {
-//            // TODO: think of a better way to handle the possibility of error here.
-//            slice.write_u32::<BigEndian>(self.n.unwrap()).unwrap();
-//        }
-//        f(&slice[..])
-//    }
-//}
-
 impl SplitKey for Array32u8 {
+
     fn as_split< T, F: FnMut(&str, &[u8]) -> T > (&self, mut f: F) -> T { f(&self.0.to_hex(), &[2])}
 
     fn from_split(_hash: &str, _key_type: &[u8]) -> Result<Self, Error> {
@@ -114,27 +93,6 @@ impl SplitKey for Array32u8 {
         Ok(Array32u8(arr))
     }
 }
-
-//impl Key for Array32u8 {
-//    fn from_u8(key: &[u8]) -> Self {
-//        assert_eq!(key.len(), 32);
-//        let mut bits = [0u8; 32];
-//        bits.clone_from_slice(key);
-//        Array32u8 ( bits )
-//    }
-//    fn as_slice<T, F: Fn(&[u8]) -> T> (&self, f: F) -> T {
-//        f(&self.0)
-//    }
-//}
-//
-//impl Key for VecKey {
-//    fn from_u8(key: &[u8]) -> Self {
-//        VecKey ( key.to_vec() )
-//    }
-//    fn as_slice<T, F: Fn(&[u8]) -> T> (&self, f: F) -> T {
-//        f(&self.0[..])
-//    }
-//}
 
 #[cfg(test)]
 mod tests {
