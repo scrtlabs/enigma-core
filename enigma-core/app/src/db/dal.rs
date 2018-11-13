@@ -4,7 +4,6 @@ use rocksdb::DB as rocks_db;
 use rocksdb::{Options, WriteOptions, SliceTransform};
 
 use common_u::errors::{DBErr, DBErrKind};
-//use db_key::Key;
 use db::primitives::SplitKey;
 
 // These are global variables for Reade/Write/Create Options
@@ -96,7 +95,6 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
             };
             // verifies that the key inside the CF doesn't already exist
             match self.database.get_cf(cf_key.clone(), &index_key)? {
-                // TODO: Write test that cf exist. but key doesn't, so this will fail.
                 Some(_) => Err(DBErr { command: format!("create"), kind: DBErrKind::KeyExists, previous: None }.into()),
                 None => {
                     let mut write_options = WriteOptions::default();
@@ -111,7 +109,6 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     }
 
     fn read(&mut self, key: &'a K) -> Result<Vec<u8>, Error> {
-        // TODO: Write test that cf exist. but key doesn't, so this will fail.
         key.as_split( | hash, index_key| {
             match self.database.cf_handle(&hash) {
                 None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
@@ -124,11 +121,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
             }
         })
     }
-
+//    todo: write tests that check the delta implementation and the Stype enum
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split( | hash, index_key| {
             match self.database.cf_handle(&hash) {
-                // TODO: Write test that cf exist. but key doesn't, so this will fail.
                 None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                 Some(cf_key) => {
                     match self.database.get_cf(cf_key.clone(), &index_key)? {
@@ -185,73 +181,12 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     }
 
 }
-//impl<'a, K: Key> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
-//
-//    fn create(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
-//        // This verifies that the key doesn't already exist.
-//        if key.as_slice(| s | self.database.get(&s.to_vec()))?.is_some() {
-////        if self.database.get(key.as_slice(| s | ))?.is_some() {
-//            return Err( DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists, previous: None }.into())
-//        }
-//
-//        let mut write_options = WriteOptions::default();
-//        write_options.set_sync(SYNC);
-//        match key.as_slice(| s | self.database.put_opt(&s.to_vec(), value, &write_options)) {
-//            Ok(_) => Ok( () ),
-//            Err(e) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::CreateError, previous: Some(e.into()) }.into())
-//        }
-//    }
-//
-//    fn read(&mut self, key: &'a K) -> Result<Vec<u8>, Error> {
-//
-//        match key.as_slice(| s | self.database.get(&s.to_vec()))? {
-//            Some(data) => Ok(data.to_vec()),
-//            None => Err(DBErr { command: "get".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
-//        }
-//    }
-//
-//    fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
-//        if key.as_slice(| s | self.database.get(&s.to_vec()))?.is_none() {
-//            Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into())
-//        }
-//
-//        else {
-//            let mut write_options = WriteOptions::default();
-//            write_options.set_sync(SYNC);
-//
-//            match key.as_slice(| s | self.database.put_opt(&s.to_vec(), value, &write_options)) {
-//                Ok(_) => Ok( () ),
-//                Err(e) => Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some( e.into() ) }.into())
-//            }
-//        }
-//
-//    }
-//
-//    fn delete(&mut self, key: &'a K) -> Result<(), Error> {
-//        if key.as_slice(| s | self.database.get(&s.to_vec()))?.is_none() {
-//            return Err( DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into() )
-//        }
-//        key.as_slice(| s | self.database.delete(&s.to_vec()))?;
-//        Ok( () )
-//    }
-//
-//    fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
-//        let mut write_options = WriteOptions::default();
-//        write_options.set_sync(SYNC);
-//
-//        match key.as_slice(| s | self.database.put_opt(&s.to_vec(), value, &write_options)) {
-//            Ok(_) => Ok( () ),
-//            Err(e) => Err( DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some( e.into() ) }.into() )
-//        }
-//    }
-//
-//}
 
 #[cfg(test)]
 mod test {
     extern crate tempdir;
+    use hex::ToHex;
     use db::dal::DB;
-    use std::fs;
     use db::primitives::Array32u8;
     use db::dal::CRUDInterface;
 
@@ -259,48 +194,51 @@ mod test {
     fn test_new_db() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
         let _db = DB::new(tempdir.clone(), true).unwrap();
-        fs::remove_dir_all(tempdir).unwrap();
     }
 
     #[test]
     fn test_create_read() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
         let mut db = DB::new(tempdir.clone(), true).unwrap();
-        let mut arr = [0u8; 32];
-        arr[0..3].clone_from_slice( &[1,2,3]);
+        let arr = [7u8; 32];
         let v = b"Enigma";
         db.create(&Array32u8(arr), &v[..]).unwrap();
         assert_eq!(db.read(&Array32u8(arr)).unwrap(), v);
-        fs::remove_dir_all(tempdir).unwrap();
     }
 
     #[test]
     fn test_create_update_read() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
         let mut db = DB::new(tempdir.clone(), true).unwrap();
-        let mut arr = [0u8; 32];
-        arr[0..3].clone_from_slice( &[1,2,3]);
+        let arr = [4u8; 32];
         let v = b"Enigma";
         db.create(&Array32u8( arr ), &v[..]).unwrap();
         assert_eq!(db.read(&Array32u8( arr )).unwrap(), v);
         let v = b"MPC";
         db.update(&Array32u8( arr ), &v[..]).unwrap();
         assert_eq!(db.read(&Array32u8( arr )).unwrap(), v);
+    }
 
-        fs::remove_dir_all(tempdir).unwrap();
+    #[test]
+    fn test_create_when_cf_exists() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let arr = [3u8; 32];
+        //created an empty cf in the DB
+        let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
+        let v = b"Enigma";
+        db.create(&Array32u8( arr ), v).unwrap();
+        assert_eq!(db.read(&Array32u8( arr )).unwrap(), v);
     }
 
     #[test]
     fn test_create_delete() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
         let mut db = DB::new(tempdir.clone(), true).unwrap();
-        let mut arr = [0u8; 32];
-        arr[0..3].clone_from_slice( &[1,2,3]);
+        let arr = [5u8; 32];
         let v = b"Enigma";
         db.create(&Array32u8( arr ), &v[..]).unwrap();
         db.delete(&Array32u8( arr )).unwrap();
-
-        fs::remove_dir_all(tempdir).unwrap();
     }
 
     #[test]
@@ -308,15 +246,12 @@ mod test {
     fn test_create_read_delete_fail_reading() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
         let mut db = DB::new(tempdir.clone(), true).unwrap();
-        let mut arr = [0u8; 32];
-        arr[0..3].clone_from_slice( &[1,2,3]);
+        let arr = [9u8; 32];
         let v = b"Enigma";
         db.create(&Array32u8( arr ), &v[..]).unwrap();
         assert_eq!(db.read(&Array32u8( arr )).unwrap(), v);
         db.delete(&Array32u8( arr )).unwrap();
         db.read(&Array32u8( arr )).unwrap();
-
-        fs::remove_dir_all(tempdir).unwrap();
     }
 
     #[test]
@@ -324,11 +259,18 @@ mod test {
     fn test_fail_reading() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
         let mut db = DB::new(tempdir.clone(), true).unwrap();
-        let mut arr = [0u8; 32];
-        arr[0..3].clone_from_slice( &[1,2,3]);
+        let arr = [2u8; 32];
         db.read(&Array32u8( arr )).unwrap();
+    }
 
-        fs::remove_dir_all(tempdir).unwrap();
+    #[test]
+    #[should_panic]
+    fn test_fail_cf_exists_no_key_read() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let arr = [3u8; 32];
+        let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
+        db.read(&Array32u8( arr )).unwrap();
     }
 
     #[test]
@@ -336,10 +278,18 @@ mod test {
     fn test_fail_updating() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
         let mut db = DB::new(tempdir.clone(), true).unwrap();
-        let mut arr = [0u8; 32];
-        arr[0..3].clone_from_slice( &[1,2,3]);
+        let arr = [4u8; 32];
         db.update(&Array32u8( arr ), b"Enigma").unwrap();
-        fs::remove_dir_all(tempdir).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_fail_updating_cf_exists() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let arr = [4u8; 32];
+        let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
+        db.update(&Array32u8( arr ), b"Enigma").unwrap();
     }
 
     #[test]
@@ -347,10 +297,18 @@ mod test {
     fn test_fail_deleting() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
         let mut db = DB::new(tempdir.clone(), true).unwrap();
-        let mut arr = [0u8; 32];
-        arr[0..3].clone_from_slice( &[1,2,3]);
+        let arr = [7u8; 32];
         db.delete(&Array32u8( arr )).unwrap();
-        fs::remove_dir_all(tempdir).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_fail_deleting_cf_exists() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let arr = [5u8; 32];
+        let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
+        db.delete(&Array32u8( arr )).unwrap();
     }
 
     #[test]
@@ -358,13 +316,10 @@ mod test {
     fn test_fail_creating_exist() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
         let mut db = DB::new(tempdir.clone(), true).unwrap();
-        let mut arr = [0u8; 32];
-        arr[0..3].clone_from_slice( &[1,2,3]);
+        let arr = [8u8; 32];
         let v = b"Enigma";
-        db.create(&Array32u8( arr ), v).unwrap();
-        assert_eq!(db.read(&Array32u8( arr )).unwrap(), v);
-        db.create(&Array32u8( arr ), v).unwrap();
-
-        fs::remove_dir_all(tempdir).unwrap();
+        db.create(&Array32u8(arr), v).unwrap();
+        assert_eq!(db.read(&Array32u8(arr)).unwrap(), v);
+        db.create(&Array32u8(arr), v).unwrap();
     }
 }
