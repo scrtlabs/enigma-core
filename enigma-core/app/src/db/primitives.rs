@@ -10,8 +10,8 @@ pub struct VecKey ( pub Vec<u8> );
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct DeltaKey {
-    hash: [u8; 32],
-    key_type: Stype,
+    pub hash: [u8; 32],
+    pub key_type: Stype,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
