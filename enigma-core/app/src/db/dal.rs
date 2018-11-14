@@ -164,22 +164,19 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split( | hash, index_key| {
-            match self.database.cf_handle(&hash) {
-                // TODO: Write test that cf exist. but key doesn't, so this will fail.
-                None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous:None }.into()),
-                Some(cf_key) => {
-                    let mut write_options = WriteOptions::default();
-                    write_options.set_sync(SYNC);
-
-                    match self.database.put_cf_opt(cf_key, &index_key, value, &write_options) {
-                        Ok(_) => Ok(()),
-                        Err(e) => Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some(e.into()) }.into())
-                    }
-                }
+            let cf_key = match self.database.cf_handle(&hash) {
+                // TODO: Write test that cf exist. but key doesn't, and it will still succeed.
+                None => self.database.create_cf(&hash, &self.options).unwrap(),
+                Some(cf_key) => cf_key,
+            };
+            let mut write_options = WriteOptions::default();
+            write_options.set_sync(SYNC);
+            match self.database.put_cf_opt(cf_key, &index_key, value, &write_options) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some(e.into()) }.into())
             }
         })
     }
-
 }
 
 #[cfg(test)]
