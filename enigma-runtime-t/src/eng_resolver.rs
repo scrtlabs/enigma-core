@@ -13,6 +13,12 @@ pub mod ids {
     pub const READ_STATE_FUNC: usize = 3;
     pub const FROM_MEM_FUNC: usize = 4;
     pub const EPRINT_FUNC: usize = 5;
+    pub const NAME_LENGTH_FUNC: usize = 6;
+    pub const NAME_FUNC: usize = 7;
+    pub const ARGS_FUNC: usize = 8;
+    pub const ARGS_LENGTH_FUNC: usize = 9;
+    pub const TYPES_LENGTH_FUNC: usize = 10;
+    pub const TYPES_FUNC: usize = 11;
 }
 
 pub mod signatures {
@@ -43,6 +49,36 @@ pub mod signatures {
 
     pub const EPRINT: StaticSignature = StaticSignature(
         &[I32, I32],
+        None,
+    );
+
+    pub const NAME_LENGTH: StaticSignature = StaticSignature(
+        &[],
+        Some(I32),
+    );
+
+    pub const NAME: StaticSignature = StaticSignature(
+        &[I32],
+        None,
+    );
+
+    pub const ARGS_LENGTH: StaticSignature = StaticSignature(
+        &[],
+        Some(I32),
+    );
+
+    pub const ARGS: StaticSignature = StaticSignature(
+        &[I32],
+        None,
+    );
+
+    pub const TYPES_LENGTH: StaticSignature = StaticSignature(
+        &[],
+        Some(I32),
+    );
+
+    pub const TYPES: StaticSignature = StaticSignature(
+        &[I32],
         None,
     );
 
@@ -107,6 +143,12 @@ impl ModuleImportResolver for ImportResolver {
             "read_state" => FuncInstance::alloc_host(signatures::READ_STATE.into(), ids::READ_STATE_FUNC),
             "from_memory" => FuncInstance::alloc_host(signatures::FROM_MEM.into(), ids::FROM_MEM_FUNC),
             "eprint" => FuncInstance::alloc_host(signatures::EPRINT.into(), ids::EPRINT_FUNC),
+            "fetch_function_name_length" => FuncInstance::alloc_host(signatures::NAME_LENGTH.into(), ids::NAME_LENGTH_FUNC),
+            "fetch_function_name" => FuncInstance::alloc_host(signatures::NAME.into(), ids::NAME_FUNC),
+            "fetch_args_length" => FuncInstance::alloc_host(signatures::ARGS_LENGTH.into(), ids::ARGS_LENGTH_FUNC),
+            "fetch_args" => FuncInstance::alloc_host(signatures::ARGS.into(), ids::ARGS_FUNC),
+            "fetch_types_length" => FuncInstance::alloc_host(signatures::TYPES_LENGTH.into(), ids::TYPES_LENGTH_FUNC),
+            "fetch_types" => FuncInstance::alloc_host(signatures::TYPES.into(), ids::TYPES_FUNC),
             _ => {
                 return Err(wasmi::Error::Instantiation(
                     format!("Export {} not found", field_name),

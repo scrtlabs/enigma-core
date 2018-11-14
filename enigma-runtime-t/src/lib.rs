@@ -21,6 +21,7 @@ use std::vec::Vec;
 use std::string::ToString;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use std::str;
+use std::string::String;
 
 pub mod data;
 pub mod ocalls_t;
@@ -34,8 +35,11 @@ pub struct RuntimeResult{
     pub result: Vec<u8>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Runtime {
     memory: MemoryRef,
+    function_name: String,
+    args_types: String,
     args: Vec<u8>,
     result: RuntimeResult,
     init_state: ContractState,
@@ -44,22 +48,62 @@ pub struct Runtime {
 
 impl Runtime {
 
-    pub fn new(memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32]) -> Runtime {
+    pub fn new(memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32], function_name: &String, args_types: String) -> Runtime {
         let init_state = ContractState::new( contract_id.clone() );
         let current_state = ContractState::new(contract_id);
         let result = RuntimeResult{ result: Vec::new(), state_delta: None, updated_state: None };
+        let function_name = function_name.to_string();
 
-        Runtime { memory, args, result, init_state, current_state }
+        Runtime { memory, function_name, args_types, args, result, init_state, current_state }
     }
 
-    pub fn new_with_state(memory: MemoryRef, args: Vec<u8>, state: ContractState) -> Runtime{
+    pub fn new_with_state(memory: MemoryRef, args: Vec<u8>, state: ContractState, function_name: &String, args_types: String) -> Runtime{
         let init_state = state.clone();
         let current_state = state;
         let result = RuntimeResult{ result: Vec::new(), state_delta: None, updated_state: None };
+        let function_name = function_name.to_string();
 
-        Runtime { memory, args, result, init_state, current_state }
+        Runtime { memory, function_name, args_types, args, result, init_state, current_state }
     }
 
+    fn fetch_args_length(&mut self) -> RuntimeValue {
+        RuntimeValue::I32(self.args.len() as i32)
+    }
+
+    fn fetch_args(&mut self, args: RuntimeArgs) -> Result<(), EnclaveError> {
+        let ptr: u32 = args.nth_checked(0)?;
+
+        match self.memory.set(ptr, &self.args){
+            Ok(_v) => Ok(()),
+            Err(e) => return Err(EnclaveError::ExecutionErr{code: "fetching arguments".to_string(), err: e.to_string()}),
+        }
+    }
+
+    fn fetch_function_name_length(&mut self) -> RuntimeValue {
+        RuntimeValue::I32(self.function_name.len() as i32)
+    }
+
+    fn fetch_function_name(&mut self, args: RuntimeArgs) -> Result<(), EnclaveError> {
+        let ptr: u32 = args.nth_checked(0)?;
+
+        match self.memory.set(ptr, &self.function_name.as_bytes()){
+            Ok(_v) => Ok(()),
+            Err(e) => return Err(EnclaveError::ExecutionErr{code: "fetching function name".to_string(), err: e.to_string()}),
+        }
+    }
+
+    fn fetch_types_length(&mut self) -> RuntimeValue {
+        RuntimeValue::I32(self.args_types.len() as i32)
+    }
+
+    fn fetch_types(&mut self, args: RuntimeArgs) -> Result<(), EnclaveError> {
+        let ptr: u32 = args.nth_checked(0)?;
+
+        match self.memory.set(ptr, &self.args_types.as_bytes()){
+            Ok(_v) => Ok(()),
+            Err(e) => return Err(EnclaveError::ExecutionErr{code: "fetching arguments' types".to_string(), err: e.to_string()}),
+        }
+    }
     /// args:
     /// * `value` - value holder: the start address of value in memory
     /// * `value_len` - the length of value holder
@@ -222,6 +266,33 @@ impl Externals for Runtime {
 
             eng_resolver::ids::EPRINT_FUNC => {
                 &mut Runtime::eprint(self, args);
+                Ok(None)
+            }
+
+            eng_resolver::ids::NAME_LENGTH_FUNC => {
+                Ok(Some(Runtime::fetch_function_name_length(self)))
+            }
+
+            eng_resolver::ids::NAME_FUNC => {
+                &mut Runtime::fetch_function_name(self, args);
+                Ok(None)
+            }
+
+            eng_resolver::ids::ARGS_LENGTH_FUNC => {
+                Ok(Some(Runtime::fetch_args_length(self)))
+            }
+
+            eng_resolver::ids::ARGS_FUNC => {
+                &mut Runtime::fetch_args(self, args);
+                Ok(None)
+            }
+
+            eng_resolver::ids::TYPES_LENGTH_FUNC => {
+                Ok(Some(Runtime::fetch_types_length(self)))
+            }
+
+            eng_resolver::ids::TYPES_FUNC => {
+                &mut Runtime::fetch_types(self, args);
                 Ok(None)
             }
             _ => unimplemented!("Unimplemented function at {}", index),
