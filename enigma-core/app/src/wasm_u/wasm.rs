@@ -11,8 +11,11 @@ extern "C" {
     fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
                     output_ptr: *mut u64) -> sgx_status_t;
 
-    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, bytecode: *const u8, bytecode_len: usize,
-                     callable: *const u8, callable_len: usize, output: *mut u64, delta_data_ptr: *mut u64,
+    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
+                     bytecode: *const u8, bytecode_len: usize,
+                     callable: *const u8, callable_len: usize,
+                     callable_args: *const u8, callable_args_len: usize,
+                     output: *mut u64, delta_data_ptr: *mut u64,
                      delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t;
 }
 
@@ -83,7 +86,7 @@ pub struct WasmResult {
     pub delta: ::db::Delta,
 }
 
-pub fn execute(eid: sgx_enclave_id_t, bytecode: &[u8], callable: &str) -> Result<WasmResult, Error> {
+pub fn execute(eid: sgx_enclave_id_t, bytecode: &[u8], callable: &str, args: &str)-> Result<WasmResult,Error>{
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
@@ -97,6 +100,8 @@ pub fn execute(eid: sgx_enclave_id_t, bytecode: &[u8], callable: &str) -> Result
                       bytecode.len(),
                       callable.as_ptr() as *const u8,
                       callable.len(),
+                      args.as_ptr() as *const u8,
+                      args.len(),
                       &mut output as *mut u64,
                       &mut delta_data_ptr as *mut u64,
                       &mut delta_hash,
@@ -172,7 +177,8 @@ pub mod tests {
 
         let enclave = init_enclave();
         let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
-        let result = wasm::execute(enclave.geteid(), &contract_code, "call").expect("Execution failed");
+//        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "").expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
     }
@@ -189,7 +195,7 @@ pub mod tests {
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
         let enclave = init_enclave();
         let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
-        let result = wasm::execute(enclave.geteid(), &contract_code, "call").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(),&contract_code, "call", "").expect("Execution failed");
         assert_eq!(from_utf8(&result.output).unwrap(), "157");
     }
 }

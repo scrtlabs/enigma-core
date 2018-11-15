@@ -57,6 +57,7 @@ use std::string::ToString;
 use std::vec::Vec;
 use std::{ptr, slice, str};
 use wasm_g::execution;
+use enigma_tools_t::build_arguments_g::*;
 
 lazy_static! {
     pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper();
@@ -104,13 +105,16 @@ pub unsafe extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize, cal
 /// * `output_len` - the length of the output
 /// Ecall for invocation of the external function `callable` of deployed contract `bytecode`.
 // TODO: add arguments of callable.
-pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize, callable: *const u8,
-                                       callable_len: usize, output_ptr: *mut u64, delta_data_ptr: *mut u64,
+pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
+                                       callable: *const u8, callable_len: usize,
+                                       callable_args: *const u8, callable_args_len: usize,
+                                       output_ptr: *mut u64, delta_data_ptr: *mut u64,
                                        delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> EnclaveReturn {
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let callable_slice = slice::from_raw_parts(callable, callable_len);
+    let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
 
-    ecall_execute_internal(bytecode_slice, callable_slice, output_ptr,
+    ecall_execute_internal(bytecode_slice, callable_slice, callable_args_slice, output_ptr,
                            delta_data_ptr, delta_hash_out, delta_index_out).into()
 }
 
@@ -158,12 +162,39 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
     }
 }
 
-unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8], output_ptr: *mut u64,
+unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8], callable_args_slice: &[u8], output_ptr: *mut u64,
                                  delta_data_ptr: *mut u64, delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> Result<(), EnclaveError> {
     let callable = str::from_utf8(callable_slice)?;
+    let callable_args = hexutil::read_hex(from_utf8(callable_args_slice).unwrap()).unwrap();
     let state = execution::get_state();
 
-    let exec_res = execution::execute(&bytecode_slice, state, callable)?;
+    let (types, function_name) = match get_types(callable){
+        Ok(v) => v,
+        Err(e) => {
+            println!("ERROR {}", e);
+            return sgx_status_t::SGX_ERROR_UNEXPECTED
+        }
+    };
+
+    let types_vector = extract_types(&types.to_string());
+
+    let args_vector = match get_args(&callable_args, &types_vector) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("ERROR {}", e);
+            return sgx_status_t::SGX_ERROR_UNEXPECTED
+        },
+    };
+
+    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], false){
+        Ok(v) => v,
+        Err(e) => {
+            println!("ERROR {}", e);
+            return sgx_status_t::SGX_ERROR_UNEXPECTED
+        },
+    };
+
+    let exec_res = execution::execute(&bytecode, state, function_name, types, params)?;
 
     prepare_wasm_result(exec_res.state_delta,
                         &exec_res.result[..],
