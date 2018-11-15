@@ -80,14 +80,14 @@ impl Runtime {
                     Ok( () ) => {
                         self.result.result = match self.memory.get(0, value_len as usize) {
                             Ok(v) => v,
-                            Err(e) => return Err(EnclaveError::ExecutionErr{code: "ret code".to_string(), err: e.to_string()}),
+                            Err(e) => return Err(EnclaveError::ExecutionError {code: "ret code".to_string(), err: e.to_string()}),
                         };
                     },
-                    Err(e) => return Err(EnclaveError::ExecutionErr{code: "memory".to_string(), err: e.to_string()}),
+                    Err(e) => return Err(EnclaveError::ExecutionError {code: "memory".to_string(), err: e.to_string()}),
                 }
                 Ok(())
             },
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "memory".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError {code: "memory".to_string(), err: e.to_string()}),
         }
     }
 
@@ -106,7 +106,7 @@ impl Runtime {
         }
         match self.memory.get_into(key.unwrap(), &mut buf[..]) {
             Ok( () ) => (),
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "read state".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError {code: "read state".to_string(), err: e.to_string()}),
         }
         let key1 = str::from_utf8(&buf)?;
         let value_vec = serde_json::to_vec(&self.current_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
@@ -135,7 +135,7 @@ impl Runtime {
 
         match self.memory.get_into(key.unwrap(), &mut buf[..]){
             Ok(v) => v,
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "write state".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError {code: "write state".to_string(), err: e.to_string()}),
         }
 
         let mut val = Vec::with_capacity(value_len as usize);
@@ -145,7 +145,7 @@ impl Runtime {
 
         match self.memory.get_into(value, &mut val[..]){
             Ok(v) => v,
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "write state".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError {code: "write state".to_string(), err: e.to_string()}),
         }
 
         let key1 = str::from_utf8(&buf)?;
@@ -165,7 +165,7 @@ impl Runtime {
 
         self.result.result = match self.memory.get(ptr, len as usize){
             Ok(v)=>v,
-            Err(e)=>return Err(EnclaveError::ExecutionErr{code: "Error in getting value from runtime memory".to_string(), err: e.to_string()}),
+            Err(e)=>return Err(EnclaveError::ExecutionError {code: "Error in getting value from runtime memory".to_string(), err: e.to_string()}),
         };
         Ok(())
     }
@@ -176,7 +176,7 @@ impl Runtime {
         self.result.state_delta =
             match self.current_state.generate_delta(Some(&self.init_state), None){
                 Ok(v) => Some(v),
-                Err(e) => return Err(EnclaveError::ExecutionErr{code: "Error in generating state delta".to_string(), err: e.to_string()}),
+                Err(e) => return Err(EnclaveError::ExecutionError {code: "Error in generating state delta".to_string(), err: e.to_string()}),
             };
 
         self.result.updated_state = Some(self.current_state);
@@ -192,7 +192,7 @@ impl Runtime {
                 println!("PRINT: {}", st);
 
             },
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "Error in Logging debug".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError {code: "Error in Logging debug".to_string(), err: e.to_string()}),
         }
         Ok(())
     }

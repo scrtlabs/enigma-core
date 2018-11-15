@@ -57,7 +57,7 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
 
             else if new.is_some() { return Ok(StatePatch( json_patch::diff(&self.json, &new.unwrap().json) )) }
 
-                else { return Err( EnclaveError::StateErr {  err: "Generating a delta, Both old and new are None".to_string() } ) }
+                else { return Err( EnclaveError::StateError {  err: "Generating a delta, Both old and new are None".to_string() } ) }
 
     }
 }

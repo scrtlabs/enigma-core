@@ -70,3 +70,15 @@ impl fmt::Display for DBErrKind {
         write!(f, "{}", printable)
     }
 }
+
+#[derive(Fail, Debug)]
+#[fail(display = "Error inside the Enclave = ({:?})", err)]
+pub struct EnclaveFailError{
+    pub err : enigma_types::EnclaveReturn,
+}
+
+impl From<enigma_types::EnclaveReturn> for EnclaveFailError {
+    fn from(error: enigma_types::EnclaveReturn) -> Self {
+        Self { err: error }
+    }
+}

@@ -5,6 +5,8 @@ extern crate sgx_urts;
 
 use sgx_types::*;
 use failure::Error;
+use enigma_types::EnclaveReturn;
+use common_u::errors::EnclaveFailError;
 
 extern {
     fn ecall_deploy(eid: sgx_enclave_id_t,
@@ -12,7 +14,7 @@ extern {
                  bytecode: *const u8, bytecode_len: usize,
                  output_ptr: *mut u64) -> sgx_status_t;
 
-    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
+    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
                      bytecode: *const u8, bytecode_len: usize,
                      callable: *const u8, callable_len: usize,
                      output: *mut u64, delta_data_ptr: *mut u64,
@@ -93,7 +95,7 @@ pub struct WasmResult {
 }
 
 pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str)-> Result<WasmResult, Error> {
-    let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
+    let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
     let mut delta_hash = [0u8; 32];
@@ -111,6 +113,11 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str)-> Result
                       &mut delta_hash,
                       &mut delta_index as *mut u32)
     };
+
+    if retval != EnclaveReturn::Success {
+        return Err(EnclaveFailError::from(retval).into());
+    }
+    // TODO: Write a handle wrapper that will free the pointers memory in case of an Error.
 
     let mut result: WasmResult = Default::default();
     let box_ptr = output as *mut Box<[u8]>;

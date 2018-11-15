@@ -19,6 +19,7 @@ extern crate failure;
 extern crate rustc_hex as hex;
 //enigma utils 
 extern crate enigma_tools_u;
+extern crate enigma_types;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;

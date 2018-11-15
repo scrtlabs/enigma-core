@@ -27,7 +27,7 @@ pub fn execute(code: &[u8], state: ContractState, callable: &str) -> Result<Runt
         }
         Err(e) => {
             println!("Error in invocation of the external function: {}", e);
-            Err(EnclaveError::ExecutionErr { code: "deployment code".to_string(), err: e.to_string() })
+            Err(EnclaveError::ExecutionError { code: "deployment code".to_string(), err: e.to_string() })
         }
     }
 }

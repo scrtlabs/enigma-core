@@ -1,6 +1,6 @@
 use sgx_types::sgx_status_t;
 use std::string::ToString;
-use enigma_tools_t::common::errors_t::EnclaveError::{self, OcallErr};
+use enigma_tools_t::common::errors_t::EnclaveError::{self, OcallError};
 use enigma_tools_t::common::utils_t::Sha256;
 use data::{EncryptedContractState, EncryptedPatch};
 
@@ -17,11 +17,11 @@ pub fn save_state(enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> 
     };
     match res_int {
         0 => (), // 0 is the OK result
-        _ => return Err( OcallErr { command: "ocall_update_state".to_string(), err: format!("return result is: {}", &res_int ) } )
+        _ => return Err( OcallError { command: "ocall_update_state".to_string(), err: format!("return result is: {}", &res_int ) } )
     }
     match res_status {
         sgx_status_t::SGX_SUCCESS => return Ok( () ),
-        _ => return Err ( OcallErr { command: "ocall_update_state".to_string(), err: res_status.__description().to_string() } )
+        _ => return Err ( OcallError { command: "ocall_update_state".to_string(), err: res_status.__description().to_string() } )
     }
 }
 
@@ -36,13 +36,13 @@ pub fn save_delta(enc: &EncryptedPatch) -> Result<(), EnclaveError> {
     // TODO: Maybe use some sort of ErrorKind to differentiate between the errors outside
     match res_int {
         0 => (), // 0 is the OK result
-        17 => return Err( OcallErr { command: "ocall_new_delta".to_string(), err: format!("key already exist") } ),
-        _ => return Err( OcallErr { command: "ocall_new_delta".to_string(), err: format!("return result is: {}", &res_int ) } )
+        17 => return Err( OcallError { command: "ocall_new_delta".to_string(), err: format!("key already exist") } ),
+        _ => return Err( OcallError { command: "ocall_new_delta".to_string(), err: format!("return result is: {}", &res_int ) } )
     }
 
     match res_status {
         sgx_status_t::SGX_SUCCESS => return Ok( () ),
-        _ => return Err ( OcallErr { command: "ocall_new_delta".to_string(), err: res_status.__description().to_string() } )
+        _ => return Err ( OcallError { command: "ocall_new_delta".to_string(), err: res_status.__description().to_string() } )
     }
 }
 

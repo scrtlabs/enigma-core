@@ -1,3 +1,5 @@
+use enigma_types::{EnclaveReturn, ResultToEnclaveReturn};
+
 use std::string::{String, ToString};
 use sgx_types::sgx_status_t;
 use rmps;
@@ -55,6 +57,10 @@ pub enum EnclaveError {
         code: String,
         err: String,
     },
+    #[fail(display = "Error in EVM:  {}", err)]
+    EvmError {
+        err: String,
+    },
     #[fail(display = "There's a State error with: {}", err)]
     StateError {
         err: String,
@@ -63,8 +69,12 @@ pub enum EnclaveError {
     OcallError {
         command: String,
         err: String,
-    }
+    },
 
+    #[fail(display = "UTF8 failure in a from_utf8: {}", err)]
+    Utf8Error {
+        err: String,
+    },
 }
 
 impl From<sgx_status_t> for EnclaveError {
@@ -107,6 +117,38 @@ impl From<wasmi::Trap> for EnclaveError {
 
 impl From<str::Utf8Error> for EnclaveError {
     fn from(err: str::Utf8Error) -> Self {
-        EnclaveError::ExecutionErr { code: "Failed formatting utf-8 in Runtime".to_string(), err: format!("{:?}", err) }
+        EnclaveError::Utf8Error { err: format!("{:?}", err) }
+    }
+}
+
+impl From<hexutil::ParseHexError> for EnclaveError {
+    fn from(err: hexutil::ParseHexError) -> Self {
+        EnclaveError::InputError { message: format!("{:?}", err) }
+    }
+}
+
+
+use self::EnclaveError::*;
+impl Into<EnclaveReturn> for EnclaveError {
+    fn into(self) -> EnclaveReturn {
+        match self {
+            DerivingKeyError{..} | KeyError{..} | GenerationError{..} => EnclaveReturn::KeysError,
+            DecryptionError{..} | EncryptionError{..} => EnclaveReturn::EncryptionError,
+            InputError{..} | PreprocessorError{..} => EnclaveReturn::InputError,
+            SigningError{..} => EnclaveReturn::SigningError,
+            PermissionError{..} => EnclaveReturn::PermissionError,
+            SgxError{..} => EnclaveReturn::SgxError,
+            ExecutionError{..} => EnclaveReturn::WasmError,
+            StateError{..} => EnclaveReturn::StateError,
+            OcallError{..} => EnclaveReturn::OcallError,
+            Utf8Error{..} => EnclaveReturn::Utf8Error,
+            EvmError{..} => EnclaveReturn::EVMError,
+        }
+    }
+}
+
+impl ResultToEnclaveReturn for EnclaveError {
+    fn into_enclave_return(self) -> EnclaveReturn {
+        self.into()
     }
 }

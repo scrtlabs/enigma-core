@@ -2,6 +2,8 @@
 #![crate_type = "lib"]
 #![feature(core_intrinsics)]
 
+extern crate enigma_types;
+
 #[macro_use]
 extern crate sgx_tstd as std;
 #[macro_use]
@@ -17,6 +19,7 @@ extern crate ring;
 extern crate tiny_keccak;
 extern crate secp256k1;
 extern crate wasmi;
+extern crate hexutil;
 
 pub mod cryptography_t;
 pub mod common;
