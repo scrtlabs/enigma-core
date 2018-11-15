@@ -16,11 +16,15 @@ extern crate ring;
 extern crate tiny_keccak;
 extern crate secp256k1;
 extern crate wasmi;
+extern crate hexutil;
+extern crate bigint;
+extern crate rlp;
 
 pub mod cryptography_t;
 pub mod common;
 pub mod quote_t;
 pub mod storage_t;
+pub mod build_arguments_g;
 
 #[cfg(test)]
 mod tests {
