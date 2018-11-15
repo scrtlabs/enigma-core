@@ -33,7 +33,7 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
             };
         },
         Err(err) => {
-            if err.kind() == ErrorKind::PermissionDenied { return Err( EnclaveError::PermissionErr{ file: sealed_path.to_string() } ) }
+            if err.kind() == ErrorKind::PermissionDenied { return Err( EnclaveError::PermissionError { file: sealed_path.to_string() } ) }
         }
     }
 

@@ -20,7 +20,7 @@ impl KeyPair {
         rsgx_read_rand(&mut me)?;
         let keys = match SecretKey::parse(&me) {
             Ok(_priv) => KeyPair{privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv)},
-            Err(_) => return Err( EnclaveError::GenerationErr { generate: "Private Key".to_string(), err: "".to_string()} )
+            Err(_) => return Err( EnclaveError::GenerationError { generate: "Private Key".to_string(), err: "".to_string()} )
         };
         Ok(keys)
     }
@@ -28,7 +28,7 @@ impl KeyPair {
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, EnclaveError> {
         let _priv = match SecretKey::parse(&privkey) {
             Ok(key) => key,
-            Err(_) => return Err( EnclaveError::KeyErr{key_type: "Private Key".to_string(), key: "".to_string()} )
+            Err(_) => return Err( EnclaveError::KeyError{key_type: "Private Key".to_string(), key: "".to_string()} )
         };
         let _pub = PublicKey::from_secret_key(&_priv);
         let keys = KeyPair{privkey: _priv, pubkey: _pub};
@@ -41,11 +41,11 @@ impl KeyPair {
         pubarr[1..].copy_from_slice(&_pubarr[..]);
         let pubkey = match PublicKey::parse(&pubarr) {
             Ok(key) => key,
-            Err(_) => return Err(EnclaveError::KeyErr{key: _pubarr.to_hex(), key_type: "PublicKey".to_string()})
+            Err(_) => return Err(EnclaveError::KeyError{key: _pubarr.to_hex(), key_type: "PublicKey".to_string()})
         };
         match SharedSecret::new(&pubkey, &self.privkey) {
             Ok(val) => Ok(val.as_ref().to_vec()),
-            Err(_) => Err(EnclaveError::DerivingKeyErr{self_key: self.get_pubkey().to_hex(), other_key: pubkey.serialize()[1..65].to_hex()}),
+            Err(_) => Err(EnclaveError::DerivingKeyError{self_key: self.get_pubkey().to_hex(), other_key: pubkey.serialize()[1..65].to_hex()}),
         }
     }
     pub fn get_privkey(&self) -> [u8; 32] {
@@ -83,7 +83,7 @@ impl KeyPair {
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
         let (sig, recovery) = match secp256k1::sign(&message_to_sign, &self.privkey) {
             Ok( (sig, rec) ) => (sig, rec),
-            Err(_) => return Err( EnclaveError::SigningErr{msg: message.to_hex()} )
+            Err(_) => return Err( EnclaveError::SigningError {msg: message.to_hex()} )
         };
 //        let result = secp256k1::sign(&message_to_sign, &self.privkey);
 //        let (sig, recovery) = result.unwrap();

@@ -25,7 +25,7 @@ pub fn encrypt_with_nonce(message: &[u8], key: &[u8], _iv: Option<&[u8; 12]>) ->
 
     let aes_encrypt = match aead::SealingKey::new(&AES_MODE, key) {
         Ok(key) => key,
-        Err(_) => return Err(EnclaveError::KeyErr{key: "".to_string(), key_type: "Encryption".to_string()})
+        Err(_) => return Err(EnclaveError::KeyError{key: "".to_string(), key_type: "Encryption".to_string()})
     };
     let mut in_out = message.to_owned();
     let tag_size = AES_MODE.tag_len();
@@ -45,7 +45,7 @@ pub fn encrypt_with_nonce(message: &[u8], key: &[u8], _iv: Option<&[u8; 12]>) ->
 pub fn decrypt(cipheriv: &[u8], key: &[u8]) -> Result<Vec<u8>, EnclaveError> {
     let aes_decrypt = match aead::OpeningKey::new(&AES_MODE, key) {
         Ok(key) => key,
-        Err(_) => return Err(EnclaveError::KeyErr{key: "".to_string(), key_type: "Encryption".to_string()})
+        Err(_) => return Err(EnclaveError::KeyError{key: "".to_string(), key_type: "Encryption".to_string()})
     };
     let additional_data: [u8; 0] = [];
     let mut ciphertext = cipheriv.to_owned();
