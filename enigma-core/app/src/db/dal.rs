@@ -13,6 +13,8 @@ const SYNC: bool = true;
 pub struct DB {
     pub location: PathBuf,
     pub database: rocks_db,
+    // the DB needs to store the options for creating new
+    // cf's that would be able to imitate the DB behaviour
     pub options: Options,
 }
 
@@ -105,13 +107,13 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
             };
             // verifies that the key inside the CF doesn't already exist
             match self.database.get_cf(cf_key.clone(), &index_key)? {
-                Some(_) => Err(DBErr { command: format!("create"), kind: DBErrKind::KeyExists, previous: None }.into()),
+                Some(_) => return Err(DBErr { command: format!("create"), kind: DBErrKind::KeyExists, previous: None }.into()),
                 None => {
                     let mut write_options = WriteOptions::default();
                     write_options.set_sync(SYNC);
                     match self.database.put_cf_opt(cf_key, &index_key, &value, &write_options) {
                         Ok(_) => Ok(()),
-                        Err(e) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::CreateError, previous: Some(e.into()) }.into())
+                        Err(e) => return Err(DBErr { command: "create".to_string(), kind: DBErrKind::CreateError, previous: Some(e.into()) }.into())
                     }
                 }
             }
@@ -121,11 +123,11 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn read(&mut self, key: &'a K) -> Result<Vec<u8>, Error> {
         key.as_split( | hash, index_key| {
             match self.database.cf_handle(&hash) {
-                None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                None => return Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                 Some(cf_key) => {
                     match self.database.get_cf(cf_key.clone(), &index_key)? {
                         Some(data) => Ok(data.to_vec()),
-                        None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                        None => return Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                     }
                 },
             }
@@ -135,17 +137,17 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split( | hash, index_key| {
             match self.database.cf_handle(&hash) {
-                None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                None => return Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                 Some(cf_key) => {
                     match self.database.get_cf(cf_key.clone(), &index_key)? {
-                        None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                        None => return Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                         Some(_) => {
                             let mut write_options = WriteOptions::default();
                             write_options.set_sync(SYNC);
 
                             match self.database.put_cf_opt(cf_key, &index_key, value, &write_options) {
                                 Ok(_) => Ok(()),
-                                Err(e) => Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some(e.into()) }.into())
+                                Err(e) => return Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some(e.into()) }.into())
                             }
                         },
                     }
@@ -157,10 +159,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         key.as_split( | hash, index_key| {
             match self.database.cf_handle(&hash) {
-                None => Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                None => return Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                 Some(cf_key) => {
                     match self.database.get_cf(cf_key.clone(), &index_key)? {
-                        None => Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                        None => return Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                         Some(_) => {
                             self.database.delete_cf(cf_key, &index_key)?;
                             Ok(())
@@ -174,14 +176,15 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split( | hash, index_key| {
             let cf_key = match self.database.cf_handle(&hash) {
+                // if the address does not exist, in force update, we would like to write it anyways.
                 None => self.database.create_cf(&hash, &self.options).unwrap(),
                 Some(cf_key) => cf_key,
             };
             let mut write_options = WriteOptions::default();
             write_options.set_sync(SYNC);
             match self.database.put_cf_opt(cf_key, &index_key, value, &write_options) {
-                Ok(_) => { println!("WWEE"); Ok(()) },
-                Err(e) => Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some(e.into()) }.into())
+                Ok(_) => { Ok(()) },
+                Err(e) => return Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some(e.into()) }.into())
             }
         })
     }

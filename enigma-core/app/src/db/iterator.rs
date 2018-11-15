@@ -1,6 +1,3 @@
-//pub mod primitives;
-//pub mod dal;
-
 use rocksdb::{ReadOptions, DBIterator, IteratorMode, Direction};
 use rocksdb::DB as rocks_db;
 use hex::{ToHex, FromHex};
@@ -22,15 +19,15 @@ pub trait P2PCalls<D>{
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> Result<Vec<(K, D)>, Error>;
 
     /// get a list of all valid addresses in the DB.
-    fn get_all_addresses(&self) -> Result<Vec<[u8; 32]>, Error>;
+    fn get_all_addresses(&self) -> Result<Vec<ContractAddress>, Error>;
 
     /// get the delta of the required address and key.
     fn get_delta<K: SplitKey>(&mut self, key: K) -> Result<Vec<u8>,Error>;
 
-    /// get the contract of the required contract.
+    /// get the contract of the required address.
     fn get_contract(&mut self, address: ContractAddress) -> Result<Vec<u8>,Error>;
 
-    /// returns a list of the latest deltas for all addresses.
+    /// returns a list of the latest deltas for all addresses that exist in the DB.
     fn get_all_tips<K: SplitKey>(&self) -> Result<Vec<(K, D)>, Error>;
 
     /// returns a list of all keys specified with their corresponding deltas.
@@ -50,8 +47,8 @@ impl P2PCalls<Vec<u8>> for DB {
                 match iter.last() {
                     None => return Err(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                     Some(last) => {
-                        let dk = K::from_split(&str_addr, &*last.0)?;
-                        Ok((dk, (&*last.1).to_vec()))
+                        let k_key = K::from_split(&str_addr, &*last.0)?;
+                        Ok((k_key, (&*last.1).to_vec()))
                     }
                 }
             }
@@ -120,7 +117,7 @@ impl P2PCalls<Vec<u8>> for DB {
             address_rng.0.as_split(|from_hash, from_key| -> Result<(), Error> {
                 // make sure the address exists as a CF in the DB
                 match self.database.cf_handle(&from_hash) {
-                    None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                    None => return Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                     Some(cf_key) => {
                         // if exists, extract the second key for the range.
                         address_rng.1.as_split(|hash_to, to_key| {
