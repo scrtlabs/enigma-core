@@ -9,43 +9,99 @@ use common_u::errors::{DBErr, DBErrKind};
 
 const DELTA_PREFIX: &[u8] = &[1];
 type ContractAddress = [u8; 32];
+type ResultVec<T> = Vec<Result<T, Error>>;
 
 
 pub trait P2PCalls<D>{
-    /// return the latest delta for the required address.
-    fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, D),Error>;
+    /// returns the latest delta for the required address.
+    /// # Examples
+    /// ```
+    /// let contract_address: [u8; 32] = [2u8; 32];
+    /// let latest_delta_key, latest_delta_value = db.get_tip(&contract_address).unwrap();
+    ///
+    ///
+    /// let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(42) };
+    /// let latest_delta_key, latest_delta_value = db.get_tip(&dk.hash).unwrap();
+    /// ```
+    fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, D), Error>;
 
     /// return the latest delta for each of the required addresses.
+    /// # Examples
+    /// ```
+    /// let addresses: [[u8; 32]] = [[1u8; 32], [2u8; 32], [4u8; 32], [8u8; 32]];
+    /// let deltas_vec = db.get_tips(&addresses).unwrap();
+    /// ```
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> Result<Vec<(K, D)>, Error>;
 
     /// get a list of all valid addresses in the DB.
+    /// # Examples
+    /// ```
+    /// let addresses_vec: Vec<[u8; 32]> = db.get_all_addresses().unwrap();
+    /// ```
     fn get_all_addresses(&self) -> Result<Vec<ContractAddress>, Error>;
 
     /// get the delta of the required address and key.
+    /// # Examples
+    /// ```
+    /// let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(42) };
+    /// let delta_val = db.get_delta(&dk).unwrap();
+    /// ```
     fn get_delta<K: SplitKey>(&mut self, key: K) -> Result<Vec<u8>,Error>;
 
     /// get the contract of the required address.
+    /// # Examples
+    /// ```
+    /// let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::ByteCode };
+    /// let contract = "code".to_bytes();
+    /// db.create(&dk, &contract);
+    ///
+    ///
+    /// let contract_from_db = db.get_contract(&dk.hash).unwrap();
+    /// ```
     fn get_contract(&mut self, address: ContractAddress) -> Result<Vec<u8>,Error>;
 
     /// returns a list of the latest deltas for all addresses that exist in the DB.
+    /// # Examples
+    /// ```
+    /// let deltas_vec = db.get_all_tips().unwrap();
+    /// ```
     fn get_all_tips<K: SplitKey>(&self) -> Result<Vec<(K, D)>, Error>;
 
-    /// returns a list of all keys specified with their corresponding deltas.
-    fn get_deltas<K: SplitKey>(&self, addresses_range: Vec<(K, K)>) -> Result<Vec<Result<(K, D), Error>>, Error>;
+    /// returns a list of all keys in the ranges specified with their corresponding deltas.
+    /// the result will contain all of the deltas in each tuple range from the
+    /// first key until (not included) the last key.
+    /// # Examples
+    /// ```
+    /// let from_a = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(12) };
+    /// let to_a = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(47) };
+    ///
+    /// let from_b = DeltaKey{ hash: [6u8; 32], key_type: Stype::Delta(56) };
+    /// let to_b = DeltaKey{ hash: [6u8; 32], key_type: Stype::Delta(94) };
+    ///
+    /// let delta_keys: Vec<(DeltaKey,DeltaKey)> = vec![(from_a,to_a), (from_b, to_b)];
+    ///
+    /// let deltas_vec: Vec<Result<(DeltaKey, Vec<u8>), Error> = db.get_deltas(&delta_keys).unwrap();
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// In each tuple the DeltaKey's must contain similar hashes
+    /// (as seen in the example above), otherwise an error will be returned
+    fn get_deltas<K: SplitKey>(&self, addresses_range: &[(K, K)]) -> Result<ResultVec<(K,D)>, Error>;
 }
 
 impl P2PCalls<Vec<u8>> for DB {
 
-    fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, Vec<u8>),Error> {
+    fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, Vec<u8>), Error> {
         // check and extract the CF from the DB
         // to_hex converts the [u8] to str
         let str_addr = address.to_hex();
         match self.database.cf_handle(&str_addr) {
-            None => return Err(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+            None => Err(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
             Some(cf_key) => {
                 let iter = self.database.prefix_iterator_cf(cf_key, DELTA_PREFIX)?;
                 match iter.last() {
-                    None => return Err(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                    None => Err(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                     Some(last) => {
                         let k_key = K::from_split(&str_addr, &*last.0)?;
                         Ok((k_key, (&*last.1).to_vec()))
@@ -105,9 +161,9 @@ impl P2PCalls<Vec<u8>> for DB {
         self.get_tips(&_address_list[..])
     }
 
-    // input: addresses_range : Vec<Tuple(K, K)> where K is usually a DeltaKey.
+    // input: addresses_range : [Tuple(K, K)] where K is usually a DeltaKey.
     // output: all keys & values from the first key (included!) up to the second key (not included!!)
-    fn get_deltas<K: SplitKey>(&self, addresses_range: Vec<(K, K)>) -> Result<Vec<Result<(K, Vec<u8>), Error>>, Error> {
+    fn get_deltas<K: SplitKey>(&self, addresses_range: &[(K, K)]) -> Result<ResultVec<(K, Vec<u8>)>, Error> {
         // a vector for the output values which will consist of tuples: (key: K, value/delta: D)
         let mut deltas_list: Vec<Result<(K, Vec<u8>), Error>> = Vec::new();
         // for each tuple in the input
@@ -117,7 +173,7 @@ impl P2PCalls<Vec<u8>> for DB {
             address_rng.0.as_split(|from_hash, from_key| -> Result<(), Error> {
                 // make sure the address exists as a CF in the DB
                 match self.database.cf_handle(&from_hash) {
-                    None => return Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                    None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                     Some(cf_key) => {
                         // if exists, extract the second key for the range.
                         address_rng.1.as_split(|hash_to, to_key| {
@@ -129,7 +185,7 @@ impl P2PCalls<Vec<u8>> for DB {
                             // (all elements up to this key, not included!!)
                             read.set_iterate_upper_bound(&to_key);
                             // build an iterator which will iterate from the first key
-                            let db_iter = DBIterator::new_cf(&self.database, cf_key.clone(), &read, IteratorMode::From(&from_key, Direction::Forward))?;
+                            let db_iter = DBIterator::new_cf(&self.database, cf_key, &read, IteratorMode::From(&from_key, Direction::Forward))?;
                             let k_iter = db_iter.map(|(key, val)| {
                                 // creating from the string of the address and the
                                 // key of each result in the iterator a K type.
@@ -472,7 +528,7 @@ mod test {
 
 
         let delta_keys = vec![(dk_a,dk_f)];
-        let deltas_vec = db.get_deltas(delta_keys).unwrap();
+        let deltas_vec = db.get_deltas(&delta_keys).unwrap();
 
         let accepted_deltas = deltas_vec.iter().filter_map(|tuple| {
             let item =  match tuple {
@@ -511,6 +567,6 @@ mod test {
         db.create(&dk_b, &v_b[..]).unwrap();
 
         let delta_keys = vec![(dk_a,dk_b)];
-        let _deltas_vec = db.get_deltas(delta_keys).unwrap();
+        let _deltas_vec = db.get_deltas(&delta_keys).unwrap();
     }
 }
