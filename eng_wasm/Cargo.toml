@@ -6,3 +6,4 @@ authors = ["moria <moria@enigma.co>"]
 [dependencies]
 serde_json = "=1.0.26"
 serde = "=1.0.70"
+pwasm-abi = { git = "https://github.com/enigmampc/pwasm-abi.git" }
