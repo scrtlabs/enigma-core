@@ -49,6 +49,7 @@ use sgx_types::*;
 use std::ptr;
 use std::str::from_utf8;
 use std::slice;
+use std::string::ToString;
 use hexutil::read_hex;
 use evm_t::evm::call_sputnikvm;
 use enigma_tools_t::cryptography_t;
@@ -62,6 +63,7 @@ use common::errors_t::EnclaveError;
 use common::utils_t::Sha256;
 use wasm_g::execution;
 use enigma_runtime_t::data::StatePatch;
+use enigma_tools_t::build_arguments_g::*;
 
 
 lazy_static! { pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -117,7 +119,7 @@ pub extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize,
         },
     };
     let mut res = call_sputnikvm(&bytecode, data);
-    let mut callback_data = vec![];
+    let mut callback_data;
     if callback_slice.len() > 0 {
         callback_data = match create_callback(&mut res.1, callback_slice){
             Ok(v) => v,
@@ -181,7 +183,12 @@ fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8
 
 unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8], delta_data_out: *mut u64,
                        delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32, execute_result_out: *mut u64) -> Result<(), EnclaveError> {
-    *execute_result_out = ocalls_t::save_to_untrusted_memory(&execute_result)?;
+    // TODO: this is temporary solution to bad error handling
+    // TODO: this solution should be removed in merge with the correct solution 
+    *execute_result_out = match ocalls_t::save_to_untrusted_memory(&execute_result) {
+        Ok(i) => i,
+        Err(_) => 0
+    };
 
     match delta_option {
         Some(delta) => {
@@ -212,16 +219,43 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: 
 /// Ecall for invocation of the external function `callable` of deployed contract `bytecode`.
 // TODO: add arguments of callable.
 pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
-                                       callable: *const u8, callable_len: usize, output_ptr: *mut u64,
-                                       delta_data_ptr: *mut u64, delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t {
-
+                                       callable: *const u8, callable_len: usize,
+                                       callable_args: *const u8, callable_args_len: usize,
+                                       output_ptr: *mut u64, delta_data_ptr: *mut u64, delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t {
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let bytecode = bytecode_slice.to_vec();
     let callable_slice = slice::from_raw_parts(callable, callable_len);
     let callable = from_utf8(callable_slice).unwrap();
-
+    let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
+    let callable_args = read_hex(from_utf8(callable_args_slice).unwrap()).unwrap();
     let state = execution::get_state();
-    match execution::execute(&bytecode, state, callable) {
+    let (types, function_name) = match get_types(callable){
+        Ok(v) => v,
+        Err(e) => {
+            println!("ERROR {}", e);
+            return sgx_status_t::SGX_ERROR_UNEXPECTED
+        }
+    };
+
+    let types_vector = extract_types(&types.to_string());
+
+    let args_vector = match get_args(&callable_args, &types_vector) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("ERROR {}", e);
+            return sgx_status_t::SGX_ERROR_UNEXPECTED
+        },
+    };
+
+    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], false){
+        Ok(v) => v,
+        Err(e) => {
+            println!("ERROR {}", e);
+            return sgx_status_t::SGX_ERROR_UNEXPECTED
+        },
+    };
+
+    match execution::execute(&bytecode, state, function_name, types, params) {
         Ok(res) => {
             prepare_wasm_result(res.state_delta, &res.result[..], delta_data_ptr,
                                 delta_hash_out, delta_index_out, output_ptr).unwrap();

@@ -15,6 +15,7 @@ extern {
     fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
                      bytecode: *const u8, bytecode_len: usize,
                      callable: *const u8, callable_len: usize,
+                     callable_args: *const u8, callable_args_len: usize,
                      output: *mut u64, delta_data_ptr: *mut u64,
                      delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t;
 }
@@ -92,7 +93,7 @@ pub struct WasmResult {
     pub delta: ::db::Delta,
 }
 
-pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str)-> Result<WasmResult, Error> {
+pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str, args: &str)-> Result<WasmResult,Error>{
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
@@ -106,16 +107,25 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str)-> Result
                       bytecode.len(),
                       callable.as_ptr() as *const u8,
                       callable.len(),
+                      args.as_ptr() as *const u8,
+                      args.len(),
                       &mut output as *mut u64,
                       &mut delta_data_ptr as *mut u64,
                       &mut delta_hash,
                       &mut delta_index as *mut u32)
     };
-
     let mut result: WasmResult = Default::default();
     let box_ptr = output as *mut Box<[u8]>;
-    let output = unsafe { Box::from_raw(box_ptr) };
-    result.output = output.to_vec();
+
+    // TODO: this is temporary solution to bad error handling
+    // TODO: this solution should be removed in merge with the correct solution
+    if box_ptr as usize == 0{
+        result.output = Vec::new();
+    }
+    else {
+        let output = unsafe { Box::from_raw(box_ptr) };
+        result.output = output.to_vec();
+    }
 
     if delta_data_ptr != 0 && delta_hash != [0u8; 32] && delta_index != 0 { // TODO: Replace 0 with maybe max int(accordingly).
         let box_ptr = delta_data_ptr as *mut Box<[u8]>;
@@ -172,7 +182,8 @@ pub mod tests {
 
         let enclave = init_enclave();
         let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
-        let result = wasm::execute(enclave.geteid(),&contract_code, "call").expect("Execution failed");
+//        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(),contract_code, "write()", "").expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
     }
@@ -186,7 +197,7 @@ pub mod tests {
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
         let enclave = init_enclave();
         let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
-        let result = wasm::execute(enclave.geteid(),&contract_code, "call").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(),contract_code, "call", "").expect("Execution failed");
         assert_eq!(from_utf8(&result.output).unwrap(),"157");
     }
 }
