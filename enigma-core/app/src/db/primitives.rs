@@ -97,6 +97,7 @@ impl SplitKey for Array32u8 {
 #[cfg(test)]
 mod tests {
     use db::primitives::*;
+    use hex::ToHex;
 
     #[test]
     fn test_deltakey_from_split() {

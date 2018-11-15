@@ -29,13 +29,23 @@ impl DB {
     /// let db = DB::new(PathBuf::from("/test/test.db", false);
     /// ```
     pub fn new(location: PathBuf, create_if_missing: bool) -> Result<DB, Error> {
-        // number of bytes to take into considertion when looking for a similar prefix
+        // number of bytes to take into consideration when looking for a similar prefix
         // would be helpful when querying the DB using iterators.
         let prefix_extractor = SliceTransform::create_fixed_prefix(1);
         let mut options = Options::default();
         options.create_if_missing(create_if_missing);
         options.set_prefix_extractor(prefix_extractor);
-        let database = rocks_db::open(&options, location.as_path()).unwrap();
+        // cf_list gets a list of all column families (addresses) from the location where the DB
+        // is stored and when opening it, it adds the list as an argument to the DB. this is done
+        // in case the DB existed, otherwise, an empty list will be added and the call will
+        // be similar to a fresh start
+        let cf_list =  match rocks_db::list_cf(&options,&location.as_path()) {
+            Ok(list) => list,
+            Err(_) => Vec::new(),
+        };
+        // converts the Strings to slices (str)
+        let cf_list_burrowed = cf_list.iter().map(|i| i.as_str()).collect::<Vec<&str>>();
+        let database = rocks_db::open_cf(&options, location.as_path(), &cf_list_burrowed[..])?;
         let db_par = DB{location, database, options};
         Ok( db_par )
     }
@@ -121,7 +131,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
             }
         })
     }
-//    todo: write tests that check the delta implementation and the Stype enum
+
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split( | hash, index_key| {
             match self.database.cf_handle(&hash) {
@@ -147,7 +157,6 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         key.as_split( | hash, index_key| {
             match self.database.cf_handle(&hash) {
-                // TODO: Write test that cf exist. but key doesn't, so this will fail.
                 None => Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
                 Some(cf_key) => {
                     match self.database.get_cf(cf_key.clone(), &index_key)? {
@@ -165,14 +174,13 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split( | hash, index_key| {
             let cf_key = match self.database.cf_handle(&hash) {
-                // TODO: Write test that cf exist. but key doesn't, and it will still succeed.
                 None => self.database.create_cf(&hash, &self.options).unwrap(),
                 Some(cf_key) => cf_key,
             };
             let mut write_options = WriteOptions::default();
             write_options.set_sync(SYNC);
             match self.database.put_cf_opt(cf_key, &index_key, value, &write_options) {
-                Ok(_) => Ok(()),
+                Ok(_) => { println!("WWEE"); Ok(()) },
                 Err(e) => Err(DBErr { command: "update".to_string(), kind: DBErrKind::UpdateError, previous: Some(e.into()) }.into())
             }
         })
@@ -184,7 +192,7 @@ mod test {
     extern crate tempdir;
     use hex::ToHex;
     use db::dal::DB;
-    use db::primitives::Array32u8;
+    use db::primitives::{Array32u8, DeltaKey, Stype};
     use db::dal::CRUDInterface;
 
     #[test]
@@ -209,11 +217,27 @@ mod test {
         let mut db = DB::new(tempdir.clone(), true).unwrap();
         let arr = [4u8; 32];
         let v = b"Enigma";
-        db.create(&Array32u8( arr ), &v[..]).unwrap();
-        assert_eq!(db.read(&Array32u8( arr )).unwrap(), v);
+        db.create(&Array32u8(arr), &v[..]).unwrap();
+        assert_eq!(db.read(&Array32u8(arr)).unwrap(), v);
         let v = b"MPC";
-        db.update(&Array32u8( arr ), &v[..]).unwrap();
-        assert_eq!(db.read(&Array32u8( arr )).unwrap(), v);
+        db.update(&Array32u8(arr), &v[..]).unwrap();
+        assert_eq!(db.read(&Array32u8(arr)).unwrap(), v);
+    }
+
+    #[test]
+    fn test_create_update_read_delta() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::new(tempdir.clone(), true).unwrap();
+
+        let hash = [4u8; 32];
+        let key_type = Stype::Delta(3);
+        let dk = DeltaKey{hash, key_type};
+        let v = b"Enigma";
+
+        db.create(&dk, &v[..]).unwrap();
+        let v_updated = b"MPC";
+        db.update(&dk, &v_updated[..]).unwrap();
+        assert_eq!(db.read(&dk).unwrap(), v_updated);
     }
 
     #[test]
@@ -236,6 +260,17 @@ mod test {
         let v = b"Enigma";
         db.create(&Array32u8( arr ), &v[..]).unwrap();
         db.delete(&Array32u8( arr )).unwrap();
+    }
+
+    #[test]
+    fn test_force_update_no_cf_success() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let arr = [4u8; 32];
+        let val = b"Enigma";
+        db.force_update(&Array32u8( arr ), val).unwrap();
+        let accepted_val = db.read(&Array32u8( arr )).unwrap();
+        assert_eq!(accepted_val, val);
     }
 
     #[test]
