@@ -20,11 +20,15 @@ extern crate ring;
 extern crate secp256k1;
 extern crate tiny_keccak;
 extern crate wasmi;
+extern crate hexutil;
+extern crate bigint;
+extern crate rlp;
 
 pub mod common;
 pub mod cryptography_t;
 pub mod quote_t;
 pub mod storage_t;
+pub mod build_arguments_g;
 
 #[cfg(debug_assertions)]
 #[no_mangle]
