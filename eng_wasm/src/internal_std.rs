@@ -5,6 +5,7 @@ pub use self::std::fmt;
 pub use self::std::iter;
 pub use self::std::string::{ToString, String};
 pub use self::std::vec::Vec;
+pub use self::std::str::from_utf8;
 
 //pub fn zeroed_vec(s: usize) -> Vec<u8>  {
 //    vec![0u8; s]
