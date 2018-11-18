@@ -17,12 +17,10 @@ failure_derive="0.1.1"
 rustc-hex = "1.0.0" # 2.0.1?
 reqwest = "0.9.4"
 dirs = "1.0"
-leveldb = "0.8"
+rocksdb = { git = "https://github.com/elichai/rust-rocksdb.git" } # This is temporary, until PR is merged
 db-key = "0.0.5"
 lazy_static = "1.1.0"
 byteorder = "1.2"
-
-
 
 parity-wasm = "0.31" # 0.35?
 pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git" } # TODO: add a version specific branch.
