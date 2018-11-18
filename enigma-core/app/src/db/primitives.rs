@@ -78,6 +78,7 @@ impl SplitKey for DeltaKey {
             _ => bail!("Failed parsing the Key, key does not contain a correct index")
         };
         let mut hash = [0u8; 32];
+        // if the address is not a correct hex then it not a correct address.
         hash.copy_from_slice(&_hash.from_hex()?[..]);
         Ok( DeltaKey{hash, key_type} )
     }

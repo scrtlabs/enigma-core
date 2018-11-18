@@ -46,7 +46,7 @@ pub trait P2PCalls<D>{
     /// let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(42) };
     /// let delta_val = db.get_delta(&dk).unwrap();
     /// ```
-    fn get_delta<K: SplitKey>(&mut self, key: K) -> Result<Vec<u8>,Error>;
+    fn get_delta<K: SplitKey>(&self, key: K) -> Result<Vec<u8>,Error>;
 
     /// get the contract of the required address.
     /// # Examples
@@ -58,7 +58,7 @@ pub trait P2PCalls<D>{
     ///
     /// let contract_from_db = db.get_contract(&dk.hash).unwrap();
     /// ```
-    fn get_contract(&mut self, address: ContractAddress) -> Result<Vec<u8>,Error>;
+    fn get_contract(&self, address: ContractAddress) -> Result<Vec<u8>,Error>;
 
     /// returns a list of the latest deltas for all addresses that exist in the DB.
     /// # Examples
@@ -137,6 +137,7 @@ impl P2PCalls<Vec<u8>> for DB {
             let mut address = [0u8; 32];
             let slice_address = match address_str.from_hex() {
                 Ok(slice) => slice,
+                // if the address is not a correct hex then it not a correct address.
                 Err(_) => return None
             };
             address.copy_from_slice(&slice_address[..]);
@@ -145,19 +146,16 @@ impl P2PCalls<Vec<u8>> for DB {
         Ok(addr_list)
     }
 
-    fn get_delta<K: SplitKey>(&mut self, key: K) -> Result<Vec<u8>, Error> {Ok(self.read(&key)?)}
+    fn get_delta<K: SplitKey>(&self, key: K) -> Result<Vec<u8>, Error> {Ok(self.read(&key)?)}
 
-    fn get_contract(&mut self, address: ContractAddress) -> Result<Vec<u8>, Error> {
+    fn get_contract(&self, address: ContractAddress) -> Result<Vec<u8>, Error> {
         let key = DeltaKey{hash: address, key_type: Stype::ByteCode};
         Ok(self.read(&key)?)
     }
 
     fn get_all_tips<K: SplitKey>(&self) -> Result<Vec<(K, Vec<u8>)>, Error> {
 
-        let _address_list: Vec<ContractAddress> = match self.get_all_addresses() {
-            Ok(v) => v,
-            Err(e) => return Err(e),
-        };
+        let _address_list: Vec<ContractAddress> = self.get_all_addresses()?;
         self.get_tips(&_address_list[..])
     }
 
