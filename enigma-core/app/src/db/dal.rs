@@ -96,48 +96,47 @@ pub trait CRUDInterface<E, K, T, V> {
 impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn create(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
-                         // creates the ColumnFamily and verifies that it doesn't already exist
-                         let cf_key = self.database
+            // creates the ColumnFamily and verifies that it doesn't already exist
+            let cf_key = self.database
                                           .create_cf(&hash, &self.options)
-                                          .unwrap_or(self.database.cf_handle(&hash).unwrap());
+                                          .unwrap_or_else(|_| self.database.cf_handle(&hash).unwrap());
 
-                         // verifies that the key inside the CF doesn't already exist
-                         match self.database.get_cf(cf_key, &index_key)? {
-                             Some(_) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists, previous: None, }.into()),
-                             None => {
-                                 let mut write_options = WriteOptions::default();
-                                 write_options.set_sync(SYNC);
-                                 self.database.put_cf_opt(cf_key, &index_key, &value, &write_options)?;
-                                 Ok(())
-                             }
-                         }
-                     })
+            // verifies that the key inside the CF doesn't already exist
+            match self.database.get_cf(cf_key, &index_key)? {
+                Some(_) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists, previous: None }.into()),
+                None => {
+                    let mut write_options = WriteOptions::default();
+                    write_options.set_sync(SYNC);
+                    self.database.put_cf_opt(cf_key, &index_key, &value, &write_options)?;
+                    Ok(())
+                }
+            }
+        })
     }
 
     fn read(&self, key: &'a K) -> Result<Vec<u8>, Error> {
         key.as_split(|hash, index_key| match self.database.cf_handle(&hash) {
-
-               None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-               Some(cf_key) => self.database.get_cf(cf_key, &index_key)?.map_or_else(
-            || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-            |data| Ok(data.to_vec()),
-               ),
-           })
+            None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+            Some(cf_key) => self.database.get_cf(cf_key, &index_key)?.map_or_else(
+                || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                |data| Ok(data.to_vec()),
+            ),
+        })
     }
 
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| match self.database.cf_handle(&hash) {
-                         None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None, }.into()),
-                         Some(cf_key) => match self.database.get_cf(cf_key, &index_key)? {
-                             None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None, }.into()),
-                             Some(_) => {
-                                 let mut write_options = WriteOptions::default();
-                                 write_options.set_sync(SYNC);
-                                 self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
-                                 Ok(())
-                             }
-                         },
-                     })
+            None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+            Some(cf_key) => match self.database.get_cf(cf_key, &index_key)? {
+                None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                Some(_) => {
+                    let mut write_options = WriteOptions::default();
+                    write_options.set_sync(SYNC);
+                    self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
+                    Ok(())
+                }
+            },
+        })
     }
 
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
@@ -160,19 +159,14 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
-                         // if the address does not exist, in force update, we would like to write it anyways.
-                         let cf_key = self
-                             .database
-                             .cf_handle(&hash)
-                             .map_or_else(|| {
-                                 self.database.create_cf(&hash, &self.options).unwrap()
-                             },
-                                          |cf_key| cf_key);
-                         let mut write_options = WriteOptions::default();
-                         write_options.set_sync(SYNC);
-                         self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
-                         Ok(())
-                     })
+            // if the address does not exist, in force update, we would like to write it anyways.
+            let cf_key = self.database.cf_handle(&hash)
+                .unwrap_or_else(|| self.database.create_cf(&hash, &self.options).unwrap());
+            let mut write_options = WriteOptions::default();
+            write_options.set_sync(SYNC);
+            self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
+            Ok(())
+        })
     }
 }
 
