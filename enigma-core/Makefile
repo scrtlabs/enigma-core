@@ -113,7 +113,6 @@ app/Enclave_u.o: $(Enclave_EDL_Files)
 
 $(App_Enclave_u_Object): app/Enclave_u.o
 	$(AR) rcsD $@ $^
-	mkdir -p ./lib
 	cp $(App_Enclave_u_Object) ./lib
 
 .PHONY: start
@@ -145,6 +144,7 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 
 .PHONY: enclave
 enclave:
+	mkdir -p ./lib
 	$(MAKE) -C ./enclave/ CARGO_FLAGS=$(App_Rust_Flags) Rust_target_dir=$(Rust_target_dir)
 
 .PHONY: compiler-rt
