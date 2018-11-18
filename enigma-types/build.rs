@@ -4,7 +4,7 @@ extern crate cbindgen;
 
 use std::env;
 use std::path::PathBuf;
-use cbindgen::{Config, Language};
+use cbindgen::{Config, Language, ExportConfig};
 
 
 fn main() {
@@ -19,6 +19,10 @@ fn main() {
     let config = Config {
         language: Language::C,
         no_includes: true,
+        export: ExportConfig {
+            include: vec!["EnclaveReturn".to_string()],
+        .. Default::default()
+        },
         ..Default::default()
     };
 
