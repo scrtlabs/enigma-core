@@ -20,7 +20,7 @@ pub struct DB {
 
 #[allow(dead_code)] // TODO: Remove in the future
 impl DB {
-    /// Constructs a new `DB<'a>`. with a db file accordingly.
+    /// Constructs a new `DB`. with a db file accordingly.
     ///
     /// You need to pass a path for the location of the db file
     /// and as a default, it adds options with a flag which creates the file if missing
