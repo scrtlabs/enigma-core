@@ -169,7 +169,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         key.as_split(|hash, index_key| {
             // if the address does not exist, in force update, we would like to write it anyways.
             let cf_key = self.database.cf_handle(&hash).
-                map_or_else(|| self.database.create_cf(&hash, &self.options).unwrap(), |cf_key| cf_key);
+                unwrap_or( self.database.create_cf(&hash, &self.options).unwrap() );
             let mut write_options = WriteOptions::default();
             write_options.set_sync(SYNC);
             self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
