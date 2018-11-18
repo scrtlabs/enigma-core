@@ -3,21 +3,21 @@ extern crate sgx_types;
 extern crate sgx_urts;
 
 extern crate base64;
-extern crate reqwest;
 extern crate dirs;
+extern crate reqwest;
 //DB
-extern crate rocksdb;
 extern crate db_key;
+extern crate rocksdb;
 #[macro_use]
 extern crate lazy_static;
 // networking apt install libzmq3-dev
-extern crate zmq; 
 extern crate serde_json;
+extern crate zmq;
 // errors
 #[macro_use]
 extern crate failure;
 extern crate rustc_hex as hex;
-//enigma utils 
+//enigma utils
 extern crate enigma_tools_u;
 extern crate enigma_types;
 #[macro_use]
@@ -28,16 +28,16 @@ extern crate byteorder;
 
 //use sgx_types::*;
 use std::thread;
-// enigma modules 
+// enigma modules
+mod common_u;
+mod db;
 mod esgx;
 mod evm_u;
 mod networking;
-mod common_u;
 mod wasm_u;
-mod db;
 
-pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_update_state, ocall_save_to_memory};
-use networking::{surface_server, constants};
+pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_save_to_memory, ocall_update_state};
+use networking::{constants, surface_server};
 
 #[allow(unused_variables, unused_mut)]
 fn main() {
@@ -47,19 +47,19 @@ fn main() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
             r
-        },
+        }
         Err(x) => {
             println!("[-] Init Enclave Failed {}!", x.as_str());
             return;
-        },
+        }
     };
     let eid = enclave.geteid();
     let child = thread::spawn(move || {
-        let mut server = surface_server::Server::new(constants::CONNECTION_STR, eid);
-        server.run();
-    });
+                                  let mut server = surface_server::Server::new(constants::CONNECTION_STR, eid);
+                                  server.run();
+                              });
     child.join().unwrap();
-   
+
     enclave.destroy();
 }
 
@@ -67,7 +67,9 @@ fn main() {
 mod tests {
     use esgx::general::init_enclave_wrapper;
     use sgx_types::*;
-    extern { fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t; }
+    extern "C" {
+        fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;
+    }
 
     #[test]
     pub fn test_enclave_internal() {
@@ -76,16 +78,16 @@ mod tests {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r
-            },
+            }
             Err(x) => {
                 println!("[-] Init Enclave Failed {}!", x.as_str());
-                assert_eq!(0,1);
+                assert_eq!(0, 1);
                 return;
-            },
+            }
         };
         let ret = unsafe { ecall_run_tests(enclave.geteid()) };
-        
-        assert_eq!(ret,sgx_status_t::SGX_SUCCESS);
+
+        assert_eq!(ret, sgx_status_t::SGX_SUCCESS);
         enclave.destroy();
     }
 }

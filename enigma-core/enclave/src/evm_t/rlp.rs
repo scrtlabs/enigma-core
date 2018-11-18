@@ -1,16 +1,16 @@
-use rlp::UntrustedRlp;
-use hexutil::read_hex;
-use std::str::from_utf8;
-use std::string::ToString;
-use std::mem;
-use rlp::DecoderError;
-use std::vec::Vec;
-use std::string::String;
-use cryptography_t::symmetric::decrypt;
-use common::utils_t::ToHex;
-use evm_t::get_key;
-use common::errors_t::EnclaveError;
 use bigint::U256;
+use common::errors_t::EnclaveError;
+use common::utils_t::ToHex;
+use cryptography_t::symmetric::decrypt;
+use evm_t::get_key;
+use hexutil::read_hex;
+use rlp::DecoderError;
+use rlp::UntrustedRlp;
+use std::mem;
+use std::str::from_utf8;
+use std::string::String;
+use std::string::ToString;
+use std::vec::Vec;
 
 enum SolidityType {
     Uint,
@@ -40,43 +40,41 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityTy
                 Ok(v) => v,
                 Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
             }
-        },
+        }
         SolidityType::Uint => {
             let num_result: Result<u64, DecoderError> = rlp.as_val();
             result = match num_result {
                 Ok(v) => complete_to_u256(&v.to_string()),
                 Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
             }
-        },
+        }
         SolidityType::Bool => {
             let num_result: Result<bool, DecoderError> = rlp.as_val();
             result = match num_result {
                 Ok(v) => v.to_string(),
                 Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
             }
-        },
+        }
         _ => {
             let bytes_result: Result<Vec<u8>, DecoderError> = rlp.as_val();
             match bytes_result {
-                Ok(v) => {
-                    match *arg_type {
-                        SolidityType::Address => {
-                            let string_result: Result<String, DecoderError> = rlp.as_val();
-                            result = match string_result {
-                                Ok(v) => v,
-                                Err(_e) => v[..].to_hex(),
-                            };
-                            if result.starts_with("0x") {
-                                result.remove(0);
-                                result.remove(0);
-                            }
-                        },
-                        _ => {
-                            let iter = v.into_iter();
-                            for item in iter {
-                                result.push(item as char);
-                            }
-                        },
+                Ok(v) => match *arg_type {
+                    SolidityType::Address => {
+                        let string_result: Result<String, DecoderError> = rlp.as_val();
+                        result = match string_result {
+                            Ok(v) => v,
+                            Err(_e) => v[..].to_hex(),
+                        };
+                        if result.starts_with("0x") {
+                            result.remove(0);
+                            result.remove(0);
+                        }
+                    }
+                    _ => {
+                        let iter = v.into_iter();
+                        for item in iter {
+                            result.push(item as char);
+                        }
                     }
                 },
                 Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
@@ -96,7 +94,7 @@ pub fn complete_to_u256(num: &str) -> String {
 }
 
 fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, EnclaveError> {
-    let encrypted_value = match from_utf8(&v){
+    let encrypted_value = match from_utf8(&v) {
         Ok(value) => value,
         Err(_e) => return Err(EnclaveError::InputError { message: "".to_string() }),
     };
@@ -105,7 +103,8 @@ fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, 
         Ok(v) => {
             let decrypted_value = decrypt(&v, key);
             match decrypted_value {
-                Ok(v) => { //The value is decrypted
+                Ok(v) => {
+                    //The value is decrypted
                     let iter = v.clone().into_iter();
                     let mut decrypted_str = "".to_string();
                     //Remove 0x from the beginning, if used in encryption
@@ -118,23 +117,22 @@ fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, 
                                 decrypted_str.remove(0);
                                 decrypted_str.remove(0);
                             }
-                        },
+                        }
                         SolidityType::Uint => {
                             let num: U256 = v[..].into();
                             decrypted_str = complete_to_u256(&num.to_string());
-                        },
+                        }
                         SolidityType::Bool => {
-                            let mut static_type_num= [0u8; 1];
+                            let mut static_type_num = [0u8; 1];
                             static_type_num[..v.len()].clone_from_slice(&v);
                             let bool_val = unsafe { mem::transmute::<[u8; 1], bool>(static_type_num) };
                             decrypted_str = bool_val.to_string();
-                        },
+                        }
 
                         _ => {
                             for item in iter {
                                 decrypted_str.push(item as char);
                             }
-
                         }
                     };
                     Ok(decrypted_str)
@@ -153,31 +151,25 @@ fn decode_rlp(rlp: &UntrustedRlp, result: &mut String, key: &[u8], arg_type: &So
             decode_rlp(&item, result, key, arg_type)?;
             result.push_str(",");
         }
-//Replace the last ',' with ']'
+        //Replace the last ',' with ']'
         result.pop();
         result.push_str("]");
         Ok(())
     } else {
-//Maybe the value is encrypted
+        //Maybe the value is encrypted
         let as_val: Result<Vec<u8>, DecoderError> = rlp.as_val();
         let value: String = match as_val {
-            Ok(v) => {
-                match decrypt_rlp(&v, key, arg_type) {
-                    Ok(result_string) => result_string,
-                    Err(_e) => {
-                        match convert_undecrypted_value_to_string(rlp, arg_type) {
-                            Ok(result_string) => result_string,
-                            Err(e) => return Err(e),
-                        }
-                    }
-                }
-            }
-            Err(_e) => {
-                match convert_undecrypted_value_to_string(rlp, arg_type) {
+            Ok(v) => match decrypt_rlp(&v, key, arg_type) {
+                Ok(result_string) => result_string,
+                Err(_e) => match convert_undecrypted_value_to_string(rlp, arg_type) {
                     Ok(result_string) => result_string,
                     Err(e) => return Err(e),
-                }
-            }
+                },
+            },
+            Err(_e) => match convert_undecrypted_value_to_string(rlp, arg_type) {
+                Ok(result_string) => result_string,
+                Err(e) => return Err(e),
+            },
         };
         result.push_str(&value);
         Ok(())
