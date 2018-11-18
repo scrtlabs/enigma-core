@@ -100,7 +100,6 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
             // creates the ColumnFamily and verifies that it doesn't already exist
             let cf_key = self.database.create_cf(&hash, &self.options).
                 .unwrap_or( self.database.cf_handle(&hash).unwrap() );
-                Ok(cf) => cf,
                 Err(_) => {
                     // if the CF exists just retrieve it from the DB
                     self.database.cf_handle(&hash).unwrap()
