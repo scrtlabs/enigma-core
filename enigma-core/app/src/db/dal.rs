@@ -1,7 +1,7 @@
-use std::path::PathBuf;
 use failure::Error;
 use rocksdb::DB as rocks_db;
-use rocksdb::{Options, WriteOptions, SliceTransform};
+use rocksdb::{Options, SliceTransform, WriteOptions};
+use std::path::PathBuf;
 
 use common_u::errors::{DBErr, DBErrKind};
 use db::primitives::SplitKey;
@@ -97,8 +97,9 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn create(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             // creates the ColumnFamily and verifies that it doesn't already exist
-            let cf_key = self.database.create_cf(&hash, &self.options)
-                .unwrap_or(self.database.cf_handle(&hash).unwrap());
+            let cf_key = self.database
+                                          .create_cf(&hash, &self.options)
+                                          .unwrap_or_else(|_| self.database.cf_handle(&hash).unwrap());
 
             // verifies that the key inside the CF doesn't already exist
             match self.database.get_cf(cf_key, &index_key)? {
@@ -114,36 +115,27 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     }
 
     fn read(&self, key: &'a K) -> Result<Vec<u8>, Error> {
-        key.as_split(|hash, index_key| {
-            match self.database.cf_handle(&hash) {
-                None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-                Some(cf_key) => {
-                    self.database.get_cf(cf_key, &index_key)?.
-                        map_or_else(||
-                                        Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-                                    |data| Ok(data.to_vec()))
-                }
-            }
+        key.as_split(|hash, index_key| match self.database.cf_handle(&hash) {
+            None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+            Some(cf_key) => self.database.get_cf(cf_key, &index_key)?.map_or_else(
+                || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                |data| Ok(data.to_vec()),
+            ),
         })
     }
 
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
-        key.as_split(|hash, index_key| {
-            match self.database.cf_handle(&hash) {
+        key.as_split(|hash, index_key| match self.database.cf_handle(&hash) {
+            None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+            Some(cf_key) => match self.database.get_cf(cf_key, &index_key)? {
                 None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-                Some(cf_key) => {
-                    match self.database.get_cf(cf_key, &index_key)? {
-                        None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-                        Some(_) => {
-                            let mut write_options = WriteOptions::default();
-                            write_options.set_sync(SYNC);
-
-                            self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
-                            Ok(())
-                        }
-                    }
+                Some(_) => {
+                    let mut write_options = WriteOptions::default();
+                    write_options.set_sync(SYNC);
+                    self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
+                    Ok(())
                 }
-            }
+            },
         })
     }
 
@@ -168,8 +160,8 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             // if the address does not exist, in force update, we would like to write it anyways.
-            let cf_key = self.database.cf_handle(&hash).
-                map_or_else(|| self.database.create_cf(&hash, &self.options).unwrap(), |cf_key| cf_key);
+            let cf_key = self.database.cf_handle(&hash)
+                .unwrap_or_else(|| self.database.create_cf(&hash, &self.options).unwrap());
             let mut write_options = WriteOptions::default();
             write_options.set_sync(SYNC);
             self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
@@ -182,10 +174,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 mod test {
     extern crate tempdir;
 
-    use hex::ToHex;
+    use db::dal::CRUDInterface;
     use db::dal::DB;
     use db::primitives::{Array32u8, DeltaKey, Stype};
-    use db::dal::CRUDInterface;
+    use hex::ToHex;
 
     #[test]
     fn test_new_db() {
@@ -288,15 +280,15 @@ mod test {
         let hash = [4u8; 32];
         let key_type = Stype::Delta(1);
         let val = b"Enigma";
-        db.create(&DeltaKey{hash, key_type}, &val[..]).unwrap();
-        let accepted_val = db.read(&DeltaKey{hash, key_type}).unwrap();
+        db.create(&DeltaKey { hash, key_type }, &val[..]).unwrap();
+        let accepted_val = db.read(&DeltaKey { hash, key_type }).unwrap();
         assert_eq!(accepted_val, val);
 
         // update a different delta
         let key_type = Stype::Delta(2);
         let val_update = b"enigma_rocks";
-        db.force_update(&DeltaKey{hash, key_type}, &val_update[..]).unwrap();
-        let accepted_val = db.read(&DeltaKey{hash, key_type}).unwrap();
+        db.force_update(&DeltaKey { hash, key_type }, &val_update[..]).unwrap();
+        let accepted_val = db.read(&DeltaKey { hash, key_type }).unwrap();
         assert_eq!(accepted_val, val_update);
     }
 

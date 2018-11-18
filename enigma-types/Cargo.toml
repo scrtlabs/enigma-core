@@ -1,0 +1,12 @@
+[package]
+name = "enigma-types"
+version = "0.1.0"
+authors = ["Elichai Turkel <elichai@enigma.co>"]
+edition = "2018"
+categories = ["no-std"]
+
+[dependencies]
+
+[build-dependencies]
+cbindgen = "0.6.7"
+

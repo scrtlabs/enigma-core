@@ -1,8 +1,8 @@
+use common::errors_t::EnclaveError;
+use common::utils_t::{Keccak256, ToHex};
 use secp256k1;
 use secp256k1::{PublicKey, SecretKey, SharedSecret};
 use sgx_trts::trts::rsgx_read_rand;
-use common::utils_t::{ToHex, Keccak256};
-use common::errors_t::EnclaveError;
 use std::string::ToString;
 //use std::str;
 use std::vec::Vec;
@@ -10,7 +10,7 @@ use std::vec::Vec;
 #[derive(Debug)]
 pub struct KeyPair {
     pub pubkey: PublicKey,
-    pub privkey: SecretKey
+    pub privkey: SecretKey,
 }
 
 impl KeyPair {
@@ -19,8 +19,8 @@ impl KeyPair {
         // TODO: Should loop until works?
         rsgx_read_rand(&mut me)?;
         let keys = match SecretKey::parse(&me) {
-            Ok(_priv) => KeyPair{privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv)},
-            Err(_) => return Err( EnclaveError::GenerationErr { generate: "Private Key".to_string(), err: "".to_string()} )
+            Ok(_priv) => KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) },
+            Err(_) => return Err(EnclaveError::GenerationError { generate: "Private Key".to_string(), err: "".to_string() })
         };
         Ok(keys)
     }
@@ -28,10 +28,10 @@ impl KeyPair {
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, EnclaveError> {
         let _priv = match SecretKey::parse(&privkey) {
             Ok(key) => key,
-            Err(_) => return Err( EnclaveError::KeyErr{key_type: "Private Key".to_string(), key: "".to_string()} )
+            Err(_) => return Err(EnclaveError::KeyError { key_type: "Private Key".to_string(), key: "".to_string() }),
         };
         let _pub = PublicKey::from_secret_key(&_priv);
-        let keys = KeyPair{privkey: _priv, pubkey: _pub};
+        let keys = KeyPair { privkey: _priv, pubkey: _pub };
         Ok(keys)
     }
 
@@ -41,16 +41,14 @@ impl KeyPair {
         pubarr[1..].copy_from_slice(&_pubarr[..]);
         let pubkey = match PublicKey::parse(&pubarr) {
             Ok(key) => key,
-            Err(_) => return Err(EnclaveError::KeyErr{key: _pubarr.to_hex(), key_type: "PublicKey".to_string()})
+            Err(_) => return Err(EnclaveError::KeyError { key: _pubarr.to_hex(), key_type: "PublicKey".to_string() }),
         };
         match SharedSecret::new(&pubkey, &self.privkey) {
             Ok(val) => Ok(val.as_ref().to_vec()),
-            Err(_) => Err(EnclaveError::DerivingKeyErr{self_key: self.get_pubkey().to_hex(), other_key: pubkey.serialize()[1..65].to_hex()}),
+            Err(_) => Err(EnclaveError::DerivingKeyError { self_key: self.get_pubkey().to_hex(), other_key: pubkey.serialize()[1..65].to_hex(), }),
         }
     }
-    pub fn get_privkey(&self) -> [u8; 32] {
-        self.privkey.serialize()
-    }
+    pub fn get_privkey(&self) -> [u8; 32] { self.privkey.serialize() }
 
     /// Get the Public Key and slice the first byte
     /// The first byte represents if the key is compressed or not.
@@ -82,16 +80,14 @@ impl KeyPair {
         let hashed_msg = message.keccak256();
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
         let (sig, recovery) = match secp256k1::sign(&message_to_sign, &self.privkey) {
-            Ok( (sig, rec) ) => (sig, rec),
-            Err(_) => return Err( EnclaveError::SigningErr{msg: message.to_hex()} )
+            Ok((sig, rec)) => (sig, rec),
+            Err(_) => return Err(EnclaveError::SigningError { msg: message.to_hex() }),
         };
-//        let result = secp256k1::sign(&message_to_sign, &self.privkey);
-//        let (sig, recovery) = result.unwrap();
         let v: u8 = recovery.into();
 
         let mut returnvalue = sig.serialize().to_vec();
         returnvalue.push(v + 27);
-//        println!("Sig hex on signing:")
+        //        println!("Sig hex on signing:")
         Ok(returnvalue)
     }
 }
@@ -104,7 +100,7 @@ pub mod tests {
         let k1 = KeyPair::from_slice(&_priv).unwrap();
         let msg = b"EnigmaMPC";
         let sig = k1.sign(msg).unwrap();
-        assert_eq!(sig, [103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28].to_vec());
+        assert_eq!(sig, vec![103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28]);
     }
 
     pub fn test_ecdh() {

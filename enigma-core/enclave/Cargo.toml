@@ -16,6 +16,7 @@ default = []
 [dependencies]
 enigma-tools-t = {path = "../../enigma-tools-t"}
 enigma-runtime-t = {path = "../../enigma-runtime-t"}
+enigma-types = { path = "../../enigma-types" }
 
 lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
 etcommon-rlp = {version = "0.2", default-features = false}

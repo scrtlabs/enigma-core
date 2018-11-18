@@ -5,22 +5,16 @@ extern crate sgx_urts;
 use sgx_types::*;
 
 use std::iter::FromIterator;
-//failure 
+//failure
 use failure::Error;
 use hex::ToHex;
 
-extern {
-    fn ecall_evm(eid: sgx_enclave_id_t,
-                 retval: *mut sgx_status_t,
-                 bytecode: *const u8, bytecode_len: usize,
-                 callable: *const u8, callable_len: usize,
-                 callable_args: *const u8, callable_args_len: usize,
-                 preprocessor: *const u8, preprocessor_len: usize,
-                 callback: *const u8, callback_len: usize,
-                 output: *mut u8, signature: &mut [u8; 65],
-                 result_length: &mut usize) -> sgx_status_t;
+extern "C" {
+    fn ecall_evm(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
+                 callable: *const u8, callable_len: usize, callable_args: *const u8, callable_args_len: usize,
+                 preprocessor: *const u8, preprocessor_len: usize, callback: *const u8, callback_len: usize,
+                 output: *mut u8, signature: &mut [u8; 65], result_length: &mut usize) -> sgx_status_t;
 }
-
 
 pub struct EvmInput {
     code: String,
@@ -29,36 +23,33 @@ pub struct EvmInput {
 
 // this is the input after its being parsed from the server (originally came from surface)
 #[derive(Serialize, Deserialize, Debug)]
-pub struct EvmRequest{
+pub struct EvmRequest {
     #[allow(dead_code)]
-    pub bytecode :      String,
-    pub callable :      String,
-    pub callable_args :  String,
-    pub preprocessor :  Vec<String>,
-    pub callback :      String,
+    pub bytecode: String,
+    pub callable: String,
+    pub callable_args: String,
+    pub preprocessor: Vec<String>,
+    pub callback: String,
 }
-
 
 impl EvmRequest {
-     pub fn new(_bytecode:String,_callable:String,_callable_args:String,_preprocessor:Vec<String>,_callback:String) -> Self {
-        EvmRequest {
-            bytecode : _bytecode,
-            callable : _callable, 
-            callable_args : _callable_args, 
-            preprocessor : _preprocessor,
-            callback : _callback,
-        }
+    pub fn new(_bytecode: String, _callable: String, _callable_args: String, _preprocessor: Vec<String>,
+               _callback: String) -> Self {
+        EvmRequest { bytecode: _bytecode,
+                     callable: _callable,
+                     callable_args: _callable_args,
+                     preprocessor: _preprocessor,
+                     callback: _callback, }
     }
-}   
-
-// this is the result from the evm computation that will be send to the server and propagated to surface. 
-#[derive(Serialize, Deserialize, Debug)]
-pub struct EvmResponse{
-    errored : bool,
-    result : String,
-    signature : String,
 }
 
+// this is the result from the evm computation that will be send to the server and propagated to surface.
+#[derive(Serialize, Deserialize, Debug)]
+pub struct EvmResponse {
+    errored: bool,
+    result: String,
+    signature: String,
+}
 
 // this function is called by the the server componenet upon an execevm command from surface
 // very likely that this functions will require an SgxEnclave object.
@@ -67,7 +58,7 @@ pub struct EvmResponse{
 // This should be changed
 // the length of the result returned by EVM should be checked in advance
 const MAX_EVM_RESULT: usize = 100_000;
-pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmResponse,Error>{
+pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> Result<EvmResponse, Error> {
     let mut out = vec![0u8; MAX_EVM_RESULT];
     let slice = out.as_mut_slice();
     let mut signature: [u8; 65] = [0; 65];
@@ -75,7 +66,7 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmRespo
     let mut result_length: usize = 0;
 
     let mut prep: String = "".to_owned();
-    for item in evm_input.preprocessor{
+    for item in evm_input.preprocessor {
         prep.push_str(&item);
         prep.push(',');
     }
@@ -101,41 +92,35 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest )-> Result<EvmRespo
                   &mut result_length)
     };
     let part = Vec::from_iter(slice[0..result_length].iter().cloned());
-    Ok(EvmResponse{
-        errored: retval != sgx_status_t::SGX_SUCCESS,
-        result: part.to_hex(),
-        signature: signature.to_hex(),
-    })
+    Ok(EvmResponse { errored: retval != sgx_status_t::SGX_SUCCESS,
+                     result: part.to_hex(),
+                     signature: signature.to_hex(), })
 }
 
 #[cfg(test)]
 pub mod tests {
-    #![allow(dead_code,unused_assignments,unused_variables)]
-    use esgx;
-    use std::fs::File;
-    use std::io::{ BufReader, BufRead};
-    use evm_u::evm;
+    #![allow(dead_code, unused_assignments, unused_variables)]
     use super::EvmRequest;
+    use esgx;
+    use evm_u::evm;
     use sgx_urts::SgxEnclave;
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
 
     fn read_input_from_file(path: &str) -> evm::EvmInput {
         let file = match File::open(&path) {
             // The `description` method of `io::Error` returns a string that
             // describes the error
-            Err(why) => panic!("couldn't open {}: {}", path,
-                               why),
+            Err(why) => panic!("couldn't open {}: {}", path, why),
             Ok(file) => file,
         };
 
         let mut lines = BufReader::new(file).lines();
-        let result = evm::EvmInput {
-            data: lines.next().unwrap().unwrap(),
-            code: lines.next().unwrap().unwrap(),
-        };
+        let result = evm::EvmInput { data: lines.next().unwrap().unwrap(), code: lines.next().unwrap().unwrap() };
         result
     }
 
-    fn init_enclave() -> SgxEnclave{
+    fn init_enclave() -> SgxEnclave {
         let enclave = match esgx::general::init_enclave_wrapper() {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
@@ -158,11 +143,11 @@ pub mod tests {
             callback : "".to_string(),
         };
         let enclave = init_enclave();
-        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input){
+        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input) {
             Ok(v) => v,
             Err(e) => {
                 println!("{}", e.to_string());
-                return
+                return;
             }
         };
         // Callback is not supplied, which results in error
@@ -181,11 +166,11 @@ pub mod tests {
             callback : "distribute(uint32,address[])".to_string(),
         };
         let enclave = init_enclave();
-        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input){
+        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input) {
             Ok(v) => v,
             Err(e) => {
                 println!("{}", e.to_string());
-                return
+                return;
             }
         };
         assert_eq!(evm_result.errored, false);
@@ -195,7 +180,6 @@ pub mod tests {
         //TODO add assert about signature correctness
         enclave.destroy();
     }
-
 
     #[test]
     pub fn bill() {
@@ -236,11 +220,11 @@ pub mod tests {
             callback : "commit(string)".to_string(),
         };
         let enclave = init_enclave();
-        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input){
+        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input) {
             Ok(v) => v,
             Err(e) => {
                 println!("{}", e.to_string());
-                return
+                return;
             }
         };
         assert_eq!(evm_result.errored, false);
@@ -260,11 +244,11 @@ pub mod tests {
             callback : "commit(string)".to_string(),
         };
         let enclave = init_enclave();
-        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input){
+        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input) {
             Ok(v) => v,
             Err(e) => {
                 println!("{}", e.to_string());
-                return
+                return;
             }
         };
         assert_eq!(evm_result.errored, false);
@@ -309,11 +293,11 @@ pub mod tests {
             callback : "commit(string)".to_string(),
         };
         let enclave = init_enclave();
-        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input){
+        let evm_result = match evm::exec_evm(enclave.geteid(), evm_input) {
             Ok(v) => v,
             Err(e) => {
                 println!("{}", e.to_string());
-                return
+                return;
             }
         };
         assert_eq!(evm_result.errored, false);
