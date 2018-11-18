@@ -137,7 +137,7 @@ impl P2PCalls<Vec<u8>> for DB {
             let mut address = [0u8; 32];
             let slice_address = match address_str.from_hex() {
                 Ok(slice) => slice,
-                // if the address is not a correct hex then it not a correct address.
+                // if the address is not a correct hex then it is not a correct address.
                 Err(_) => return None
             };
             address.copy_from_slice(&slice_address[..]);
