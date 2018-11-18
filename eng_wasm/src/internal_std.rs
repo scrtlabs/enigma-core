@@ -10,7 +10,7 @@ pub use self::std::vec::Vec;
 //    vec![0u8; s]
 //}
 #[macro_use]
-pub mod std_macro {
+pub(crate) mod std_macro {
     #[macro_export]
     macro_rules! eformat {
         ( $($arg:tt)* ) => (
