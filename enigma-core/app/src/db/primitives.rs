@@ -32,7 +32,7 @@ pub trait SplitKey {
     // as a tuple (&str, &[u8]) and send it into a function,
     // something in this order: F(&str, &[u8]).
     //
-    // we use this syntax, because we are unable to
+    // we use this syntax, because It's impossible to
     // return a variable that is not owned by no one.
     fn as_split< T, F: FnMut(&str, &[u8]) -> T > (&self, f: F) -> T;
 
