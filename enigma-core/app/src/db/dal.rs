@@ -47,7 +47,7 @@ impl DB {
         };
         // converts the Strings to slices (str)
         let cf_list_burrowed = cf_list.iter().map(|i| i.as_str()).collect::<Vec<&str>>();
-        let database = rocks_db::open_cf(&options, location.as_path(), &cf_list_burrowed[..])?;
+        let database = rocks_db::open_cf(&options, &location, &cf_list_burrowed[..])?;
         let db_par = DB{location, database, options};
         Ok( db_par )
     }
