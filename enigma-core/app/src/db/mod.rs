@@ -1,5 +1,6 @@
 pub mod dal;
 pub mod primitives;
+pub mod iterator;
 
 use std::sync::Mutex;
 pub use db::primitives::*;

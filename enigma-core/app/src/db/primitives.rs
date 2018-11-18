@@ -10,8 +10,8 @@ pub struct VecKey ( pub Vec<u8> );
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct DeltaKey {
-    hash: [u8; 32],
-    key_type: Stype,
+    pub hash: [u8; 32],
+    pub key_type: Stype,
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
@@ -32,7 +32,7 @@ pub trait SplitKey {
     // as a tuple (&str, &[u8]) and send it into a function,
     // something in this order: F(&str, &[u8]).
     //
-    // we use this syntax, because we are unable to
+    // we use this syntax, because It's impossible to
     // return a variable that is not owned by no one.
     fn as_split< T, F: FnMut(&str, &[u8]) -> T > (&self, f: F) -> T;
 
@@ -78,6 +78,7 @@ impl SplitKey for DeltaKey {
             _ => bail!("Failed parsing the Key, key does not contain a correct index")
         };
         let mut hash = [0u8; 32];
+        // if the address is not a correct hex then it not a correct address.
         hash.copy_from_slice(&_hash.from_hex()?[..]);
         Ok( DeltaKey{hash, key_type} )
     }
@@ -97,6 +98,7 @@ impl SplitKey for Array32u8 {
 #[cfg(test)]
 mod tests {
     use db::primitives::*;
+    use hex::ToHex;
 
     #[test]
     fn test_deltakey_from_split() {
