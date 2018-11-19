@@ -9,8 +9,8 @@ use std::vec::Vec;
 
 #[derive(Debug)]
 pub struct KeyPair {
-    pub pubkey: PublicKey,
-    pub privkey: SecretKey,
+    pubkey: PublicKey,
+    privkey: SecretKey,
 }
 
 impl KeyPair {

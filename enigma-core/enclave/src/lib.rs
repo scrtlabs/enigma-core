@@ -44,7 +44,7 @@ mod km_t;
 mod ocalls_t;
 mod wasm_g;
 
-pub use crate::km_t::ecall_ptt_req;
+//pub use crate::km_t::ecall_ptt_req;
 
 use crate::evm_t::abi::{create_callback, prepare_evm_input};
 use crate::evm_t::evm::call_sputnikvm;
@@ -111,6 +111,7 @@ pub unsafe extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize, cal
 pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize, callable: *const u8,
                                        callable_len: usize, output_ptr: *mut u64, delta_data_ptr: *mut u64,
                                        delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> EnclaveReturn {
+
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let callable_slice = slice::from_raw_parts(callable, callable_len);
 
@@ -161,6 +162,16 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
         }
     }
 }
+
+use crate::km_t::{ContractAddress, ecall_ptt_req_internal};
+use std::mem;
+#[no_mangle]
+pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
+    let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
+    ecall_ptt_req_internal(address_list, sig, serialized_ptr).into()
+
+}
+
 
 unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8], output_ptr: *mut u64,
                                  delta_data_ptr: *mut u64, delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> Result<(), EnclaveError> {
