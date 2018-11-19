@@ -40,7 +40,7 @@ extern crate sputnikvm_network_classic;
 extern crate wasmi;
 
 mod evm_t;
-mod km;
+mod km_t;
 mod ocalls_t;
 mod wasm_g;
 
@@ -59,7 +59,7 @@ use std::{ptr, slice, str};
 use wasm_g::execution;
 
 lazy_static! {
-    pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper();
+    pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper();
 }
 
 #[no_mangle]
@@ -174,7 +174,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8], o
 
     if exec_res.updated_state.is_some() {
         // Saving the updated state into the db
-        let enc_state = km::db::encrypt_state(exec_res.updated_state.unwrap());
+        let enc_state = km_t::db::encrypt_state(exec_res.updated_state.unwrap());
         enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
     }
     Ok(())
@@ -189,7 +189,7 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], output_ptr: *mut u64) -> 
     Ok(())
 }
 
-fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<[u8; 65], EnclaveError> {
     let mut to_be_signed: Vec<u8> = vec![];
     to_be_signed.extend_from_slice(callable_args);
     to_be_signed.extend_from_slice(&callback);
@@ -203,7 +203,7 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: 
 
     match delta_option {
         Some(delta) => {
-            let enc_delta = km::db::encrypt_delta(delta);
+            let enc_delta = km_t::db::encrypt_delta(delta);
             *delta_data_out = ocalls_t::save_to_untrusted_memory(&enc_delta.data)?;
             *delta_hash_out = enc_delta.hash;
             *delta_index_out = enc_delta.index;

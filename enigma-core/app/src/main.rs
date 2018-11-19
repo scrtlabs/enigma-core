@@ -33,6 +33,7 @@ mod common_u;
 mod db;
 mod esgx;
 mod evm_u;
+mod km_u;
 mod networking;
 mod wasm_u;
 

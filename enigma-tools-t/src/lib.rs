@@ -9,7 +9,11 @@ extern crate sgx_tstd as std;
 #[macro_use]
 extern crate failure;
 extern crate json_patch;
-extern crate rmp_serde as rmps;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+extern crate serde;
+extern crate rmp_serde;
 extern crate sgx_trts;
 extern crate sgx_tse;
 extern crate sgx_tseal;

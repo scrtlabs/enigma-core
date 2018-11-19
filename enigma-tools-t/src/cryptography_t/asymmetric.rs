@@ -76,7 +76,7 @@ impl KeyPair {
     /// 1. 32 Bytes, ECDSA `r` variable.
     /// 2. 32 Bytes ECDSA `s` variable.
     /// 3. 1 Bytes ECDSA `v` variable aligned to the right for Ethereum compatibility
-    pub fn sign(&self, message: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+    pub fn sign(&self, message: &[u8]) -> Result<[u8; 65], EnclaveError> {
         let hashed_msg = message.keccak256();
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
         let (sig, recovery) = match secp256k1::sign(&message_to_sign, &self.privkey) {
@@ -84,10 +84,9 @@ impl KeyPair {
             Err(_) => return Err(EnclaveError::SigningError { msg: message.to_hex() }),
         };
         let v: u8 = recovery.into();
-
-        let mut returnvalue = sig.serialize().to_vec();
-        returnvalue.push(v + 27);
-        //        println!("Sig hex on signing:")
+        let mut returnvalue = [0u8; 65];
+        returnvalue[..64].copy_from_slice(&sig.serialize()[..]);
+        returnvalue[64] = v + 27;
         Ok(returnvalue)
     }
 }
@@ -100,7 +99,7 @@ pub mod tests {
         let k1 = KeyPair::from_slice(&_priv).unwrap();
         let msg = b"EnigmaMPC";
         let sig = k1.sign(msg).unwrap();
-        assert_eq!(sig, vec![103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28]);
+        assert_eq!(sig.to_vec(), [103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28].to_vec());
     }
 
     pub fn test_ecdh() {

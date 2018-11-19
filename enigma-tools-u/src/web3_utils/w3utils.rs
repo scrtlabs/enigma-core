@@ -19,20 +19,8 @@ use serde_json;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
+use crate::common_u::Keccak256;
 
-// hash traits, same as ethereum's hash function
-pub trait Keccak256<T> {
-    fn keccak256(&self) -> T where T: Sized;
-}
-impl Keccak256<[u8; 32]> for [u8] {
-    fn keccak256(&self) -> [u8; 32] {
-        let mut keccak = Keccak::new_keccak256();
-        let mut result = [0u8; 32];
-        keccak.update(self);
-        keccak.finalize(&mut result);
-        result
-    }
-}
 
 pub struct DeployParams {
     pub deployer: Address,

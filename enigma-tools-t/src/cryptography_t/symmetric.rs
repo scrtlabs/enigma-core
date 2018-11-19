@@ -11,9 +11,9 @@ static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 
 pub fn encrypt(message: &[u8], key: &[u8]) -> Result<Vec<u8>, EnclaveError> { encrypt_with_nonce(message, key, None) }
 
-pub fn encrypt_with_nonce(message: &[u8], key: &[u8], _iv: Option<&[u8; 12]>) -> Result<Vec<u8>, EnclaveError> {
+pub fn encrypt_with_nonce(message: &[u8], key: &[u8], _iv: Option<[u8; 12]>) -> Result<Vec<u8>, EnclaveError> {
     let iv: [u8; 12] = match _iv {
-        Some(x) => *x,
+        Some(x) => x,
         None => {
             let mut _tmp_iv = [0; 12];
             rsgx_read_rand(&mut _tmp_iv)?;
@@ -75,7 +75,7 @@ pub mod tests {
         let mut iv: [u8; 12] = [0; 12];
         iv.clone_from_slice(&rand_seed[32..44]);
         let msg = rand_seed[44..1068].to_vec();
-        let ciphertext = encrypt_with_nonce(&msg, key, Some(&iv)).unwrap();
+        let ciphertext = encrypt_with_nonce(&msg, key, Some(iv)).unwrap();
         assert_eq!(msg, decrypt(&ciphertext, &key).unwrap());
     }
 
@@ -83,7 +83,7 @@ pub mod tests {
         let key = b"EnigmaMPC".sha256();
         let msg = b"This Is Enigma".to_vec();
         let iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-        let result = encrypt_with_nonce(&msg, &key, Some(&iv)).unwrap();
+        let result = encrypt_with_nonce(&msg, &key, Some(iv)).unwrap();
         assert_eq!(result.to_hex(), "02dc75395859faa78a598e11945c7165db9a16d16ada1b026c9434b134ae000102030405060708090a0b");
     }
 

@@ -26,7 +26,7 @@ impl<'a> Encryption<&'a [u8], EnclaveError, EncryptedPatch, [u8; 12]> for StateP
         self.encrypt_with_nonce(key, None)
     }
 
-    fn encrypt_with_nonce(&self, key: &[u8], _iv: Option< &[u8; 12] >) -> Result<EncryptedPatch, EnclaveError> {
+    fn encrypt_with_nonce(&self, key: &[u8], _iv: Option< [u8; 12] >) -> Result<EncryptedPatch, EnclaveError> {
         let mut buf = Vec::new();
         self.0.serialize(&mut Serializer::new(&mut buf))?;
         let data = symmetric::encrypt_with_nonce(&buf, &key[..], _iv)?;

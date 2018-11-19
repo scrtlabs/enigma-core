@@ -67,7 +67,7 @@ impl<'a> Encryption<&'a [u8], EnclaveError, EncryptedContractState<u8>, [u8; 12]
     fn encrypt(&self, key: &[u8]) -> Result<EncryptedContractState<u8>, EnclaveError> {
         self.encrypt_with_nonce(key, None)
     }
-    fn encrypt_with_nonce(&self, key: &[u8], _iv: Option< &[u8; 12] >) -> Result<EncryptedContractState<u8>, EnclaveError> {
+    fn encrypt_with_nonce(&self, key: &[u8], _iv: Option< [u8; 12] >) -> Result<EncryptedContractState<u8>, EnclaveError> {
         let mut buf = Vec::new();
         self.json.serialize(&mut Serializer::new(&mut buf))?;
         let enc = symmetric::encrypt_with_nonce(&buf, &key[..], _iv)?;

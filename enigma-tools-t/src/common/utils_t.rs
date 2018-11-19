@@ -18,6 +18,7 @@ use std::fmt;
 use std::string::String;
 use std::vec::Vec;
 use tiny_keccak::Keccak;
+use std::sync::{SgxMutex, SgxMutexGuard};
 
 // Hash a byte array into keccak256.
 pub trait Keccak256<T> {
@@ -30,6 +31,16 @@ pub trait Sha256<T> {
 
 pub trait EthereumAddress<T> {
     fn address(&self) -> T where T: Sized;
+}
+
+pub trait LockExpectMutex<T> {
+    fn lock_expect(&self, name: &str) -> SgxMutexGuard<T>;
+}
+
+impl<T> LockExpectMutex<T> for SgxMutex<T> {
+    fn lock_expect(&self, name: &str) -> SgxMutexGuard<T> {
+        self.lock().expect(&format!("{} mutex is poison", name))
+    }
 }
 
 impl EthereumAddress<String> for [u8; 64] {
