@@ -29,6 +29,9 @@ enclave {
         	                              [out] uint64_t* output_ptr, [out] uint64_t* delta_data_ptr, [out] uint8_t delta_hash_out[32], [out] uint32_t* delta_index_out);
 
         public void ecall_get_signing_address([out] uint8_t arr[42]);
+
+        public void ecall_ptt_req([in, size=address_len] uint8_t *address_list, size_t address_len, [out] uint8_t sig[65]);
+
     };
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);

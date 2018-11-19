@@ -27,6 +27,7 @@ extern crate wasmi;
 
 pub mod common;
 pub mod cryptography_t;
+pub mod km_primitives;
 pub mod quote_t;
 pub mod storage_t;
 

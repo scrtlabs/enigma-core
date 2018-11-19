@@ -44,19 +44,23 @@ mod km_t;
 mod ocalls_t;
 mod wasm_g;
 
-use common::errors_t::EnclaveError;
+pub use crate::km_t::ecall_ptt_req;
+
+use crate::evm_t::abi::{create_callback, prepare_evm_input};
+use crate::evm_t::evm::call_sputnikvm;
+use crate::wasm_g::execution;
 use enigma_runtime_t::data::StatePatch;
 use enigma_tools_t::common::utils_t::EthereumAddress;
+use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::{common, cryptography_t, quote_t};
 use enigma_types::EnclaveReturn;
-use evm_t::abi::{create_callback, prepare_evm_input};
-use evm_t::evm::call_sputnikvm;
+
 use sgx_types::*;
 use std::string::ToString;
 use std::vec::Vec;
 use std::{ptr, slice, str};
-use wasm_g::execution;
+
 
 lazy_static! {
     pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper();
@@ -244,6 +248,7 @@ pub mod tests {
     use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::cryptography_t::symmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
+    use enigma_tools_t::km_primitives::tests::*;
     use sgx_tunittest::*;
     use std::string::{String, ToString};
     use std::vec::Vec;
@@ -271,7 +276,11 @@ pub mod tests {
                          test_apply_delta,
                          test_generate_delta,
                          test_me,
-                         test_execute_contract);
+                         test_execute_contract,
+                         test_to_message,
+                         test_from_message,
+                         test_from_to_message
+                         );
     }
 
     fn test_ecall_evm_signning() {
