@@ -79,7 +79,7 @@ pub extern "C" fn ecall_get_random_seed(rand_out: &mut [u8; 32], sig_out: &mut [
     // TODO: Check if needs to check the random is within the curve.
     let status = rsgx_read_rand(&mut rand_out[..]);
     let sig = SIGNINING_KEY.sign(&rand_out[..]).unwrap();
-    sig_out.copy_from_slice(sig.as_slice());
+    sig_out.copy_from_slice(&sig[..]);
     // println!("Random inside Enclave: {:?}", &rand_out[..]);
     // println!("Signature inside Enclave: {:?}\n", &sig.as_slice());
     match status {
