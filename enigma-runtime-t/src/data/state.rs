@@ -64,25 +64,22 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
 
 
 impl<'a> Encryption<&'a [u8], EnclaveError, EncryptedContractState<u8>, [u8; 12]> for ContractState {
-    fn encrypt(&self, key: &[u8]) -> Result<EncryptedContractState<u8>, EnclaveError> {
-        self.encrypt_with_nonce(key, None)
-    }
-    fn encrypt_with_nonce(&self, key: &[u8], _iv: Option< [u8; 12] >) -> Result<EncryptedContractState<u8>, EnclaveError> {
+    fn encrypt_with_nonce(self, key: &[u8], _iv: Option< [u8; 12] >) -> Result<EncryptedContractState<u8>, EnclaveError> {
         let mut buf = Vec::new();
         self.json.serialize(&mut Serializer::new(&mut buf))?;
-        let enc = symmetric::encrypt_with_nonce(&buf, &key[..], _iv)?;
+        let enc = symmetric::encrypt_with_nonce(&buf, key, _iv)?;
         Ok( EncryptedContractState {
-            contract_id: self.contract_id.clone(),
-            json: enc.clone()
+            contract_id: self.contract_id,
+            json: enc,
         } )
     }
-    fn decrypt(enc: &EncryptedContractState<u8>, key: &[u8]) -> Result<ContractState, EnclaveError> {
-        let dec = symmetric::decrypt(&enc.json, &key[..])?;
+    fn decrypt(enc: EncryptedContractState<u8>, key: &[u8]) -> Result<ContractState, EnclaveError> {
+        let dec = symmetric::decrypt(&enc.json, key)?;
         let mut des = Deserializer::new(&dec[..]);
         let json: Value = Deserialize::deserialize(&mut des)?;
 
         Ok ( ContractState {
-            contract_id: enc.contract_id.clone(),
+            contract_id: enc.contract_id,
             json
         } )
     }

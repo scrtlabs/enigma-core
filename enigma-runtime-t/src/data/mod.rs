@@ -81,7 +81,7 @@ pub mod tests {
             json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
         };
 
-        assert_eq!(ContractState::decrypt(&enc, &key).unwrap(), result)
+        assert_eq!(ContractState::decrypt(enc, &key).unwrap(), result)
     }
 
     pub fn test_encrypt_decrypt_state() {
@@ -93,8 +93,8 @@ pub mod tests {
         let key = b"EnigmaMPC".sha256();
         let iv = [0,1,2,3,4,5,6,7,8,9,10,11];
 
-        let enc = con.encrypt_with_nonce(&key, Some( iv )).unwrap();
-        assert_eq!( ContractState::decrypt(&enc, &key).unwrap(), con )
+        let enc = con.clone().encrypt_with_nonce(&key, Some( iv )).unwrap();
+        assert_eq!( ContractState::decrypt(enc, &key).unwrap(), con )
 
     }
 
@@ -156,7 +156,7 @@ pub mod tests {
 
         let mut enc_patch = EncryptedPatch::default();
         enc_patch.data = enc_data;
-        assert_eq!(patch, StatePatch::decrypt(&enc_patch, &key).unwrap())
+        assert_eq!(patch, StatePatch::decrypt(enc_patch, &key).unwrap())
     }
 
     pub fn test_encrypt_decrypt_patch() {
@@ -166,9 +166,9 @@ pub mod tests {
         let key = b"EnigmaMPC".sha256();
         let iv = [0,1,2,3,4,5,6,7,8,9,10,11];
 
-        let enc = patch.encrypt_with_nonce(&key, Some( iv )).unwrap();
+        let enc = patch.clone().encrypt_with_nonce(&key, Some( iv )).unwrap();
 
-        assert_eq!(patch, StatePatch::decrypt(&enc, &key).unwrap())
+        assert_eq!(patch, StatePatch::decrypt(enc, &key).unwrap())
 
     }
 
