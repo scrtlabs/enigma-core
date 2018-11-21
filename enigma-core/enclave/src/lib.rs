@@ -290,7 +290,10 @@ pub mod tests {
                          test_execute_contract,
                          test_to_message,
                          test_from_message,
-                         test_from_to_message
+                         test_from_to_message,
+                         test_encrypt_decrypt_response,
+                         test_encrypt_response,
+                         test_decrypt_reponse
                          );
     }
 
