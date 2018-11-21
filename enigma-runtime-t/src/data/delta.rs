@@ -1,12 +1,10 @@
 use json_patch;
-use enigma_tools_t::cryptography_t::symmetric;
+use enigma_tools_t::cryptography_t::{Encryption, symmetric};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::Sha256;
 use rmps::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::vec::Vec;
-use data::Encryption;
-
 
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]

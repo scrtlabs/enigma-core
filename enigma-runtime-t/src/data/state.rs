@@ -1,9 +1,9 @@
-use enigma_tools_t::cryptography_t::symmetric;
+use enigma_tools_t::cryptography_t::{Encryption, symmetric};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use std::vec::Vec;
 use std::string::ToString;
 use serde_json::{Value, from_value, Error};
-use data::{IOInterface, StatePatch, DeltasInterface, Encryption};
+use crate::data::{IOInterface, StatePatch, DeltasInterface};
 use serde::{Deserialize, Serialize};
 use rmps::{Deserializer, Serializer};
 use json_patch;

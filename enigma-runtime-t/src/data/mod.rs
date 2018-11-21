@@ -17,11 +17,7 @@ pub trait DeltasInterface<E, T> {
     fn generate_delta(&self, old: Option<&Self>, new: Option<&Self>) -> Result<T, E> where Self: Sized;
 }
 
-pub trait Encryption<T, E, R, N> {
-    fn encrypt(&self, key: T) -> Result<R, E> where R: Sized;
-    fn encrypt_with_nonce(&self, key: T, _iv: Option<N>) -> Result<R, E> where R: Sized;
-    fn decrypt(enc: &R, key: T) -> Result<Self, E> where Self: Sized;
-}
+
 
 
 // TODO: All these macros should be in eng_wasm
@@ -49,10 +45,11 @@ macro_rules! read_state {
 
 pub mod tests {
 //    #[macro_use]
-    use data::*;
+    use crate::data::*;
     use std::string::String;
     use serde_json::{Value, Map, self};
     use json_patch;
+    use enigma_tools_t::cryptography_t::Encryption;
     use enigma_tools_t::common::utils_t::Sha256;
 
     pub fn test_macros() {

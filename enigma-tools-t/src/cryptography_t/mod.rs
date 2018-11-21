@@ -8,6 +8,14 @@ use std::string::ToString;
 use std::untrusted::fs::{remove_file, File};
 use storage_t;
 
+
+pub trait Encryption<T, E, R, N> {
+     fn encrypt(&self, key: T) -> Result<R, E> where R: Sized;
+     fn encrypt_with_nonce(&self, key: T, _iv: Option<N>) -> Result<R, E> where R: Sized;
+     fn decrypt(enc: &R, key: T) -> Result<Self, E> where Self: Sized;
+}
+
+
 // TODO:: handle failure and return a result including the empty match
 pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, EnclaveError> {
     // Open the file
