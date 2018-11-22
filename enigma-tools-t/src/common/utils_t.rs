@@ -39,7 +39,7 @@ pub trait LockExpectMutex<T> {
 
 impl<T> LockExpectMutex<T> for SgxMutex<T> {
     fn lock_expect(&self, name: &str) -> SgxMutexGuard<T> {
-        self.lock().expect(&format!("{} mutex is poison", name))
+        self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name))
     }
 }
 

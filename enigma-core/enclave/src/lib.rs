@@ -44,8 +44,7 @@ mod km_t;
 mod ocalls_t;
 mod wasm_g;
 
-//pub use crate::km_t::ecall_ptt_req;
-
+use crate::km_t::{ContractAddress, ecall_ptt_req_internal, ecall_ptt_res_internal};
 use crate::evm_t::abi::{create_callback, prepare_evm_input};
 use crate::evm_t::evm::call_sputnikvm;
 use crate::wasm_g::execution;
@@ -59,7 +58,7 @@ use enigma_types::EnclaveReturn;
 use sgx_types::*;
 use std::string::ToString;
 use std::vec::Vec;
-use std::{ptr, slice, str};
+use std::{ptr, slice, str, mem};
 
 
 lazy_static! {
@@ -133,6 +132,20 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, 
     ecall_deploy_internal(bytecode_slice, output_ptr).into()
 }
 
+
+#[no_mangle]
+pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
+    let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
+    ecall_ptt_req_internal(address_list, sig, serialized_ptr).into()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecall_ptt_res(msg_ptr: *const u8, msg_len: usize) -> EnclaveReturn {
+    let msg_slice = slice::from_raw_parts(msg_ptr, msg_len);
+    ecall_ptt_res_internal(msg_slice).into()
+}
+
+
 unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], callable_args_slice: &[u8],
                              preprocessor_slice: &[u8], callback_slice: &[u8], output: *mut u8,
                              signature: &mut [u8; 65], result_len: &mut usize) -> Result<(), EnclaveError> {
@@ -161,15 +174,6 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
             return Err(EnclaveError::EvmError { err: "Error in EVM execution".to_string() });
         }
     }
-}
-
-use crate::km_t::{ContractAddress, ecall_ptt_req_internal};
-use std::mem;
-#[no_mangle]
-pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
-    let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
-    ecall_ptt_req_internal(address_list, sig, serialized_ptr).into()
-
 }
 
 

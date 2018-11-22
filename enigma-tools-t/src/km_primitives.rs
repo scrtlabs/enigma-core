@@ -21,7 +21,7 @@ pub enum MessageType {
 pub struct Message {
     #[doc(hidden)]
     prefix: [u8; 14],
-    data: MessageType,
+    pub data: MessageType,
     pubkey: Vec<u8>,
     id: MsgID,
 }
@@ -55,6 +55,12 @@ impl Message {
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
         let msg: Message = serde_json::from_value(res).unwrap();
         Ok(msg)
+    }
+
+    pub fn get_pubkey(&self) -> PubKey {
+        let mut pubkey = [0u8; 64];
+        pubkey.copy_from_slice(&self.pubkey[..]);
+        pubkey
     }
 
     pub fn get_id(&self) -> MsgID { self.id }
