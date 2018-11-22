@@ -110,7 +110,7 @@ impl P2PCalls<Vec<u8>> for DB {
     }
 
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> Result<Vec<(K, Vec<u8>)>, Error> {
-        let mut deltas_list = Vec::new();
+        let mut deltas_list = Vec::with_capacity(address_list.len());
         for address in address_list {
             deltas_list.push(self.get_tip(&address)?);
         }
@@ -161,7 +161,7 @@ impl P2PCalls<Vec<u8>> for DB {
     // output: all keys & values from the first key (included!) up to the second key (not included!!)
     fn get_deltas<K: SplitKey>(&self, addresses_range: &[(K, K)]) -> Result<ResultVec<(K, Vec<u8>)>, Error> {
         // a vector for the output values which will consist of tuples: (key: K, value/delta: D)
-        let mut deltas_list: Vec<Result<(K, Vec<u8>), Error>> = Vec::new();
+        let mut deltas_list: Vec<Result<(K, Vec<u8>), Error>> = Vec::with_capacity(addresses_range.len());
         // for each tuple in the input
         for address_rng in addresses_range.iter() {
             //

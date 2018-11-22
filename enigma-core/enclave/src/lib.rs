@@ -307,7 +307,7 @@ pub mod tests {
         let real_output_hex = "d10e1e690000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000006330a553fc93768f612722bb8c2ec78ac90b3bbc0000000000000000000000005aeda56215b167893e80b4fe645ba6d5bab767de".to_string().from_hex().unwrap();
 
         // real_output, bytecode, callable_args
-        let mut to_be_signed: Vec<u8> = Vec::new();
+        let mut to_be_signed: Vec<u8> = Vec::with_capacity(bytecode_hex.len()+callable_args_hex.len()+real_output_hex.len());
         to_be_signed.extend_from_slice(&callable_args_hex);
         to_be_signed.extend_from_slice(&real_output_hex);
         to_be_signed.extend_from_slice(&bytecode_hex);

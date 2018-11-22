@@ -47,3 +47,15 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     guard.remove(&id);
     Ok(())
 }
+
+
+pub(crate) fn ecall_build_state_internal() -> Result<(), EnclaveError> {
+    let guard = STATE_KEYS.lock_expect("DH Keys");
+
+    for (addrs, key) in guard.iter() {
+
+
+    }
+
+    Ok(())
+}
