@@ -258,7 +258,7 @@ pub mod tests {
 
     use super::SIGNINING_KEY;
     use enigma_runtime_t::data::tests::*;
-    use enigma_runtime_t::ocalls_t::*;
+    use enigma_runtime_t::ocalls_t::tests::*;
     use enigma_tools_t::common::utils_t::{EthereumAddress, FromHex, Keccak256};
     use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::cryptography_t::symmetric::tests::*;
@@ -297,7 +297,8 @@ pub mod tests {
                          test_from_to_message,
                          test_encrypt_decrypt_response,
                          test_encrypt_response,
-                         test_decrypt_reponse
+                         test_decrypt_reponse,
+                         test_get_deltas
                          );
     }
 

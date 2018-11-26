@@ -1,10 +1,12 @@
+#![allow(dead_code)] // TODO: Remove later
+
 use sgx_types::{sgx_status_t, sgx_enclave_id_t};
 use enigma_types::EnclaveReturn;
 use failure::Error;
 use crate::common_u::errors::EnclaveFailError;
 use std::mem;
 
-type ContractAddress = [u8; 32];
+pub type ContractAddress = [u8; 32];
 extern "C" {
     fn ecall_ptt_req(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, addresses: *const ContractAddress, len: usize,
                      signature: &mut [u8; 65], serialized_ptr: *mut u64) -> sgx_status_t;

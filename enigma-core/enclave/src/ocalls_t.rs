@@ -1,7 +1,7 @@
+use crate::km_t::ContractAddress;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use sgx_types::sgx_status_t;
-use std::path;
-use std::str;
+use std::{path, str};
 
 const PATH_MAX: usize = 4096; // linux/limits.h - this depends on the FS.
 

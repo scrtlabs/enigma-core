@@ -22,6 +22,7 @@ rocksdb = { git = "https://github.com/elichai/rust-rocksdb.git" } # This is temp
 db-key = "0.0.5"
 lazy_static = "1.1.0"
 byteorder = "1.2"
+lru-cache = "0.1.1"
 
 parity-wasm = "0.31" # 0.35?
 pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git" } # TODO: add a version specific branch.

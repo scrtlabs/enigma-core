@@ -2,7 +2,8 @@ pub mod dal;
 pub mod iterator;
 pub mod primitives;
 
-pub use db::primitives::*;
+pub use crate::db::primitives::*;
+pub use crate::db::iterator::*;
 use esgx::general::storage_dir;
 use std::sync::Mutex;
 
