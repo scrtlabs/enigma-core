@@ -109,7 +109,8 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                        callable: *const u8, callable_len: usize,
                                        callable_args: *const u8, callable_args_len: usize,
                                        output_ptr: *mut u64, delta_data_ptr: *mut u64,
-                                       delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> EnclaveReturn {
+                                       delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
+                                       ethereum_payload_ptr: *mut u64) -> EnclaveReturn {
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let callable_slice = slice::from_raw_parts(callable, callable_len);
     let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
@@ -198,10 +199,12 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8], c
 
     prepare_wasm_result(exec_res.state_delta,
                         &exec_res.result[..],
+                        &res.ethereum_payload[..],
                         delta_data_ptr,
                         delta_hash_out,
                         delta_index_out,
-                        output_ptr)?;
+                        output_ptr,
+                        ethereum_payload_ptr)?;
 
     if exec_res.updated_state.is_some() {
         // Saving the updated state into the db
@@ -228,9 +231,12 @@ fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8
     SIGNINING_KEY.sign(&to_be_signed)
 }
 
-unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8], delta_data_out: *mut u64,
-                              delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32, execute_result_out: *mut u64) -> Result<(), EnclaveError> {
+unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8],
+                              ethereum_payload: &[u8], delta_data_out: *mut u64,
+                              delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
+                              execute_result_out: *mut u64, ethereum_payload_out: *mut u64) -> Result<(), EnclaveError> {
     *execute_result_out = ocalls_t::save_to_untrusted_memory(&execute_result)?;
+    *ethereum_payload_out = ocalls_t::save_to_untrusted_memory(&ethereum_payload)?;
 
     match delta_option {
         Some(delta) => {
