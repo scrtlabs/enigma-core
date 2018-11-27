@@ -1,4 +1,5 @@
 #![no_std]
+#![feature(slice_concat_ext)]
 /// Enigma implementation of bindings to the Enigma runtime.
 /// This crate should be used in contracts.
 #[macro_use]
@@ -6,11 +7,20 @@ extern crate serde_json;
 extern crate serde;
 #[macro_use]
 mod internal_std;
+mod eng_wasm_errors;
+mod ethereum;
 pub extern crate pwasm_abi;
-
+#[macro_use] pub extern crate failure;
+extern crate syn;
+extern crate tiny_keccak;
+extern crate ethabi;
+extern crate byteorder;
 
 pub use internal_std::*;
+pub use eng_wasm_errors::*;
 pub use serde_json::Value;
+pub use pwasm_abi::types::*;
+pub use ethereum::short_signature;
 
 pub mod external {
     extern "C" {
@@ -24,6 +34,7 @@ pub mod external {
         pub fn fetch_args(name_holder: *const u8);
         pub fn fetch_types_length() -> i32;
         pub fn fetch_types(name_holder: *const u8);
+        pub fn write_payload(payload: *const u8, payload_len: u32);
     }
 }
 
@@ -54,6 +65,10 @@ pub fn read<T>(key: &str) -> T where for<'de> T: serde::Deserialize<'de> {
     unsafe { external::from_memory(value_holder.as_ptr(), val_len) };
     let value: Value = serde_json::from_slice(&value_holder).map_err(|_| print("failed unwrapping from_slice")).unwrap();
     serde_json::from_value(value.clone()).map_err(|_| print("failed unwrapping from_value")).expect("failed")
+}
+
+pub fn write_ethereum_payload(payload: Vec<u8>){
+    unsafe { external::write_payload(payload.as_ptr(), payload.len() as u32) };
 }
 
 #[macro_export]
