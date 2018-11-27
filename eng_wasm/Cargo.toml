@@ -6,3 +6,9 @@ authors = ["moria <moria@enigma.co>"]
 serde_json = "1.0"
 serde = "1.0"
 pwasm-abi = { git = "https://github.com/enigmampc/pwasm-abi.git" }
+failure_derive="=0.1.1"
+failure = { version = "=0.1.1", default-features = false, features = ["derive"] }
+syn = { version = "0.15.12", features = ["full", "extra-traits"] }
+tiny-keccak = "1.4"
+ethabi = "6.1.0"
+byteorder = "1"

@@ -5,8 +5,15 @@ extern crate proc_macro2;
 extern crate proc_macro;
 #[macro_use]
 extern crate syn;
+extern crate serde_json;
+extern crate ethabi;
 
 use eng_wasm::*;
+use std::fs::File;
+use std::string::ToString;
+//use std::io::prelude::*;
+use std::convert::*;
+use ethabi::{Contract, ParamType};
 
 fn generate_eng_wasm_aux_functions() -> proc_macro2::TokenStream{
     quote!{
@@ -81,7 +88,7 @@ fn generate_dispatch(input: syn::Item) -> proc_macro2::TokenStream{
                     }).collect();
 
                     let name = &func.to_string();
-                    println!("METHOD {:#?} TYPES {:#?}", item, arg_types);
+                    //println!("METHOD {:#?} TYPES {:#?}", item, arg_types);
                     Some(quote!{
                         #name => {
                             let mut stream = pwasm_abi::eth::Stream::new(args.as_bytes());
@@ -121,6 +128,123 @@ pub fn dispatch(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -
         pub fn call(){
             dispatch(&function_name(), &args());
         }
+    };
+    proc_macro::TokenStream::from(result)
+}
+
+//--------------------------------------------------------------------------------------------------
+
+trait Write{
+    fn write(&self) -> String;
+    fn error(&self) -> String;
+}
+
+impl Write for ParamType{
+    /// Returns string which is a formatted represenation of param.
+    fn write(&self) -> String {
+        match *self{
+            ParamType::Address => "Address".to_owned(),
+            ParamType::Bytes => "Vec<u8>".to_owned(),
+            ParamType::FixedBytes(len) => format!("u8[{}]", len),
+            ParamType::Int(len) => match len{
+                32 | 64 => format!("i{}", len),
+                _ => panic!("{}", self.error()),
+            },
+            ParamType::Uint(len) => match len{
+                32 | 64 => format!("i{}", len),
+                256 => "U256".to_owned(),
+                _ => panic!("{}", self.error()),
+            },
+            ParamType::Bool => "bool".to_owned(),
+            ParamType::String => "String".to_owned(),
+            ParamType::FixedArray(ref param, len) => format!("{}[{}]", param.write(), len),
+            ParamType::Array(ref param) => format!("Vec<{}>", param.write()),
+        }
+    }
+    fn error(&self) -> String{
+        format!("The type {} is not supported", self.to_string())
+    }
+}
+
+#[derive(Debug)]
+struct FunctionAst {
+    name: syn::Ident,
+    args_ast_types: Vec<syn::Type>,
+    args_types: Vec<ParamType>,
+}
+
+fn read_contract_file(file_path: String) -> Result<Box<File>, EngWasmError>{
+    let file = File::open(file_path)?;
+    let contents = Box::new(file);
+    Ok(contents)
+}
+
+fn generate_eth_functions(contract: &Contract) -> Result<Box<Vec<proc_macro2::TokenStream>>,EngWasmError>{
+    let mut functions: Vec<FunctionAst> = Vec::new();
+    for function in &contract.functions{
+        let mut args_ast_types = Vec::new();
+        for input in &function.1.inputs{
+            let arg_type: syn::Type = syn::parse_str(&input.kind.clone().write())?;
+            args_ast_types.push(arg_type);
+        }
+        let args_types = function.1.inputs.iter().map(|input| {
+            input.kind.clone()
+        }).collect();
+
+        let name = syn::Ident::new(&function.1.name, proc_macro2::Span::call_site());
+        functions.push(FunctionAst{name, args_types, args_ast_types})
+    }
+
+    let result: Vec<proc_macro2::TokenStream> = functions.iter().map(|function| {
+        let function_name = &function.name;
+        let args_ast_types = function.args_ast_types.clone();
+        let sig_u32 = short_signature(&function_name.to_string(), &function.args_types);
+        let sig = syn::Lit::Int(syn::LitInt::new(sig_u32 as u64, syn::IntSuffix::U32, proc_macro2::Span::call_site()));
+        let args_number = syn::Lit::Int(syn::LitInt::new(args_ast_types.len() as u64,
+                                                         syn::IntSuffix::Usize,
+                                                         proc_macro2::Span::call_site()));
+        let args_names: Vec<syn::Ident> = function.args_ast_types.iter().enumerate().map(|item| {
+            let mut arg = String::from("arg");
+            arg.push_str(item.0.to_string().as_str());
+            syn::Ident::new(&arg, proc_macro2::Span::call_site())
+        }).collect();
+        let args_names_copy = args_names.clone();
+        quote!{
+            fn #function_name(#(#args_names: #args_ast_types),*){
+                #![allow(unused_mut)]
+                #![allow(unused_variables)]
+                let mut payload = Vec::with_capacity(4 + #args_number * 32);
+				payload.push((#sig >> 24) as u8);
+				payload.push((#sig >> 16) as u8);
+				payload.push((#sig >> 8) as u8);
+                payload.push(#sig as u8);
+
+                let mut sink = pwasm_abi::eth::Sink::new(#args_number);
+                #(sink.push(#args_names_copy);)*
+                sink.drain_to(&mut payload);
+                write_ethereum_payload(payload);
+            }
+        }
+    }).collect();
+
+    Ok(Box::new(result))
+}
+
+#[proc_macro_attribute]
+#[allow(unused_variables, unused_mut)]
+pub fn eth_contract(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input_tokens = parse_macro_input!(input as syn::Item);
+    let file_path = parse_macro_input!(args as syn::LitStr);
+    let mut contents: Box<File> = read_contract_file(file_path.value()).expect("Bad contract file");
+    let contract = Contract::load(contents).unwrap();
+    let it: Vec<proc_macro2::TokenStream> = *generate_eth_functions(&contract).unwrap();
+
+    let result = quote! {
+
+        #input_tokens
+      impl EthContract{
+             #(#it)*
+      }
     };
     proc_macro::TokenStream::from(result)
 }
