@@ -12,10 +12,10 @@ use eng_wasm_dispatch::dispatch;
 
 use eng_wasm::String;
 
-#[dispatch()]
+#[dispatch]
 pub trait ContractInterface{
     fn write();
-    fn print_test(U256,U256);
+    fn print_test(U256,U256) ;
 }
 
 pub struct Contract;
