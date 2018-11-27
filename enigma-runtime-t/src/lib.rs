@@ -33,6 +33,7 @@ pub struct RuntimeResult{
     pub state_delta: Option<StatePatch>,
     pub updated_state: Option<ContractState>,
     pub result: Vec<u8>,
+    pub ethereum_payload: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -51,7 +52,10 @@ impl Runtime {
     pub fn new(memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32], function_name: &String, args_types: String) -> Runtime {
         let init_state = ContractState::new( contract_id.clone() );
         let current_state = ContractState::new(contract_id);
-        let result = RuntimeResult{ result: Vec::new(), state_delta: None, updated_state: None };
+        let result = RuntimeResult{ result: Vec::new(),
+                                    state_delta: None,
+                                    updated_state: None,
+                                    ethereum_payload: Vec::new() };
         let function_name = function_name.to_string();
 
         Runtime { memory, function_name, args_types, args, result, init_state, current_state }
@@ -60,7 +64,10 @@ impl Runtime {
     pub fn new_with_state(memory: MemoryRef, args: Vec<u8>, state: ContractState, function_name: &String, args_types: String) -> Runtime{
         let init_state = state.clone();
         let current_state = state;
-        let result = RuntimeResult{ result: Vec::new(), state_delta: None, updated_state: None };
+        let result = RuntimeResult{ result: Vec::new(),
+                                    state_delta: None,
+                                    updated_state: None,
+                                    ethereum_payload: Vec::new() };
         let function_name = function_name.to_string();
 
         Runtime { memory, function_name, args_types, args, result, init_state, current_state }
@@ -199,6 +206,28 @@ impl Runtime {
     }
 
     /// args:
+    /// * `payload` - the start address of key in memory
+    /// * `payload_len` - the length of the key
+    ///
+    /// Read `payload` from memory, and write it to result
+    pub fn write_payload (&mut self, args: RuntimeArgs) -> Result<(), EnclaveError>{
+        let payload = args.nth_checked(0)?;
+        let payload_len: u32 = args.nth_checked(1)?;
+
+        self.result.ethereum_payload = Vec::with_capacity(payload_len as usize);
+        for _ in 0..payload_len {
+            self.result.ethereum_payload.push(0);
+        }
+
+        match self.memory.get_into(payload, &mut self.result.ethereum_payload[..]){
+            Ok(v) => v,
+            Err(e) => return Err(EnclaveError::ExecutionErr{code: "write payload".to_string(), err: e.to_string()}),
+        }
+
+        Ok(())
+    }
+
+    /// args:
     /// * `ptr` - the start address in memory
     /// * `len` - the length
     ///
@@ -293,6 +322,11 @@ impl Externals for Runtime {
 
             eng_resolver::ids::TYPES_FUNC => {
                 &mut Runtime::fetch_types(self, args);
+                Ok(None)
+            }
+
+            eng_resolver::ids::WRITE_PAYLOAD_FUNC => {
+                &mut Runtime::write_payload(self, args);
                 Ok(None)
             }
             _ => unimplemented!("Unimplemented function at {}", index),
