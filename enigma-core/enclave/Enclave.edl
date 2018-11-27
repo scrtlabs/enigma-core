@@ -27,7 +27,8 @@ enclave {
         public sgx_status_t ecall_execute([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
                                           [in, size=callable_len] const uint8_t* callable, size_t callable_len,
                                           [in, size=callable_args_len] const uint8_t* callable_args, size_t callable_args_len,
-        	                              [out] uint64_t* output_ptr, [out] uint64_t* delta_data_ptr, [out] uint8_t delta_hash_out[32], [out] uint32_t* delta_index_out);
+        	                              [out] uint64_t* output_ptr, [out] uint64_t* delta_data_ptr, [out] uint8_t delta_hash_out[32], [out] uint32_t* delta_index_out,
+        	                              [out] uint64_t* ethereum_payload_ptr);
 
         public void ecall_get_signing_address([out] uint8_t arr[42]);
     };

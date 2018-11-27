@@ -17,7 +17,8 @@ extern {
                      callable: *const u8, callable_len: usize,
                      callable_args: *const u8, callable_args_len: usize,
                      output: *mut u64, delta_data_ptr: *mut u64,
-                     delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t;
+                     delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
+                     ethereum_payload: *mut u64) -> sgx_status_t;
 }
 
 
@@ -99,7 +100,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str, args: 
     let mut delta_data_ptr = 0u64;
     let mut delta_hash = [0u8; 32];
     let mut delta_index = 0u32;
-
+    let mut ethereum_payload = 0u64;
 
     let result = unsafe {
         ecall_execute(eid, &mut retval,
@@ -112,7 +113,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: Vec<u8>, callable: &str, args: 
                       &mut output as *mut u64,
                       &mut delta_data_ptr as *mut u64,
                       &mut delta_hash,
-                      &mut delta_index as *mut u32)
+                      &mut delta_index as *mut u32, &mut ethereum_payload as *mut u64)
     };
     let mut result: WasmResult = Default::default();
     let box_ptr = output as *mut Box<[u8]>;
@@ -186,6 +187,30 @@ pub mod tests {
         let result = wasm::execute(enclave.geteid(),contract_code, "write()", "").expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
+    }
+
+    #[test]
+    fn eth_bridge() {
+        let mut dir = PathBuf::new();
+        dir.push("../../examples/eng_wasm_contracts/contract_with_eth_calls");
+        let mut output = Command::new("cargo")
+            .current_dir(&dir)
+            .args(&["build", "--release"])
+            .spawn()
+            .expect(&format!("Failed compiling simplest wasm exmaple: {:?}", &dir));
+
+        assert!(output.wait().unwrap().success());
+        dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
+
+        let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir));
+        let mut wasm_code = Vec::new();
+        f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
+        println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
+
+        let enclave = init_enclave();
+        let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
+        let result = wasm::execute(enclave.geteid(), contract_code, "test()", "").expect("Execution failed");
+        enclave.destroy();
     }
 
     #[ignore]

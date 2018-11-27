@@ -181,15 +181,19 @@ fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8
 //    }
 //}
 
-unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8], delta_data_out: *mut u64,
-                       delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32, execute_result_out: *mut u64) -> Result<(), EnclaveError> {
+unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8], ethereum_payload: &[u8], delta_data_out: *mut u64,
+                       delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32, execute_result_out: *mut u64,
+                        ethereum_payload_out: *mut u64) -> Result<(), EnclaveError> {
     // TODO: this is temporary solution to bad error handling
-    // TODO: this solution should be removed in merge with the correct solution 
+    // TODO: this solution should be removed in merge with the correct solution
     *execute_result_out = match ocalls_t::save_to_untrusted_memory(&execute_result) {
         Ok(i) => i,
         Err(_) => 0
     };
-
+    *ethereum_payload_out = match ocalls_t::save_to_untrusted_memory(&ethereum_payload){
+        Ok(i) => i,
+        Err(_) => 0,
+    };
     match delta_option {
         Some(delta) => {
             let enc_delta = km::db::encrypt_delta(delta);
@@ -221,7 +225,9 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: 
 pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                        callable: *const u8, callable_len: usize,
                                        callable_args: *const u8, callable_args_len: usize,
-                                       output_ptr: *mut u64, delta_data_ptr: *mut u64, delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t {
+                                       output_ptr: *mut u64, delta_data_ptr: *mut u64,
+                                       delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
+                                       ethereum_payload_ptr: *mut u64) -> sgx_status_t {
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let bytecode = bytecode_slice.to_vec();
     let callable_slice = slice::from_raw_parts(callable, callable_len);
@@ -257,8 +263,14 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 
     match execution::execute(&bytecode, state, function_name, types, params) {
         Ok(res) => {
-            prepare_wasm_result(res.state_delta, &res.result[..], delta_data_ptr,
-                                delta_hash_out, delta_index_out, output_ptr).unwrap();
+            prepare_wasm_result(res.state_delta,
+                                &res.result[..],
+                                &res.ethereum_payload[..],
+                                delta_data_ptr,
+                                delta_hash_out,
+                                delta_index_out,
+                                output_ptr,
+                                ethereum_payload_ptr).unwrap();
             if res.updated_state.is_some() { // Saving the updated state into the db
                 let enc_state = km::db::encrypt_state(res.updated_state.unwrap());
                 enigma_runtime_t::ocalls_t::save_state(&enc_state).unwrap();
