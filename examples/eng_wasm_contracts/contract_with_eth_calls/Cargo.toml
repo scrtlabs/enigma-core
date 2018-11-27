@@ -1,0 +1,17 @@
+[package]
+name = "contract"
+version = "0.1.0"
+
+[dependencies]
+eng_wasm = {path = "../../../eng_wasm"}
+eng_wasm_dispatch = {path = "../../../eng_wasm/dispatch"}
+syn = { version = "0.15.12", features = ["full", "extra-traits"] }
+proc-macro2 = "0.4.21"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = "z"
