@@ -210,7 +210,7 @@ fn generate_eth_functions(contract: &Contract) -> Result<Box<Vec<proc_macro2::To
         }).collect();
         let args_names_copy = args_names.clone();
         quote!{
-            fn #function_name(#(#args_names: #args_ast_types),*){
+            fn #function_name(&self, #(#args_names: #args_ast_types),*){
                 #![allow(unused_mut)]
                 #![allow(unused_variables)]
                 let mut payload = Vec::with_capacity(4 + #args_number * 32);
@@ -233,18 +233,23 @@ fn generate_eth_functions(contract: &Contract) -> Result<Box<Vec<proc_macro2::To
 #[proc_macro_attribute]
 #[allow(unused_variables, unused_mut)]
 pub fn eth_contract(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input_tokens = parse_macro_input!(input as syn::Item);
+    let input_tokens = parse_macro_input!(input as syn::ItemStruct);
+    let struct_name = input_tokens.ident;
     let file_path = parse_macro_input!(args as syn::LitStr);
     let mut contents: Box<File> = read_contract_file(file_path.value()).expect("Bad contract file");
     let contract = Contract::load(contents).unwrap();
     let it: Vec<proc_macro2::TokenStream> = *generate_eth_functions(&contract).unwrap();
 
     let result = quote! {
-
-        #input_tokens
-      impl EthContract{
+        struct #struct_name{
+            addr: Address,
+        }
+        impl EthContract{
+            fn new(addr: Address) -> Self {
+                EthContract{addr}
+            }
              #(#it)*
-      }
+        }
     };
     proc_macro::TokenStream::from(result)
 }

@@ -19,7 +19,6 @@ extern crate byteorder;
 pub use internal_std::*;
 pub use eng_wasm_errors::*;
 pub use serde_json::Value;
-pub use pwasm_abi::types::*;
 pub use ethereum::short_signature;
 
 pub mod external {
