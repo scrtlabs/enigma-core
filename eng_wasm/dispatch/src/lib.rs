@@ -223,6 +223,7 @@ fn generate_eth_functions(contract: &Contract) -> Result<Box<Vec<proc_macro2::To
                 #(sink.push(#args_names_copy);)*
                 sink.drain_to(&mut payload);
                 write_ethereum_payload(payload);
+                write_ethereum_contract_addr(&self.addr);
             }
         }
     }).collect();
@@ -242,11 +243,11 @@ pub fn eth_contract(args: proc_macro::TokenStream, input: proc_macro::TokenStrea
 
     let result = quote! {
         struct #struct_name{
-            addr: Address,
+            addr: [u8;20],
         }
         impl EthContract{
-            fn new(addr: Address) -> Self {
-                EthContract{addr}
+            fn new(addr_str: /*Address*/&str) -> Self {
+                EthContract{addr: From::from(Address::from(addr_str.as_bytes()))}
             }
              #(#it)*
         }
