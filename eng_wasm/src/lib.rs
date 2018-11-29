@@ -34,6 +34,7 @@ pub mod external {
         pub fn fetch_types_length() -> i32;
         pub fn fetch_types(name_holder: *const u8);
         pub fn write_payload(payload: *const u8, payload_len: u32);
+        pub fn write_address(address: *const u8);
     }
 }
 
@@ -68,6 +69,10 @@ pub fn read<T>(key: &str) -> T where for<'de> T: serde::Deserialize<'de> {
 
 pub fn write_ethereum_payload(payload: Vec<u8>){
     unsafe { external::write_payload(payload.as_ptr(), payload.len() as u32) };
+}
+
+pub fn write_ethereum_contract_addr(address: &[u8;20]){
+    unsafe { external::write_address(address.as_ptr()) };
 }
 
 #[macro_export]

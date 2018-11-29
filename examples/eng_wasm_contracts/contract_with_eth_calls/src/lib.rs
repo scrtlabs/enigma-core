@@ -48,7 +48,7 @@ impl ContractInterface for Contract {
 
     #[no_mangle]
     fn test() {
-        let c = EthContract::new(Address::from("0x123f681646d4a755815f9cb19e1acc8565a0c2ac".as_bytes()));
+        let c = EthContract::new("0x123f681646d4a755815f9cb19e1acc8565a0c2ac");
         c.getBryn(U256::from(1), Vec::new());
     }
 }
