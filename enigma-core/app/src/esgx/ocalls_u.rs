@@ -60,6 +60,47 @@ pub unsafe extern "C" fn ocall_save_to_memory(data_ptr: *const u8, data_len: usi
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size: *mut usize) -> i8 {
+
+    let mut cache_id = addr.to_vec();
+    let _state_key = DeltaKey::new(*addr, Stype::State);
+    match DATABASE.lock_expect("Database").read(&_state_key) {
+        Ok(state) => {
+            let state_len = state.len();
+            *state_size = state_len;
+            cache_id.write_uint::<BigEndian>(state_len as u64, mem::size_of_val(&state_len)).unwrap();
+            DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), vec![state]);
+            0
+        },
+        Err(_) => 17
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut u8, state_size: *mut usize) -> i8 {
+
+    let mut cache_id = addr.to_vec();
+    cache_id.write_uint::<BigEndian>(state_size as u64, mem::size_of_val(&(*state_size))).unwrap();
+    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
+        Some(state) => {
+            write_ptr(&state[0][..], state_ptr, *state_size);
+            return 0;
+        },
+        None => {
+            let _state_key = DeltaKey::new(*addr, Stype::State);
+            match DATABASE.lock_expect("Database").read(&_state_key) {
+                Ok(state) => {
+                    write_ptr(&state, state_ptr, *state_size);
+                    return 0;
+                },
+                Err(_) => return 17,
+            }
+        }
+    }
+}
+
+
+#[no_mangle]
 pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut usize, res_len: usize) -> i8 {
     let len = (*end-*start) as usize;
     if len != res_len {

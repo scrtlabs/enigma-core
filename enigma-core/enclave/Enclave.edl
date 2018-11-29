@@ -47,5 +47,9 @@ enclave {
 
         int8_t ocall_get_deltas( [in] uint8_t addr[32], [in] const uint32_t* start, [in] const uint32_t* end,
                                  [out, count=res_len] uint8_t* res_ptr, size_t res_len);
+
+        int8_t ocall_get_state_size( [in] uint8_t addr[32], [out] size_t* state_size);
+
+        int8_t ocall_get_state( [in] uint8_t addr[32], [out, count=state_len] uint8_t* state_pt, size_t state_len);
     };
 };

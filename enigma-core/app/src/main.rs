@@ -37,7 +37,8 @@ mod km_u;
 mod networking;
 mod wasm_u;
 
-pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_save_to_memory, ocall_update_state, ocall_get_deltas_sizes, ocall_get_deltas};
+pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_save_to_memory, ocall_update_state,
+                         ocall_get_deltas_sizes, ocall_get_deltas, ocall_get_state, ocall_get_state_size};
 use networking::{constants, surface_server};
 
 #[allow(unused_variables, unused_mut)]
