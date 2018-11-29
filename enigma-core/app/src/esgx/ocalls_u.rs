@@ -1,10 +1,10 @@
 use crate::km_u::ContractAddress;
 use crate::db::dal::CRUDInterface;
-use crate::db::{DeltaKey, Stype, DATABASE, P2PCalls};
+use crate::db::{DeltaKey, Stype, DATABASE, P2PCalls, ResultType, ResultTypeVec};
 use crate::esgx::general;
 use enigma_tools_u::common_u::{LockExpectMutex, Sha256};
 use byteorder::{BigEndian, WriteBytesExt};
-use std::{slice,ptr};
+use std::{slice,ptr, mem};
 use lru_cache::LruCache;
 use std::sync::Mutex;
 
@@ -69,30 +69,31 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
     cache_id.write_u32::<BigEndian>(*start).unwrap();
     cache_id.write_u32::<BigEndian>(*end).unwrap();
 
-    let key_start = DeltaKey::new(addr.clone(), Stype::Delta(*start));
-    let key_end = DeltaKey::new(*addr, Stype::Delta(*end));
+    let deltas_result = get_deltas(*addr, *start, *end);
     let mut deltas_vec = Vec::with_capacity(len);
     let mut sizes = Vec::with_capacity(len);
-    let deltas = DATABASE.lock_expect("Database").get_deltas(&[(key_start, key_end)]);
-    for delta in deltas {
-        let  v = match delta {
-            Ok(r) => r.1.clone(),
-            Err(_) => Vec::new(),
-        };
-        sizes.push(v.len());
-        deltas_vec.push(v);
-    }
+    match deltas_result {
+       Ok(deltas_type) => {
+           match deltas_type {
+               ResultType::None => return 17,
+               ResultType::Full(deltas) | ResultType::Partial(deltas) => {
+                   for delta in deltas {
+                       sizes.push(delta.1.len());
+                       deltas_vec.push(delta.1);
+                   }
+               },
+           }
+       }
+        Err(_) => return 17
+    };
     DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), deltas_vec);
-    ptr::copy_nonoverlapping(sizes.as_ptr(), res_ptr, len);
+    write_ptr(&sizes, res_ptr, res_len);
     0
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> i8 {
     let len = (*end-*start) as usize;
-    if len != res_len {
-        return 29;
-    }
 
     let mut cache_id = addr.to_vec();
     cache_id.write_u32::<BigEndian>(*start).unwrap();
@@ -102,26 +103,41 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
             // The results here are flatten to one big array.
             // The Enclave needs to seperate them back to the original.
             let res = deltas_vec.into_iter().flatten().collect::<Vec<u8>>();
-
-            ptr::copy_nonoverlapping(res.as_ptr(), res_ptr, res.len());
-
+            println!("res: {:?}", res);
+            write_ptr(&res[..], res_ptr, res_len);
         }
         None => { // If the data doesn't exist in the cache I need to pull it from the DB
-            let key_start = DeltaKey::new(addr.clone(), Stype::Delta(*start));
-            let key_end = DeltaKey::new(*addr, Stype::Delta(*end));
-            let mut deltas_vec = Vec::with_capacity(len);
+            let deltas_result = get_deltas(*addr, *start, *end);
+            match deltas_result {
+                Ok(deltas_type) => {
+                    match deltas_type {
+                        ResultType::None => return 17,
+                        ResultType::Full(deltas) | ResultType::Partial(deltas) => {
+                            let res = deltas.iter().map(|(_, val)| val.clone()).flatten().collect::<Vec<u8>>();
+                            println!("res: {:?}", res);
+                            write_ptr(&res[..], res_ptr, res_len);
 
-            let deltas = DATABASE.lock_expect("Database").get_deltas(&[(key_start, key_end)]);
-            for delta in deltas {
-                let  v = match delta {
-                    Ok(r) => r.1.clone(),
-                    Err(_) => Vec::new(),
-                };
-                deltas_vec.push(v);
-            }
-            let res = deltas_vec.into_iter().flatten().collect::<Vec<u8>>();
-            ptr::copy_nonoverlapping(res.as_ptr(), res_ptr, res.len());
+                        },
+                    }
+                }
+                Err(_) => return 17
+            };
         }
     }
     0
+}
+
+
+unsafe fn write_ptr<T>(src: &[T], dst: *mut T, count: usize) {
+    if src.len() > count {
+        unimplemented!()
+    }
+    ptr::copy_nonoverlapping(src.as_ptr(), dst, src.len());
+}
+
+fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> ResultTypeVec<(DeltaKey, Vec<u8>)> {
+    let key_start = DeltaKey::new(addr, Stype::Delta(start));
+    let key_end = DeltaKey::new(addr, Stype::Delta(end));
+
+    DATABASE.lock_expect("Database").get_deltas(key_start, key_end)
 }

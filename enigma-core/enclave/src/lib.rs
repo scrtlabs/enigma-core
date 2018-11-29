@@ -298,7 +298,8 @@ pub mod tests {
                          test_encrypt_decrypt_response,
                          test_encrypt_response,
                          test_decrypt_reponse,
-                         test_get_deltas
+                         test_get_deltas,
+                         test_get_deltas_more
                          );
     }
 

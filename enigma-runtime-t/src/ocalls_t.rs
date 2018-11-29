@@ -1,7 +1,6 @@
 use sgx_types::sgx_status_t;
 use std::string::ToString;
 use enigma_tools_t::common::errors_t::EnclaveError::{self, OcallError};
-use enigma_tools_t::common::utils_t::Sha256;
 use enigma_tools_t::km_primitives::ContractAddress;
 use crate::data::{EncryptedContractState, EncryptedPatch};
 use std::vec::Vec;
@@ -51,24 +50,29 @@ pub fn save_delta(enc: &EncryptedPatch) -> Result<(), EnclaveError> {
 
 pub fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> Result<Vec<EncryptedPatch>, EnclaveError> {
     let len = (end-start) as usize;
-    let mut size_buff = vec![0usize; len];
+    let mut deltas_buff = vec![0usize; len];
     let mut retval = 0i8;
-    let status = unsafe { ocall_get_deltas_sizes(&mut retval, &addr, &start as *const u32, &end as *const u32,  size_buff.as_mut_ptr(), len) };
+    let status = unsafe { ocall_get_deltas_sizes(&mut retval, &addr, &start as *const u32, &end as *const u32,
+                                                 deltas_buff.as_mut_ptr(), len) };
     if retval != 0 || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveError::OcallError{ command:"get_deltas".to_string(), err: format!("Error with SGX, retval: {}, status: {:?}", retval, status) });
     }
-    let mut deltas: Vec<u8> = size_buff.iter().map(|len| vec![0u8; (*len) as usize]).flatten().collect();
-    let status = unsafe { ocall_get_deltas(&mut retval, &addr, &start as *const u32, &end as *const u32, deltas.as_mut_ptr(), deltas.len()) };
+    let mut deltas: Vec<u8> = deltas_buff.iter().map(|len| vec![0u8; (*len) as usize]).flatten().collect();
+    let status = unsafe { ocall_get_deltas(&mut retval, &addr, &start as *const u32, &end as *const u32,
+                                           deltas.as_mut_ptr(), deltas.len()) };
     if retval != 0 || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveError::OcallError{ command:"get_deltas".to_string(), err: format!("Error with SGX, retval: {}, status: {:?}", retval, status) });
     }
 
     let mut result = Vec::new();
     let mut iteration = &deltas[..];
-    for (i, size) in size_buff.into_iter().enumerate() {
+    for (i, size) in deltas_buff.into_iter().enumerate() {
         let tmp_slices = iteration.split_at(size as usize);
-        let delta = EncryptedPatch { data: tmp_slices.0.to_vec().clone(), hash: addr.clone(), index: start + i as u32};
-        result.push(delta.clone());
+        if tmp_slices.0.len() == 0 {
+            continue;
+        }
+        let delta = EncryptedPatch { data: tmp_slices.0.to_vec(), hash: addr, index: start + i as u32};
+        result.push(delta);
         iteration = tmp_slices.1;
     }
     Ok(result)
@@ -90,26 +94,43 @@ pub mod tests {
             hash: [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162],
             index: 57
         };
-        //    save_delta(&enc_patch).unwrap();
+        save_delta(&enc_patch).unwrap();
     }
 
     pub fn test_get_deltas() {
         let hash = b"test_get_deltas".sha256();
-        let mut deltas = Vec::new();
         let (start, end) = (1, 7);
+        let deltas = save_deltas(start, end, &hash);
+        let res = get_deltas(hash, start, end).unwrap();
+        assert_eq!(res, deltas);
+    }
+
+    pub fn test_get_deltas_more() {
+        let hash = b"test_get_deltas_more".sha256();
+        let (start, end) = (1, 15);
+        let deltas = save_deltas(start, end, &hash);
+        let res = get_deltas(hash, start, end + 3).unwrap();
+        println!("{:?}", deltas);
+        println!("{:?}", res);
+        assert_eq!(res, deltas);
+    }
+
+
+    fn save_deltas(start: u32, end: u32, hash: &[u8; 32]) -> Vec<EncryptedPatch> {
+        let mut deltas = Vec::new();
         for i in start..end {
             let mut delta_data = b"data".sha256().to_vec();
-            delta_data.push(i);
+            delta_data.push(i as u8);
             let delta = EncryptedPatch {
                 data: delta_data,
                 hash: hash.clone(),
-                index: i as u32,
+                index: i,
             };
             deltas.push(delta.clone());
             save_delta(&delta).unwrap();
         }
-        let res = get_deltas(hash, start as u32, end as u32).unwrap();
-        assert_eq!(res, deltas);
+        deltas
+
     }
 
 

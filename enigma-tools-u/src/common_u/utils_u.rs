@@ -7,7 +7,7 @@ pub trait LockExpectMutex<T> {
 
 impl<T> LockExpectMutex<T> for Mutex<T> {
     fn lock_expect(&self, name: &str) -> MutexGuard<T> {
-        self.lock().expect(&format!("{} mutex is poison", name))
+        self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name))
     }
 }
 
