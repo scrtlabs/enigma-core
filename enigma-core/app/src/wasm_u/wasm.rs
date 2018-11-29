@@ -17,7 +17,8 @@ extern "C" {
                      callable_args: *const u8, callable_args_len: usize,
                      output: *mut u64, delta_data_ptr: *mut u64,
                      delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
-                     ethereum_payload: *mut u64) -> sgx_status_t;
+                     ethereum_payload: *mut u64,
+                     ethereum_contract_addr: &mut [u8; 20]) -> sgx_status_t;
 }
 
 extern crate parity_wasm;
@@ -86,6 +87,8 @@ pub struct WasmResult {
     pub bytecode: Vec<u8>,
     pub output: Vec<u8>,
     pub delta: ::db::Delta,
+    pub eth_payload: Vec<u8>,
+    pub eth_contract_addr: [u8;20],
 }
 
 pub fn execute(eid: sgx_enclave_id_t,  bytecode: Box<[u8]>, callable: &str, args: &str)-> Result<WasmResult,Error>{
@@ -95,6 +98,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: Box<[u8]>, callable: &str, args
     let mut delta_hash = [0u8; 32];
     let mut delta_index = 0u32;
     let mut ethereum_payload = 0u64;
+    let mut ethereum_contract_addr = [0u8; 20];
 
     let result = unsafe {
         ecall_execute(eid,
@@ -108,8 +112,13 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: Box<[u8]>, callable: &str, args
                       &mut output as *mut u64,
                       &mut delta_data_ptr as *mut u64,
                       &mut delta_hash,
-                      &mut delta_index as *mut u32, &mut ethereum_payload as *mut u64)
+                      &mut delta_index as *mut u32,
+                      &mut ethereum_payload as *mut u64,
+                      &mut ethereum_contract_addr)
     };
+    let mut result: WasmResult = Default::default();
+    let box_ptr = output as *mut Box<[u8]>;
+    let box_payload_ptr = ethereum_payload as *mut Box<[u8]>;
 
     if retval != EnclaveReturn::Success {
         return Err(EnclaveFailError::from(retval).into());
@@ -120,7 +129,9 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: Box<[u8]>, callable: &str, args
     let box_ptr = output as *mut Box<[u8]>;
     let output = unsafe { Box::from_raw(box_ptr) };
     result.output = output.to_vec();
-
+    let payload = unsafe { Box::from_raw(box_payload_ptr) };
+    result.eth_payload = payload.to_vec();
+    result.eth_contract_addr = ethereum_contract_addr;
     if delta_data_ptr != 0 && delta_hash != [0u8; 32] && delta_index != 0 {
         // TODO: Replace 0 with maybe max int(accordingly).
         let box_ptr = delta_data_ptr as *mut Box<[u8]>;
