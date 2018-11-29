@@ -20,6 +20,7 @@ pub mod ids {
     pub const TYPES_LENGTH_FUNC: usize = 10;
     pub const TYPES_FUNC: usize = 11;
     pub const WRITE_PAYLOAD_FUNC: usize = 12;
+    pub const WRITE_ADDRESS_FUNC: usize = 13;
 }
 
 pub mod signatures {
@@ -80,6 +81,11 @@ pub mod signatures {
 
     pub const WRITE_PAYLOAD: StaticSignature = StaticSignature(
         &[I32, I32],
+        None,
+    );
+
+    pub const WRITE_ADDRESS: StaticSignature = StaticSignature(
+        &[I32],
         None,
     );
 
@@ -156,6 +162,7 @@ impl ModuleImportResolver for ImportResolver {
             "fetch_types_length" => FuncInstance::alloc_host(signatures::TYPES_LENGTH.into(), ids::TYPES_LENGTH_FUNC),
             "fetch_types" => FuncInstance::alloc_host(signatures::TYPES.into(), ids::TYPES_FUNC),
             "write_payload" => FuncInstance::alloc_host(signatures::WRITE_PAYLOAD.into(), ids::WRITE_PAYLOAD_FUNC),
+            "write_address" => FuncInstance::alloc_host(signatures::WRITE_ADDRESS.into(), ids::WRITE_ADDRESS_FUNC),
             _ => {
                 return Err(wasmi::Error::Instantiation(
                     format!("Export {} not found", field_name),

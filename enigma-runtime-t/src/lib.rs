@@ -34,6 +34,7 @@ pub struct RuntimeResult{
     pub updated_state: Option<ContractState>,
     pub result: Vec<u8>,
     pub ethereum_payload: Vec<u8>,
+    pub ethereum_contract_addr: [u8;20]
 }
 
 #[derive(Debug, Clone)]
@@ -55,7 +56,8 @@ impl Runtime {
         let result = RuntimeResult{ result: Vec::new(),
                                     state_delta: None,
                                     updated_state: None,
-                                    ethereum_payload: Vec::new() };
+                                    ethereum_payload: Vec::new(),
+                                    ethereum_contract_addr: [0u8;20]};
         let function_name = function_name.to_string();
 
         Runtime { memory, function_name, args_types, args, result, init_state, current_state }
@@ -67,7 +69,8 @@ impl Runtime {
         let result = RuntimeResult{ result: Vec::new(),
                                     state_delta: None,
                                     updated_state: None,
-                                    ethereum_payload: Vec::new() };
+                                    ethereum_payload: Vec::new(),
+                                    ethereum_contract_addr: [0u8;20]};
         let function_name = function_name.to_string();
 
         Runtime { memory, function_name, args_types, args, result, init_state, current_state }
@@ -228,6 +231,22 @@ impl Runtime {
     }
 
     /// args:
+    /// * `address` - the start address of key in memory
+    ///
+    /// Read `address` from memory, and write it to result
+    pub fn write_address (&mut self, args: RuntimeArgs) -> Result<(), EnclaveError>{
+        let address = args.nth_checked(0)?;
+
+        match self.memory.get_into(address, &mut self.result.ethereum_contract_addr[..]){
+            Ok(v) => v,
+            Err(e) => return Err(EnclaveError::ExecutionErr{code: "write payload".to_string(), err: e.to_string()}),
+        }
+
+        Ok(())
+    }
+
+
+    /// args:
     /// * `ptr` - the start address in memory
     /// * `len` - the length
     ///
@@ -329,6 +348,12 @@ impl Externals for Runtime {
                 &mut Runtime::write_payload(self, args);
                 Ok(None)
             }
+
+            eng_resolver::ids::WRITE_ADDRESS_FUNC => {
+                &mut Runtime::write_address(self, args);
+                Ok(None)
+            }
+
             _ => unimplemented!("Unimplemented function at {}", index),
         }
     }
