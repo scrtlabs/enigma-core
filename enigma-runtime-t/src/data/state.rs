@@ -1,7 +1,6 @@
 use enigma_tools_t::cryptography_t::{Encryption, symmetric};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use std::vec::Vec;
-use std::string::ToString;
 use serde_json::{Value, from_value, Error};
 use crate::data::{IOInterface, StatePatch, DeltasInterface};
 use serde::{Deserialize, Serialize};
@@ -9,10 +8,17 @@ use rmps::{Deserializer, Serializer};
 use json_patch;
 
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+// TODO: Add to the state the hash of the latest delta
+// TODO: Check the hash when applying delta, and use it to make new deltas.
+// TODO: Verify a delta using the new hash.
+// TODO: Do this all over the code.
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
 pub struct ContractState {
+    #[serde(skip)]
     pub contract_id: [u8; 32],
     pub json: Value,
+    pub delta_hash: [u8; 32],
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -26,7 +32,7 @@ impl ContractState {
     pub fn new(contract_id: [u8; 32]) -> ContractState {
         ContractState {
             contract_id,
-            json: Value::default(),
+            .. Default::default()
         }
     }
 }
@@ -48,17 +54,12 @@ impl IOInterface<EnclaveError, u8> for ContractState {
 
 impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
     fn apply_delta(&mut self, delta: &StatePatch) -> Result<(), EnclaveError> {
-        json_patch::patch(&mut self.json, &delta.0)?;
+        json_patch::patch(&mut self.json, &delta.data)?;
         Ok( () )
     }
-    // TODO: Why did I do that?. This should be 1 function, and if necessary another to wrap the first and just switch places. Or maybe even a class method?
-    fn generate_delta(&self, old: Option<&Self>, new: Option<&Self>) -> Result<StatePatch, EnclaveError> {
-        if old.is_some() { return Ok(StatePatch( json_patch::diff(&old.unwrap().json, &self.json) )) }
 
-            else if new.is_some() { return Ok(StatePatch( json_patch::diff(&self.json, &new.unwrap().json) )) }
-
-                else { return Err( EnclaveError::StateError {  err: "Generating a delta, Both old and new are None".to_string() } ) }
-
+    fn generate_delta(old: &Self, new: &Self) -> Result<StatePatch, EnclaveError> {
+        Ok(StatePatch{ data: json_patch::diff(&old.json, &new.json), previous_hash: [0u8; 32] })
     }
 }
 
@@ -66,7 +67,7 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
 impl<'a> Encryption<&'a [u8], EnclaveError, EncryptedContractState<u8>, [u8; 12]> for ContractState {
     fn encrypt_with_nonce(self, key: &[u8], _iv: Option< [u8; 12] >) -> Result<EncryptedContractState<u8>, EnclaveError> {
         let mut buf = Vec::new();
-        self.json.serialize(&mut Serializer::new(&mut buf))?;
+        self.serialize(&mut Serializer::new(&mut buf))?;
         let enc = symmetric::encrypt_with_nonce(&buf, key, _iv)?;
         Ok( EncryptedContractState {
             contract_id: self.contract_id,
@@ -76,11 +77,8 @@ impl<'a> Encryption<&'a [u8], EnclaveError, EncryptedContractState<u8>, [u8; 12]
     fn decrypt(enc: EncryptedContractState<u8>, key: &[u8]) -> Result<ContractState, EnclaveError> {
         let dec = symmetric::decrypt(&enc.json, key)?;
         let mut des = Deserializer::new(&dec[..]);
-        let json: Value = Deserialize::deserialize(&mut des)?;
-
-        Ok ( ContractState {
-            contract_id: enc.contract_id,
-            json
-        } )
+        let mut state: ContractState = Deserialize::deserialize(&mut des)?;
+        state.contract_id = enc.contract_id;
+        Ok ( state )
     }
 }

@@ -144,7 +144,6 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
             // The results here are flatten to one big array.
             // The Enclave needs to seperate them back to the original.
             let res = deltas_vec.into_iter().flatten().collect::<Vec<u8>>();
-            println!("res: {:?}", res);
             write_ptr(&res[..], res_ptr, res_len);
         }
         None => { // If the data doesn't exist in the cache I need to pull it from the DB

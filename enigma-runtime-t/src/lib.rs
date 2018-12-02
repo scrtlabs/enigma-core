@@ -174,7 +174,7 @@ impl Runtime {
     pub fn into_result(mut self) -> /*Vec<u8>*/Result<RuntimeResult, EnclaveError> {
         //self.result.result.to_owned()
         self.result.state_delta =
-            match self.current_state.generate_delta(Some(&self.init_state), None){
+            match ContractState::generate_delta(&self.init_state, &self.current_state) {
                 Ok(v) => Some(v),
                 Err(e) => return Err(EnclaveError::ExecutionError {code: "Error in generating state delta".to_string(), err: e.to_string()}),
             };

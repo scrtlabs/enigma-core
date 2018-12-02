@@ -283,7 +283,6 @@ pub mod tests {
                          test_encrypt_decrypt_state,
                          test_write_state,
                          test_read_state,
-                         test_macros,
                          test_diff_patch,
                          test_encrypt_patch,
                          test_decrypt_patch,

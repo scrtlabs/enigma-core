@@ -134,8 +134,6 @@ pub mod tests {
         let (start, end) = (1, 15);
         let deltas = save_deltas(start, end, &hash);
         let res = get_deltas(hash, start, end + 3).unwrap();
-        println!("{:?}", deltas);
-        println!("{:?}", res);
         assert_eq!(res, deltas);
     }
 
@@ -144,7 +142,7 @@ pub mod tests {
         let state = [7u8; 1850];
         let json = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/prize.json"));
         let v: Value = serde_json::from_str(json).unwrap();
-        let state = ContractState { contract_id: hash, json: v };
+        let state = ContractState { contract_id: hash, json: v, delta_hash: [0u8; 32] };
         let enc = state.encrypt(b"Enigma").unwrap();
         save_state(&enc);
         let ret = get_state(hash).unwrap();
