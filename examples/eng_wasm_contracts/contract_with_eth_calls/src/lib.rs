@@ -54,4 +54,10 @@ impl ContractInterface for Contract {
 }
 
 #[no_mangle]
-pub fn deploy() {}
+pub fn deploy() {
+    let mut a = String::new();
+    a.push_str("69");
+    let key = "code";
+    eprint!("{}", a);
+    write_state!(key => &a);
+}
