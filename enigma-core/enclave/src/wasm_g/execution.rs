@@ -30,8 +30,8 @@ pub fn execute(code: &[u8], state: ContractState, function_name: String, types: 
     }
 }
 
-pub fn execute_constructor(code: &[u8]) -> Result<RuntimeResult, EnclaveError>{
-    execute(code, get_state(), "call".to_string(), "".to_string(), Vec::new())
+pub fn execute_constructor(code: &Vec<u8>) -> Result<RuntimeResult, EnclaveError>{
+    execute(code, get_state(), "".to_string(), "".to_string(), Vec::new())
 }
 
 // This is dummy function, it is used until state is not finished
