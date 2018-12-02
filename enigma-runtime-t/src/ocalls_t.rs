@@ -33,7 +33,7 @@ pub fn save_state(enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> 
 pub fn save_delta(enc: &EncryptedPatch) -> Result<(), EnclaveError> {
     let mut res_int: i8 = -1;
     let res_status: sgx_status_t = unsafe {
-        ocall_new_delta(&mut res_int as *mut i8,  enc.data.as_ptr(), enc.data.len(), &enc.hash, &enc.index as *const u32)
+        ocall_new_delta(&mut res_int as *mut i8,  enc.data.as_ptr(), enc.data.len(), &enc.contract_id, &enc.index as *const u32)
     };
 
     // TODO: Maybe use some sort of ErrorKind to differentiate between the errors outside
@@ -92,7 +92,7 @@ pub fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> Result<Vec<Enc
         if tmp_slices.0.len() == 0 {
             continue;
         }
-        let delta = EncryptedPatch { data: tmp_slices.0.to_vec(), hash: addr, index: start + i as u32};
+        let delta = EncryptedPatch { data: tmp_slices.0.to_vec(), contract_id: addr, index: start + i as u32};
         result.push(delta);
         iteration = tmp_slices.1;
     }
@@ -115,49 +115,49 @@ pub mod tests {
 
         let enc_patch = EncryptedPatch {
             data: vec![197, 39, 187, 56, 29, 96, 229, 230, 172, 82, 74, 89, 152, 72, 183, 136, 80, 182, 222, 4, 47, 197, 200, 233, 105, 90, 207, 14, 20, 220, 170, 226, 21, 241, 24, 231, 69, 27, 177, 234, 110, 132, 253, 115, 87, 205, 167, 142, 163, 170, 37, 239, 240, 98, 20, 49, 185, 223, 162, 115, 194, 220, 75, 218, 160, 17, 83, 134, 247, 239, 213, 207, 59, 32, 76, 204, 206, 134, 80, 234, 88, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-            hash: [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162],
+            contract_id: [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162],
             index: 57
         };
         save_delta(&enc_patch).unwrap();
     }
 
     pub fn test_get_deltas() {
-        let hash = b"test_get_deltas".sha256();
+        let contract_id = b"test_get_deltas".sha256();
         let (start, end) = (1, 7);
-        let deltas = save_deltas(start, end, &hash);
-        let res = get_deltas(hash, start, end).unwrap();
+        let deltas = save_deltas(start, end, &contract_id);
+        let res = get_deltas(contract_id, start, end).unwrap();
         assert_eq!(res, deltas);
     }
 
     pub fn test_get_deltas_more() {
-        let hash = b"test_get_deltas_more".sha256();
+        let contract_id = b"test_get_deltas_more".sha256();
         let (start, end) = (1, 15);
-        let deltas = save_deltas(start, end, &hash);
-        let res = get_deltas(hash, start, end + 3).unwrap();
+        let deltas = save_deltas(start, end, &contract_id);
+        let res = get_deltas(contract_id, start, end + 3).unwrap();
         assert_eq!(res, deltas);
     }
 
     pub fn test_state() {
-        let hash = b"test_state".sha256();
+        let contract_id = b"test_state".sha256();
         let state = [7u8; 1850];
         let json = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/prize.json"));
         let v: Value = serde_json::from_str(json).unwrap();
-        let state = ContractState { contract_id: hash, json: v, delta_hash: [0u8; 32] };
+        let state = ContractState { contract_id, json: v, delta_hash: [0u8; 32], delta_index: 0, };
         let enc = state.encrypt(b"Enigma").unwrap();
         save_state(&enc);
-        let ret = get_state(hash).unwrap();
+        let ret = get_state(contract_id).unwrap();
         assert_eq!(enc, ret);
     }
 
 
-    fn save_deltas(start: u32, end: u32, hash: &[u8; 32]) -> Vec<EncryptedPatch> {
+    fn save_deltas(start: u32, end: u32, contract_id: &[u8; 32]) -> Vec<EncryptedPatch> {
         let mut deltas = Vec::new();
         for i in start..end {
             let mut delta_data = b"data".sha256().to_vec();
             delta_data.push(i as u8);
             let delta = EncryptedPatch {
                 data: delta_data,
-                hash: hash.clone(),
+                contract_id: *contract_id,
                 index: i,
             };
             deltas.push(delta.clone());

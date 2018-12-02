@@ -224,7 +224,7 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: 
         Some(delta) => {
             let enc_delta = km_t::db::encrypt_delta(delta);
             *delta_data_out = ocalls_t::save_to_untrusted_memory(&enc_delta.data)?;
-            *delta_hash_out = enc_delta.hash;
+            *delta_hash_out = enc_delta.contract_id;
             *delta_index_out = enc_delta.index;
         }
         None => {

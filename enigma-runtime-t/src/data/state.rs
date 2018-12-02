@@ -19,6 +19,7 @@ pub struct ContractState {
     pub contract_id: [u8; 32],
     pub json: Value,
     pub delta_hash: [u8; 32],
+    pub delta_index: u32,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -54,12 +55,17 @@ impl IOInterface<EnclaveError, u8> for ContractState {
 
 impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
     fn apply_delta(&mut self, delta: &StatePatch) -> Result<(), EnclaveError> {
-        json_patch::patch(&mut self.json, &delta.data)?;
+        json_patch::patch(&mut self.json, &delta.patch)?;
+        self.delta_hash = delta.sha256_patch()?;
         Ok( () )
     }
 
     fn generate_delta(old: &Self, new: &Self) -> Result<StatePatch, EnclaveError> {
-        Ok(StatePatch{ data: json_patch::diff(&old.json, &new.json), previous_hash: [0u8; 32] })
+        Ok(StatePatch{
+            patch: json_patch::diff(&old.json, &new.json),
+            previous_hash: old.delta_hash,
+            contract_id: old.contract_id,
+            index: old.delta_index+1 })
     }
 }
 

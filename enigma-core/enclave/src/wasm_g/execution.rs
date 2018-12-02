@@ -45,7 +45,7 @@ pub mod tests {
         let initial_state = super::get_state();
         match super::execute(&bytecode, initial_state.clone(), "call") {
             Ok(v) => {
-                let after = super::ContractState { contract_id: b"Enigma".sha256(), json: json!({ "code" : 157 }), delta_hash: [0u8; 32] };
+                let after = super::ContractState { contract_id: b"Enigma".sha256(), json: json!({ "code" : 157 }), delta_hash: [0u8; 32],  delta_index: 0};
                 let delta = super::ContractState::generate_delta(&initial_state, &after).unwrap();
                 assert_eq!(v.state_delta.unwrap(), delta);
             }
