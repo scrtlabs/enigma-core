@@ -18,7 +18,7 @@ pub struct ASReport {
     pub id: String,
     pub timestamp: String,
     pub isvEnclaveQuoteStatus: String,
-    pub platformInfoBlob: String,
+    pub platformInfoBlob: Option<String>,
     pub isvEnclaveQuoteBody: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
@@ -140,6 +140,7 @@ impl AttestationService {
     // parse the response json into an ASResponse
     fn unwrap_report_obj(&self, r: &Value) -> ASReport {
         let report_str = r["result"]["report"].as_str().unwrap();
+        println!("the report: {}", report_str);
         let report_obj: ASReport = serde_json::from_str(report_str).unwrap();
         report_obj
     }
