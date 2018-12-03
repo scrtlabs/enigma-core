@@ -21,6 +21,7 @@ pub struct ASReport {
     pub platformInfoBlob: Option<String>,
     pub isvEnclaveQuoteBody: String,
 }
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ASResult {
     pub ca: String,
