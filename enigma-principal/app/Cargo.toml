@@ -23,6 +23,8 @@ url = "1.7.1"
 tiny-keccak = "1.4.2"
 colour = "0.2.1"
 dirs = "1.0"
+jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc" }
+jsonrpc-minihttp-server = { git = "https://github.com/paritytech/jsonrpc" }
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

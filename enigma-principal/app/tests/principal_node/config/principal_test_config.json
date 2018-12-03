@@ -1,7 +1,7 @@
 {
     "ENIGMA_CONTRACT_PATH" : "../app/tests/principal_node/contracts/Enigma.json",
     "ENIGMA_CONTRACT_REMOTE_PATH" : "",
-    "ENIGMA_CONTRACT_ADDRESS" : "f25186B5081Ff5cE73482AD761DB0eB0d25abfBF",
+    "ENIGMA_CONTRACT_ADDRESS" : "f12b5dd4ead5f743c6baa640b0216200e89b60da",
     "ACCOUNT_ADDRESS" : "627306090abab3a6e1400e9345bc60c78a8bef57",
     "TEST_NET" : true,
     "WITH_PRIVATE_KEY" : false,
@@ -10,5 +10,6 @@
     "EPOCH_SIZE" : 2,
     "POLLING_INTERVAL" : 1,
     "SPID" : "1601F95C39B9EA307FEAABB901ADC3EE",
-    "ATTESTATION_SERVICE_URL" : "https://sgx.enigma.co/api"
+    "ATTESTATION_SERVICE_URL" : "https://sgx.enigma.co/api",
+    "HTTP_PORT": "3040"
 }

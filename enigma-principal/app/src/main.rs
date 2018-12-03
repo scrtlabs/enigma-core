@@ -18,6 +18,8 @@ extern crate web3;
 extern crate rustc_hex;
 extern crate tokio_core;
 extern crate dirs;
+extern crate jsonrpc_minihttp_server;
+
 // enigma modules
 mod esgx;
 mod common_u;
@@ -31,7 +33,7 @@ pub use esgx::general::ocall_get_home;
 #[allow(unused_variables, unused_mut)]
 fn main() {
 
-    /// init enclave 
+    /// init enclave
     let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
@@ -42,13 +44,13 @@ fn main() {
             return;
         },
     };
-    
-    /// run THE app 
-    /// 
+
+    /// run THE app
+    ///
     let eid = enclave.geteid();
     cli::app::start(eid);
-    
-    /// drop enclave when done 
+
+    /// drop enclave when done
     enclave.destroy();
 }
 

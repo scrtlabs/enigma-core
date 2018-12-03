@@ -29,7 +29,7 @@ There are generally 2 types of configuration files and 1 important feature - **m
 
 Responsible for all the logic of the app (i.e epoch size, polling interval etc.)
 
-* Default location (enigma-principal/app/tests/principal_node/contracts/principal_test_config.json)
+* Default location (enigma-principal/app/tests/principal_node/config/principal_test_config.json)
 
 * The path parameter can be changed using the flag (use relative path to aboid docker/os conflicts)
 
@@ -41,7 +41,7 @@ Responsible for all the logic of the app (i.e epoch size, polling interval etc.)
 The Principal Logic has to connect to the Enigma contract, In order to have this we must also implement the EnigmaToken contract.
 The Principal Node can connect to an existing environment or to deploy everything by itself. 
 
-* Default location (enigma-principal/app/tests/principal_node/contracts/deploy_config.json)
+* Default location (enigma-principal/app/tests/principal_node/config/deploy_config.json)
 
 * To run the principal node with a time limit in seconds use the flag 
 
