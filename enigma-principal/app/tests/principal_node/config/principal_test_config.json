@@ -7,7 +7,7 @@
     "WITH_PRIVATE_KEY" : false,
     "PRIVATE_KEY" : "",
     "URL" : "http://localhost:8545",
-    "EPOCH_SIZE" : 2,
+    "EPOCH_SIZE" : 5,
     "POLLING_INTERVAL" : 1,
     "SPID" : "1601F95C39B9EA307FEAABB901ADC3EE",
     "ATTESTATION_SERVICE_URL" : "https://sgx.enigma.co/api",

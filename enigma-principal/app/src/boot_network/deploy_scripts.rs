@@ -241,9 +241,9 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String){
         let mut gas : U256 = U256::from_dec_str(&gas_limit).unwrap();
         options.gas = Some(gas);
         //contract.call("mine",(),deployer,options ).wait().expect("error calling mine on miner.");
-        let res =  contract.call("mine",(),deployer,options ).wait();
-        match res  {
-            Ok(res) => println!("\u{2692}" ),
+        let tx =  contract.call("mine",(),deployer,options ).wait();
+        match tx  {
+            Ok(res) => println!("\u{2692} mined a block with tx: {:?}", res),
             Err(e) => println!("[-] error mining block =>{:?}",e),
         };
         thread::sleep(time::Duration::from_secs(interval));

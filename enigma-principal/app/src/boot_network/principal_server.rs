@@ -1,6 +1,7 @@
 use jsonrpc_minihttp_server::jsonrpc_core::*;
 use jsonrpc_minihttp_server::cors::AccessControlAllowOrigin;
 use std::string::ToString;
+use std::thread;
 use failure::Error;
 use jsonrpc_minihttp_server::ServerBuilder;
 use jsonrpc_minihttp_server::DomainsValidation;
@@ -21,10 +22,10 @@ impl PrincipalHttpServer {
 
         let server = ServerBuilder::new(io)
             .cors(DomainsValidation::AllowOnly(vec![AccessControlAllowOrigin::Null]))
-            .start_http(&"127.0.0.1:3030".parse().unwrap())
-//            .expect("Unable to start RPC server");
-            .unwrap();
+            .start_http(&"127.0.0.1:3040".parse().unwrap())
+            .expect("Unable to start RPC server");
 
         server.wait().unwrap();
+        println!("JSON-RPC HTTP server listening on port: {}", self.port);
     }
 }

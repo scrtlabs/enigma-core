@@ -42,6 +42,7 @@ use std::io::prelude::*;
 use serde_derive::*;
 use serde_json;
 use serde_json::Value;
+use boot_network::principal_utils::emitter_builder;
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -124,9 +125,9 @@ impl Sampler for PrincipalManager {
         let connection_str = config.ATTESTATION_SERVICE_URL.clone();
         let port_str = config.HTTP_PORT.clone();
         PrincipalManager {
-            custom_contract_address: custom_contract_address,
+            custom_contract_address,
             config_path: config_path.to_string(),
-            config: config,
+            config,
             emitt_params: emit,
             as_service: service::AttestationService::new(&connection_str),
             server: PrincipalHttpServer::new(&port_str),
@@ -139,7 +140,7 @@ impl Sampler for PrincipalManager {
         PrincipalManager {
             custom_contract_address: None,
             config_path: config_path.to_string(),
-            config: config,
+            config,
             emitt_params: emit,
             as_service: service::AttestationService::new(&connection_str),
             server: PrincipalHttpServer::new(&port_str),
@@ -203,7 +204,6 @@ impl Sampler for PrincipalManager {
         Ok(signing_address)
     }
     fn start_server(&self) -> Result<(), Error> {
-        print!("starting the JSON-RPC HTTP server");
         self.server.start();
         Ok(())
     }
@@ -214,19 +214,31 @@ impl Sampler for PrincipalManager {
         let (rlp_encoded, as_response) = self.get_report(&quote)?;
         // get enigma contract
         let (eloop, w3) = self.connect()?;
-        let enigma_contract = self.enigma_contract(eloop, w3)?;
+        let enigma_contract = Arc::new(self.enigma_contract(eloop, w3)?);
         // register worker
         //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
         let signer = self.get_signing_address()?;
         println!("signing address = {}", signer);
         let gas_limit = &self.emitt_params.gas_limit;
         enigma_contract.register_as_worker(&signer, &rlp_encoded, &gas_limit)?;
+
         // watch blocks
         let polling_interval = self.config.POLLING_INTERVAL;
         let epoch_size = self.config.EPOCH_SIZE;
         let eid = self.emitt_params.eid;
+        // TODO: start JSON-RPC server
+//        println!("starting the JSON-RPC HTTP server2");
+//        self.start_server();
+
+        let child_contract = Arc::clone(&enigma_contract);
+        let child = thread::spawn(move || {
+            println!("starting the worker parameters watcher in child thread");
+            child_contract.filter_worker_params();
+        });
+
+        println!("starting the block watcher");
         let gas_limit = gas_limit.clone();
-        self.start_server();
+        // TODO: refactor to Generators when available to avoid nesting of set_workers_params
         enigma_contract.watch_blocks(epoch_size, polling_interval, eid, gas_limit, self.emitt_params.max_epochs);
         Ok(())
     }
