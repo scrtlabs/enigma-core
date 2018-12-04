@@ -24,8 +24,8 @@ pub fn save_state(enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> 
         _ => return Err( OcallError { command: "ocall_update_state".to_string(), err: format!("return result is: {}", &res_int ) } )
     }
     match res_status {
-        sgx_status_t::SGX_SUCCESS => return Ok( () ),
-        _ => return Err ( OcallError { command: "ocall_update_state".to_string(), err: res_status.__description().to_string() } )
+        sgx_status_t::SGX_SUCCESS => Ok( () ),
+        _ => Err ( OcallError { command: "ocall_update_state".to_string(), err: res_status.__description().to_string() } )
     }
 }
 
@@ -39,13 +39,13 @@ pub fn save_delta(enc: &EncryptedPatch) -> Result<(), EnclaveError> {
     // TODO: Maybe use some sort of ErrorKind to differentiate between the errors outside
     match res_int {
         0 => (), // 0 is the OK result
-        17 => return Err( OcallError { command: "ocall_new_delta".to_string(), err: format!("key already exist") } ),
+        17 => return Err( OcallError { command: "ocall_new_delta".to_string(), err: "key already exist".to_string() } ),
         _ => return Err( OcallError { command: "ocall_new_delta".to_string(), err: format!("return result is: {}", &res_int ) } )
     }
 
     match res_status {
-        sgx_status_t::SGX_SUCCESS => return Ok( () ),
-        _ => return Err ( OcallError { command: "ocall_new_delta".to_string(), err: res_status.__description().to_string() } )
+        sgx_status_t::SGX_SUCCESS => Ok( () ),
+        _ => Err ( OcallError { command: "ocall_new_delta".to_string(), err: res_status.__description().to_string() } )
     }
 }
 
@@ -55,9 +55,8 @@ pub fn get_state(addr: ContractAddress) -> Result<EncryptedContractState<u8>, En
     let mut state_len = 0usize;
     let status = unsafe { ocall_get_state_size(&mut retval, &addr, &mut state_len) };
     if retval != 0 || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveError::OcallError{ command:"get_state".to_string(), err: format!("Error with SGX, retval: {}, status: {:?}", retval, status) });
+        return Err(EnclaveError::OcallError{ command:"get_state_size".to_string(), err: format!("Error with SGX, retval: {}, status: {:?}", retval, status) });
     }
-
     let mut state = vec![0u8; state_len];
     let status = unsafe { ocall_get_state(&mut retval, &addr, state.as_mut_ptr(), state_len)  };
     if retval != 0 || status != sgx_status_t::SGX_SUCCESS {
@@ -89,7 +88,7 @@ pub fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> Result<Vec<Enc
     let mut iteration = &deltas[..];
     for (i, size) in deltas_buff.into_iter().enumerate() {
         let tmp_slices = iteration.split_at(size as usize);
-        if tmp_slices.0.len() == 0 {
+        if tmp_slices.0.is_empty() {
             continue;
         }
         let delta = EncryptedPatch { data: tmp_slices.0.to_vec(), contract_id: addr, index: start + i as u32};
@@ -139,12 +138,11 @@ pub mod tests {
 
     pub fn test_state() {
         let contract_id = b"test_state".sha256();
-        let state = [7u8; 1850];
         let json = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/prize.json"));
         let v: Value = serde_json::from_str(json).unwrap();
         let state = ContractState { contract_id, json: v, delta_hash: [0u8; 32], delta_index: 0, };
-        let enc = state.encrypt(b"Enigma").unwrap();
-        save_state(&enc);
+        let enc = state.encrypt(&b"Enigma".sha256()).unwrap();
+        save_state(&enc).unwrap();
         let ret = get_state(contract_id).unwrap();
         assert_eq!(enc, ret);
     }

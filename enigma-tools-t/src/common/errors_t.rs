@@ -52,6 +52,9 @@ pub enum EnclaveError {
 
     #[fail(display = "UTF8 failure in a from_utf8: {}", err)]
     Utf8Error { err: String },
+
+    #[fail(display = "There's an error with the messaging: {}", err)]
+    MessagingError { err: String },
 }
 
 impl From<sgx_status_t> for EnclaveError {
@@ -123,6 +126,7 @@ impl Into<EnclaveReturn> for EnclaveError {
             OcallError { .. } => EnclaveReturn::OcallError,
             Utf8Error { .. } => EnclaveReturn::Utf8Error,
             EvmError { .. } => EnclaveReturn::EVMError,
+            MessagingError { .. } => EnclaveReturn::MessagingError,
         }
     }
 }

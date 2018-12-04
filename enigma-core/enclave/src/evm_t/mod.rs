@@ -12,7 +12,7 @@ pub enum EvmResult {
     FAULT,
 }
 
-pub fn get_key() -> Vec<u8> {
+pub fn get_key() -> [u8; 32] {
     let _my_priv_key = "2987699a6d3a5ebd07f4caf422fad2809dcce942cd9db266ed8e2be02cf95ee9".from_hex().unwrap();
     let mut my_priv_key = [0u8; 32];
     my_priv_key.clone_from_slice(&_my_priv_key);

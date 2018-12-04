@@ -45,7 +45,7 @@ pub struct Runtime {
 impl Runtime {
 
     pub fn new(memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32]) -> Runtime {
-        let init_state = ContractState::new( contract_id.clone() );
+        let init_state = ContractState::new( contract_id );
         let current_state = ContractState::new(contract_id);
         let result = RuntimeResult{ result: Vec::new(), state_delta: None, updated_state: None };
 
@@ -87,7 +87,7 @@ impl Runtime {
                 }
                 Ok(())
             },
-            Err(e) => return Err(EnclaveError::ExecutionError {code: "memory".to_string(), err: e.to_string()}),
+            Err(e) => Err(EnclaveError::ExecutionError {code: "memory".to_string(), err: e.to_string()}),
         }
     }
 
@@ -205,23 +205,23 @@ impl Externals for Runtime {
     fn invoke_index(&mut self, index: usize, args: RuntimeArgs) -> Result<Option<RuntimeValue>, Trap> {
         match index {
             eng_resolver::ids::RET_FUNC => {
-                &mut Runtime::ret(self, args);
+                Runtime::ret(self, args);
                 Ok(None)
             }
             eng_resolver::ids::WRITE_STATE_FUNC => {
-                &mut Runtime::write_state(self, args);
+                Runtime::write_state(self, args);
                 Ok(None)
             }
             eng_resolver::ids::READ_STATE_FUNC => {
                 Ok(Some(RuntimeValue::I32(Runtime::read_state(self, args).unwrap())))
             }
             eng_resolver::ids::FROM_MEM_FUNC => {
-                &mut Runtime::from_memory(self, args);
+                Runtime::from_memory(self, args);
                 Ok(None)
             }
 
             eng_resolver::ids::EPRINT_FUNC => {
-                &mut Runtime::eprint(self, args);
+                Runtime::eprint(self, args);
                 Ok(None)
             }
             _ => unimplemented!("Unimplemented function at {}", index),

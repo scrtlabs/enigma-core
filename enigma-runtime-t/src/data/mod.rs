@@ -5,7 +5,6 @@ pub use data::delta::{StatePatch, EncryptedPatch};
 pub use data::state::{ContractState, EncryptedContractState};
 use serde_json::{Error, Value};
 use serde::Deserialize;
-use std::vec::Vec;
 
 pub trait IOInterface<E, U> {
     fn read_key<T>(&self, key: &str) -> Result<T, Error> where for<'de> T: Deserialize<'de>;
@@ -28,7 +27,7 @@ pub mod tests {
     pub fn test_encrypt_state() {
         let id = b"Enigma".sha256();
         let con = ContractState {
-            contract_id: id.clone(),
+            contract_id: id,
             json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
             delta_hash: [0u8; 32],
             delta_index: 0,
@@ -38,7 +37,7 @@ pub mod tests {
 
         let enc_data = vec![197, 53, 186, 61, 17, 116, 238, 226, 187, 179, 66, 18, 156, 95, 182, 135, 157, 171, 159, 207, 39, 197, 204, 188, 170, 147, 3, 1, 22, 218, 163, 31, 219, 245, 18, 247, 68, 87, 160, 229, 125, 146, 160, 230, 154, 246, 169, 129, 162, 171, 195, 133, 120, 163, 23, 63, 162, 223, 160, 47, 195, 219, 14, 21, 182, 120, 195, 100, 170, 65, 203, 10, 7, 215, 228, 226, 110, 152, 175, 120, 234, 107, 79, 30, 205, 4, 253, 116, 236, 45, 189, 65, 97, 167, 218, 142, 21, 248, 238, 145, 206, 202, 148, 71, 163, 17, 251, 83, 255, 137, 33, 101, 112, 137, 139, 247, 211, 110, 253, 59, 19, 3, 173, 193, 148, 132, 196, 254, 190, 35, 51, 20, 157, 119, 201, 122, 175, 165, 99, 232, 37, 3, 168, 150, 165, 246, 226, 227, 100, 132, 142, 102, 65, 69, 92, 44, 226, 189, 117, 239, 54, 17, 156, 236, 224, 164, 6, 224, 38, 96, 166, 91, 172, 56, 80, 97, 142, 89, 176, 72, 18, 141, 174, 26, 108, 103, 239, 236, 174, 7, 151, 177, 57, 218, 16, 214, 248, 35, 165, 35, 201, 138, 77, 88, 189, 7, 13, 108, 64, 177, 214, 227, 205, 49, 245, 53, 16, 39, 44, 66, 201, 15, 104, 246, 187, 221, 238, 183, 14, 128, 47, 73, 207, 133, 152, 186, 61, 197, 73, 71, 98, 179, 136, 83, 28, 188, 226, 9, 216, 163, 42, 61, 135, 94, 235, 100, 71, 154, 102, 153, 217, 171, 73, 254, 52, 113, 183, 122, 237, 49, 150, 8, 124, 132, 107, 65, 140, 220, 53, 110, 220, 128, 136, 7, 52, 174, 144, 242, 66, 145, 250, 210, 169, 213, 240, 139, 164, 170, 196, 155, 240, 121, 73, 124, 166, 64, 52, 84, 55, 213, 146, 82, 150, 222, 8, 163, 215, 45, 220, 166, 28, 177, 136, 253, 239, 248, 196, 119, 148, 10, 185, 223, 53, 216, 242, 152, 215, 60, 235, 22, 212, 254, 99, 139, 251, 238, 174, 82, 115, 171, 239, 45, 99, 161, 133, 187, 118, 253, 174, 13, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
         let enc_contract = con.encrypt_with_nonce(&key, Some( iv )).unwrap();
-        assert_eq!(EncryptedContractState { contract_id: id.clone(), json: enc_data }, enc_contract )
+        assert_eq!(EncryptedContractState { contract_id: id, json: enc_data }, enc_contract )
     }
 
     pub fn test_decrypt_state() {
@@ -59,7 +58,7 @@ pub mod tests {
     pub fn test_encrypt_decrypt_state() {
         let id = b"Enigma".sha256();
         let con = ContractState {
-            contract_id: id.clone(),
+            contract_id: id,
             json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
             delta_hash: [0u8; 32],
             delta_index: 0,

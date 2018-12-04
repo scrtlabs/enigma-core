@@ -77,23 +77,22 @@ pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut u8, state_size: *mut usize) -> i8 {
-
+pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut u8, state_size: usize) -> i8 {
     let mut cache_id = addr.to_vec();
-    cache_id.write_uint::<BigEndian>(state_size as u64, mem::size_of_val(&(*state_size))).unwrap();
+    cache_id.write_uint::<BigEndian>(state_size as u64, mem::size_of_val(&state_size)).unwrap();
     match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
         Some(state) => {
-            write_ptr(&state[0][..], state_ptr, *state_size);
-            return 0;
+            write_ptr(&state[0][..], state_ptr, state_size);
+            0
         },
         None => {
             let _state_key = DeltaKey::new(*addr, Stype::State);
             match DATABASE.lock_expect("Database").read(&_state_key) {
                 Ok(state) => {
-                    write_ptr(&state, state_ptr, *state_size);
-                    return 0;
+                    write_ptr(&state, state_ptr, state_size);
+                    0
                 },
-                Err(_) => return 17,
+                Err(_) => 17,
             }
         }
     }
@@ -110,10 +109,9 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
     cache_id.write_u32::<BigEndian>(*start).unwrap();
     cache_id.write_u32::<BigEndian>(*end).unwrap();
 
-    let deltas_result = get_deltas(*addr, *start, *end);
     let mut deltas_vec = Vec::with_capacity(len);
     let mut sizes = Vec::with_capacity(len);
-    match deltas_result {
+    match get_deltas(*addr, *start, *end) {
        Ok(deltas_type) => {
            match deltas_type {
                ResultType::None => return 17,
@@ -147,8 +145,7 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
             write_ptr(&res[..], res_ptr, res_len);
         }
         None => { // If the data doesn't exist in the cache I need to pull it from the DB
-            let deltas_result = get_deltas(*addr, *start, *end);
-            match deltas_result {
+            match get_deltas(*addr, *start, *end) {
                 Ok(deltas_type) => {
                     match deltas_type {
                         ResultType::None => return 17,

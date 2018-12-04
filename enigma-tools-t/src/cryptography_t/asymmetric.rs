@@ -4,8 +4,6 @@ use secp256k1;
 use secp256k1::{PublicKey, SecretKey, SharedSecret};
 use sgx_trts::trts::rsgx_read_rand;
 use std::string::ToString;
-//use std::str;
-use std::vec::Vec;
 
 #[derive(Debug)]
 pub struct KeyPair {
@@ -35,7 +33,7 @@ impl KeyPair {
         Ok(keys)
     }
 
-    pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<Vec<u8>, EnclaveError> {
+    pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<[u8; 32], EnclaveError> {
         let mut pubarr: [u8; 65] = [0; 65];
         pubarr[0] = 4;
         pubarr[1..].copy_from_slice(&_pubarr[..]);
@@ -44,7 +42,11 @@ impl KeyPair {
             Err(_) => return Err(EnclaveError::KeyError { key: _pubarr.to_hex(), key_type: "PublicKey".to_string() }),
         };
         match SharedSecret::new(&pubkey, &self.privkey) {
-            Ok(val) => Ok(val.as_ref().to_vec()),
+            Ok(val) => {
+                let mut result = [0u8; 32];
+                result.copy_from_slice(val.as_ref());
+                Ok(result)
+            },
             Err(_) => Err(EnclaveError::DerivingKeyError { self_key: self.get_pubkey().to_hex(), other_key: pubkey.serialize()[1..65].to_hex(), }),
         }
     }

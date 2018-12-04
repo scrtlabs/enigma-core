@@ -93,7 +93,7 @@ pub fn complete_to_u256(num: &str) -> String {
     result
 }
 
-fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, EnclaveError> {
+fn decrypt_rlp(v: &[u8], key: &[u8; 32], arg_type: &SolidityType) -> Result<String, EnclaveError> {
     let encrypted_value = match from_utf8(&v) {
         Ok(value) => value,
         Err(_e) => return Err(EnclaveError::InputError { message: "".to_string() }),
@@ -143,7 +143,7 @@ fn decrypt_rlp(v: &[u8], key: &[u8], arg_type: &SolidityType) -> Result<String, 
     }
 }
 
-fn decode_rlp(rlp: &UntrustedRlp, result: &mut String, key: &[u8], arg_type: &SolidityType) -> Result<(), EnclaveError> {
+fn decode_rlp(rlp: &UntrustedRlp, result: &mut String, key: &[u8; 32], arg_type: &SolidityType) -> Result<(), EnclaveError> {
     if rlp.is_list() {
         result.push_str("[");
         let iter = rlp.iter();

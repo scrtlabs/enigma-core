@@ -215,9 +215,9 @@ impl P2PCalls<Vec<u8>> for DB {
                     full = last.0.as_split(|_, key1| from.as_split( |_, key2 | key1 == key2 ));
                 }
                 if full {
-                    return Ok(ResultType::Full(key_val))
+                    Ok(ResultType::Full(key_val))
                 } else {
-                    return Ok(ResultType::Partial(key_val))
+                    Ok(ResultType::Partial(key_val))
                 }
             })
         })
