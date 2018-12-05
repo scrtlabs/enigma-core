@@ -7,14 +7,10 @@ use evm_t::error::Error;
 use common::errors_t::EnclaveError;
 use common::utils_t::ToHex;
 use evm_t::preprocessor;
-use evm_t::rlp::{complete_to_u256, decode_args};
 use std::str::from_utf8;
 use std::string::String;
 use std::string::ToString;
-use std::str::from_utf8;
-use evm_t::preprocessor;
-use common::utils_t::ToHex;
-use common::errors_t::EnclaveError;
+use std::vec::Vec;
 use enigma_tools_t::build_arguments_g::*;
 use enigma_tools_t::build_arguments_g::rlp::complete_to_u256;
 

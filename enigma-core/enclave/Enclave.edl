@@ -39,6 +39,6 @@ enclave {
         int8_t ocall_update_state( [in] uint8_t contract_id[32], [in, size=len] const uint8_t* enc_state, size_t len );
         int8_t ocall_new_delta( [in, size=len] const uint8_t* enc_delta, size_t len, [in] uint8_t delta_hash[32], [in] uint32_t* delta_index);
 
-        uint64_t ocall_save_to_memory( [in, size=data_len] const uint8_t* data_ptr, size_t data_len);
+        uint64_t ocall_save_to_memory( [in, count=data_len] const uint8_t* data_ptr, size_t data_len);
     };
 };

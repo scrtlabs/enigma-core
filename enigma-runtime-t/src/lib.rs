@@ -85,7 +85,7 @@ impl Runtime {
 
         match self.memory.set(ptr, &self.args){
             Ok(_v) => Ok(()),
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "fetching arguments".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError{code: "fetching arguments".to_string(), err: e.to_string()}),
         }
     }
 
@@ -98,7 +98,7 @@ impl Runtime {
 
         match self.memory.set(ptr, &self.function_name.as_bytes()){
             Ok(_v) => Ok(()),
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "fetching function name".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError{code: "fetching function name".to_string(), err: e.to_string()}),
         }
     }
 
@@ -111,7 +111,7 @@ impl Runtime {
 
         match self.memory.set(ptr, &self.args_types.as_bytes()){
             Ok(_v) => Ok(()),
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "fetching arguments' types".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError{code: "fetching arguments' types".to_string(), err: e.to_string()}),
         }
     }
     /// args:
@@ -224,7 +224,7 @@ impl Runtime {
 
         match self.memory.get_into(payload, &mut self.result.ethereum_payload[..]){
             Ok(v) => v,
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "write payload".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError{code: "write payload".to_string(), err: e.to_string()}),
         }
 
         Ok(())
@@ -239,7 +239,7 @@ impl Runtime {
 
         match self.memory.get_into(address, &mut self.result.ethereum_contract_addr[..]){
             Ok(v) => v,
-            Err(e) => return Err(EnclaveError::ExecutionErr{code: "write payload".to_string(), err: e.to_string()}),
+            Err(e) => return Err(EnclaveError::ExecutionError{code: "write payload".to_string(), err: e.to_string()}),
         }
 
         Ok(())

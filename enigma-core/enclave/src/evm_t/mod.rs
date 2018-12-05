@@ -1,5 +1,6 @@
 pub mod abi;
 pub mod error;
+pub mod evm;
 
 pub enum EvmResult {
     SUCCESS = 0,
@@ -10,9 +11,7 @@ pub mod preprocessor{
     use std::vec::Vec;
     use sgx_trts::trts::rsgx_read_rand;
     use common::errors_t::EnclaveError;
-    use sgx_trts::trts::rsgx_read_rand;
     use std::string::ToString;
-    use std::vec::Vec;
 
     // TODO: Implement Errors
     pub fn run(pre_sig: &str) -> Result<Vec<u8>, EnclaveError> {

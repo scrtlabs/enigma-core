@@ -11,7 +11,7 @@ extern "C" {
     fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
                     output_ptr: *mut u64) -> sgx_status_t;
 
-    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
+    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
                      bytecode: *const u8, bytecode_len: usize,
                      callable: *const u8, callable_len: usize,
                      callable_args: *const u8, callable_args_len: usize,
@@ -92,7 +92,7 @@ pub struct WasmResult {
 }
 
 pub fn execute(eid: sgx_enclave_id_t,  bytecode: Box<[u8]>, callable: &str, args: &str)-> Result<WasmResult,Error>{
-    let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
+    let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
     let mut delta_hash = [0u8; 32];
@@ -116,9 +116,6 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: Box<[u8]>, callable: &str, args
                       &mut ethereum_payload as *mut u64,
                       &mut ethereum_contract_addr)
     };
-    let mut result: WasmResult = Default::default();
-    let box_ptr = output as *mut Box<[u8]>;
-    let box_payload_ptr = ethereum_payload as *mut Box<[u8]>;
 
     if retval != EnclaveReturn::Success {
         return Err(EnclaveFailError::from(retval).into());
@@ -129,6 +126,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: Box<[u8]>, callable: &str, args
     let box_ptr = output as *mut Box<[u8]>;
     let output = unsafe { Box::from_raw(box_ptr) };
     result.output = output.to_vec();
+    let box_payload_ptr = ethereum_payload as *mut Box<[u8]>;
     let payload = unsafe { Box::from_raw(box_payload_ptr) };
     result.eth_payload = payload.to_vec();
     result.eth_contract_addr = ethereum_contract_addr;
@@ -156,6 +154,9 @@ pub mod tests {
     use std::io::Read;
     use std::path::PathBuf;
     use sgx_types::*;
+    use std::process::Command;
+    use wasm_u::wasm;
+    use std::str::from_utf8;
 
     fn init_enclave() -> SgxEnclave {
         let enclave = match esgx::general::init_enclave_wrapper() {
