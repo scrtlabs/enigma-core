@@ -23,6 +23,14 @@ use enigma_tools_u::attestation_service::service;
 use web3::types::H256;
 use enigma_tools_u::web3_utils::w3utils;
 use web3::types::FilterBuilder;
+use web3::helpers;
+use web3::contract::tokens::Tokenizable;
+use ethabi::Event;
+use ethabi::EventParam;
+use ethabi::ParamType;
+use ethabi::RawLog;
+use ethabi::Log;
+use ethabi::Token;
 
 
 // this struct holds parameters nessceary for emitting the random
@@ -41,7 +49,7 @@ pub struct EmittParams {
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
     fn new(web3: Web3<Http>, eloop: web3::transports::EventLoopHandle, address: &str, path: String, account: &str, url: String) -> Self;
-    fn filter_worker_params(&self);
+    fn filter_worker_params(&self) -> Result<(), Error>;
     fn set_worker_params(&self, eid: sgx_enclave_id_t, gas_limit: &str) -> Result<(), Error>;
     fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: String, max_epochs: Option<usize>);
 }
@@ -51,14 +59,31 @@ impl Principal for EnigmaContract {
         Self::new(web3, eloop, address, path, account, url)
     }
 
-    fn filter_worker_params(&self) {
-        let event = w3utils::to_keccak256("WorkersParameterized(uint256,address[],bool)".as_bytes());
+    fn filter_worker_params(&self) -> Result<(), Error> {
+        let event = Event {
+            name: "WorkersParameterized".to_owned(),
+            inputs: vec![EventParam {
+                name: "seed".to_owned(),
+                kind: ParamType::Uint(256),
+                indexed: false,
+            }, EventParam {
+                name: "workers".to_owned(),
+                kind: ParamType::Array(Box::new(ParamType::Address)),
+                indexed: false,
+            }, EventParam {
+                name: "_success".to_owned(),
+                kind: ParamType::Bool,
+                indexed: false,
+            }],
+            anonymous: false,
+        };
+        let event_sig = event.signature();
         // Filter for Hello event in our contract
         let filter = FilterBuilder::default()
             .address(vec![self.contract.address()])
             .topics(
                 Some(vec![
-                    event.into(),
+                    event_sig.into(),
                 ]),
                 None,
                 None,
@@ -73,12 +98,24 @@ impl Principal for EnigmaContract {
                     .unwrap()
                     .stream(time::Duration::from_secs(1))
                     .for_each(|log| {
-                        println!("got log: {:?}", log);
+                        // ethabi wants the data as a raw Vec so we extract from the Bytes wrapper
+                        let rawLog = RawLog { topics: log.topics, data: log.data.0 };
+                        let log = match event.parse_log(rawLog) {
+                            Ok(log) => log,
+                            Err(e) => panic!("unable to parse event log")
+                        };
+                        let seedToken: Token = log.params[0].value.to_owned();
+                        let seed: U256 = Tokenizable::from_token(seedToken).unwrap();
+
+                        let workersToken = log.params[1].value.to_owned();
+                        let workers: Vec<Address> = Tokenizable::from_token(workersToken).unwrap();
+                        println!("got log: {:?}, seed {:?}, workers {:?}", log, seed, workers);
                         Ok(())
                     })
             })
             .map_err(|_| ());
         event_future.wait().unwrap();
+        Ok(())
     }
 
     // set (seed,signature(seed)) into the enigma smart contract
@@ -104,7 +141,6 @@ impl Principal for EnigmaContract {
     fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: String, max_epochs: Option<usize>) {
         let prev_epoch = Arc::new(AtomicUsize::new(0));
         let MAX_EPOCHS = max_epochs.unwrap_or(0);
-        let contract = Arc::clone(&self);
         let mut epoch_counter = 0;
         loop {
             //params

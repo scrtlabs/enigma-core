@@ -19,6 +19,7 @@ extern crate rustc_hex;
 extern crate tokio_core;
 extern crate dirs;
 extern crate jsonrpc_minihttp_server;
+extern crate ethabi;
 
 // enigma modules
 mod esgx;

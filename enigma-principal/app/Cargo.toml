@@ -7,12 +7,13 @@ build = "build.rs"
 [dependencies]
 enigma-tools-u = {path = "../../enigma-tools-u"}
 
+ethabi = "6.0"
 base64 = "0.10.0"
 libc = "0.2.41"
 etcommon-rlp = "0.2"
 failure = "=0.1.1"
 failure_derive="=0.1.1"
-web3 = "0.5.0"
+web3 = "0.5.1"
 rustc-hex = "1.0.0"
 tokio-core = "0.1.17"
 serde_json = "1.0"
