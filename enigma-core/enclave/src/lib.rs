@@ -291,7 +291,8 @@ pub mod tests {
     use sgx_tunittest::*;
     use std::string::{String, ToString};
     use std::vec::Vec;
-    use wasm_g::execution::tests::*;
+    use crate::wasm_g::execution::tests::*;
+    use crate::km_t::tests::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
@@ -322,8 +323,9 @@ pub mod tests {
                          test_encrypt_response,
                          test_decrypt_reponse,
                          test_get_deltas,
-                         test_get_deltas_more
-                         );
+                         test_get_deltas_more,
+                         test_state_internal
+        );
     }
 
     fn test_ecall_evm_signning() {

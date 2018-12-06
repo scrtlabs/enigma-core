@@ -130,5 +130,77 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
     Ok(failed_contracts)
 }
 
-    Ok(())
+pub mod tests {
+    use super::*;
+    use enigma_tools_t::common::Sha256;
+    use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
+    use enigma_tools_t::km_primitives::{Message, MessageType, ContractAddress};
+    use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch};
+    use enigma_runtime_t::data::IOInterface;
+
+    pub fn test_state_internal() {
+        // Making the ground work
+        let address = vec![b"first".sha256(), b"second".sha256(), b"third".sha256()];
+        let state_keys = vec![b"first_key".sha256(), b"second_key".sha256(), b"third_key".sha256()];
+        let states_and_deltas = get_states_deltas(&address);
+        let enc_states: Vec<(EncryptedContractState<u8>, Vec<EncryptedPatch>)> = states_and_deltas.into_iter()
+            .zip(state_keys.iter())
+            .map(|((state, delta_vec), key)| {
+                let enc_state = state.encrypt(key);
+                let enc_deltas = delta_vec.into_iter().map(|delta| delta.encrypt(key).unwrap()).collect();
+                (enc_state.unwrap(), enc_deltas)
+            }).collect();
+
+//        // Saving the encrypted states and deltas to the db
+        for (enc_state, enc_deltas) in enc_states {
+            runtime_ocalls_t::save_state(&enc_state).unwrap();
+            for delta in enc_deltas {
+                runtime_ocalls_t::save_delta(&delta).unwrap();
+            }
+        }
+        let gibrish_state = EncryptedContractState { contract_id: address[2], json: vec![8u8; 65] };
+        runtime_ocalls_t::save_state(&gibrish_state).unwrap();
+        // Generating the request
+        let mut _sig = [0u8; 65];
+        let req_msg = unsafe { ecall_ptt_req_internal(&address, &mut _sig).unwrap() };
+        let req_obj = Message::from_message(&req_msg).unwrap();
+
+        // Mimicking the Principal/KM Node
+        let km_node_keys = KeyPair::new().unwrap();
+        let restype: Vec<(ContractAddress, StateKey)> = address.clone().into_iter().zip(state_keys.into_iter()).collect();
+
+        let res_obj = Message::new_id(MessageType::Response(restype), req_obj.get_id(), km_node_keys.get_pubkey());
+        let dh_key = km_node_keys.get_aes_key(&req_obj.get_pubkey()).unwrap();
+        let enc_req = res_obj.encrypt(&dh_key).unwrap();
+
+        let enc_res_slice = enc_req.to_message().unwrap();
+
+
+        // Enclave Process Response
+        ecall_ptt_res_internal(&enc_res_slice).unwrap();
+
+        // Initiate the building
+        assert_eq!(ecall_build_state_internal().unwrap(), vec![address[2]])
+
+    }
+
+
+    fn get_states_deltas(address: &[ContractAddress]) -> Vec<(ContractState, Vec<StatePatch>)> {
+        let states = vec![ ContractState { contract_id: address[0], json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}), delta_hash: [0u8; 32], delta_index: 0, },
+                           ContractState { contract_id: address[1], json: serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#).unwrap(), delta_hash: [0u8; 32], delta_index: 0, }];
+
+        let mut result = Vec::with_capacity(states.len());
+        for mut state in states {
+            let original_state = state.clone();
+            let mut patches = Vec::with_capacity(15);
+            for i in 0..15 {
+                let old_state = state.clone();
+                state.write_key(&i.to_string(), &json!(i)).unwrap();
+                let delta = ContractState::generate_delta(&old_state, &state).unwrap();
+                patches.push(delta);
+            }
+            result.push((original_state, patches));
+        }
+        result
+    }
 }
