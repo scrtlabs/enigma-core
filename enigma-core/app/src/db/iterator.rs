@@ -226,7 +226,6 @@ impl P2PCalls<Vec<u8>> for DB {
 
 #[cfg(test)]
 mod test {
-    extern crate tempdir;
 
     use crate::db::dal::{CRUDInterface, DB};
     use crate::db::iterator::{ContractAddress, P2PCalls, ResultType};

@@ -11,9 +11,14 @@ extern "C" {
     fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
                     output_ptr: *mut u64) -> sgx_status_t;
 
-    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, bytecode: *const u8, bytecode_len: usize,
-                     callable: *const u8, callable_len: usize, output: *mut u64, delta_data_ptr: *mut u64,
-                     delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32) -> sgx_status_t;
+    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
+                     bytecode: *const u8, bytecode_len: usize,
+                     callable: *const u8, callable_len: usize,
+                     callable_args: *const u8, callable_args_len: usize,
+                     output: *mut u64, delta_data_ptr: *mut u64,
+                     delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
+                     ethereum_payload: *mut u64,
+                     ethereum_contract_addr: &mut [u8; 20]) -> sgx_status_t;
 }
 
 extern crate parity_wasm;
@@ -59,7 +64,8 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, Error> {
 }
 
 const MAX_EVM_RESULT: usize = 100_000;
-pub fn deploy(eid: sgx_enclave_id_t, bytecode: &[u8]) -> Result<Vec<u8>, Error> {
+pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8])-> Result<Box<[u8]>, Error> {
+
     let deploy_bytecode = build_constructor(&bytecode)?;
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     let mut output_ptr: u64 = 0;
@@ -72,8 +78,8 @@ pub fn deploy(eid: sgx_enclave_id_t, bytecode: &[u8]) -> Result<Vec<u8>, Error> 
                      &mut output_ptr as *mut u64)
     };
     let box_ptr = output_ptr as *mut Box<[u8]>;
-    let part = unsafe { Box::from_raw(box_ptr) };
-    Ok(part.to_vec())
+    let part = unsafe { Box::from_raw(box_ptr ) };
+    Ok(*part)
 }
 
 #[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
@@ -81,14 +87,18 @@ pub struct WasmResult {
     pub bytecode: Vec<u8>,
     pub output: Vec<u8>,
     pub delta: ::db::Delta,
+    pub eth_payload: Vec<u8>,
+    pub eth_contract_addr: [u8;20],
 }
 
-pub fn execute(eid: sgx_enclave_id_t, bytecode: &[u8], callable: &str) -> Result<WasmResult, Error> {
+pub fn execute(eid: sgx_enclave_id_t,  bytecode: Box<[u8]>, callable: &str, args: &str)-> Result<WasmResult,Error>{
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
     let mut delta_hash = [0u8; 32];
     let mut delta_index = 0u32;
+    let mut ethereum_payload = 0u64;
+    let mut ethereum_contract_addr = [0u8; 20];
 
     let status = unsafe {
         ecall_execute(eid,
@@ -97,10 +107,14 @@ pub fn execute(eid: sgx_enclave_id_t, bytecode: &[u8], callable: &str) -> Result
                       bytecode.len(),
                       callable.as_ptr() as *const u8,
                       callable.len(),
+                      args.as_ptr() as *const u8,
+                      args.len(),
                       &mut output as *mut u64,
                       &mut delta_data_ptr as *mut u64,
                       &mut delta_hash,
-                      &mut delta_index as *mut u32)
+                      &mut delta_index as *mut u32,
+                      &mut ethereum_payload as *mut u64,
+                      &mut ethereum_contract_addr)
     };
 
     if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
@@ -112,7 +126,10 @@ pub fn execute(eid: sgx_enclave_id_t, bytecode: &[u8], callable: &str) -> Result
     let box_ptr = output as *mut Box<[u8]>;
     let output = unsafe { Box::from_raw(box_ptr) };
     result.output = output.to_vec();
-
+    let box_payload_ptr = ethereum_payload as *mut Box<[u8]>;
+    let payload = unsafe { Box::from_raw(box_payload_ptr) };
+    result.eth_payload = payload.to_vec();
+    result.eth_contract_addr = ethereum_contract_addr;
     if delta_data_ptr != 0 && delta_hash != [0u8; 32] && delta_index != 0 {
         // TODO: Replace 0 with maybe max int(accordingly).
         let box_ptr = delta_data_ptr as *mut Box<[u8]>;
@@ -136,9 +153,10 @@ pub mod tests {
     use std::fs::File;
     use std::io::Read;
     use std::path::PathBuf;
+    use sgx_types::*;
     use std::process::Command;
-    use std::str::from_utf8;
     use wasm_u::wasm;
+    use std::str::from_utf8;
 
     fn init_enclave() -> SgxEnclave {
         let enclave = match esgx::general::init_enclave_wrapper() {
@@ -153,14 +171,14 @@ pub mod tests {
         enclave
     }
 
-    #[test]
-    fn compile_test_contract() {
+    fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str) -> Box<[u8]>{
         let mut dir = PathBuf::new();
-        dir.push("../../examples/eng_wasm_contracts/simplest");
-        let mut output = Command::new("cargo").current_dir(&dir)
-                                              .args(&["build", "--release"])
-                                              .spawn()
-                                              .expect(&format!("Failed compiling simplest wasm exmaple: {:?}", &dir));
+        dir.push(test_path);
+        let mut output = Command::new("cargo")
+            .current_dir(&dir)
+            .args(&["build", "--release"])
+            .spawn()
+            .expect(&format!("Failed compiling wasm contract: {:?}", &dir) );
 
         assert!(output.wait().unwrap().success());
         dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
@@ -168,13 +186,26 @@ pub mod tests {
         let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir));
         let mut wasm_code = Vec::new();
         f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
-        println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
+        println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
+        wasm::deploy(eid, &wasm_code).expect("Deploy Failed")
+    }
 
+    #[test]
+    fn simple() {
         let enclave = init_enclave();
-        let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
-        let result = wasm::execute(enclave.geteid(), &contract_code, "call").expect("Execution failed");
+        let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
+//        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), contract_code, "write()", "").expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
+    }
+
+    #[test]
+    fn eth_bridge() {
+        let enclave = init_enclave();
+        let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/contract_with_eth_calls");
+        let result = wasm::execute(enclave.geteid(), contract_code, "test()", "").expect("Execution failed");
+        enclave.destroy();
     }
 
     #[ignore]
@@ -189,7 +220,7 @@ pub mod tests {
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
         let enclave = init_enclave();
         let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
-        let result = wasm::execute(enclave.geteid(), &contract_code, "call").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(),contract_code, "call", "").expect("Execution failed");
         assert_eq!(from_utf8(&result.output).unwrap(), "157");
     }
 }

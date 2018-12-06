@@ -10,7 +10,13 @@ use std::sync::Mutex;
 
 lazy_static! {
     pub static ref DATABASE: Mutex<dal::DB> = {
-        let enigma_dir = storage_dir();
-        Mutex::new(dal::DB::new(enigma_dir, true).expect("Failed To initialize db in Mutex"))
+        if cfg!(test) {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        Mutex::new(dal::DB::new(tempdir, true).expect("Failed To initialize db in Mutex"))
+
+        } else {
+            let enigma_dir = storage_dir();
+            Mutex::new(dal::DB::new(enigma_dir, true).expect("Failed To initialize db in Mutex"))
+        }
     };
 }

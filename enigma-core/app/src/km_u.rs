@@ -70,7 +70,6 @@ pub mod tests {
     extern crate rand;
     extern crate ring;
 
-    use crate::esgx;
     use crate::esgx::general::init_enclave_wrapper;
     use super::{ContractAddress, ptt_req, ptt_res, ptt_build_state};
     use crate::db::{DeltaKey, DATABASE, ResultType, ResultTypeVec, CRUDInterface};
@@ -84,7 +83,7 @@ pub mod tests {
 
     #[test]
     fn test_ecall() {
-        let enclave = esgx::general::init_enclave_wrapper().unwrap();
+        let enclave = init_enclave_wrapper().unwrap();
         let addresses: [ContractAddress; 3] = [[1u8 ;32], [2u8; 32], [3u8; 32]];
         let (msg, sig) = ptt_req(enclave.geteid(), &addresses).unwrap();
         assert_ne!(msg.len(), 0);
@@ -138,6 +137,7 @@ pub mod tests {
         enc_template.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
 
         ptt_res(enclave.geteid(), &serialized_enc_response).unwrap();
+
         assert_eq!(ptt_build_state(enclave.geteid()).unwrap(), vec![address[2]])
 
     }

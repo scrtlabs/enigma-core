@@ -26,6 +26,7 @@ extern crate serde_derive;
 extern crate serde;
 extern crate lru_cache;
 extern crate byteorder;
+extern crate tempdir;
 
 //use sgx_types::*;
 use std::thread;
