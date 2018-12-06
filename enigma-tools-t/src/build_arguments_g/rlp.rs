@@ -2,7 +2,6 @@ use bigint::U256;
 use common::errors_t::EnclaveError;
 use common::utils_t::ToHex;
 use cryptography_t::symmetric::decrypt;
-use evm_t::get_key;
 use hexutil::read_hex;
 use rlp::DecoderError;
 use rlp::UntrustedRlp;
@@ -11,6 +10,7 @@ use std::str::from_utf8;
 use std::string::String;
 use std::string::ToString;
 use std::vec::Vec;
+use build_arguments_g::*;
 
 enum SolidityType {
     Uint,
