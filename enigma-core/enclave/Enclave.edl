@@ -31,14 +31,31 @@ enclave {
         	                              [out] uint64_t* ethereum_payload_ptr, [out, size=20] uint8_t* ethereum_contract_addr);
 
         public void ecall_get_signing_address([out] uint8_t arr[42]);
+
+        public EnclaveReturn ecall_ptt_req([in, size=address_len] uint8_t *address_list, size_t address_len, [out] uint8_t sig[65], [out] uint64_t* serialized_ptr);
+
+        public EnclaveReturn ecall_ptt_res([in, size=msg_len] uint8_t *msg_ptr, size_t msg_len);
+
+        public EnclaveReturn ecall_build_state([out] uint64_t* failed_ptr);
+
     };
     untrusted {
-        void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);
+        void ocall_get_home( [out, size=4096] uint8_t* output, [out] size_t* result_length);
 
         // TODO: Add explicit size wherever is possible.
         int8_t ocall_update_state( [in] uint8_t contract_id[32], [in, size=len] const uint8_t* enc_state, size_t len );
         int8_t ocall_new_delta( [in, size=len] const uint8_t* enc_delta, size_t len, [in] uint8_t delta_hash[32], [in] uint32_t* delta_index);
 
         uint64_t ocall_save_to_memory( [in, count=data_len] const uint8_t* data_ptr, size_t data_len);
+
+        int8_t ocall_get_deltas_sizes( [in] uint8_t addr[32], [in] const uint32_t* start, [in] const uint32_t* end,
+                                       [out, count=res_len] size_t* res_ptr, size_t res_len);
+
+        int8_t ocall_get_deltas( [in] uint8_t addr[32], [in] const uint32_t* start, [in] const uint32_t* end,
+                                 [out, count=res_len] uint8_t* res_ptr, size_t res_len);
+
+        int8_t ocall_get_state_size( [in] uint8_t addr[32], [out] size_t* state_size);
+
+        int8_t ocall_get_state( [in] uint8_t addr[32], [out, count=state_len] uint8_t* state_pt, size_t state_len);
     };
 };

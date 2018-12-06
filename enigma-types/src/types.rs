@@ -14,6 +14,7 @@ pub enum EnclaveReturn {
     StateError,
     OcallError,
     Utf8Error,
+    MessagingError,
     Other
 }
 

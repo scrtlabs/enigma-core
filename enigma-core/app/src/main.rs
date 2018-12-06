@@ -11,6 +11,7 @@ extern crate rocksdb;
 #[macro_use]
 extern crate lazy_static;
 // networking apt install libzmq3-dev
+#[cfg_attr(test, macro_use)]
 extern crate serde_json;
 extern crate zmq;
 // errors
@@ -23,8 +24,9 @@ extern crate enigma_types;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
-
+extern crate lru_cache;
 extern crate byteorder;
+extern crate tempdir;
 
 //use sgx_types::*;
 use std::thread;
@@ -33,10 +35,12 @@ mod common_u;
 mod db;
 mod esgx;
 mod evm_u;
+mod km_u;
 mod networking;
 mod wasm_u;
 
-pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_save_to_memory, ocall_update_state};
+pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_save_to_memory, ocall_update_state,
+                         ocall_get_deltas_sizes, ocall_get_deltas, ocall_get_state, ocall_get_state_size};
 use networking::{constants, surface_server};
 
 #[allow(unused_variables, unused_mut)]
@@ -65,7 +69,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use esgx::general::init_enclave_wrapper;
+    use crate::esgx::general::init_enclave_wrapper;
     use sgx_types::*;
     extern "C" {
         fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;

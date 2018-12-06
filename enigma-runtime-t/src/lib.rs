@@ -11,6 +11,7 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate serde;
 extern crate rmp_serde as rmps;
+extern crate enigma_types;
 extern crate enigma_tools_t;
 extern crate json_patch;
 extern crate wasmi;
@@ -51,7 +52,7 @@ pub struct Runtime {
 impl Runtime {
 
     pub fn new(memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32], function_name: &String, args_types: String) -> Runtime {
-        let init_state = ContractState::new( contract_id.clone() );
+        let init_state = ContractState::new( contract_id );
         let current_state = ContractState::new(contract_id);
         let result = RuntimeResult{ result: Vec::new(),
                                     state_delta: None,
@@ -141,7 +142,7 @@ impl Runtime {
                 }
                 Ok(())
             },
-            Err(e) => return Err(EnclaveError::ExecutionError {code: "memory".to_string(), err: e.to_string()}),
+            Err(e) => Err(EnclaveError::ExecutionError {code: "memory".to_string(), err: e.to_string()}),
         }
     }
 
@@ -266,7 +267,7 @@ impl Runtime {
     pub fn into_result(mut self) -> /*Vec<u8>*/Result<RuntimeResult, EnclaveError> {
         //self.result.result.to_owned()
         self.result.state_delta =
-            match self.current_state.generate_delta(Some(&self.init_state), None){
+            match ContractState::generate_delta(&self.init_state, &self.current_state) {
                 Ok(v) => Some(v),
                 Err(e) => return Err(EnclaveError::ExecutionError {code: "Error in generating state delta".to_string(), err: e.to_string()}),
             };
@@ -297,23 +298,23 @@ impl Externals for Runtime {
     fn invoke_index(&mut self, index: usize, args: RuntimeArgs) -> Result<Option<RuntimeValue>, Trap> {
         match index {
             eng_resolver::ids::RET_FUNC => {
-                &mut Runtime::ret(self, args);
+                Runtime::ret(self, args);
                 Ok(None)
             }
             eng_resolver::ids::WRITE_STATE_FUNC => {
-                &mut Runtime::write_state(self, args);
+                Runtime::write_state(self, args);
                 Ok(None)
             }
             eng_resolver::ids::READ_STATE_FUNC => {
                 Ok(Some(RuntimeValue::I32(Runtime::read_state(self, args).unwrap())))
             }
             eng_resolver::ids::FROM_MEM_FUNC => {
-                &mut Runtime::from_memory(self, args);
+                Runtime::from_memory(self, args);
                 Ok(None)
             }
 
             eng_resolver::ids::EPRINT_FUNC => {
-                &mut Runtime::eprint(self, args);
+                Runtime::eprint(self, args);
                 Ok(None)
             }
 
@@ -322,7 +323,7 @@ impl Externals for Runtime {
             }
 
             eng_resolver::ids::NAME_FUNC => {
-                &mut Runtime::fetch_function_name(self, args);
+                Runtime::fetch_function_name(self, args);
                 Ok(None)
             }
 
@@ -331,7 +332,7 @@ impl Externals for Runtime {
             }
 
             eng_resolver::ids::ARGS_FUNC => {
-                &mut Runtime::fetch_args(self, args);
+                Runtime::fetch_args(self, args);
                 Ok(None)
             }
 
@@ -340,17 +341,17 @@ impl Externals for Runtime {
             }
 
             eng_resolver::ids::TYPES_FUNC => {
-                &mut Runtime::fetch_types(self, args);
+                Runtime::fetch_types(self, args);
                 Ok(None)
             }
 
             eng_resolver::ids::WRITE_PAYLOAD_FUNC => {
-                &mut Runtime::write_payload(self, args);
+                Runtime::write_payload(self, args);
                 Ok(None)
             }
 
             eng_resolver::ids::WRITE_ADDRESS_FUNC => {
-                &mut Runtime::write_address(self, args);
+                Runtime::write_address(self, args);
                 Ok(None)
             }
 

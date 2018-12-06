@@ -40,27 +40,30 @@ extern crate sputnikvm_network_classic;
 extern crate wasmi;
 
 mod evm_t;
-mod km;
+mod km_t;
 mod ocalls_t;
 mod wasm_g;
 
-use common::errors_t::EnclaveError;
+use crate::km_t::{ContractAddress, ecall_ptt_req_internal, ecall_ptt_res_internal, ecall_build_state_internal};
+use crate::evm_t::abi::{create_callback, prepare_evm_input};
+use crate::evm_t::evm::call_sputnikvm;
+use crate::wasm_g::execution;
 use enigma_runtime_t::data::StatePatch;
 use enigma_tools_t::common::utils_t::EthereumAddress;
+use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::{common, cryptography_t, quote_t};
+use enigma_tools_t::build_arguments_g::*;
 use enigma_types::EnclaveReturn;
-use evm_t::abi::{create_callback, prepare_evm_input};
-use evm_t::evm::call_sputnikvm;
+use enigma_types::traits::SliceCPtr;
+
 use sgx_types::*;
 use std::string::ToString;
 use std::vec::Vec;
-use std::{ptr, slice, str};
-use wasm_g::execution;
-use enigma_tools_t::build_arguments_g::*;
+use std::{ptr, slice, str, mem};
 
 lazy_static! {
-    pub static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper();
+    pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper();
 }
 
 #[no_mangle]
@@ -141,6 +144,44 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, 
     ecall_deploy_internal(bytecode_slice, output_ptr).into()
 }
 
+
+#[no_mangle]
+pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
+    let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
+    let msg = match ecall_ptt_req_internal(address_list, sig) {
+        Ok(msg) => msg,
+        Err(e) => return e.into(),
+    };
+    *serialized_ptr = match ocalls_t::save_to_untrusted_memory(&msg[..]) {
+        Ok(ptr) => ptr,
+        Err(e) => return e.into(),
+    };
+    EnclaveReturn::Success
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecall_ptt_res(msg_ptr: *const u8, msg_len: usize) -> EnclaveReturn {
+    let msg_slice = slice::from_raw_parts(msg_ptr, msg_len);
+    ecall_ptt_res_internal(msg_slice).into()
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecall_build_state(failed_ptr: *mut u64) -> EnclaveReturn {
+    let failed_contracts = match ecall_build_state_internal() {
+        Ok(c) => c,
+        Err(e) => return e.into(),
+    };
+    let flatten = failed_contracts.iter().flat_map(|a|a.iter()).cloned().collect::<Vec<u8>>();
+    *failed_ptr = match ocalls_t::save_to_untrusted_memory(&flatten) {
+        Ok(ptr) => ptr,
+        Err(e) => return e.into(),
+    };
+    EnclaveReturn::Success
+}
+
+
+
+
 unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], callable_args_slice: &[u8],
                              preprocessor_slice: &[u8], callback_slice: &[u8], output: *mut u8,
                              signature: &mut [u8; 65], result_len: &mut usize) -> Result<(), EnclaveError> {
@@ -161,15 +202,16 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
     match res.0 {
         0 => {
             *result_len = callback_data.len();
-            ptr::copy_nonoverlapping(callback_data.as_ptr(), output, callback_data.len());
+            ptr::copy_nonoverlapping(callback_data.as_c_ptr(), output, callback_data.len());
             Ok(())
         }
         _ => {
             println!("Error in EVM execution");
-            return Err(EnclaveError::EvmError { err: "Error in EVM execution".to_string() });
+            Err(EnclaveError::EvmError { err: "Error in EVM execution".to_string() })
         }
     }
 }
+
 
 unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
                                  callable_slice: &[u8],
@@ -211,7 +253,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
 
     if exec_res.updated_state.is_some() {
         // Saving the updated state into the db
-        let enc_state = km::db::encrypt_state(exec_res.updated_state.unwrap());
+        let enc_state = km_t::db::encrypt_state(exec_res.updated_state.unwrap());
         enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
     }
     Ok(())
@@ -226,7 +268,7 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], output_ptr: *mut u64) -> 
     Ok(())
 }
 
-fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+fn sign(callable_args: &[u8], callback: &[u8], bytecode: &[u8]) -> Result<[u8; 65], EnclaveError> {
     let mut to_be_signed: Vec<u8> = vec![];
     to_be_signed.extend_from_slice(callable_args);
     to_be_signed.extend_from_slice(&callback);
@@ -250,9 +292,9 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>,
 
     match delta_option {
         Some(delta) => {
-            let enc_delta = km::db::encrypt_delta(delta);
+            let enc_delta = km_t::db::encrypt_delta(delta);
             *delta_data_out = ocalls_t::save_to_untrusted_memory(&enc_delta.data)?;
-            *delta_hash_out = enc_delta.hash;
+            *delta_hash_out = enc_delta.contract_id;
             *delta_index_out = enc_delta.index;
         }
         None => {
@@ -286,15 +328,17 @@ pub mod tests {
 
     use super::SIGNINING_KEY;
     use enigma_runtime_t::data::tests::*;
-    use enigma_runtime_t::ocalls_t::*;
+    use enigma_runtime_t::ocalls_t::tests::*;
     use enigma_tools_t::common::utils_t::{EthereumAddress, FromHex, Keccak256};
     use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::cryptography_t::symmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
+    use enigma_tools_t::km_primitives::tests::*;
     use sgx_tunittest::*;
     use std::string::{String, ToString};
     use std::vec::Vec;
-    use wasm_g::execution::tests::*;
+    use crate::wasm_g::execution::tests::*;
+    use crate::km_t::tests::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
@@ -310,7 +354,6 @@ pub mod tests {
                          test_encrypt_decrypt_state,
                          test_write_state,
                          test_read_state,
-                         test_macros,
                          test_diff_patch,
                          test_encrypt_patch,
                          test_decrypt_patch,
@@ -318,7 +361,17 @@ pub mod tests {
                          test_apply_delta,
                          test_generate_delta,
                          test_me,
-                         test_execute_contract);
+                         test_execute_contract,
+                         test_to_message,
+                         test_from_message,
+                         test_from_to_message,
+                         test_encrypt_decrypt_response,
+                         test_encrypt_response,
+                         test_decrypt_reponse,
+                         test_get_deltas,
+                         test_get_deltas_more,
+                         test_state_internal
+        );
     }
 
     fn test_ecall_evm_signning() {
@@ -327,7 +380,7 @@ pub mod tests {
         let real_output_hex = "d10e1e690000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000020000000000000000000000006330a553fc93768f612722bb8c2ec78ac90b3bbc0000000000000000000000005aeda56215b167893e80b4fe645ba6d5bab767de".to_string().from_hex().unwrap();
 
         // real_output, bytecode, callable_args
-        let mut to_be_signed: Vec<u8> = Vec::new();
+        let mut to_be_signed: Vec<u8> = Vec::with_capacity(bytecode_hex.len()+callable_args_hex.len()+real_output_hex.len());
         to_be_signed.extend_from_slice(&callable_args_hex);
         to_be_signed.extend_from_slice(&real_output_hex);
         to_be_signed.extend_from_slice(&bytecode_hex);

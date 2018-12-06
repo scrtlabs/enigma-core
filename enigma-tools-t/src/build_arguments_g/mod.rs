@@ -7,7 +7,7 @@ use std::string::ToString;
 use self::rlp::decode_args;
 use common::utils_t::FromHex;
 
-pub fn get_key() -> Vec<u8> {
+pub fn get_key() -> [u8; 32] {
     let _my_priv_key = "2987699a6d3a5ebd07f4caf422fad2809dcce942cd9db266ed8e2be02cf95ee9".from_hex().unwrap();
     let mut my_priv_key = [0u8; 32];
     my_priv_key.clone_from_slice(&_my_priv_key);
@@ -36,13 +36,13 @@ pub fn get_types(function: &str) -> Result<(String, String), EnclaveError>{
     Ok(( function[start_arg_index+1..end_arg_index].to_string(), String::from(&function[..start_arg_index] )))
 }
 
-pub fn get_args(callable_args: &[u8], types: &Vec<String>) -> Result<Vec<String>, EnclaveError>{
+pub fn get_args(callable_args: &[u8], types: &[String]) -> Result<Vec<String>, EnclaveError>{
     decode_args(callable_args, types)
 }
 
 pub fn extract_types(types: &str) -> Vec<String>{
     let mut types_vector: Vec<String> = vec![];
-    let types_iterator = types.split(",");
+    let types_iterator = types.split(',');
     for each_type in types_iterator{
         types_vector.push(each_type.to_string());
     }

@@ -26,7 +26,6 @@ pub enum Stype {
     State,
     ByteCode,
 }
-
 pub trait SplitKey {
     // as_split should get self and divide it up into two components
     // as a tuple (&str, &[u8]) and send it into a function,

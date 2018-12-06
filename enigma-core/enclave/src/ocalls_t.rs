@@ -1,7 +1,7 @@
+use enigma_types::traits::SliceCPtr;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use sgx_types::sgx_status_t;
-use std::path;
-use std::str;
+use std::{path, str};
 
 const PATH_MAX: usize = 4096; // linux/limits.h - this depends on the FS.
 
@@ -25,13 +25,7 @@ pub fn get_home_path() -> Result<path::PathBuf, EnclaveError> {
 
 pub fn save_to_untrusted_memory(data: &[u8]) -> Result<u64, EnclaveError> {
     let mut ptr = 0u64;
-
-    //TODO: change this temporary solution for a problematic as_ptr implementation if empty vec
-    let mut data = data.clone();
-    if data.is_empty() {
-        data = &[];
-    }
-    match unsafe { ocall_save_to_memory(&mut ptr as *mut u64, data.as_ptr(), data.len()) } {
+    match unsafe { ocall_save_to_memory(&mut ptr as *mut u64, data.as_c_ptr(), data.len()) } {
         sgx_status_t::SGX_SUCCESS => Ok(ptr),
         e => Err(e.into()),
     }
