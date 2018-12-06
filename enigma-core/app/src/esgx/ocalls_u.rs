@@ -1,6 +1,5 @@
 use crate::km_u::ContractAddress;
-use crate::db::dal::CRUDInterface;
-use crate::db::{DeltaKey, Stype, DATABASE, P2PCalls, ResultType, ResultTypeVec};
+use crate::db::{DeltaKey, Stype, DATABASE, P2PCalls, ResultType, ResultTypeVec, CRUDInterface};
 use crate::esgx::general;
 use enigma_tools_u::common_u::{LockExpectMutex, Sha256};
 use byteorder::{BigEndian, WriteBytesExt};

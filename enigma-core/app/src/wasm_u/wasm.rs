@@ -90,7 +90,7 @@ pub fn execute(eid: sgx_enclave_id_t, bytecode: &[u8], callable: &str) -> Result
     let mut delta_hash = [0u8; 32];
     let mut delta_index = 0u32;
 
-    let result = unsafe {
+    let status = unsafe {
         ecall_execute(eid,
                       &mut retval,
                       bytecode.as_ptr() as *const u8,
@@ -103,8 +103,8 @@ pub fn execute(eid: sgx_enclave_id_t, bytecode: &[u8], callable: &str) -> Result
                       &mut delta_index as *mut u32)
     };
 
-    if retval != EnclaveReturn::Success {
-        return Err(EnclaveFailError::from(retval).into());
+    if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
+        return Err(EnclaveFailError{err: retval, status}.into());
     }
     // TODO: Write a handle wrapper that will free the pointers memory in case of an Error.
 

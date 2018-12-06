@@ -44,7 +44,7 @@ mod km_t;
 mod ocalls_t;
 mod wasm_g;
 
-use crate::km_t::{ContractAddress, ecall_ptt_req_internal, ecall_ptt_res_internal};
+use crate::km_t::{ContractAddress, ecall_ptt_req_internal, ecall_ptt_res_internal, ecall_build_state_internal};
 use crate::evm_t::abi::{create_callback, prepare_evm_input};
 use crate::evm_t::evm::call_sputnikvm;
 use crate::wasm_g::execution;
@@ -136,7 +136,15 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, 
 #[no_mangle]
 pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
     let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
-    ecall_ptt_req_internal(address_list, sig, serialized_ptr).into()
+    let msg = match ecall_ptt_req_internal(address_list, sig) {
+        Ok(msg) => msg,
+        Err(e) => return e.into(),
+    };
+    *serialized_ptr = match ocalls_t::save_to_untrusted_memory(&msg[..]) {
+        Ok(ptr) => ptr,
+        Err(e) => return e.into(),
+    };
+    EnclaveReturn::Success
 }
 
 #[no_mangle]
@@ -144,6 +152,22 @@ pub unsafe extern "C" fn ecall_ptt_res(msg_ptr: *const u8, msg_len: usize) -> En
     let msg_slice = slice::from_raw_parts(msg_ptr, msg_len);
     ecall_ptt_res_internal(msg_slice).into()
 }
+
+#[no_mangle]
+pub unsafe extern "C" fn ecall_build_state(failed_ptr: *mut u64) -> EnclaveReturn {
+    let failed_contracts = match ecall_build_state_internal() {
+        Ok(c) => c,
+        Err(e) => return e.into(),
+    };
+    let flatten = failed_contracts.iter().flat_map(|a|a.iter()).cloned().collect::<Vec<u8>>();
+    *failed_ptr = match ocalls_t::save_to_untrusted_memory(&flatten) {
+        Ok(ptr) => ptr,
+        Err(e) => return e.into(),
+    };
+    EnclaveReturn::Success
+}
+
+
 
 
 unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], callable_args_slice: &[u8],
@@ -171,7 +195,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
         }
         _ => {
             println!("Error in EVM execution");
-            return Err(EnclaveError::EvmError { err: "Error in EVM execution".to_string() });
+            Err(EnclaveError::EvmError { err: "Error in EVM execution".to_string() })
         }
     }
 }

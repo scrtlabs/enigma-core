@@ -11,6 +11,7 @@ extern crate rocksdb;
 #[macro_use]
 extern crate lazy_static;
 // networking apt install libzmq3-dev
+#[macro_use]
 extern crate serde_json;
 extern crate zmq;
 // errors
@@ -67,7 +68,7 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use esgx::general::init_enclave_wrapper;
+    use crate::esgx::general::init_enclave_wrapper;
     use sgx_types::*;
     extern "C" {
         fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;

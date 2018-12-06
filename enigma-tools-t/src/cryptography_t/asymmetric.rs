@@ -13,14 +13,14 @@ pub struct KeyPair {
 
 impl KeyPair {
     pub fn new() -> Result<KeyPair, EnclaveError> {
-        let mut me: [u8; 32] = [0; 32];
-        // TODO: Should loop until works?
-        rsgx_read_rand(&mut me)?;
-        let keys = match SecretKey::parse(&me) {
-            Ok(_priv) => KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) },
-            Err(_) => return Err(EnclaveError::GenerationError { generate: "Private Key".to_string(), err: "".to_string() })
-        };
-        Ok(keys)
+        loop {
+            let mut me: [u8; 32] = [0; 32];
+            rsgx_read_rand(&mut me)?;
+            match SecretKey::parse(&me) {
+                Ok(_priv) => return Ok(KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) }),
+                Err(_) => (),
+            }
+        }
     }
 
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, EnclaveError> {
