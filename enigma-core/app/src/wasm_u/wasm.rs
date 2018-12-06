@@ -91,7 +91,7 @@ pub struct WasmResult {
     pub eth_contract_addr: [u8;20],
 }
 
-pub fn execute(eid: sgx_enclave_id_t,  bytecode: Box<[u8]>, callable: &str, args: &str)-> Result<WasmResult,Error>{
+pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &str)-> Result<WasmResult,Error>{
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
@@ -195,7 +195,7 @@ pub mod tests {
         let enclave = init_enclave();
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
 //        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
-        let result = wasm::execute(enclave.geteid(), contract_code, "write()", "").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "").expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
     }
@@ -204,7 +204,7 @@ pub mod tests {
     fn eth_bridge() {
         let enclave = init_enclave();
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/contract_with_eth_calls");
-        let result = wasm::execute(enclave.geteid(), contract_code, "test()", "").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &contract_code, "test()", "").expect("Execution failed");
         enclave.destroy();
     }
 
@@ -220,7 +220,7 @@ pub mod tests {
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
         let enclave = init_enclave();
         let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
-        let result = wasm::execute(enclave.geteid(),contract_code, "call", "").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(),&contract_code, "call", "").expect("Execution failed");
         assert_eq!(from_utf8(&result.output).unwrap(), "157");
     }
 }

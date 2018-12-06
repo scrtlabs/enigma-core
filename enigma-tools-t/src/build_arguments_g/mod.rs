@@ -36,13 +36,13 @@ pub fn get_types(function: &str) -> Result<(String, String), EnclaveError>{
     Ok(( function[start_arg_index+1..end_arg_index].to_string(), String::from(&function[..start_arg_index] )))
 }
 
-pub fn get_args(callable_args: &[u8], types: &Vec<String>) -> Result<Vec<String>, EnclaveError>{
+pub fn get_args(callable_args: &[u8], types: &[String]) -> Result<Vec<String>, EnclaveError>{
     decode_args(callable_args, types)
 }
 
 pub fn extract_types(types: &str) -> Vec<String>{
     let mut types_vector: Vec<String> = vec![];
-    let types_iterator = types.split(",");
+    let types_iterator = types.split(',');
     for each_type in types_iterator{
         types_vector.push(each_type.to_string());
     }

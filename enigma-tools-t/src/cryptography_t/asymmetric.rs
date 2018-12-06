@@ -16,10 +16,7 @@ impl KeyPair {
         loop {
             let mut me: [u8; 32] = [0; 32];
             rsgx_read_rand(&mut me)?;
-            match SecretKey::parse(&me) {
-                Ok(_priv) => return Ok(KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) }),
-                Err(_) => (),
-            }
+            if let Ok(_priv) = SecretKey::parse(&me) { return Ok(KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) }) }
         }
     }
 

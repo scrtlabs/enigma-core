@@ -3,7 +3,6 @@ use failure::Error;
 use hex::FromHex;
 use std::str;
 use std::time;
-use tiny_keccak::Keccak;
 //web3
 use web3;
 use web3::contract::tokens::Tokenize;

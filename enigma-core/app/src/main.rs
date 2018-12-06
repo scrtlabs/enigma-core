@@ -11,7 +11,7 @@ extern crate rocksdb;
 #[macro_use]
 extern crate lazy_static;
 // networking apt install libzmq3-dev
-#[macro_use]
+#[cfg_attr(test, macro_use)]
 extern crate serde_json;
 extern crate zmq;
 // errors
