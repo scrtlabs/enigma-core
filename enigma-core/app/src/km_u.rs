@@ -2,6 +2,7 @@
 
 use sgx_types::{sgx_status_t, sgx_enclave_id_t};
 use enigma_types::EnclaveReturn;
+use enigma_types::traits::SliceCPtr;
 use failure::Error;
 use crate::common_u::errors::EnclaveFailError;
 use std::mem;
@@ -34,7 +35,7 @@ pub fn ptt_build_state(eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Er
 
 pub fn ptt_res(eid: sgx_enclave_id_t, msg: &[u8]) -> Result<(), Error> {
     let mut ret = EnclaveReturn::Success;
-    let status = unsafe { ecall_ptt_res(eid, &mut ret as *mut EnclaveReturn, msg.as_ptr(), msg.len()) };
+    let status = unsafe { ecall_ptt_res(eid, &mut ret as *mut EnclaveReturn, msg.as_c_ptr(), msg.len()) };
     if ret != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError{err: ret, status}.into());
     }
@@ -50,7 +51,7 @@ pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(
 
     let status = unsafe { ecall_ptt_req(eid,
                            &mut ret as *mut EnclaveReturn,
-                           addresses.as_ptr() as *const ContractAddress,
+                           addresses.as_c_ptr() as *const ContractAddress,
                            addresses.len() * mem::size_of::<ContractAddress>(),
                            &mut sig,
                            &mut serialized_ptr as *mut u64

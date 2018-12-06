@@ -1,5 +1,6 @@
 use sgx_types::sgx_status_t;
 use std::string::ToString;
+use enigma_types::traits::SliceCPtr;
 use enigma_tools_t::common::errors_t::EnclaveError::{self, OcallError};
 use enigma_tools_t::km_primitives::ContractAddress;
 use crate::data::{EncryptedContractState, EncryptedPatch};
@@ -17,7 +18,7 @@ extern "C" {
 pub fn save_state(enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> {
     let mut res_int: i8 = -1;
     let res_status: sgx_status_t = unsafe {
-        ocall_update_state(&mut res_int as *mut i8, &enc.contract_id, enc.json.as_ptr(), enc.json.len())
+        ocall_update_state(&mut res_int as *mut i8, &enc.contract_id, enc.json.as_c_ptr(), enc.json.len())
     };
     match res_int {
         0 => (), // 0 is the OK result
@@ -33,7 +34,7 @@ pub fn save_state(enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> 
 pub fn save_delta(enc: &EncryptedPatch) -> Result<(), EnclaveError> {
     let mut res_int: i8 = -1;
     let res_status: sgx_status_t = unsafe {
-        ocall_new_delta(&mut res_int as *mut i8,  enc.data.as_ptr(), enc.data.len(), &enc.contract_id, &enc.index as *const u32)
+        ocall_new_delta(&mut res_int as *mut i8,  enc.data.as_c_ptr(), enc.data.len(), &enc.contract_id, &enc.index as *const u32)
     };
 
     // TODO: Maybe use some sort of ErrorKind to differentiate between the errors outside

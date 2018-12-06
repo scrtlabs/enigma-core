@@ -11,6 +11,7 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate serde;
 extern crate rmp_serde as rmps;
+extern crate enigma_types;
 extern crate enigma_tools_t;
 extern crate json_patch;
 extern crate wasmi;

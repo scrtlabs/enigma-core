@@ -4,6 +4,7 @@ extern crate sgx_urts;
 
 use common_u::errors::EnclaveFailError;
 use enigma_types::EnclaveReturn;
+use enigma_types::traits::SliceCPtr;
 use failure::Error;
 use sgx_types::*;
 
@@ -73,7 +74,7 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8])-> Result<Box<[u8]>, Error
     let result = unsafe {
         ecall_deploy(eid,
                      &mut retval,
-                     deploy_bytecode.as_ptr() as *const u8,
+                     deploy_bytecode.as_c_ptr() as *const u8,
                      deploy_bytecode.len(),
                      &mut output_ptr as *mut u64)
     };
@@ -103,11 +104,11 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &s
     let status = unsafe {
         ecall_execute(eid,
                       &mut retval,
-                      bytecode.as_ptr() as *const u8,
+                      bytecode.as_c_ptr() as *const u8,
                       bytecode.len(),
-                      callable.as_ptr() as *const u8,
+                      callable.as_c_ptr() as *const u8,
                       callable.len(),
-                      args.as_ptr() as *const u8,
+                      args.as_c_ptr() as *const u8,
                       args.len(),
                       &mut output as *mut u64,
                       &mut delta_data_ptr as *mut u64,

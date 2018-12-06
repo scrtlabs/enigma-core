@@ -55,6 +55,7 @@ use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::{common, cryptography_t, quote_t};
 use enigma_tools_t::build_arguments_g::*;
 use enigma_types::EnclaveReturn;
+use enigma_types::traits::SliceCPtr;
 
 use sgx_types::*;
 use std::string::ToString;
@@ -201,7 +202,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
     match res.0 {
         0 => {
             *result_len = callback_data.len();
-            ptr::copy_nonoverlapping(callback_data.as_ptr(), output, callback_data.len());
+            ptr::copy_nonoverlapping(callback_data.as_c_ptr(), output, callback_data.len());
             Ok(())
         }
         _ => {

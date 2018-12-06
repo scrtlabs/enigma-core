@@ -1,3 +1,5 @@
+use enigma_tools_u;
+
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::io::{Read, Write};
@@ -6,7 +8,6 @@ use std::path;
 use std::env;
 use std::ptr;
 use dirs;
-use enigma_tools_u;
 
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";

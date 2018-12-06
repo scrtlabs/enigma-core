@@ -5,6 +5,8 @@ extern crate sgx_urts;
 use sgx_types::*;
 
 use std::iter::FromIterator;
+use enigma_types::traits::SliceCPtr;
+
 //failure
 use failure::Error;
 use hex::ToHex;
@@ -75,17 +77,17 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> Result<EvmRespo
     let result = unsafe {
         ecall_evm(eid,
                   &mut retval,
-                  evm_input.bytecode.as_ptr() as *const u8,
+                  evm_input.bytecode.as_c_ptr() as *const u8,
                   evm_input.bytecode.len(),
-                  evm_input.callable.as_ptr() as *const u8,
+                  evm_input.callable.as_c_ptr() as *const u8,
                   evm_input.callable.len(),
-                  evm_input.callable_args.as_ptr(),
+                  evm_input.callable_args.as_c_ptr(),
                   evm_input.callable_args.len(),
-                  //evm_input.preprocessor.as_ptr(),
-                  prep.as_ptr(),
+                  //evm_input.preprocessor.as_c_ptr(),
+                  prep.as_c_ptr(),
                   //evm_input.preprocessor.len(),
                   prep.len(),
-                  evm_input.callback.as_ptr(),
+                  evm_input.callback.as_c_ptr(),
                   evm_input.callback.len(),
                   slice.as_mut_ptr() as *mut u8,
                   &mut signature,

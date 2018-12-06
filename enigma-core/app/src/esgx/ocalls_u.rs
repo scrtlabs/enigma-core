@@ -1,6 +1,7 @@
 use crate::km_u::ContractAddress;
 use crate::db::{DeltaKey, Stype, DATABASE, P2PCalls, ResultType, ResultTypeVec, CRUDInterface};
 use crate::esgx::general;
+use enigma_types::traits::SliceCPtr;
 use enigma_tools_u::common_u::{LockExpectMutex, Sha256};
 use byteorder::{BigEndian, WriteBytesExt};
 use std::{slice,ptr, mem};
@@ -13,7 +14,7 @@ lazy_static! { pub static ref DELTAS_CACHE: Mutex< LruCache<[u8; 32], Vec<Vec<u8
 pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
     let path = general::storage_dir();
     let path_str = path.to_str().unwrap();
-    ptr::copy_nonoverlapping(path_str.as_ptr(), output, path_str.len());
+    ptr::copy_nonoverlapping(path_str.as_c_ptr(), output, path_str.len());
     *result_len = path_str.len();
 }
 
@@ -168,7 +169,7 @@ unsafe fn write_ptr<T>(src: &[T], dst: *mut T, count: usize) {
     if src.len() > count {
         unimplemented!()
     }
-    ptr::copy_nonoverlapping(src.as_ptr(), dst, src.len());
+    ptr::copy_nonoverlapping(src.as_c_ptr(), dst, src.len());
 }
 
 fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> ResultTypeVec<(DeltaKey, Vec<u8>)> {
