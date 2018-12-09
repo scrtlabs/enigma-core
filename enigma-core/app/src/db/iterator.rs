@@ -1,7 +1,7 @@
 use failure::Error;
 use hex::{FromHex, ToHex};
 use rocksdb::DB as rocks_db;
-use rocksdb::{DBIterator, Direction, IteratorMode, ReadOptions};
+use rocksdb::{DBIterator, Direction, IteratorMode, ReadOptions, WriteBatch};
 use crate::km_u::ContractAddress;
 use crate::common_u::errors::{DBErr, DBErrKind};
 use crate::db::dal::{CRUDInterface, DB};
@@ -105,6 +105,26 @@ pub trait P2PCalls<V> {
     /// In each tuple the DeltaKey's must contain similar hashes
     /// (as seen in the example above), otherwise an error will be returned
     fn get_deltas<K: SplitKey>(&self, from: K, to: K) -> ResultTypeVec<(K, V)>;
+
+    /// Inserts a list of Key-Values into the DB in one atomic operation
+    /// # Examples
+    /// ```
+    /// let a = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(12) };
+    /// let b = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(47) };
+    /// let data_a = vec![1,2,3,4];
+    /// let data_b = vec![5,6,7,8];
+    ///
+    /// let results = db.insert_tuples(&[(a, &data_a), (b, &data_b)]);
+    /// for res in results {
+    ///     res.unwrap();
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// The result is a Vec of Results each one corresponds to each Key-Value
+    /// If the whole atomic operation failed the vec will contain only the error of the operation.
+    fn insert_tuples<K: SplitKey>(&mut self, key_vals: &[(K, V)]) -> Vec<Result<(), Error>>;
 }
 
 impl P2PCalls<Vec<u8>> for DB {
@@ -112,19 +132,14 @@ impl P2PCalls<Vec<u8>> for DB {
         // check and extract the CF from the DB
         // to_hex converts the [u8] to str
         let str_addr = address.to_hex();
-        match self.database.cf_handle(&str_addr) {
-            None => Err(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-            Some(cf_key) => {
-                let iter = self.database.prefix_iterator_cf(cf_key, DELTA_PREFIX)?;
-                match iter.last() {
-                    None => { Err(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()) }
-                    Some(last) => {
-                        let k_key = K::from_split(&str_addr, &*last.0)?;
-                        Ok((k_key, (&*last.1).to_vec()))
-                    }
-                }
-            }
-        }
+        let cf_key = self.database.cf_handle(&str_addr).ok_or(
+            DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+
+        let iter = self.database.prefix_iterator_cf(cf_key, DELTA_PREFIX)?;
+        let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+        let k_key = K::from_split(&str_addr, &*last.0)?;
+        Ok((k_key, (&*last.1).to_vec()))
+
     }
 
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> ResultVec<(K, Vec<u8>)> {
@@ -221,6 +236,27 @@ impl P2PCalls<Vec<u8>> for DB {
                 }
             })
         })
+    }
+
+
+    fn insert_tuples<K: SplitKey>(&mut self, key_vals: &[(K, Vec<u8>)]) -> Vec<Result<(), Error>> {
+        let mut res = Vec::with_capacity(key_vals.len());
+        let mut batch = WriteBatch::default();
+        for (key, val) in key_vals {
+            let tmp_res = key.as_split(|cf_str, key_slice| -> Result<(), Error> {
+                let cf = match self.database.cf_handle(cf_str) {
+                    Some(cf) => cf,
+                    None => self.database.create_cf(cf_str, &self.options)?,
+                };
+                batch.put_cf(cf, key_slice, val)?;
+                Ok(())
+            });
+            res.push(tmp_res);
+        }
+        match self.database.write(batch) {
+            Ok(_) => res,
+            Err(e) => vec![Err(e.into())],
+        }
     }
 }
 
@@ -581,4 +617,26 @@ mod test {
             Ok(_) => (),
         }
     }
+
+    #[test]
+    fn test_insert_tuples() {
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
+        let mut db = DB::new(tempdir, true).unwrap();
+        let data = vec![
+            (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(1) }, b"Enigma".to_vec()),
+            (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(2) }, b"to".to_vec()),
+            (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(3) }, b"da".to_vec()),
+            (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(4) }, b"moon".to_vec()),
+            (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(5) }, b"and".to_vec()),
+            (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(6) }, b"back".to_vec()),
+    ];
+        let results = db.insert_tuples(&data);
+        for res in results {
+            res.unwrap();
+        }
+        for (key, val) in data {
+            assert_eq!(db.read(&key).unwrap(), val);
+        }
+    }
+
 }

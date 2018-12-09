@@ -13,7 +13,8 @@ etcommon-rlp = {version = "0.2", default-features = false}
 etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
 
-libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
+#libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
+libsecp256k1 = "0.2.1"
 rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "sgx-v1.0.4" }
 serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
