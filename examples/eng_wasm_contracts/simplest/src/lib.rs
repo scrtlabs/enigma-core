@@ -2,24 +2,21 @@
 #![feature(proc_macro_gen)]
 #![feature(proc_macro_non_items)]
 
-extern crate proc_macro2;
 extern crate eng_wasm;
-extern crate eng_wasm_dispatch;
-extern crate syn;
+extern crate eng_wasm_derive;
 
 use eng_wasm::*;
-use eng_wasm_dispatch::dispatch;
+use eng_wasm_derive::pub_interface;
 
 use eng_wasm::String;
 
-#[dispatch]
+#[pub_interface]
 pub trait ContractInterface{
     fn write();
     fn print_test(U256,U256) ;
 }
 
 pub struct Contract;
-use pwasm_abi::types::*;
 impl ContractInterface for Contract {
     /// Writes value to state and reads it.
     /// As a temporary solution the value is converted to a stream of bytes.
