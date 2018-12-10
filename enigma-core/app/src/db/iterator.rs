@@ -269,8 +269,8 @@ mod test {
 
     #[test]
     fn test_get_tip_multi_deltas_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash = [7u8; 32];
 
@@ -292,8 +292,8 @@ mod test {
 
     #[test]
     fn test_get_tip_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash = [7u8; 32];
         let key_type = Stype::Delta(23);
@@ -310,8 +310,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tip_no_data() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let db = DB::new(&tempdir, true).unwrap();
         let arr = [7u8; 32];
         let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&arr).unwrap();
     }
@@ -319,8 +319,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tip_data_no_delta() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
         let hash = [7u8; 32];
         let key_type = Stype::State;
         let dk = DeltaKey { hash, key_type };
@@ -331,8 +331,8 @@ mod test {
 
     #[test]
     fn test_get_tips_single_row_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash = [7u8; 32];
         let key_type = Stype::Delta(23);
@@ -348,8 +348,8 @@ mod test {
 
     #[test]
     fn test_get_tips_multi_row_per_add_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
         let hash = [7u8; 32];
 
         let key_type_a = Stype::Delta(1);
@@ -369,8 +369,8 @@ mod test {
 
     #[test]
     fn test_get_tips_multi_add_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -399,8 +399,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tips_no_addr() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -417,8 +417,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tips_no_deltas() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::State;
@@ -438,8 +438,8 @@ mod test {
 
     #[test]
     fn test_get_all_addresses_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::State;
@@ -468,8 +468,8 @@ mod test {
 
     #[test]
     fn test_get_all_addresses_invalid_cf() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::State;
@@ -503,8 +503,8 @@ mod test {
 
     #[test]
     fn test_get_all_tips() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -542,8 +542,8 @@ mod test {
 
     #[test]
     fn test_get_deltas() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash = [7u8; 32];
 
@@ -593,8 +593,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_deltas_different_hashes() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [9u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -620,8 +620,8 @@ mod test {
 
     #[test]
     fn test_insert_tuples() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir, true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
         let data = vec![
             (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(1) }, b"Enigma".to_vec()),
             (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(2) }, b"to".to_vec()),
