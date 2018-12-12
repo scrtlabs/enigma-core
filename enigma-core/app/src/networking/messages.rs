@@ -1,20 +1,3 @@
-//use zmq;
-//use futures::{Future, Stream};
-//use tokio_zmq::{prelude::*, Rep, Multipart};
-//use std::sync::Arc;
-//
-//fn main() {
-//    let ctx = Arc::new(zmq::Context::new());
-//    let rep_fut = Rep::builder(ctx).bind("tcp://*:6111").build();
-//
-//    let runner = rep_fut.and_then(|rep| {
-//        let (sink, stream) = rep.sink_stream(25).split();
-//
-//        stream.map(handle_message).forward(sink)
-//    });
-//
-//    let b = runner.wait();
-//}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
@@ -73,35 +56,4 @@ pub struct IpcGetDeltas {
     pub address: String,
     pub from: u32,
     pub to: u32
-}
-
-
-
-
-
-fn handle_message(request: Multipart) -> Multipart {
-    let mut response = Multipart::new();
-    for msg in request {
-        let msg_str = msg.as_str().unwrap();
-        let req: IpcRequest = serde_json::from_str(msg_str).unwrap();
-        match req {
-            IpcRequest::GetRegistrationParams{id} => (),
-            IpcRequest::IdentityChallenge{id, nonce} => (),
-            IpcRequest::GetTip{id, input} => (),
-            IpcRequest::GetTips{id, input} => (),
-            IpcRequest::GetAllTips{id} => (),
-            IpcRequest::GetAllAddrs{id} => (),
-            IpcRequest::GetDelta{id, input} => (),
-            IpcRequest::GetDeltas{id, input} => (),
-            IpcRequest::GetContract{id, input} => (),
-            IpcRequest::UpdateNewContract{id, address, bytecode} => (),
-            IpcRequest::UpdateDeltas{id, deltas} => (),
-        }
-
-
-//        let _res = to_vec(&___).unwrap();
-//        let res_msg = Message::from_slice(&_res).unwrap();
-//        response.push_back(res_msg);
-    }
-    response
 }
