@@ -8,6 +8,9 @@ build = "build.rs"
 enigma-tools-u = {path = "../../enigma-tools-u"}
 enigma-types = { path = "../../enigma-types" }
 
+futures = "0.1.25"
+tokio = "0.1"
+tokio-zmq = "0.8"
 tempdir = "0.3.7"
 base64 = "0.10.0"
 zmq = "0.8"

@@ -14,6 +14,9 @@ extern crate lazy_static;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
 extern crate zmq;
+extern crate tokio;
+extern crate tokio_zmq;
+extern crate futures;
 // errors
 #[macro_use]
 extern crate failure;
