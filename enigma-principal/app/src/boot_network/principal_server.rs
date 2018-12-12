@@ -5,7 +5,19 @@ use std::thread;
 use failure::Error;
 use jsonrpc_minihttp_server::ServerBuilder;
 use jsonrpc_minihttp_server::DomainsValidation;
+use web3::types::Address;
 
+pub struct StateKeyRequest {
+    pub scAddress: Address,
+    pub workerAddress: Address,
+    pub signature: [u8; 65],
+    pub encryptionPubKey:[u8; 65],
+}
+pub struct StakeKeyResponse {
+    pub scAddress: Address,
+    pub encryptedStateKey: Vec<u8>,
+    pub signature: [u8; 65],
+}
 pub struct PrincipalHttpServer {
     pub port: String,
 }
@@ -27,5 +39,15 @@ impl PrincipalHttpServer {
 
         server.wait().unwrap();
         println!("JSON-RPC HTTP server listening on port: {}", self.port);
+    }
+}
+
+//////////////////////// TESTS  /////////////////////////////////////////
+
+#[cfg(test)]
+mod test {
+    #[test]
+    pub fn request_state_key() {
+        println!("requesting the state key from the Principal");
     }
 }

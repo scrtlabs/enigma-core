@@ -20,6 +20,7 @@ extern crate tokio_core;
 extern crate dirs;
 extern crate jsonrpc_minihttp_server;
 extern crate ethabi;
+extern crate rocksdb;
 
 // enigma modules
 mod esgx;

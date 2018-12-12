@@ -88,6 +88,19 @@ pub extern "C" fn ecall_get_random_seed(rand_out: &mut [u8; 32], sig_out: &mut [
     }
 }
 
+#[no_mangle]
+pub extern "C" fn ecall_set_worker_parameters(rand_out: Vec<Hash>, sig_out: Vec<u8>) -> sgx_status_t  {
+    // TODO: Check if needs to check the random is within the curve.
+    let status = rsgx_read_rand(&mut rand_out[..]);
+    let sig = SIGNINING_KEY.sign(&rand_out[..]).unwrap();
+    sig_out.copy_from_slice(sig.as_slice());
+    // println!("Random inside Enclave: {:?}", &rand_out[..]);
+    // println!("Signature inside Enclave: {:?}\n", &sig.as_slice());
+    match status {
+        Ok(_) => sgx_status_t::SGX_SUCCESS,
+        Err(err) => err
+    }
+}
 
 pub mod tests {
     extern crate sgx_tunittest;

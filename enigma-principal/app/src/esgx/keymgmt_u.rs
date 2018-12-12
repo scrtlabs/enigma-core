@@ -8,7 +8,7 @@ use enigma_tools_u::attestation_service::service;
 use enigma_tools_u::attestation_service::constants;
 use failure::Error;
 
-extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
+extern { fn ecall_set_worker_params(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, log: RawLog, sig_out: &mut [u8; 65]) -> sgx_status_t; }
 
 /// Returns a 32 bytes signed random seed.
 /// # Examples
@@ -16,7 +16,7 @@ extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status
 /// let enclave = esgx::general::init_enclave().unwrap();
 /// let (rand_seed, sig) = get_signed_random(enclave.geteid());
 /// ```
-pub fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
+pub fn get_(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
     let mut rand_out: [u8; 32] = [0; 32];
     let mut sig_out: [u8; 65] = [0; 65];
     let mut retval = sgx_status_t::default();
@@ -28,28 +28,12 @@ pub fn get_signed_random(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
 #[cfg(test)]
 pub mod tests {
     #![allow(dead_code, unused_assignments, unused_variables)]
-    use super::*;
+
     use esgx;
     use sgx_urts::SgxEnclave;
-    use esgx::random_u::get_signed_random;
-
-    fn init_enclave() -> SgxEnclave {
-        let enclave = match esgx::general::init_enclave_wrapper() {
-            Ok(r) => {
-                println!("[+] Init Enclave Successful {}!", r.geteid());
-                r
-            }
-            Err(x) => {
-                panic!("[-] Init Enclave Failed {}!", x.as_str());
-            }
-        };
-        enclave
-    }
-
-    #[test]
-    fn test_get_signed_random() {
-        let enclave = init_enclave();
-        let (rand_seed, sig) = get_signed_random(enclave.geteid());
-        println!("the random seed: {:?}", rand_seed);
-    }
+    use std::fs::File;
+    use std::io::Read;
+    use std::path::PathBuf;
+    use std::process::Command;
+    use std::str::from_utf8;
 }
