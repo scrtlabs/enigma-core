@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use futures::Future;
+use futures::{Future, Stream};
 use tokio_zmq::{Rep, Multipart, Error};
 use tokio_zmq::prelude::*;
 use crate::networking::messages::*;
@@ -17,7 +17,7 @@ impl IpcListener {
         IpcListener { context, rep_future }
     }
 
-    pub fn run<F, B>(self, f: F) -> impl Future<Item =(), Error = Error>
+    pub fn run<F>(self, f: F) -> impl Future<Item =(), Error = Error>
         where F: Fn(Multipart) -> Multipart {
 
         let runner = self.rep_future.and_then(|rep| {
@@ -54,4 +54,20 @@ fn handle_message(request: Multipart) -> Multipart {
 //        response.push_back(res_msg);
     }
     response
+}
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[ignore]
+    #[test]
+    fn test_the_listener() {
+        let conn = "tcp://*:5556";
+        let server = IpcListener::new(conn);
+        server.run(|mul| {
+            println!("{:?}", mul);
+            mul
+        }).wait();
+    }
 }
