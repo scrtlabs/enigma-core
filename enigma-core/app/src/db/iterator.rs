@@ -23,7 +23,7 @@ impl<T> ResultType<T> {
     pub fn unwrap(self) -> T {
         match self {
             ResultType::Partial(val) | ResultType::Full(val) => val,
-            ResultType::None => panic!("called `Option::unwrap()` on a `None` value"),
+            ResultType::None => panic!("called `ResultType::unwrap()` on a `None` value"),
         }
     }
 }
