@@ -1,9 +1,6 @@
 #![allow(dead_code,unused_assignments)]
-use std;
 use sgx_types::*;
-use sgx_urts::SgxEnclave;
 use std::*;
-use esgx::general;
 use common_u::errors;
 use failure::Error;
 

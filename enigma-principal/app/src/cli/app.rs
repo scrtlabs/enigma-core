@@ -3,9 +3,10 @@ use sgx_types::{uint8_t, uint32_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use structopt::StructOpt;
 use std::thread;
+use failure::Error;
 // enigma modules 
 pub use esgx::general::ocall_get_home;
-use boot_network::principal_utils::EmittParams;
+use boot_network::principal_utils::EmitParams;
 use boot_network::principal_manager::{PrincipalConfig,Sampler,PrincipalManager};
 use boot_network::deploy_scripts;
 use enigma_tools_u::web3_utils::w3utils;
@@ -14,7 +15,7 @@ use esgx::equote;
 use cli;
 
 
-pub fn start(eid : sgx_enclave_id_t){
+pub fn start(eid : sgx_enclave_id_t) -> Result<(), Error> {
 
     let opt = cli::options::Opt::from_args();
     let config = opt.deploy_config.as_str();
@@ -41,10 +42,10 @@ pub fn start(eid : sgx_enclave_id_t){
                         /* step1 : prepeare the contracts (deploy Enigma,EnigmaToken) */
 
                         // load the config 
-                        let mut config = deploy_scripts::load_config(config);
-                        let url = config.URL.clone();
+                        let mut config = deploy_scripts::load_config(config)?;
+                        let url = config.url.clone();
                         // get dynamic eth addrress
-                        let accounts = w3utils::get_accounts(config.URL.clone().as_str()).unwrap();
+                        let accounts = w3utils::get_accounts(config.url.clone().as_str()).unwrap();
                         let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
                         // modify to dynamic address
                         config.set_accounts_address(deployer);
@@ -64,14 +65,14 @@ pub fn start(eid : sgx_enclave_id_t){
                         if opt.time_to_live > 0{
                             ttl = Some(opt.time_to_live);
                         }
-                        let mut params : EmittParams = EmittParams{ 
-                            eid : eid, 
-                            gas_limit : String::from("5999999"),
+                        let mut params : EmitParams = EmitParams{
+                            eid,
+                            gas_limit : 5999999,
                             max_epochs : ttl, 
                             ..Default::default()
                         };
 
-                        let mut the_config = PrincipalManager::load_config(principal_config);
+                        let mut the_config = PrincipalManager::load_config(principal_config)?;
                         let contract_addr : String = w3utils::address_to_string_addr(&enigma_contract.address());
                         let deployer = w3utils::address_to_string_addr(&accounts[0]);
                         the_config.set_accounts_address(deployer);
@@ -101,14 +102,14 @@ pub fn start(eid : sgx_enclave_id_t){
                     if opt.time_to_live > 0{
                         ttl = Some(opt.time_to_live);
                     }
-                    let mut params : EmittParams = EmittParams{ 
-                        eid : eid, 
-                        gas_limit : String::from("5999999"),
+                    let mut params : EmitParams = EmitParams{
+                        eid,
+                        gas_limit : 5999999,
                         max_epochs : ttl, 
                         ..Default::default()
                     };
                     
-                    let principal : PrincipalManager = PrincipalManager::new(principal_config, params, None);
+                    let principal : PrincipalManager = PrincipalManager::new(principal_config, params, None)?;
             
                     /* step2 optional - run miner to simulate blocks */
                     
@@ -128,5 +129,5 @@ pub fn start(eid : sgx_enclave_id_t){
             }
         },
     };
-
+    Ok(())
 }

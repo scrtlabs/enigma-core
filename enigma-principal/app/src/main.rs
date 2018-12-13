@@ -58,7 +58,7 @@ mod tests {
     use esgx::general::init_enclave_wrapper;
     use sgx_types::{sgx_enclave_id_t, sgx_status_t};
     extern { fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t; }
-
+    #[ignore]
     #[test]
     pub fn test_enclave_internal() {
         // initiate the enclave

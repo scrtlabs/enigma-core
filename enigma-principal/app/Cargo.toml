@@ -26,3 +26,6 @@ dirs = "1.0"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+
+[patch.crates-io]
+web3 = { path = "../../rust-web3" }

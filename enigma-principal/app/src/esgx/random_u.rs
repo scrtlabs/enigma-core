@@ -1,12 +1,5 @@
-//sgx 
-use sgx_types::{uint8_t, uint32_t};
+//sgx
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-// general 
-use rlp;
-use enigma_tools_u;
-use enigma_tools_u::attestation_service::service;
-use enigma_tools_u::attestation_service::constants;
-use failure::Error;
 
 extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
 

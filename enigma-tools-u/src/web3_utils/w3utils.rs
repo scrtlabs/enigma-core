@@ -1,8 +1,9 @@
 // general
 use failure::Error;
-use hex::FromHex;
+use hex::{FromHex, ToHex};
 use std::str;
 use std::time;
+use std::path::Path;
 use tiny_keccak::Keccak;
 //web3
 use web3;
@@ -19,6 +20,8 @@ use serde_json;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
+// enigma tools
+use common_u::errors;
 
 // hash traits, same as ethereum's hash function
 pub trait Keccak256<T> {
@@ -44,66 +47,64 @@ pub struct DeployParams {
 }
 
 impl DeployParams {
-    pub fn new(deployer: &str, abi: String, bytecode: String, gas_limit: &str, poll_interval: u64,
-               confirmations: usize) -> Self {
-        let gas_limit: U256 = U256::from_dec_str(&gas_limit).unwrap();
+    pub fn new(deployer: &str, abi: String, bytecode: String, gas_limit: u64, poll_interval: u64,
+               confirmations: usize) -> Result<Self, Error> {
+        let gas_limit: U256 = gas_limit.into();
 
-        let deployer: Address = deployer.parse().expect("unable to parse contract address");
+        let deployer: Address = deployer.parse()?;
 
-        DeployParams { deployer, abi, gas_limit, bytecode, poll_interval, confirmations }
+        Ok(DeployParams { deployer, abi, gas_limit, bytecode, poll_interval, confirmations })
     }
 }
 
 // given a path load EnigmaContract.json and extract the ABI and the bytecode
 pub fn load_contract_abi_bytecode(path: &str) -> Result<(String, String), Error> {
-    let mut f = File::open(path).expect("file not found.");
-
+    let mut f = File::open(path)?;
     let mut contents = String::new();
-    f.read_to_string(&mut contents).expect("canno't read file");
+    f.read_to_string(&mut contents)?;
 
-    let contract_data: Value = serde_json::from_str(&contents).expect("unable to parse JSON built contract");
+    let contract_data: Value = serde_json::from_str(&contents)?;
 
-    let abi = serde_json::to_string(&contract_data["abi"])
-        .expect("unable to find the abi key at the root of the JSON built contract");
-
-    let bytecode = serde_json::to_string(&contract_data["bytecode"])
-    .expect("unable to find the abi key at the root of the JSON built contract");
+    let abi = serde_json::to_string(&contract_data["abi"])?;
+    let bytecode = serde_json::to_string(&contract_data["bytecode"])?;
 
     Ok((abi, bytecode))
 }
+
 // connect to ethereum
 pub fn connect(url: &str) -> Result<(web3::transports::EventLoopHandle, Web3<Http>), Error> {
-    let (_eloop, http) = web3::transports::Http::new(url).expect("unable to create Web3 HTTP provider");
+    let (_eloop, http) = match web3::transports::Http::new(url) {
+        Ok((eloop, http)) => (eloop, http),
+        Err(_) => return Err(errors::Web3Error{ message: String::from("unable to create an http connection") }.into()),
+    };
     let w3 = web3::Web3::new(http);
     Ok((_eloop, w3))
 }
 
 // connect to an existing deployed smart contract
-
 pub fn deployed_contract(web3: &Web3<Http>, contract_addr: Address, abi: &str) -> Result<Contract<Http>, Error> {
-    let contract = Contract::from_json(
-           web3.eth(),
-           contract_addr,
-           abi.as_bytes(),
-         ).expect("unable to fetch the deployed contract on the Ethereum provider");
-
-    Ok(contract)
+    match Contract::from_json(web3.eth(), contract_addr, abi.as_bytes()) {
+        Ok(contract) => Ok(contract),
+        Err(_) => Err(errors::Web3Error{ message: String::from("unable to create a contract") }.into()),
+    }
 }
+
 // private:: truncate the bytecode from solidity json
 // this method does 2 things:
 // 1) web3 requires byte array of the hex byte code from_hex
 // 2) serde_json reads the bytecode as string with '"0x..."' so 4 chars needs to be removed.
-// TODO:: solve the fact that serde dont ignore `"`
-pub fn trunace_bytecode(bytecode: &str) -> Result<Vec<u8>, Error> {
+// TODO:: solve the fact that serde doesnt ignore `"`
+pub fn truncate_bytecode(bytecode: &str) -> Result<Vec<u8>, Error> {
     let b = bytecode.as_bytes();
     let sliced = &b[3..b.len() - 1];
     let result = str::from_utf8(&sliced.to_vec()).unwrap().from_hex()?;
     Ok(result)
 }
+
 // deploy any smart contract
 pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_params: P) -> Result<Contract<Http>, Error>
     where P: Tokenize {
-    let bytecode: Vec<u8> = trunace_bytecode(&tx_params.bytecode).expect("error parsing bytecode to bytes");
+    let bytecode: Vec<u8> = truncate_bytecode(&tx_params.bytecode)?;
 
     let deployer_addr = tx_params.deployer;
     let mut options = Options::default();
@@ -116,23 +117,18 @@ pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_para
         .confirmations(tx_params.confirmations)
         .poll_interval(time::Duration::from_secs(tx_params.poll_interval));
 
-    let contract = builder.options(options)
-                          .execute(bytecode, ctor_params, deployer_addr)
-                          .expect("Cannot deploy contract abi")
-                          .wait()
-                          .unwrap();
-
-    println!("deployed contract at address = {}", contract.address());
-
-    Ok(contract)
+    match builder.options(options).execute(bytecode, ctor_params, deployer_addr) {
+        Ok(builder) => {
+            let contract  = builder.wait().unwrap();
+            println!("deployed contract at address = {}", contract.address());
+            Ok(contract)
+        }
+        Err(_) => Err(errors::Web3Error{ message: String::from("unable to deploy the contract") }.into()),
+    }
 }
 
 /// turn an Address to a string address and remove the 0x
-pub fn address_to_string_addr(addr: &Address) -> String {
-    let mut addr = format!("{:?}", addr);
-    addr = addr[2..].to_string();
-    addr
-}
+pub fn address_to_string_addr(addr: &Address) -> String { addr.to_hex() }
 
 /// String into keccak256/sha3 solidity compatible
 pub fn to_keccak256(value: &[u8]) -> [u8; 32] { value.keccak256() }
@@ -140,37 +136,38 @@ pub fn to_keccak256(value: &[u8]) -> [u8; 32] { value.keccak256() }
 /// get list of current accounts from web3 isolated
 pub fn get_accounts(url: &str) -> Result<Vec<Address>, Error> {
     let (_eloop, w3) = connect(url)?;
-    let accounts = w3.eth().accounts().wait().unwrap();
-    Ok(accounts)
+    match w3.eth().accounts().wait() {
+        Ok(accounts) => Ok(accounts),
+        Err(_) => Err(errors::Web3Error{ message: String::from("unable to retrieve accounts") }.into()),
+    }
+
 }
 
 //////////////////////// EVENTS LISTENING START ///////////////////////////
 
-fn build_event_fuilder(event_name: &str, contract_addr: Option<&str>) -> web3::types::Filter {
-    let with_addr = contract_addr.is_some();
+fn build_event_filter(event_name: &str, contract_addr: Option<&str>) -> web3::types::Filter {
     let filter =
         FilterBuilder::default().topics(Some(vec![event_name.as_bytes().keccak256().into(),]), None, None, None)
                                 .from_block(BlockNumber::Earliest)
                                 .to_block(BlockNumber::Latest);
-
-    if with_addr {
-        filter.address(vec![contract_addr.expect("[-] filter: error parsing ethereum address").parse().unwrap()])
-              .build()
-    } else {
-        filter.build()
+    match contract_addr {
+        Some(addr) => filter.address(vec![addr.parse().unwrap()]).build(),
+        None => filter.build(),
     }
 }
 
 /// TESTING: filter the network for events
 pub fn filter_blocks(contract_addr: Option<&str>, event_name: &str, url: &str) -> Result<Vec<Log>, Error> {
-    let (_eloop, w3) = connect(url).expect("cannot connect to ethereum");
+    let (_eloop, w3) = connect(url)?;
 
-    let filter = build_event_fuilder(event_name, contract_addr);
+    let filter = build_event_filter(event_name, contract_addr);
 
-    let logs = w3.eth().logs(filter).wait().expect("[-] error getting logs");
-    Ok(logs)
+    match w3.eth().logs(filter).wait() {
+        Ok(logs) => Ok(logs),
+        Err(_) => Err(errors::Web3Error{ message: String::from("unable to retrieve logs") }.into()),
+    }
 }
-// TODO:: implement this function, it should work but needs more improvments and ofcourse a future from the outside as a parameter.
+// TODO:: implement this function, it should work but needs more improvements and of course a future from the outside as a parameter.
 // pub fn filter_blocks_async(contract_addr : String ,url : String){
 //     let (eloop,w3) = connect(&url.as_str())
 //         .expect("cannot connect to ethereum");
@@ -223,14 +220,14 @@ mod test {
         let path = env::current_dir().unwrap();
         println!("The current directory is {}", path.display());
 
-        let EnigmaToken = "./src/tests/web3_tests/contracts/EnigmaToken.json";
-        let Enigma = "./src/tests/web3_tests/contracts/Enigma.json";
-        let Dummy = "./src/tests/web3_tests/contracts/Dummy.json";
+        let enigma_token = "./src/tests/web3_tests/contracts/EnigmaToken.json";
+        let enigma = "./src/tests/web3_tests/contracts/Enigma.json";
+        let dummy = "./src/tests/web3_tests/contracts/Dummy.json";
 
         let to_load = match ctype.as_ref() {
-            "EnigmaToken" => EnigmaToken,
-            "Enigma" => Enigma,
-            "Dummy" => Dummy,
+            "EnigmaToken" => enigma_token,
+            "Enigma" => enigma,
+            "Dummy" => dummy,
             _ => "",
         };
         assert_ne!(to_load, "", "wrong contract type");
@@ -241,11 +238,11 @@ mod test {
     // helper to quickly mock params for deployment of a contract to generate DeployParams
     fn get_deploy_params(accounts: &Vec<Address>, ctype: &str) -> w3utils::DeployParams {
         let deployer = w3utils::address_to_string_addr(&accounts[0]);
-        let gas_limit = "5999999";
+        let gas_limit: u64 = 5999999;
         let poll_interval: u64 = 1;
         let confirmations: usize = 0;
         let (abi, bytecode) = get_contract(&ctype.to_string());
-        w3utils::DeployParams::new(&deployer, abi, bytecode, gas_limit, poll_interval, confirmations)
+        w3utils::DeployParams::new(&deployer, abi, bytecode, gas_limit, poll_interval, confirmations).unwrap()
     }
     // helper connect to web3
     fn connect() -> (web3::transports::EventLoopHandle, Web3<Http>, Vec<Address>) {
@@ -278,7 +275,7 @@ mod test {
         // the enigma contract requires 2 addresses in the constructor
         let account = String::from("627306090abab3a6e1400e9345bc60c78a8bef57");
         let fake_input: Address = account.parse().expect("unable to parse account address");
-        let fake_input = (fake_input, fake_input);
+        let fake_input = (fake_input.clone(), fake_input);
         // 2) connect to ethereum network
         let (eloop, w3, accounts) = connect();
         // 3) get mock of the deploy params
