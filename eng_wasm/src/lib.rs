@@ -20,6 +20,7 @@ pub use internal_std::*;
 pub use eng_wasm_errors::*;
 pub use serde_json::Value;
 pub use ethereum::short_signature;
+pub use pwasm_abi::types::*;
 
 pub mod external {
     extern "C" {
