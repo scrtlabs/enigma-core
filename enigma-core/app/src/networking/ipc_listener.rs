@@ -21,13 +21,12 @@ impl IpcListener {
     pub fn run<F>(self, f: F) -> impl Future<Item =(), Error = Error>
         where F: Fn(Multipart) -> Multipart {
 
-        let runner = self.rep_future.and_then(|rep| {
+        self.rep_future.and_then(|rep| {
             let (sink, stream) = rep.sink_stream(25).split();
             stream.map(f)
                 .forward(sink)
                 .map(|(_stream, _sink)| ())
-        });
-        runner
+        })
     }
 }
 
@@ -91,7 +90,7 @@ pub(self) mod handling {
                 tips_results.push(delta);
             } else { unreachable!() }
         }
-        IpcResponse::GetTips { id, result: tips_results }.into()
+        IpcResponse::GetTips { id, result: IpcResults::Tips(tips_results) }.into()
     }
 
     pub fn get_all_tips(id: String) -> Message {
@@ -153,6 +152,7 @@ pub(self) mod handling {
         DATABASE.lock_expect("P2P UpdateNewContract").force_update(&delta_key, &bytecode).unwrap();
         IpcResponse::UpdateNewContract {id, address, result: IpcResults::Status("0".to_string())}.into()
     }
+
     pub fn update_deltas(id: String, deltas: Vec<IpcDelta>) -> Message {
 
         let tuples: Vec<(DeltaKey, Vec<u8>)> = deltas.into_iter().map(|delta| {
@@ -164,10 +164,25 @@ pub(self) mod handling {
         let results = DATABASE.lock_expect("P2P UpdateDeltas").insert_tuples(&tuples);
         // TODO: do something with the results here, they don't match the logic of the other results, because of the namespace
         // TODO: not sure what's the best way to treat this, need to look into more features of serde-json or reevaluate the structure.
-        for res in results {
-            res.unwrap();
+        let mut errors = Vec::with_capacity(tuples.len());
+
+        for ((deltakey, _), res) in tuples.into_iter().zip(results.into_iter()) {
+            match res {
+                Ok(()) => {
+                    if let Stype::Delta(indx) = deltakey.key_type {
+                        let delta = IpcDeltaResult { address: deltakey.hash.to_hex(), key: indx, status: 0 };
+                        errors.push(delta);
+                    } else { unreachable!() }
+                }
+                Err(_) => {
+                    if let Stype::Delta(indx) = deltakey.key_type {
+                        let delta = IpcDeltaResult { address: deltakey.hash.to_hex(), key: indx, status: 1 };
+                        errors.push(delta);
+                    } else { unreachable!() }
+                }
+            }
         }
-        Message::new().unwrap()
+        IpcResponse::UpdateDeltas{ id, result: IpcUpdateDeltasResult { status: 0, errors } }.into()
     }
 
 }

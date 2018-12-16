@@ -4,28 +4,28 @@ use serde_json;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum IpcResponse {
-    GetRegistrationParams { id: String, #[serde(rename = "signingKey")] sigining_key: String,  quote: String},
-    IdentityChallenge { id: String, nonce: String, signature: String, },
+    GetRegistrationParams { id: String, result: IpcRegistrationParams},
+    IdentityChallenge { id: String, nonce: String, signature: IpcIdentityChallenge, },
     GetTip { id: String , result: IpcDelta, },
-    GetTips {id: String, result: Vec<IpcDelta> },
+    GetTips {id: String, result: IpcResults },
     GetAllTips { id: String, result: Vec<IpcDelta> },
     GetAllAddrs { id: String, result: IpcResults },
     GetDelta { id: String, result: IpcResults },
     GetDeltas { id: String, result: IpcResults },
     GetContract { id: String, result: IpcResults },
     UpdateNewContract { id: String, address: String, result: IpcResults },
-    UpdateDeltas { id: String, general_status: String, result: IpcResults },
+    UpdateDeltas { id: String, result: IpcUpdateDeltasResult },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "lowercase")]
-#[serde(rename = "result")]
+#[serde(rename_all = "lowercase", rename = "result")]
 pub enum IpcResults {
     Addresses(Vec<String>),
     Delta(String),
     Deltas(Vec<IpcDelta>),
     Bytecode(String),
-    Status(String)
+    Status(String),
+    Tips(Vec<IpcDelta>),
 }
 
 
@@ -45,6 +45,32 @@ pub enum IpcRequest {
     UpdateNewContract { id: String, address: String, bytecode: String },
     UpdateDeltas { id: String, deltas: Vec<IpcDelta> },
 
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IpcRegistrationParams {
+    #[serde(rename = "signingKey")]
+    pub sigining_key: String,
+    pub quote: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IpcIdentityChallenge {
+    pub nonce: String,
+    pub signature: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IpcUpdateDeltasResult {
+    pub status: u8,
+    pub errors: Vec<IpcDeltaResult>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IpcDeltaResult {
+    pub address: String,
+    pub key: u32,
+    pub status: u8,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
