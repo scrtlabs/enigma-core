@@ -73,7 +73,7 @@ pub struct IpcDeltaResult {
     pub status: u8,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct IpcDelta {
     pub address: Option<String>,
     pub key: u32,
@@ -91,7 +91,7 @@ pub struct IpcGetDeltas {
 impl From<Message> for IpcRequest {
     fn from(msg: Message) -> Self {
         let msg_str = msg.as_str().unwrap();
-        serde_json::from_str(msg_str).unwrap()
+        serde_json::from_str(msg_str).expect(msg_str)
     }
 }
 

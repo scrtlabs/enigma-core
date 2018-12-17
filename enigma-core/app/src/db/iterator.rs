@@ -26,6 +26,13 @@ impl<T> ResultType<T> {
             ResultType::None => panic!("called `ResultType::unwrap()` on a `None` value"),
         }
     }
+
+    pub fn is_none(&self) -> bool {
+        match *self {
+            ResultType::None => true,
+            _ => false,
+        }
+    }
 }
 
 
