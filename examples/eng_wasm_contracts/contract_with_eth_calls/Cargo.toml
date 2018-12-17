@@ -4,9 +4,7 @@ version = "0.1.0"
 
 [dependencies]
 eng_wasm = {path = "../../../eng_wasm"}
-eng_wasm_dispatch = {path = "../../../eng_wasm/dispatch"}
-syn = { version = "0.15.12", features = ["full", "extra-traits"] }
-proc-macro2 = "0.4.21"
+eng_wasm_derive = {path = "../../../eng_wasm/derive"}
 
 [lib]
 crate-type = ["cdylib"]

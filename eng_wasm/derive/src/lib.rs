@@ -115,7 +115,7 @@ fn generate_dispatch(input: syn::Item) -> proc_macro2::TokenStream{
 
 #[proc_macro_attribute]
 #[allow(unused_variables, unused_mut)]
-pub fn dispatch(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+pub fn pub_interface(args: proc_macro::TokenStream, input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input_tokens = parse_macro_input!(input as syn::Item);
     let disp = generate_dispatch(input_tokens.clone());
     let eng_wasm_aux = generate_eng_wasm_aux_functions();
