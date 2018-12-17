@@ -1,5 +1,6 @@
-use common::utils_t::Sha256;
-use enigma_runtime_t::data::{ContractState, EncryptedContractState, EncryptedPatch, Encryption, StatePatch};
+use crate::common::utils_t::Sha256;
+use enigma_runtime_t::data::{ContractState, EncryptedContractState, EncryptedPatch, StatePatch};
+use enigma_tools_t::cryptography_t::Encryption;
 
 pub fn encrypt_delta(del: StatePatch) -> EncryptedPatch {
     let key = get_delta_key();

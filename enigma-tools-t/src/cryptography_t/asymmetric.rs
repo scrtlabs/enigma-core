@@ -4,25 +4,20 @@ use secp256k1;
 use secp256k1::{PublicKey, SecretKey, SharedSecret};
 use sgx_trts::trts::rsgx_read_rand;
 use std::string::ToString;
-//use std::str;
-use std::vec::Vec;
 
 #[derive(Debug)]
 pub struct KeyPair {
-    pub pubkey: PublicKey,
-    pub privkey: SecretKey,
+    pubkey: PublicKey,
+    privkey: SecretKey,
 }
 
 impl KeyPair {
     pub fn new() -> Result<KeyPair, EnclaveError> {
-        let mut me: [u8; 32] = [0; 32];
-        // TODO: Should loop until works?
-        rsgx_read_rand(&mut me)?;
-        let keys = match SecretKey::parse(&me) {
-            Ok(_priv) => KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) },
-            Err(_) => return Err(EnclaveError::GenerationError { generate: "Private Key".to_string(), err: "".to_string() })
-        };
-        Ok(keys)
+        loop {
+            let mut me: [u8; 32] = [0; 32];
+            rsgx_read_rand(&mut me)?;
+            if let Ok(_priv) = SecretKey::parse(&me) { return Ok(KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) }) }
+        }
     }
 
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, EnclaveError> {
@@ -35,7 +30,7 @@ impl KeyPair {
         Ok(keys)
     }
 
-    pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<Vec<u8>, EnclaveError> {
+    pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<[u8; 32], EnclaveError> {
         let mut pubarr: [u8; 65] = [0; 65];
         pubarr[0] = 4;
         pubarr[1..].copy_from_slice(&_pubarr[..]);
@@ -44,7 +39,11 @@ impl KeyPair {
             Err(_) => return Err(EnclaveError::KeyError { key: _pubarr.to_hex(), key_type: "PublicKey".to_string() }),
         };
         match SharedSecret::new(&pubkey, &self.privkey) {
-            Ok(val) => Ok(val.as_ref().to_vec()),
+            Ok(val) => {
+                let mut result = [0u8; 32];
+                result.copy_from_slice(val.as_ref());
+                Ok(result)
+            },
             Err(_) => Err(EnclaveError::DerivingKeyError { self_key: self.get_pubkey().to_hex(), other_key: pubkey.serialize()[1..65].to_hex(), }),
         }
     }
@@ -76,7 +75,7 @@ impl KeyPair {
     /// 1. 32 Bytes, ECDSA `r` variable.
     /// 2. 32 Bytes ECDSA `s` variable.
     /// 3. 1 Bytes ECDSA `v` variable aligned to the right for Ethereum compatibility
-    pub fn sign(&self, message: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+    pub fn sign(&self, message: &[u8]) -> Result<[u8; 65], EnclaveError> {
         let hashed_msg = message.keccak256();
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
         let (sig, recovery) = match secp256k1::sign(&message_to_sign, &self.privkey) {
@@ -84,10 +83,9 @@ impl KeyPair {
             Err(_) => return Err(EnclaveError::SigningError { msg: message.to_hex() }),
         };
         let v: u8 = recovery.into();
-
-        let mut returnvalue = sig.serialize().to_vec();
-        returnvalue.push(v + 27);
-        //        println!("Sig hex on signing:")
+        let mut returnvalue = [0u8; 65];
+        returnvalue[..64].copy_from_slice(&sig.serialize()[..]);
+        returnvalue[64] = v + 27;
         Ok(returnvalue)
     }
 }
@@ -100,7 +98,7 @@ pub mod tests {
         let k1 = KeyPair::from_slice(&_priv).unwrap();
         let msg = b"EnigmaMPC";
         let sig = k1.sign(msg).unwrap();
-        assert_eq!(sig, vec![103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28]);
+        assert_eq!(sig.to_vec(), [103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28].to_vec());
     }
 
     pub fn test_ecdh() {
