@@ -30,6 +30,8 @@ extern crate serde;
 extern crate lru_cache;
 extern crate byteorder;
 extern crate tempdir;
+#[macro_use]
+extern crate log;
 
 //use sgx_types::*;
 use std::thread;

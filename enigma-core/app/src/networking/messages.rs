@@ -101,3 +101,20 @@ impl Into<Message> for IpcResponse {
         Message::from_slice(&msg).unwrap()
     }
 }
+
+pub(crate) trait UnwrapDefault<T> {
+    fn unwrap_or_default(self) -> T;
+}
+
+impl<E: std::fmt::Debug> UnwrapDefault<Message> for Result<Message, E> {
+    fn unwrap_or_default(self) -> Message {
+        match self {
+            Ok(m) => m,
+            Err(e) => {
+                error!("Unwrapped p2p Message failed: {:?}", e);
+                Message::new().unwrap()
+            }
+        }
+    }
+
+}
