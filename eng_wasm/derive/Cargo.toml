@@ -1,5 +1,5 @@
 [package]
-name = "eng_wasm_dispatch"
+name = "eng_wasm_derive"
 version = "0.1.0"
 
 [dependencies]

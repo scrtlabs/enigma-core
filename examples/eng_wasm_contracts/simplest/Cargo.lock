@@ -13,9 +13,7 @@ name = "contract"
 version = "0.1.0"
 dependencies = [
  "eng_wasm 0.1.0",
- "eng_wasm_dispatch 0.1.0",
- "proc-macro2 0.4.24 (registry+https://github.com/rust-lang/crates.io-index)",
- "syn 0.15.22 (registry+https://github.com/rust-lang/crates.io-index)",
+ "eng_wasm_derive 0.1.0",
 ]
 
 [[package]]
@@ -39,7 +37,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "eng_wasm_dispatch"
+name = "eng_wasm_derive"
 version = "0.1.0"
 dependencies = [
  "eng_wasm 0.1.0",
