@@ -10,15 +10,15 @@ use std::thread;
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
 pub struct Opt {
-    
+
     /// Run info mode and shutdown. (Not actually running the node)
     #[structopt(short = "i", long = "info")]
     pub info: bool,
 
-    /// Optional: Deploy the Enigma contract related infrastructure 
+    /// Optional: Deploy the Enigma contract related infrastructure
     #[structopt(short = "d", long = "deploy")]
     pub deploy: bool,
-    
+
     ///Optional currently ignored: Deploy to a different network (not the localhost:port)
     #[structopt(short = "n", long = "network" , default_value ="http://.c")]
     pub network: Url,
@@ -32,14 +32,14 @@ pub struct Opt {
     #[structopt(short = "ttl", long = "time-to-live", default_value = "0")]
     pub time_to_live: usize,
 
-    /// Optional: if --deploy then change default to custom config file 
+    /// Optional: if --deploy then change default to custom config file
     #[structopt(short = "dc", long = "deploy-config", default_value = "../app/tests/principal_node/contracts/deploy_config.json")]
     pub deploy_config: String,
 
-    /// Optional: change the default principal node config  
+    /// Optional: change the default principal node config
     #[structopt(short = "pc", long = "principal-config", default_value = "../app/tests/principal_node/contracts/principal_test_config.json")]
     pub principal_config: String,
-    
+
 }
 
 pub fn run_miner(url : String ,accounts : &Vec<Address>, mining_interval : usize ){
@@ -48,7 +48,7 @@ pub fn run_miner(url : String ,accounts : &Vec<Address>, mining_interval : usize
         deploy_scripts::forward_blocks
         (
             mining_interval as u64,
-            deployer, 
+            deployer,
             url.to_string()
         );
     });
@@ -77,14 +77,14 @@ fn all_colours() {
 pub fn print_logo(){
 yellow!("<>------------------------------------------<>\n");
 magenta!("
-\t╔═╗ ┌┐┌ ┬ ┌─┐ ┌┬┐ ┌─┐         
-\t║╣  │││ │ │ ┬ │││ ├─┤         
-\t╚═╝ ┘└┘ ┴ └─┘ ┴ ┴ ┴ ┴ \n        
-\t╔═╗ ┬─┐ ┬ ┌┐┌ ┌─┐ ┬ ┌─┐ ┌─┐ ┬    
-\t╠═╝ ├┬┘ │ │││ │   │ ├─┘ ├─┤ │    
+\t╔═╗ ┌┐┌ ┬ ┌─┐ ┌┬┐ ┌─┐
+\t║╣  │││ │ │ ┬ │││ ├─┤
+\t╚═╝ ┘└┘ ┴ └─┘ ┴ ┴ ┴ ┴ \n
+\t╔═╗ ┬─┐ ┬ ┌┐┌ ┌─┐ ┬ ┌─┐ ┌─┐ ┬
+\t╠═╝ ├┬┘ │ │││ │   │ ├─┘ ├─┤ │
 \t╩   ┴└─ ┴ ┘└┘ └─┘ ┴ ┴   ┴ ┴ ┴─┘\n
-\t╔╗╔ ┌─┐ ┌┬┐ ┌─┐             
-\t║║║ │ │  ││ ├┤              
+\t╔╗╔ ┌─┐ ┌┬┐ ┌─┐
+\t║║║ │ │  ││ ├┤
 \t╝╚╝ └─┘ ─┴┘ └─┘\n");
 yellow!("<>------------------------------------------<>\n");
 }

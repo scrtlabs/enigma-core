@@ -17,7 +17,9 @@ use serde_json;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
-use common_u::errors;
+use std::sync::Arc;
+use std::path::Path;
+use crate::common_u::errors;
 use crate::common_u::Keccak256;
 
 
@@ -42,20 +44,26 @@ impl DeployParams {
 }
 
 // given a path load EnigmaContract.json and extract the ABI and the bytecode
-pub fn load_contract_abi_bytecode(path: &str) -> Result<(String, String), Error> {
-    let mut f = File::open(path)?;
-    let mut contents = String::new();
-    f.read_to_string(&mut contents)?;
-
-    let contract_data: Value = serde_json::from_str(&contents)?;
-
+pub fn load_contract_abi_bytecode<P: AsRef<Path>>(path: P) -> Result<(String, String), Error> {
+    let f = File::open(path)?;
+    let contract_data: Value = serde_json::from_reader(f)?;
     let abi = serde_json::to_string(&contract_data["abi"])?;
     let bytecode = serde_json::to_string(&contract_data["bytecode"])?;
-
     Ok((abi, bytecode))
 }
 
-// connect to ethereum
+pub fn load_contract_abi<R: Read>(rdr: R) -> Result<String, Error> {
+    let data: Value = serde_json::from_reader(rdr)?;
+     match data.is_array() {
+         true => Ok(serde_json::to_string(&data)?),
+         false => Ok(serde_json::to_string(&data["abi"])?)
+     }
+}
+
+// Important!! Best Practice is to have only one Web3 Instance.
+// Every time Web3::new() is called it spawns a new thread that is tied to eloop.
+// Important!! When eloop is Dropped, the underlying Transport dies.
+// https://github.com/tomusdrw/rust-web3/blob/master/src/transports/http.rs#L79
 pub fn connect(url: &str) -> Result<(web3::transports::EventLoopHandle, Web3<Http>), Error> {
     let (_eloop, http) = match web3::transports::Http::new(url) {
         Ok((eloop, http)) => (eloop, http),
@@ -111,21 +119,6 @@ pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_para
     }
 }
 
-/// turn an Address to a string address and remove the 0x
-pub fn address_to_string_addr(addr: &Address) -> String { addr.to_hex() }
-
-/// String into keccak256/sha3 solidity compatible
-pub fn to_keccak256(value: &[u8]) -> [u8; 32] { value.keccak256() }
-
-/// get list of current accounts from web3 isolated
-pub fn get_accounts(url: &str) -> Result<Vec<Address>, Error> {
-    let (_eloop, w3) = connect(url)?;
-    match w3.eth().accounts().wait() {
-        Ok(accounts) => Ok(accounts),
-        Err(_) => Err(errors::Web3Error{ message: String::from("unable to retrieve accounts") }.into()),
-    }
-
-}
 
 //////////////////////// EVENTS LISTENING START ///////////////////////////
 
@@ -141,8 +134,7 @@ fn build_event_filter(event_name: &str, contract_addr: Option<&str>) -> web3::ty
 }
 
 /// TESTING: filter the network for events
-pub fn filter_blocks(contract_addr: Option<&str>, event_name: &str, url: &str) -> Result<Vec<Log>, Error> {
-    let (_eloop, w3) = connect(url)?;
+pub fn filter_blocks(w3: Arc<Web3<Http>>, contract_addr: Option<&str>, event_name: &str, url: &str) -> Result<Vec<Log>, Error> {
 
     let filter = build_event_filter(event_name, contract_addr);
 

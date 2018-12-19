@@ -3,6 +3,7 @@ use failure::Error;
 use rustc_hex::FromHex;
 use sgx_types::{sgx_enclave_id_t};
 use std::thread;
+use std::sync::Arc;
 use std::fs::File;
 use std::io::prelude::*;
 use std::time;
@@ -19,6 +20,7 @@ use web3::contract::{Contract, Options};
 use web3::types::{Address, U256};
 use web3::transports::Http;
 use web3::Web3;
+use web3::transports::EventLoopHandle;
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -142,7 +144,6 @@ fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &str)->Result<Contract<Http>,
     // contract path 
     let path = "../app/tests/principal_node/contracts/Dummy.json";
     // build deploy params 
-    let deployer = deployer.clone();
     let gas_limit: u64 = 5999999;
     let poll_interval : u64 = 1;
     let confirmations : usize = 0;
@@ -155,11 +156,9 @@ fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &str)->Result<Contract<Http>,
 }
 
 /// TESTING: mimic block creation to test the watch blocks method of the principal node 
-pub fn forward_blocks(interval : u64, deployer : String, url : String) -> Result<(), Error> {
-    let (eloop,w3) = w3utils::connect(url.as_str())?;
-    let contract = deploy_dummy_miner(&w3, &deployer)?;
+pub fn forward_blocks(w3: Arc<Web3<Http>>, interval : u64, deployer : Address, url : String) -> Result<(), Error> {
+    let contract = deploy_dummy_miner(&w3, &deployer.hex())?;
     println!("deployed dummy contract at address = {:?}",contract.address() );
-    let deployer : Address = deployer.parse()?;
     loop {
         let gas_limit: u64 = 5999999;
         let mut options = Options::default();
@@ -198,13 +197,13 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String) -> Result
         let accounts = w3.eth().accounts().wait().unwrap();
         (eloop,w3, accounts)
     }
-    pub fn run_miner(accounts : &Vec<Address> ){
-        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
-        let child = thread::spawn(move || {
-            let url = get_node_url();
-            deploy_scripts::forward_blocks(1,deployer, url.to_string());
-        });
-    }
+//    pub fn run_miner(accounts : &Vec<Address> ){
+//        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
+//        let child = thread::spawn(move || {
+//            let url = get_node_url();
+//            deploy_scripts::forward_blocks(1,deployer, url.to_string());
+//        });
+//    }
     #[test]
     //#[ignore]
     fn test_deploy_enigma_contract_environment(){
@@ -228,7 +227,7 @@ pub fn forward_blocks(interval : u64, deployer : String, url : String) -> Result
         let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
         // load the config 
         let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
-        let mut config = deploy_scripts::load_config(deploy_config);
+        let mut config = deploy_scripts::load_config(deploy_config).unwrap();
         // modify to dynamic address
         config.set_accounts_address(deployer);
         config.set_ethereum_url(get_node_url());

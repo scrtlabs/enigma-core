@@ -4,7 +4,7 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use structopt::StructOpt;
 use std::thread;
 use failure::Error;
-// enigma modules 
+// enigma modules
 pub use esgx::general::ocall_get_home;
 use boot_network::principal_utils::EmitParams;
 use boot_network::principal_manager::{PrincipalConfig,Sampler,PrincipalManager};
@@ -29,7 +29,7 @@ pub fn start(eid : sgx_enclave_id_t) -> Result<(), Error> {
             cli::options::print_info(&sign_key);
 
         },
-        // run the node 
+        // run the node
         false =>{
 
             cli::options::print_logo();
@@ -41,7 +41,7 @@ pub fn start(eid : sgx_enclave_id_t) -> Result<(), Error> {
                         println!("[Mode:] deploying to default.");
                         /* step1 : prepeare the contracts (deploy Enigma,EnigmaToken) */
 
-                        // load the config 
+                        // load the config
                         let mut config = deploy_scripts::load_config(config)?;
                         let url = config.url.clone();
                         // get dynamic eth addrress
@@ -52,15 +52,15 @@ pub fn start(eid : sgx_enclave_id_t) -> Result<(), Error> {
                         // deploy all contracts. (Enigma & EnigmaToken)
                         let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
                         (
-                            eid, 
-                            config, 
+                            eid,
+                            config,
                             None
                         )
                         .expect("cannot deploy Enigma,EnigmaToken");
 
                         /* step2 : build the config of the principal node   */
 
-                        // optional : set time limit for the principal node 
+                        // optional : set time limit for the principal node
                         let mut ttl = None;
                         if opt.time_to_live > 0{
                             ttl = Some(opt.time_to_live);
@@ -68,7 +68,7 @@ pub fn start(eid : sgx_enclave_id_t) -> Result<(), Error> {
                         let mut params : EmitParams = EmitParams{
                             eid,
                             gas_limit : 5999999,
-                            max_epochs : ttl, 
+                            max_epochs : ttl,
                             ..Default::default()
                         };
 
@@ -77,9 +77,9 @@ pub fn start(eid : sgx_enclave_id_t) -> Result<(), Error> {
                         let deployer = w3utils::address_to_string_addr(&accounts[0]);
                         the_config.set_accounts_address(deployer);
                         the_config.set_enigma_contract_address(contract_addr.clone());
-                        
+
                         /* step3 optional - run miner to simulate blocks */
-                        
+
                         if opt.mine >0 {
                             cli::options::run_miner(url, &accounts, opt.mine);
                         }
@@ -90,14 +90,14 @@ pub fn start(eid : sgx_enclave_id_t) -> Result<(), Error> {
                         principal.run().unwrap();
 
                 },
-                // contracts deployed, just run 
+                // contracts deployed, just run
                 false =>{
-                    
+
                     println!("[Mode:] run node NO DEPLOY.");
 
                      /* step1 : build the config of the principal node   */
 
-                    // optional : set time limit for the principal node 
+                    // optional : set time limit for the principal node
                     let mut ttl = None;
                     if opt.time_to_live > 0{
                         ttl = Some(opt.time_to_live);
@@ -105,25 +105,25 @@ pub fn start(eid : sgx_enclave_id_t) -> Result<(), Error> {
                     let mut params : EmitParams = EmitParams{
                         eid,
                         gas_limit : 5999999,
-                        max_epochs : ttl, 
+                        max_epochs : ttl,
                         ..Default::default()
                     };
-                    
+
                     let principal : PrincipalManager = PrincipalManager::new(principal_config, params, None)?;
-            
+
                     /* step2 optional - run miner to simulate blocks */
-                    
+
                     if opt.mine >0 {
                         cli::options::run_miner
                         (
-                            principal.get_network_url(), 
-                            &vec![principal.get_account_address().unwrap()], 
+                            principal.get_network_url(),
+                            &vec![principal.get_account_address().unwrap()],
                             opt.mine
                         );
                     }
 
                     /* step3 : run the principal manager */
-                    
+
                     principal.run().unwrap();
                 }
             }
