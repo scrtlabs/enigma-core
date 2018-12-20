@@ -47,12 +47,15 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             let principal: PrincipalManager = PrincipalManager::new_delegated(principal_config, enigma_contract, eid);
 
             /* step3 optional - run miner to simulate blocks */
-            if opt.mine > 0 {
-                principal_manager::run_miner(principal.get_account_address(), principal.get_web3(), opt.mine as u64);
-            }
+            let join_handle = if opt.mine > 0 {
+                Some(principal_manager::run_miner(principal.get_account_address(), principal.get_web3(), opt.mine as u64))
+            } else {
+                None
+            };
 
             /* step4 : run the principal manager */
             principal.run(gas_limit).unwrap();
+            if let Some(t) = join_handle { t.join().unwrap(); }
         // contracts deployed, just run
         } else {
             println!("[Mode:] run node NO DEPLOY.");
@@ -73,12 +76,15 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             let principal: PrincipalManager = PrincipalManager::new_delegated(principal_config, enigma_contract, eid);
 
             /* step2 optional - run miner to simulate blocks */
-            if opt.mine > 0 {
-                principal_manager::run_miner(principal.get_account_address(), principal.get_web3(), opt.mine as u64);
-            }
+            let join_handle = if opt.mine > 0 {
+                Some(principal_manager::run_miner(principal.get_account_address(), principal.get_web3(), opt.mine as u64))
+            } else {
+                None
+            };
 
             /* step3 : run the principal manager */
             principal.run(gas_limit).unwrap();
+            if let Some(t) = join_handle { t.join().unwrap(); }
         }
     }
     Ok(())
