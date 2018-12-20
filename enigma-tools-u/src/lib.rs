@@ -14,8 +14,8 @@ extern crate rustc_hex as hex;
 extern crate serde;
 extern crate tiny_keccak;
 // web3 utils
-extern crate web3;
 extern crate ethabi;
+extern crate web3;
 // SGX Libraries
 extern crate sgx_types;
 extern crate sgx_urts;

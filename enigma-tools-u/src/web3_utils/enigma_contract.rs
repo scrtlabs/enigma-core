@@ -1,14 +1,14 @@
+use crate::common_u::errors;
+use crate::web3_utils::w3utils;
 use failure::Error;
-use std::path::Path;
 use hex::ToHex;
+use std::path::Path;
+use std::sync::Arc;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
-use web3::transports::{Http, EventLoopHandle};
-use web3::types::{Address, U256, H160};
+use web3::transports::{EventLoopHandle, Http};
+use web3::types::{Address, H160, U256};
 use web3::Web3;
-use std::sync::Arc;
-use crate::web3_utils::w3utils;
-use crate::common_u::errors;
 
 // This should be used as the main Web3/EventLoop
 // Creating another one means more threads and more thing to handle.
@@ -23,12 +23,14 @@ pub struct EnigmaContract {
 
 impl EnigmaContract {
     /// Fetch the Enigma contract deployed on Ethereum using an HTTP Web3 provider and ethabi
-    pub fn from_deployed<P: AsRef<Path>>(contract_address: &str, abi_path: P, account: Option<&str>, url: &str) -> Result<Self, Error> {
+    pub fn from_deployed<P: AsRef<Path>>(contract_address: &str, abi_path: P,
+                                         account: Option<&str>, url: &str) -> Result<Self, Error> {
         let (eloop, web3) = w3utils::connect(url)?;
         Self::from_deployed_web3(contract_address, abi_path, account, web3, eloop)
     }
 
-    pub fn from_deployed_web3<P: AsRef<Path>>(contract_address: &str, abi_path: P, account: Option<&str>, web3: Web3<Http>, eloop: EventLoopHandle) -> Result<Self, Error> {
+    pub fn from_deployed_web3<P: AsRef<Path>>(contract_address: &str, abi_path: P, account: Option<&str>,
+                                              web3: Web3<Http>, eloop: EventLoopHandle) -> Result<Self, Error> {
         let account: Address = match account {
             Some(a) => a.parse()?,
             None => web3.eth().accounts().wait().unwrap()[0], // TODO: Do something with this unwrapping
@@ -38,7 +40,8 @@ impl EnigmaContract {
         Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, account })
     }
 
-    pub fn deploy_contract<P: AsRef<Path>>(token_path: P, enigma_path: P, ethereum_url: &str, account: Option<&str>, sgx_address: &str) -> Result<Self, Error> {
+    pub fn deploy_contract<P: AsRef<Path>>(token_path: P, enigma_path: P, ethereum_url: &str,
+                                           account: Option<&str>, sgx_address: &str) -> Result<Self, Error> {
         let (enigma_abi, enigma_bytecode) = w3utils::load_contract_abi_bytecode(enigma_path)?;
         let (token_abi, token_bytecode) = w3utils::load_contract_abi_bytecode(token_path)?;
 
@@ -64,7 +67,6 @@ impl EnigmaContract {
     }
 
     pub fn address(&self) -> Address { self.w3_contract.address() }
-
 }
 
 pub trait ContractFuncs<G> {
@@ -74,11 +76,10 @@ pub trait ContractFuncs<G> {
 
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G)-> Result<(), Error>;
+    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<(), Error>;
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
-
     fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<(), Error> {
         // register
         let signer_addr: Address = signer.parse()?;
@@ -93,7 +94,7 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
         }
     }
 
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G)-> Result<(), Error> {
+    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<(), Error> {
         let mut opts: Options = Options::default();
         opts.gas = Some(gas.into());
         let seed: U256 = _seed.into();

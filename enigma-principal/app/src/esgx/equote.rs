@@ -1,4 +1,3 @@
-#![allow(dead_code,unused_assignments)]
 use common_u::errors;
 use failure::Error;
 use sgx_types::*;

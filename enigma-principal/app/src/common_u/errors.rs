@@ -1,4 +1,4 @@
-#![allow(dead_code,unused_assignments,unused_variables)]
+#![allow(dead_code, unused_assignments, unused_variables)]
 use sgx_types::*;
 
 // error while requesting to produce a quote (registration)

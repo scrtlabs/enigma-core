@@ -13,15 +13,14 @@ use web3::types::FilterBuilder;
 use web3::types::{Address, Log, U256};
 use web3::Web3;
 // files
+use crate::common_u::errors;
+use crate::common_u::Keccak256;
 use serde_json;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
-use std::sync::Arc;
 use std::path::Path;
-use crate::common_u::errors;
-use crate::common_u::Keccak256;
-
+use std::sync::Arc;
 
 pub struct DeployParams {
     pub deployer: Address,
@@ -64,7 +63,7 @@ pub fn load_contract_abi<R: Read>(rdr: R) -> Result<String, Error> {
 pub fn connect(url: &str) -> Result<(web3::transports::EventLoopHandle, Web3<Http>), Error> {
     let (_eloop, http) = match web3::transports::Http::new(url) {
         Ok((eloop, http)) => (eloop, http),
-        Err(_) => return Err(errors::Web3Error{ message: String::from("unable to create an http connection") }.into()),
+        Err(_) => return Err(errors::Web3Error { message: String::from("unable to create an http connection") }.into()),
     };
     let w3 = web3::Web3::new(http);
     Ok((_eloop, w3))
@@ -74,7 +73,7 @@ pub fn connect(url: &str) -> Result<(web3::transports::EventLoopHandle, Web3<Htt
 pub fn deployed_contract(web3: &Web3<Http>, contract_addr: Address, abi: &[u8]) -> Result<Contract<Http>, Error> {
     match Contract::from_json(web3.eth(), contract_addr, abi) {
         Ok(contract) => Ok(contract),
-        Err(_) => Err(errors::Web3Error{ message: String::from("unable to create a contract") }.into()),
+        Err(_) => Err(errors::Web3Error { message: String::from("unable to create a contract") }.into()),
     }
 }
 
@@ -108,14 +107,13 @@ pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_para
 
     match builder.options(options).execute(bytecode, ctor_params, deployer_addr) {
         Ok(builder) => {
-            let contract  = builder.wait().unwrap();
+            let contract = builder.wait().unwrap();
             println!("deployed contract at address = {}", contract.address());
             Ok(contract)
         }
-        Err(_) => Err(errors::Web3Error{ message: String::from("unable to deploy the contract") }.into()),
+        Err(_) => Err(errors::Web3Error { message: String::from("unable to deploy the contract") }.into()),
     }
 }
-
 
 //////////////////////// EVENTS LISTENING START ///////////////////////////
 
@@ -132,12 +130,11 @@ fn build_event_filter(event_name: &str, contract_addr: Option<&str>) -> web3::ty
 
 /// TESTING: filter the network for events
 pub fn filter_blocks(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_name: &str) -> Result<Vec<Log>, Error> {
-
     let filter = build_event_filter(event_name, contract_addr);
 
     match w3.eth().logs(filter).wait() {
         Ok(logs) => Ok(logs),
-        Err(_) => Err(errors::Web3Error{ message: String::from("unable to retrieve logs") }.into()),
+        Err(_) => Err(errors::Web3Error { message: String::from("unable to retrieve logs") }.into()),
     }
 }
 // TODO:: implement this function, it should work but needs more improvements and of course a future from the outside as a parameter.
@@ -176,9 +173,12 @@ pub fn filter_blocks(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_na
 
 #[cfg(test)]
 mod test {
+    extern crate rustc_hex;
     use super::*;
     use std::env;
     use web3_utils::w3utils;
+    use self::rustc_hex::ToHex;
+
 
     /// This function is important to enable testing both on the CI server and local.
     /// On the CI Side:
@@ -207,8 +207,8 @@ mod test {
         (abi, bytecode)
     }
     // helper to quickly mock params for deployment of a contract to generate DeployParams
-    fn get_deploy_params(accounts: &Vec<Address>, ctype: &str) -> w3utils::DeployParams {
-        let deployer = w3utils::address_to_string_addr(&accounts[0]);
+    fn get_deploy_params(account: Address, ctype: &str) -> w3utils::DeployParams {
+        let deployer = account.to_hex();
         let gas_limit: u64 = 5999999;
         let poll_interval: u64 = 1;
         let confirmations: usize = 0;
@@ -223,8 +223,8 @@ mod test {
         (eloop, w3, accounts)
     }
     // helper deploy a dummy contract and return the contract instance
-    fn deploy_dummy(w3: &Web3<Http>, accounts: &Vec<Address>) -> Contract<Http> {
-        let tx = get_deploy_params(accounts, "Dummy");
+    fn deploy_dummy(w3: &Web3<Http>, account: Address) -> Contract<Http> {
+        let tx = get_deploy_params(account, "Dummy");
         let contract = w3utils::deploy_contract(&w3, &tx, ()).unwrap();
         contract
     }
@@ -232,7 +232,7 @@ mod test {
     //#[ignore]
     fn test_deploy_dummy_contract() {
         let (eloop, w3, accounts) = connect();
-        let contract = deploy_dummy(&w3, &accounts);
+        let contract = deploy_dummy(&w3, accounts[0]);
         // validate deployment
         // mine func add to a uint256=0 1 and returns it's value
         let result = contract.query("mine", (), None, Options::default(), None);
@@ -250,7 +250,7 @@ mod test {
         // 2) connect to ethereum network
         let (eloop, w3, accounts) = connect();
         // 3) get mock of the deploy params
-        let tx = get_deploy_params(&accounts, "Enigma");
+        let tx = get_deploy_params(accounts[0], "Enigma");
         // 4) deploy the contract
         w3utils::deploy_contract(&w3, &tx, fake_input).unwrap();
     }
@@ -259,11 +259,11 @@ mod test {
     fn test_deployed_contract() {
         // deploy the dummy contract
         let (eloop, w3, accounts) = connect();
-        let contract = deploy_dummy(&w3, &accounts);
+        let contract = deploy_dummy(&w3, accounts[0]);
         // the deployed contract address
         let address = contract.address();
         let (abi, bytecode) = get_contract(&String::from("Dummy"));
-        let contract = w3utils::deployed_contract(&w3, address, &abi).unwrap();
+        let contract = w3utils::deployed_contract(&w3, address, abi.as_bytes()).unwrap();
         let result = contract.query("mine", (), None, Options::default(), None);
         let param: U256 = result.wait().unwrap();
         assert_eq!(param.as_u64(), 1);
