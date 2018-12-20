@@ -21,6 +21,7 @@ extern crate dirs;
 extern crate jsonrpc_minihttp_server;
 extern crate ethabi;
 extern crate rocksdb;
+extern crate enigma_types;
 
 // enigma modules
 mod esgx;

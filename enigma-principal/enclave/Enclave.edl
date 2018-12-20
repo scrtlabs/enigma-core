@@ -8,6 +8,7 @@ enclave {
 
     /* data structures */
     include "sgx_key_exchange.h"
+    include "enigma-types.h"
 
     trusted {
 
@@ -17,7 +18,15 @@ enclave {
 
         public void ecall_get_signing_address([out] uint8_t arr[42]);
 
-        public sgx_status_t ecall_get_random_seed( [out, size=32] uint8_t* rand_out, [out, size=65] uint8_t* sig_out);
+        public EnclaveReturn ecall_get_random_seed( [out, size=32] uint8_t* rand_out, [out, size=65] uint8_t* sig_out);
+
+        public EnclaveReturn ecall_set_worker_params([in, size=receipt_tokens_len] const uint8_t* receipt_tokens, size_t receipt_tokens_len,
+                                        [out, size=65] uint8_t* sig_out);
+
+        public EnclaveReturn ecall_get_enc_state_keys([in, size=enc_msg_len] const uint8_t* enc_msg, size_t enc_msg_len,
+                                        [in, size=65] uint8_t* sig,
+                                        [out, size=100000] uint8_t* enc_result_out, [out] uint64_t* enc_result_len_out,
+                                        [out, size=65] uint8_t* sig_out);
     };
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);

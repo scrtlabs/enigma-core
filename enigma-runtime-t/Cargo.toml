@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Elichai Turkel <elichai@enigma.co>"]
 
 [dependencies]
+enigma-types = { path = "../enigma-types" }
 enigma-tools-t = { path = "../enigma-tools-t" }
 
 etcommon-hexutil = { version = "0.2", default-features = false }

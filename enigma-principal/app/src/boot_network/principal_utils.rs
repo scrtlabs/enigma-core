@@ -98,6 +98,7 @@ impl Principal for EnigmaContract {
                     .unwrap()
                     .stream(time::Duration::from_secs(1))
                     .for_each(|log| {
+                        println!("got web3 log: {:?}", log);
                         // ethabi wants the data as a raw Vec so we extract from the Bytes wrapper
                         let rawLog = RawLog { topics: log.topics, data: log.data.0 };
                         let log = match event.parse_log(rawLog) {

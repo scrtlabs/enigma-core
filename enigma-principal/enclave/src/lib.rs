@@ -1,46 +1,79 @@
-
 #![crate_name = "enigma_principal_enclave"]
 #![crate_type = "staticlib"]
-
-#![cfg_attr(not(target_env = "sgx"), no_std)]
+#![no_std]
+//#![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
+#![feature(tool_lints)]
 
-#[cfg(not(target_env = "sgx"))]
+//#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
-#[macro_use]
+extern crate sgx_rand;
+extern crate sgx_trts;
+extern crate sgx_tse;
+extern crate sgx_tseal;
 extern crate sgx_tunittest;
 extern crate sgx_types;
-extern crate sgx_tse;
-extern crate sgx_trts;
-// sealing
-extern crate sgx_tseal;
-extern crate sgx_rand;
 
 #[macro_use]
 extern crate lazy_static;
-
 extern crate enigma_tools_t;
+extern crate enigma_types;
+extern crate ethabi;
+extern crate rustc_hex as hex;
+extern crate hexutil;
+
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
+extern crate serde;
+extern crate secp256k1;
 
 mod ocalls_t;
+mod worker_auth_t;
+mod key_provider_t;
 
-use sgx_types::{sgx_status_t, sgx_target_info_t, sgx_report_t};
+use sgx_types::*;
 use sgx_trts::trts::rsgx_read_rand;
+use std::sync::SgxMutex;
 
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
+use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 use enigma_tools_t::common::utils_t::{ToHex, FromHex, EthereumAddress};
 use enigma_tools_t::storage_t;
 use enigma_tools_t::quote_t;
+use enigma_tools_t::km_primitives::MsgID;
+use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::utils_t::LockExpectMutex;
 
+use enigma_types::traits::SliceCPtr;
+use std::string::ToString;
+use std::vec::Vec;
+use std::{ptr, slice, str, mem};
+use std::cell::RefCell;
+use std::borrow::ToOwned;
+use std::collections::HashMap;
+use ethabi::{Hash, Bytes, RawLog, Token, EventParam, ParamType, Event, Address, Uint, Log, decode};
+
+use crate::worker_auth_t::{
+    ecall_generate_epoch_seed_internal,
+    ecall_get_verified_log_internal,
+    ecall_set_worker_params_internal,
+};
+use crate::key_provider_t::ecall_get_enc_state_keys_internal;
+use enigma_types::EnclaveReturn;
+use std::prelude::v1::Box;
 
 lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
+lazy_static! { pub static ref STATE_KEYS: SgxMutex< HashMap<Address, KeyPair >> = SgxMutex::new(HashMap::new()); }
+lazy_static! { pub static ref WORKER_PARAMS: SgxMutex< HashMap<Uint, Log >> = SgxMutex::new(HashMap::new()); }
 
 
 #[no_mangle]
-pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
-    quote_t::create_report_with_data(&target_info ,real_report, &SIGNINING_KEY.get_pubkey().address().as_bytes())
+pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, real_report: &mut sgx_report_t) -> sgx_status_t {
+    quote_t::create_report_with_data(&target_info, real_report, &SIGNINING_KEY.get_pubkey().address().as_bytes())
 }
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
@@ -50,7 +83,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
 
-        // TODO: Decide what to do if failed to obtain keys.
+    // TODO: Decide what to do if failed to obtain keys.
     match cryptography_t::get_sealed_keys(&sealed_path) {
         Ok(key) => return key,
         Err(err) => panic!("Failed obtaining keys: {:?}", err)
@@ -75,31 +108,62 @@ pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
 /// unsafe { ecall_get_random_seed(enclave.geteid(), &mut retval, &mut rand_out, &mut sig_out); }
 /// ```
 #[no_mangle]
-pub extern "C" fn ecall_get_random_seed(rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t  {
-    // TODO: Check if needs to check the random is within the curve.
-    let status = rsgx_read_rand(&mut rand_out[..]);
-    let sig = SIGNINING_KEY.sign(&rand_out[..]).unwrap();
-    sig_out.copy_from_slice(sig.as_slice());
-    // println!("Random inside Enclave: {:?}", &rand_out[..]);
-    // println!("Signature inside Enclave: {:?}\n", &sig.as_slice());
-    match status {
-        Ok(_) => sgx_status_t::SGX_SUCCESS,
-        Err(err) => err
+pub extern "C" fn ecall_get_random_seed(rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> EnclaveReturn {
+    match ecall_generate_epoch_seed_internal(rand_out, sig_out) {
+        Ok(nonce) => println!("the new epoch nonce: {:?}", nonce),
+        Err(err) => return err.into(),
     }
+    EnclaveReturn::Success
 }
 
 #[no_mangle]
-pub extern "C" fn ecall_set_worker_parameters(rand_out: Vec<Hash>, sig_out: Vec<u8>) -> sgx_status_t  {
-    // TODO: Check if needs to check the random is within the curve.
-    let status = rsgx_read_rand(&mut rand_out[..]);
-    let sig = SIGNINING_KEY.sign(&rand_out[..]).unwrap();
-    sig_out.copy_from_slice(sig.as_slice());
-    // println!("Random inside Enclave: {:?}", &rand_out[..]);
-    // println!("Signature inside Enclave: {:?}\n", &sig.as_slice());
-    match status {
-        Ok(_) => sgx_status_t::SGX_SUCCESS,
-        Err(err) => err
-    }
+pub unsafe extern "C" fn ecall_set_worker_params(receipt_tokens: *const u8, receipt_tokens_len: usize,
+                                                 sig_out: &mut [u8; 65]) -> EnclaveReturn {
+    // TODO: Prove that the log is part of the block where the epoch originated
+    println!("setting worker parameters for epochs");
+    let receipt_slice = slice::from_raw_parts(receipt_tokens, receipt_tokens_len);
+    let receipt_param_types = vec![
+        ParamType::Address,
+        ParamType::Array(Box::new(ParamType::Uint(256))),
+        ParamType::Bytes,
+    ];
+    let decoded_receipt_tokens = decode(&receipt_param_types, receipt_slice).unwrap();
+    println!("The decoded receipt tokens: {:?}", decoded_receipt_tokens);
+    // TODO: replace dummy data
+    let decoded_receipt_hashes = vec![Hash::from(0)];
+    let decoded_block_header_tokens = vec![Token::Bytes(vec![0, 0, 0])];
+
+    let (nonce, raw_log) = match ecall_get_verified_log_internal(decoded_receipt_tokens, decoded_receipt_hashes, decoded_block_header_tokens) {
+        Ok(raw_log) => {
+            println!("the raw log: {:?}", raw_log);
+            raw_log
+        }
+        Err(err) => return err.into(),
+    };
+    match ecall_set_worker_params_internal(nonce, raw_log) {
+        Ok(_) => println!("worker parameters set successfully"),
+        Err(err) => return err.into(),
+    };
+    EnclaveReturn::Success
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ecall_get_enc_state_keys(enc_msg: *const u8, enc_msg_len: usize, sig: &[u8; 65],
+                                                  enc_result_out: *mut u8, enc_result_len_out: &mut usize,
+                                                  sig_out: &mut [u8; 65]) -> EnclaveReturn {
+    println!("Fetching the state encryption keys");
+    let enc_msg_slice = slice::from_raw_parts(enc_msg, enc_msg_len);
+    let enc_msg_ser = enc_msg_slice.to_vec();
+    println!("The encoded message: {:?}", enc_msg_ser);
+    let enc_response = match ecall_get_enc_state_keys_internal(enc_msg_ser, sig.clone()) {
+        Ok(response) => response,
+        Err(err) => {
+            println!("got error: {:?}", err);
+            return err.into();
+        }
+    };
+    println!("The encoded response: {:?}", enc_response);
+    EnclaveReturn::Success
 }
 
 pub mod tests {
@@ -116,9 +180,9 @@ pub mod tests {
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
         rsgx_unit_tests!(
-        test_full_sealing_storage,
-        test_signing,
-        test_ecdh
+            test_full_sealing_storage,
+            test_signing,
+            test_ecdh
         );
     }
 }

@@ -9,11 +9,15 @@ pub enum EnclaveReturn {
     EncryptionError,
     InputError,
     SigningError,
+    RecoveringError,
     PermissionError,
     SgxError,
     StateError,
     OcallError,
     Utf8Error,
+    MessagingError,
+    WorkerAuthError,
+    KeyProvisionError,
     Other
 }
 

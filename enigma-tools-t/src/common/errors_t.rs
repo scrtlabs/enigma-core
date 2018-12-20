@@ -1,7 +1,6 @@
 use enigma_types::{EnclaveReturn, ResultToEnclaveReturn};
 
 use json_patch;
-use rmps;
 use sgx_types::sgx_status_t;
 use std::str;
 use std::string::{String, ToString};
@@ -30,6 +29,9 @@ pub enum EnclaveError {
     #[fail(display = "Signing the message failed: {}", msg)]
     SigningError { msg: String },
 
+    #[fail(display = "Recovering the message failed: {}", msg)]
+    RecoveringError { msg: String },
+
     #[fail(display = "There's no sufficient permissions to read this file: {}", file)]
     PermissionError { file: String },
 
@@ -53,6 +55,15 @@ pub enum EnclaveError {
 
     #[fail(display = "UTF8 failure in a from_utf8: {}", err)]
     Utf8Error { err: String },
+
+    #[fail(display = "There's an error with the messaging: {}", err)]
+    MessagingError { err: String },
+
+    #[fail(display = "Failed to authenticate the worker: {}", err)]
+    WorkerAuthError { err: String },
+
+    #[fail(display = "Failed to provide state key: {}", err)]
+    KeyProvisionError { err: String },
 }
 
 impl From<sgx_status_t> for EnclaveError {
@@ -61,12 +72,12 @@ impl From<sgx_status_t> for EnclaveError {
     }
 }
 
-impl From<rmps::decode::Error> for EnclaveError {
-    fn from(err: rmps::decode::Error) -> EnclaveError { EnclaveError::StateError { err: format!("{:?}", err) } }
+impl From<rmp_serde::decode::Error> for EnclaveError {
+    fn from(err: rmp_serde::decode::Error) -> EnclaveError { EnclaveError::StateError { err: format!("{:?}", err) } }
 }
 
-impl From<rmps::encode::Error> for EnclaveError {
-    fn from(err: rmps::encode::Error) -> EnclaveError { EnclaveError::StateError { err: format!("{:?}", err) } }
+impl From<rmp_serde::encode::Error> for EnclaveError {
+    fn from(err: rmp_serde::encode::Error) -> EnclaveError { EnclaveError::StateError { err: format!("{:?}", err) } }
 }
 
 impl From<json_patch::PatchError> for EnclaveError {
@@ -117,6 +128,7 @@ impl Into<EnclaveReturn> for EnclaveError {
             DecryptionError { .. } | EncryptionError { .. } => EnclaveReturn::EncryptionError,
             InputError { .. } | PreprocessorError { .. } => EnclaveReturn::InputError,
             SigningError { .. } => EnclaveReturn::SigningError,
+            RecoveringError { .. } => EnclaveReturn::RecoveringError,
             PermissionError { .. } => EnclaveReturn::PermissionError,
             SgxError { .. } => EnclaveReturn::SgxError,
             ExecutionError { .. } => EnclaveReturn::WasmError,
@@ -124,6 +136,9 @@ impl Into<EnclaveReturn> for EnclaveError {
             OcallError { .. } => EnclaveReturn::OcallError,
             Utf8Error { .. } => EnclaveReturn::Utf8Error,
             EvmError { .. } => EnclaveReturn::EVMError,
+            MessagingError { .. } => EnclaveReturn::MessagingError,
+            WorkerAuthError { .. } => EnclaveReturn::WorkerAuthError,
+            KeyProvisionError { .. } => EnclaveReturn::KeyProvisionError,
         }
     }
 }

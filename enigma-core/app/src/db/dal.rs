@@ -97,9 +97,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn create(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             // creates the ColumnFamily and verifies that it doesn't already exist
-            let cf_key = self.database
-                                          .create_cf(&hash, &self.options)
-                                          .unwrap_or_else(|_| self.database.cf_handle(&hash).unwrap());
+            let cf_key = match self.database.cf_handle(hash) {
+                Some(cf) => cf,
+                None => self.database.create_cf(hash, &self.options)?,
+            };
 
             // verifies that the key inside the CF doesn't already exist
             match self.database.get_cf(cf_key, &index_key)? {
@@ -115,53 +116,50 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     }
 
     fn read(&self, key: &'a K) -> Result<Vec<u8>, Error> {
-        key.as_split(|hash, index_key| match self.database.cf_handle(&hash) {
-            None => Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-            Some(cf_key) => self.database.get_cf(cf_key, &index_key)?.map_or_else(
-                || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-                |data| Ok(data.to_vec()),
-            ),
+        key.as_split(|hash, index_key| {
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+
+                self.database.get_cf(cf_key, &index_key)?.map_or_else(
+                    || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                    |data| Ok(data.to_vec())
+                )
         })
     }
 
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
-        key.as_split(|hash, index_key| match self.database.cf_handle(&hash) {
-            None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-            Some(cf_key) => match self.database.get_cf(cf_key, &index_key)? {
-                None => Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-                Some(_) => {
-                    let mut write_options = WriteOptions::default();
-                    write_options.set_sync(SYNC);
-                    self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
-                    Ok(())
-                }
-            },
+        key.as_split(|hash, index_key| {
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+
+            if self.database.get_cf(cf_key, &index_key)?.is_none() {
+                return Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into());
+            }
+
+            let mut write_options = WriteOptions::default();
+            write_options.set_sync(SYNC);
+            self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;
+            Ok(())
         })
     }
 
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
-            match self.database.cf_handle(&hash) {
-                None => Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-                Some(cf_key) => {
-                    self.database.get_cf(cf_key, &index_key)?.
-                        // maps an Option
-                        map_or_else(||
-                                        Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
-                                    |_| {
-                                        self.database.delete_cf(cf_key, &index_key)?;
-                                        Ok(())
-                                    })
-                }
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+
+            if self.database.get_cf(cf_key, &index_key)?.is_none() {
+                return Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into());
             }
+            self.database.delete_cf(cf_key, &index_key)?;
+            Ok(())
         })
     }
 
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             // if the address does not exist, in force update, we would like to write it anyways.
-            let cf_key = self.database.cf_handle(&hash)
-                .unwrap_or_else(|| self.database.create_cf(&hash, &self.options).unwrap());
+            let cf_key = match self.database.cf_handle(hash) {
+                Some(cf) => cf,
+                None => self.database.create_cf(hash, &self.options)?,
+            };
             let mut write_options = WriteOptions::default();
             write_options.set_sync(SYNC);
             self.database.put_cf_opt(cf_key, &index_key, value, &write_options)?;

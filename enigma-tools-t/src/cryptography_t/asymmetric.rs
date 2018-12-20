@@ -4,25 +4,42 @@ use secp256k1;
 use secp256k1::{PublicKey, SecretKey, SharedSecret};
 use sgx_trts::trts::rsgx_read_rand;
 use std::string::ToString;
-//use std::str;
-use std::vec::Vec;
 
 #[derive(Debug)]
 pub struct KeyPair {
-    pub pubkey: PublicKey,
-    pub privkey: SecretKey,
+    pubkey: PublicKey,
+    privkey: SecretKey,
 }
 
 impl KeyPair {
     pub fn new() -> Result<KeyPair, EnclaveError> {
-        let mut me: [u8; 32] = [0; 32];
-        // TODO: Should loop until works?
-        rsgx_read_rand(&mut me)?;
-        let keys = match SecretKey::parse(&me) {
-            Ok(_priv) => KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) },
-            Err(_) => return Err(EnclaveError::GenerationError { generate: "Private Key".to_string(), err: "".to_string() })
+        loop {
+            let mut me: [u8; 32] = [0; 32];
+            rsgx_read_rand(&mut me)?;
+            if let Ok(_priv) = SecretKey::parse(&me) { return Ok(KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) }) }
+        }
+    }
+
+    pub fn recover(msg: &[u8], sig: &[u8; 65]) -> Result<[u8; 64], EnclaveError> {
+        let sig_msg = secp256k1::Message::parse(&msg.keccak256());
+        let mut _sig_obj = [0u8; 64];
+        _sig_obj.copy_from_slice(&sig[..64]);
+        let sig_obj = secp256k1::Signature::parse(&_sig_obj);
+        let rec_id = match secp256k1::RecoveryId::parse(*sig.last().unwrap() - 27) {
+            Ok(id) => id,
+            Err(err) => return Err(EnclaveError::RecoveringError {
+                msg: format!("Failed to generate RecoveryId {:?}", err),
+            })
         };
-        Ok(keys)
+        let recovered_pubkey = match secp256k1::recover(&sig_msg, &sig_obj, &rec_id) {
+           Ok(pubkey) => pubkey,
+            Err(err) => return Err(EnclaveError::RecoveringError {
+                msg: format!("Failed to recover PublicKey: {:?}", err),
+            })
+        };
+        let mut recovered = [0u8; 64];
+        recovered.copy_from_slice(&recovered_pubkey.serialize()[1..65]);
+        Ok(recovered)
     }
 
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, EnclaveError> {
@@ -35,7 +52,7 @@ impl KeyPair {
         Ok(keys)
     }
 
-    pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<Vec<u8>, EnclaveError> {
+    pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<[u8; 32], EnclaveError> {
         let mut pubarr: [u8; 65] = [0; 65];
         pubarr[0] = 4;
         pubarr[1..].copy_from_slice(&_pubarr[..]);
@@ -44,7 +61,11 @@ impl KeyPair {
             Err(_) => return Err(EnclaveError::KeyError { key: _pubarr.to_hex(), key_type: "PublicKey".to_string() }),
         };
         match SharedSecret::new(&pubkey, &self.privkey) {
-            Ok(val) => Ok(val.as_ref().to_vec()),
+            Ok(val) => {
+                let mut result = [0u8; 32];
+                result.copy_from_slice(val.as_ref());
+                Ok(result)
+            },
             Err(_) => Err(EnclaveError::DerivingKeyError { self_key: self.get_pubkey().to_hex(), other_key: pubkey.serialize()[1..65].to_hex(), }),
         }
     }
@@ -76,7 +97,7 @@ impl KeyPair {
     /// 1. 32 Bytes, ECDSA `r` variable.
     /// 2. 32 Bytes ECDSA `s` variable.
     /// 3. 1 Bytes ECDSA `v` variable aligned to the right for Ethereum compatibility
-    pub fn sign(&self, message: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+    pub fn sign(&self, message: &[u8]) -> Result<[u8; 65], EnclaveError> {
         let hashed_msg = message.keccak256();
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
         let (sig, recovery) = match secp256k1::sign(&message_to_sign, &self.privkey) {
@@ -84,23 +105,23 @@ impl KeyPair {
             Err(_) => return Err(EnclaveError::SigningError { msg: message.to_hex() }),
         };
         let v: u8 = recovery.into();
-
-        let mut returnvalue = sig.serialize().to_vec();
-        returnvalue.push(v + 27);
-        //        println!("Sig hex on signing:")
+        let mut returnvalue = [0u8; 65];
+        returnvalue[..64].copy_from_slice(&sig.serialize()[..]);
+        returnvalue[64] = v + 27;
         Ok(returnvalue)
     }
 }
 
 pub mod tests {
     use cryptography_t::asymmetric::*;
+    use common::utils_t::{EthereumAddress};
 
     pub fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
         let k1 = KeyPair::from_slice(&_priv).unwrap();
         let msg = b"EnigmaMPC";
         let sig = k1.sign(msg).unwrap();
-        assert_eq!(sig, vec![103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28]);
+        assert_eq!(sig.to_vec(), [103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28].to_vec());
     }
 
     pub fn test_ecdh() {
@@ -112,6 +133,15 @@ pub mod tests {
         let shared2 = k2.get_aes_key(&k1.get_pubkey()).unwrap();
         assert_eq!(shared1, shared2);
         assert_eq!(shared1, [139, 184, 212, 39, 0, 146, 97, 243, 63, 65, 81, 130, 96, 208, 43, 150, 229, 90, 132, 202, 235, 168, 86, 59, 141, 19, 200, 38, 242, 55, 203, 15]);
+    }
 
+    pub fn test_recovering() {
+        let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
+        let k1 = KeyPair::from_slice(&_priv).unwrap();
+        let signer_pubkey = k1.get_pubkey();
+        let msg = b"EnigmaMPC";
+        let sig = k1.sign(msg).unwrap();
+        let recovered_pubkey = KeyPair::recover(msg, &sig).unwrap();
+        assert_eq!(signer_pubkey.address(), recovered_pubkey.address());
     }
 }
