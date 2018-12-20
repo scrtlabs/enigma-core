@@ -17,9 +17,12 @@ use std::string::ToString;
 pub struct ASReport {
     pub id: String,
     pub timestamp: String,
-    pub isvEnclaveQuoteStatus: String,
-    pub platformInfoBlob: String,
-    pub isvEnclaveQuoteBody: String,
+    #[serde(rename = "isvEnclaveQuoteStatus")]
+    pub isv_enclave_quote_status: String,
+    #[serde(rename = "platformInfoBlob")]
+    pub platform_info_blob: String,
+    #[serde(rename = "isvEnclaveQuoteBody")]
+    pub isv_enclave_quote_body: String,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ASResult {
@@ -167,7 +170,7 @@ impl AttestationService {
 }
 
 impl ASResponse {
-    pub fn get_quote(&self) -> Result<Quote, Error> { Quote::from_base64(&self.result.report.isvEnclaveQuoteBody) }
+    pub fn get_quote(&self) -> Result<Quote, Error> { Quote::from_base64(&self.result.report.isv_enclave_quote_body) }
 }
 
 impl ASResult {

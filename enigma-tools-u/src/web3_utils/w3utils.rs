@@ -1,6 +1,6 @@
 // general
 use failure::Error;
-use hex::{FromHex, ToHex};
+use hex::FromHex;
 use std::str;
 use std::time;
 use web3;
@@ -54,10 +54,7 @@ pub fn load_contract_abi_bytecode<P: AsRef<Path>>(path: P) -> Result<(String, St
 
 pub fn load_contract_abi<R: Read>(rdr: R) -> Result<String, Error> {
     let data: Value = serde_json::from_reader(rdr)?;
-     match data.is_array() {
-         true => Ok(serde_json::to_string(&data)?),
-         false => Ok(serde_json::to_string(&data["abi"])?)
-     }
+    if data.is_array() { Ok(serde_json::to_string(&data)?) } else { Ok(serde_json::to_string(&data["abi"])?) }
 }
 
 // Important!! Best Practice is to have only one Web3 Instance.
@@ -134,7 +131,7 @@ fn build_event_filter(event_name: &str, contract_addr: Option<&str>) -> web3::ty
 }
 
 /// TESTING: filter the network for events
-pub fn filter_blocks(w3: Arc<Web3<Http>>, contract_addr: Option<&str>, event_name: &str, url: &str) -> Result<Vec<Log>, Error> {
+pub fn filter_blocks(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_name: &str) -> Result<Vec<Log>, Error> {
 
     let filter = build_event_filter(event_name, contract_addr);
 
