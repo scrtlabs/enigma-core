@@ -1,6 +1,5 @@
 // general
 use failure::Error;
-use rustc_hex::FromHex;
 use sgx_types::{sgx_enclave_id_t};
 use std::thread;
 use std::sync::Arc;
@@ -10,17 +9,16 @@ use std::time;
 use std::str;
 use serde_derive::*;
 use serde_json;
-use url::{Url};
-// enigma modules 
+// enigma modules
 use enigma_tools_u::web3_utils::w3utils;
 use esgx;
 //web3
-use web3::futures::{Future, Stream};
+use web3::futures::Future;
 use web3::contract::{Contract, Options};
-use web3::types::{Address, U256};
+use web3::types::Address;
 use web3::transports::Http;
 use web3::Web3;
-use web3::transports::EventLoopHandle;
+use rustc_hex::ToHex;
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -48,88 +46,6 @@ pub fn load_config(config_path : &str)-> Result<ScriptDeployConfig, Error> {
     Ok(serde_json::from_str(&contents)?)
 }
 
-/// TESTING: this function deploys the Enigma and EnigmaToken contract 
-/// delegate the config loading (mutation purposes) to the caller 
-/// TODO:: merge with deploy_base_contracts()
-/// 
-pub fn deploy_base_contracts_delegated(eid : sgx_enclave_id_t, config : ScriptDeployConfig, url : Option<Url>)
-    -> Result<(Contract<Http>, Contract<Http>), Error> {
-    // load all config
-    let (e_abi,e_bytecode) = w3utils::load_contract_abi_bytecode(&config.enigma_contract_path.as_str())?;
-    let (et_abi,et_bytecode) = w3utils::load_contract_abi_bytecode(&config.enigma_token_contract_path.as_str())?
-    ;
-    // connect to ethereum
-    let url = match url {
-        Some(u) => u.into_string(),
-        None => config.url,
-    };
-    let (eloop,w3) = w3utils::connect(&url.as_str())?;
-    // deploy the enigma token
-
-    let token_contract = deploy_enigma_token_contract(&w3,&config.account_address, et_abi, et_bytecode)?;
-
-    // deploy the enigma contract
-    let token_addr = token_contract.address();
-    let signer_addr = get_signing_address(eid)?;
-    let enigma_contract = deploy_enigma_contract(&w3, &config.account_address, e_abi, e_bytecode, token_addr, signer_addr)?;
-
-    Ok((enigma_contract, token_contract))
-}
-
-/// TESTING: this function deploys the Enigma and EnigmaToken contract 
-/// /// TODO:: merge with deploy_base_contracts_delegated()
-pub fn deploy_base_contracts(eid : sgx_enclave_id_t, config_path : &str, url : Option<Url>)->Result<(Contract<Http>, Contract<Http>), Error> {
-    // load all config 
-    let config : ScriptDeployConfig = load_config(config_path)?;
-    let (e_abi,e_bytecode) = w3utils::load_contract_abi_bytecode(&config.enigma_contract_path.as_str())?;
-    let (et_abi,et_bytecode) = w3utils::load_contract_abi_bytecode(&config.enigma_token_contract_path.as_str())?;
-    // connect to ethereum 
-    let url = match url {
-        Some(u) => u.into_string(),
-        None => config.url,
-    };
-    let (eloop,w3) = w3utils::connect(&url.as_str())?;
-    // deploy the enigma token 
-
-    let token_contract = deploy_enigma_token_contract(&w3, &config.account_address, et_abi, et_bytecode)?;
-
-    // deploy the enigma contract
-    let token_addr = token_contract.address();
-    let signer_addr = get_signing_address(eid)?;
-    let enigma_contract = deploy_enigma_contract(&w3, &config.account_address, e_abi, e_bytecode, token_addr, signer_addr)?;
-
-    Ok((enigma_contract, token_contract))
-}
-
-/// TESTING: deploy the EnigmaToken contract
-pub fn deploy_enigma_token_contract(w3 : &Web3<Http>, deployer : &str, abi : String, bytecode : String) -> Result<Contract<Http>, Error> {
-
-    let gas_limit: u64 = 5999999;
-    let confirmations = 0;
-    let polling_interval = 1;
-    let tx_params = w3utils::DeployParams::new(deployer, abi, bytecode, gas_limit, polling_interval, confirmations)?;
-    let contract = w3utils::deploy_contract(w3, &tx_params, ())?;
-
-    Ok(contract)
-}
-
-/// TESTING: deploy the Enigma contract
-pub fn deploy_enigma_contract(w3 : &Web3<Http>, deployer : &str, abi : String, bytecode : String, token_addr : Address, signer_addr : String)
-    -> Result<Contract<Http>, Error>{
-
-    // generate ctor params 
-    let signer_addr: Address = signer_addr.parse()?;
-    let input = (token_addr,signer_addr);
-    // tx params 
-    let gas_limit: u64 = 5999999;
-    let confirmations = 0;
-    let polling_interval = 1;
-    let tx_params = w3utils::DeployParams::new(deployer, abi, bytecode, gas_limit, polling_interval, confirmations)?;
-    // deploy 
-    let contract = w3utils::deploy_contract(w3, &tx_params, input)?;
-
-    Ok(contract)
-}
 
 /// get the signer addr 
 pub fn get_signing_address(eid : sgx_enclave_id_t) -> Result<String, Error> {
@@ -157,7 +73,7 @@ fn deploy_dummy_miner(w3 : &Web3<Http>, deployer : &str)->Result<Contract<Http>,
 
 /// TESTING: mimic block creation to test the watch blocks method of the principal node 
 pub fn forward_blocks(w3: Arc<Web3<Http>>, interval : u64, deployer : Address, url : String) -> Result<(), Error> {
-    let contract = deploy_dummy_miner(&w3, &deployer.hex())?;
+    let contract = deploy_dummy_miner(&w3, &deployer.to_hex())?;
     println!("deployed dummy contract at address = {:?}",contract.address() );
     loop {
         let gas_limit: u64 = 5999999;
@@ -166,7 +82,7 @@ pub fn forward_blocks(w3: Arc<Web3<Http>>, interval : u64, deployer : Address, u
         //contract.call("mine",(),deployer,options ).wait().expect("error calling mine on miner.");
         let res =  contract.call("mine",(),deployer,options ).wait();
         match res  {
-            Ok(res) => println!("\u{2692}" ),
+            Ok(_) => println!("\u{2692}" ),
             Err(e) => println!("[-] error mining block =>{:?}",e),
         };
         thread::sleep(time::Duration::from_secs(interval));
@@ -176,11 +92,11 @@ pub fn forward_blocks(w3: Arc<Web3<Http>>, interval : u64, deployer : Address, u
 #[cfg(test)]  
  mod test {
     use super::*;
-    use enigma_tools_u::web3_utils;
-    use enigma_tools_u::web3_utils::w3utils;
     use boot_network::deploy_scripts;
     use esgx::general::init_enclave_wrapper;
     use std::env;
+    use std::path::Path;
+    use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 
     /// This function is important to enable testing both on the CI server and local. 
     /// On the CI Side: 
@@ -190,54 +106,25 @@ pub fn forward_blocks(w3: Arc<Web3<Http>>, interval : u64, deployer : Address, u
     fn get_node_url()-> String {
         env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string())
     }
-    
-    fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
-        let uri = get_node_url();
-        let (eloop,w3) = w3utils::connect(&uri).unwrap();
-        let accounts = w3.eth().accounts().wait().unwrap();
-        (eloop,w3, accounts)
-    }
-//    pub fn run_miner(accounts : &Vec<Address> ){
-//        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
-//        let child = thread::spawn(move || {
-//            let url = get_node_url();
-//            deploy_scripts::forward_blocks(1,deployer, url.to_string());
-//        });
-//    }
-    #[test]
-    //#[ignore]
-    fn test_deploy_enigma_contract_environment(){
-        
-        // init enclave 
-        
-        let enclave = match init_enclave_wrapper() {
-            Ok(r) => {
-                println!("[+] Init Enclave Successful {}!", r.geteid());
-                r
-            },
-            Err(x) => {
-                println!("[-] Init Enclave Failed {}!", x.as_str());
-                assert_eq!(0,1);
-                return;
-            },
-        };
 
+    #[test]
+    fn test_deploy_enigma_contract_environment() {
+        let enclave = init_enclave_wrapper().unwrap();
         let eid = enclave.geteid();
-        let (eloop,w3,accounts) = connect();
-        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
-        // load the config 
+        // load the config
         let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
         let mut config = deploy_scripts::load_config(deploy_config).unwrap();
         // modify to dynamic address
-        config.set_accounts_address(deployer);
         config.set_ethereum_url(get_node_url());
         // deploy all contracts.
-        let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
-        (
-            eid, 
-            config, 
-            None
-        )
-        .expect("cannot deploy Enigma,EnigmaToken");
+        let signer_addr = get_signing_address(eid).unwrap();
+        let _enigma_contract = EnigmaContract::deploy_contract(
+            Path::new(&config.enigma_token_contract_path),
+            Path::new(&config.enigma_contract_path),
+            &get_node_url(),
+            None,
+            &signer_addr
+        ).unwrap();
     }
+
  }

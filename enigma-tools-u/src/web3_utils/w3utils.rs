@@ -74,8 +74,8 @@ pub fn connect(url: &str) -> Result<(web3::transports::EventLoopHandle, Web3<Htt
 }
 
 // connect to an existing deployed smart contract
-pub fn deployed_contract(web3: &Web3<Http>, contract_addr: Address, abi: &str) -> Result<Contract<Http>, Error> {
-    match Contract::from_json(web3.eth(), contract_addr, abi.as_bytes()) {
+pub fn deployed_contract(web3: &Web3<Http>, contract_addr: Address, abi: &[u8]) -> Result<Contract<Http>, Error> {
+    match Contract::from_json(web3.eth(), contract_addr, abi) {
         Ok(contract) => Ok(contract),
         Err(_) => Err(errors::Web3Error{ message: String::from("unable to create a contract") }.into()),
     }
@@ -180,9 +180,7 @@ pub fn filter_blocks(w3: Arc<Web3<Http>>, contract_addr: Option<&str>, event_nam
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::collections::HashMap;
     use std::env;
-    use web3_utils;
     use web3_utils::w3utils;
 
     /// This function is important to enable testing both on the CI server and local.

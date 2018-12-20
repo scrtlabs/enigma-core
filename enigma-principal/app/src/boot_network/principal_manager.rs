@@ -1,24 +1,13 @@
 #![allow(non_snake_case)]
-//sgx
+
 use esgx;
-// general
 use enigma_tools_u::attestation_service::service;
 use failure::Error;
-//web3
-use web3::futures::{Future, Stream};
-use web3::types::{Address};
-use web3::transports::Http;
-use web3::Web3;
-// tokio+polling blocks 
-use rustc_hex::FromHex;
-// formal
+use web3::types::{Address, U256};
 use enigma_tools_u::web3_utils::enigma_contract::{EnigmaContract, ContractFuncs};
-use enigma_tools_u::web3_utils::w3utils;
 use enigma_tools_u::esgx::equote::retry_quote;
 use boot_network::principal_utils::Principal;
-use boot_network::principal_utils::{EmitParams};
-
-// files 
+use sgx_types::sgx_enclave_id_t;
 use std::fs::File;
 use std::io::prelude::*;
 use serde_derive::*;
@@ -27,7 +16,6 @@ use serde_json;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PrincipalConfig {
-
     pub enigma_contract_path: String,
     pub enigma_contract_remote_path: String,
     pub enigma_contract_address: String,
@@ -38,9 +26,9 @@ pub struct PrincipalConfig {
     pub url: String,
     pub epoch_size: usize,
     pub polling_interval: u64,
+    pub max_epochs : Option<usize>,
     pub spid: String,
     pub attestation_service_url: String,
-
 }
 
 impl PrincipalConfig {
@@ -56,11 +44,10 @@ impl PrincipalConfig {
 }
 
 pub struct PrincipalManager {
-    config_path : String,
     pub config : PrincipalConfig,
-    emit_params: EmitParams,
     as_service : service::AttestationService,
     pub contract: EnigmaContract,
+    pub eid: sgx_enclave_id_t,
 }
 
 impl PrincipalManager{
@@ -78,10 +65,10 @@ impl PrincipalManager{
 // General interface of a Sampler == The entity that manages the principal node logic.
 pub trait Sampler {
     /// load with config from file 
-    fn new(config : &str, emit : EmitParams, contract: EnigmaContract) -> Result<Self, Error> where Self: Sized;
+    fn new(config_path : &str, contract: EnigmaContract, eid: sgx_enclave_id_t) -> Result<Self, Error> where Self: Sized;
 
     /// load with config passed from the caller (for mutation purposes)
-    fn new_delegated(config_path : &str,emit : EmitParams, the_config : PrincipalConfig, contract: EnigmaContract) -> Self;
+    fn new_delegated(config : PrincipalConfig, contract: EnigmaContract, eid: sgx_enclave_id_t) -> Self;
 
     fn get_contract_address(&self) -> Address;
 
@@ -96,41 +83,29 @@ pub trait Sampler {
     fn get_network_url(&self) -> String;
 
     /// after initiation, this will run the principal node and block.
-    fn run(&self)->Result<(),Error>;
+    fn run<G: Into<U256>>(&self, gas: G)->Result<(),Error>;
 }   
 
 impl Sampler for PrincipalManager {
-    fn new(config_path : &str, emit_params : EmitParams, contract: EnigmaContract) -> Result<Self, Error> {
-
+    fn new(config_path : &str, contract: EnigmaContract, eid: sgx_enclave_id_t) -> Result<Self, Error> {
         let config = PrincipalManager::load_config(config_path)?;
         let connection_str = config.attestation_service_url.clone();
         Ok(PrincipalManager{
-            config_path : String::from(config_path),
             config,
-            emit_params,
             as_service : service::AttestationService::new(&connection_str),
             contract,
+            eid
         })
     }
 
-    fn new_delegated(config_path : &str, emit_params : EmitParams, the_config : PrincipalConfig, contract: EnigmaContract) -> Self {
-        let config = the_config;
-        let connection_str = config.attestation_service_url.clone();
-        PrincipalManager {
-            config_path : String::from(config_path),
-            config,
-            emit_params,
-            as_service : service::AttestationService::new(&connection_str),
-            contract,
-        }
+    fn new_delegated(config : PrincipalConfig, contract: EnigmaContract, eid: sgx_enclave_id_t) -> Self {
+        let as_service = service::AttestationService::new(&config.attestation_service_url);
+        PrincipalManager { eid, config, as_service, contract }
     }
 
     fn get_contract_address(&self) -> Address { self.contract.address() }
 
-    fn get_quote(&self) -> Result<String, Error> {
-        let eid = self.emit_params.eid;
-        Ok(retry_quote(eid, &self.config.spid, 8)?)
-    }
+    fn get_quote(&self) -> Result<String, Error> { Ok(retry_quote(self.eid, &self.config.spid, 8)?) }
 
     fn get_report(&self, quote : &str) -> Result<(Vec<u8>, service::ASResponse), Error> {
         let (rlp_encoded, as_response ) = self.as_service.rlp_encode_registration_params(quote)?;
@@ -138,36 +113,33 @@ impl Sampler for PrincipalManager {
     }
 
     fn get_signing_address(&self)-> Result<String, Error> {
-        let eid = self.emit_params.eid;
-        let mut signing_address = esgx::equote::get_register_signing_address(eid)?;
+        let mut signing_address = esgx::equote::get_register_signing_address(self.eid)?;
         // remove 0x
         signing_address = signing_address[2..].to_string();
         Ok(signing_address)
     }
 
-    fn get_account_address(&self)-> Address { self.contract.account }
+    fn get_account_address(&self)-> Address { self.contract.account.clone() }
 
     fn get_network_url(&self) -> String {self.config.url.clone()}
 
-    fn run(&self) -> Result<(), Error> {
+    fn run<G: Into<U256>>(&self, gas_limit: G) -> Result<(), Error> {
         // get quote 
         let quote = self.get_quote()?;
         // get report 
         let (rlp_encoded, _ ) = self.get_report(&quote)?;
         // get enigma contract
         let enigma_contract = &self.contract;
+        let gas_limit: U256 = gas_limit.into();
         // register worker 
         //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
         let signer = self.get_signing_address()?;
         println!("signing address = {}", signer);
-        let gas = self.emit_params.gas_limit;
-        enigma_contract.register(&signer, &rlp_encoded, gas)?;
+        enigma_contract.register(&signer, &rlp_encoded, gas_limit)?;
         // watch blocks 
         let polling_interval = self.config.polling_interval.clone();
         let epoch_size = self.config.epoch_size.clone();
-        let eid = self.emit_params.eid;
-        let gas_limit = gas.clone();
-        enigma_contract.watch_blocks(epoch_size, polling_interval, eid, gas_limit, self.emit_params.max_epochs);
+        enigma_contract.watch_blocks(epoch_size, polling_interval, self.eid, gas_limit, self.config.max_epochs);
         Ok(())
     }
 }
@@ -181,11 +153,14 @@ impl Sampler for PrincipalManager {
     use enigma_tools_u::web3_utils::w3utils;
     use boot_network::deploy_scripts;
     use web3::types::{Log,H256};
+    use web3::Web3;
+    use web3::transports::Http;
     use esgx::general::init_enclave_wrapper;
     use std::env;
     use std::{thread, time};
     use std::sync::Arc;
     use enigma_tools_u::common_u::Keccak256;
+    use rustc_hex::ToHex;
 
     /// This function is important to enable testing both on the CI server and local. 
     /// On the CI Side: 
@@ -243,19 +218,11 @@ impl Sampler for PrincipalManager {
 
         // run simulated miner
         run_miner(account, Arc::clone(&enigma_contract.web3));
-
-        // build the config
-        let mut params : EmitParams = EmitParams {
-            eid,
-            gas_limit : 5999999,
-            max_epochs : Some(5), 
-            ..Default::default()
-        };
         
         let principal_config = "../app/tests/principal_node/contracts/principal_test_config.json";
         let mut the_config = PrincipalManager::load_config(principal_config).unwrap();
-        the_config.set_accounts_address(account.hex());
-        the_config.set_enigma_contract_address(enigma_contract.address().hex());
+        the_config.set_accounts_address(account.to_hex());
+        the_config.set_enigma_contract_address(enigma_contract.address().to_hex());
         the_config.set_ethereum_url(get_node_url());
         let url = the_config.url.clone();
 
@@ -271,7 +238,7 @@ impl Sampler for PrincipalManager {
                 // the test: if events recieved >2 (more than 2 emitts of random)
                 // assert topic (keccack(event_name))
                 if logs.len() > 2 {
-                    println!("FOUND 2 LOGS!!!! {:?}", logs);
+//                    println!("FOUND 2 LOGS!!!! {:?}", logs);
                     for (idx, log) in logs.iter().enumerate(){
                         let expected_topic = event_name.as_bytes().keccak256();
                         assert!(log.topics[0].contains(&H256::from_slice(&expected_topic)));
@@ -287,8 +254,8 @@ impl Sampler for PrincipalManager {
         });
 
         // run principal 
-        let principal = PrincipalManager::new_delegated(principal_config, params, the_config, enigma_contract);
-        principal.run().unwrap();
+        let principal = PrincipalManager::new_delegated(the_config, enigma_contract, eid);
+        principal.run(5999999).unwrap();
     }
 
  }

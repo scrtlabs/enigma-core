@@ -17,39 +17,29 @@ use web3::Transport;
 use esgx::random_u;
 use enigma_tools_u::web3_utils::enigma_contract::{EnigmaContract};
 
-// this struct holds parameters necessary for emitting the random
-#[derive(Serialize, Deserialize, Debug, Default)]
-pub struct EmitParams {
-    pub eid: sgx_enclave_id_t,
-    pub address: String ,
-    pub account : String,
-    pub gas_limit: u64,
-    pub max_epochs : Option<usize>,
-}
-
 // this trait should extend the EnigmaContract into Principal specific functions.
-pub trait Principal {
+pub trait Principal<G: Into<U256>> {
      fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error> where  Self: Sized;
 
-     fn set_worker_params(&self,eid: sgx_enclave_id_t, gas_limit : u64) -> CallFuture<H256, <Http as Transport>::Out>;
+     fn set_worker_params(&self,eid: sgx_enclave_id_t, gas_limit : G) -> CallFuture<H256, <Http as Transport>::Out>;
 
-     fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit : u64) -> CallFuture<H256, <Http as Transport>::Out>;
+     fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit : G) -> CallFuture<H256, <Http as Transport>::Out>;
 
-     fn watch_blocks(&self, epoch_size: usize, polling_interval : u64, eid: sgx_enclave_id_t, gas_limit: u64, max_epochs: Option<usize>);
+     fn watch_blocks(&self, epoch_size: usize, polling_interval : u64, eid: sgx_enclave_id_t, gas_limit: G, max_epochs: Option<usize>);
 }
 
 
-impl Principal for EnigmaContract {
+impl<G: Into<U256>> Principal<G> for EnigmaContract {
     fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error> {
         Ok(Self::new(address, path, Some(account), url)?)
     }
 
     // set (seed,signature(seed)) into the enigma smart contract
-    fn set_worker_params(&self, eid: sgx_enclave_id_t, gas_limit : u64) -> CallFuture<H256, <Http as Transport>::Out> {
+    fn set_worker_params(&self, eid: sgx_enclave_id_t, gas_limit : G) -> CallFuture<H256, <Http as Transport>::Out> {
         Self::set_worker_params_internal(&self.w3_contract, &self.account, eid, gas_limit)
     }
 
-    fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit : u64) -> CallFuture<H256, <Http as Transport>::Out> {
+    fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit : G) -> CallFuture<H256, <Http as Transport>::Out> {
 
         // get seed,signature
         let (rand_seed, sig) = random_u::get_signed_random(eid);
@@ -62,15 +52,17 @@ impl Principal for EnigmaContract {
          contract.call("setWorkersParams", (the_seed, sig.to_vec()), *account, options )
     }
 
-    fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : u64, max_epochs : Option<usize>) {
+    fn watch_blocks(&self, epoch_size : usize, polling_interval : u64, eid : sgx_enclave_id_t, gas_limit : G, max_epochs : Option<usize>) {
+        // Make Arcs to support passing the refrence to multiple futures.
         let prev_epoch = Arc::new(AtomicUsize::new(0));
-        let max_epochs = max_epochs.unwrap_or(0);
-        let mut epoch_counter = 0;
         let w3_contract = Arc::new(self.w3_contract.clone());
         let account = Arc::new(self.account.clone());
 
+        let gas_limit: U256 = gas_limit.into();
+        let max_epochs = max_epochs.unwrap_or(0);
+        let mut epoch_counter = 0;
         loop {
-            println!("Start emit loop");
+            // Clone these arcs to be moved into the future.
             let account_clone = Arc::clone(&account);
             let prev_epoch = Arc::clone(&prev_epoch);
             let w3_contract_clone = Arc::clone(&w3_contract);
@@ -94,7 +86,6 @@ impl Principal for EnigmaContract {
             self.eloop.remote().spawn(|_| future.map_err(|err| eprintln!("Errored with: {:?}", err)).map(|res| println!("Res: {:?}", res)));
             thread::sleep(time::Duration::from_secs(polling_interval));
             epoch_counter+=1;
-            println!("counter: {}, max: {}", epoch_counter, max_epochs);
             if max_epochs != 0 && epoch_counter == max_epochs {
                 println!("[+] Principal: reached max_epochs {} , stopping.",max_epochs );
                 break;

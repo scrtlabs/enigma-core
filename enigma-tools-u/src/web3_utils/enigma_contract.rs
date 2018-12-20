@@ -1,8 +1,6 @@
 use failure::Error;
 use std::path::Path;
-use std::fs::File;
-use std::str::FromStr;
-use std::io::prelude::*;
+use hex::ToHex;
 use web3;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
@@ -54,7 +52,7 @@ impl EnigmaContract {
             Some(a) => a.parse()?,
             None => w3.eth().accounts().wait().unwrap()[0], // TODO: Do something with this unwrapping
         };
-        let deployer = &account.hex()[2..];
+        let deployer = &account.to_hex();
         let mut deploy_params = w3utils::DeployParams::new(deployer, token_abi, token_bytecode, 5999999, 1, 0)?;
         let token_contract = w3utils::deploy_contract(&w3, &deploy_params, ())?;
 
@@ -73,19 +71,19 @@ impl EnigmaContract {
 
 }
 
-pub trait ContractFuncs {
+pub trait ContractFuncs<G> {
     // register
     // input: _signer: Address, _report: bytes
-    fn register(&self, signer: &str, report: &[u8], gas: u64) -> Result<(), Error>;
+    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<(), Error>;
 
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: u64)-> Result<(), Error>;
+    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G)-> Result<(), Error>;
 }
 
-impl ContractFuncs for EnigmaContract {
+impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
 
-    fn register(&self, signer: &str, report: &[u8], gas: u64) -> Result<(), Error> {
+    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<(), Error> {
         // register
         let signer_addr: Address = signer.parse()?;
         let mut opts = Options::default();
@@ -95,14 +93,13 @@ impl ContractFuncs for EnigmaContract {
             .call("register", (signer_addr, report.to_vec()), self.account, opts)
             .wait() {
             Ok(_) => Ok(()),
-            Err(e) => Err(errors::Web3Error{ message: String::from("error when trying to register- unable to call contract") }.into()),
+            Err(e) => Err(errors::Web3Error{ message: format!("error when trying to register- unable to call contract: {:?}", e) }.into()),
         }
     }
 
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: u64)-> Result<(), Error>{
+    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G)-> Result<(), Error> {
         let mut opts: Options = Options::default();
         opts.gas = Some(gas.into());
-
         let seed: U256 = _seed.into();
         self.w3_contract.call("setWorkersParams", (seed, _sig.to_vec()), self.account, opts).wait().unwrap();
         Ok(())
