@@ -81,7 +81,6 @@ pub mod tests {
     use self::secp256k1::{PublicKey, SecretKey, Message, SharedSecret};
     use serde_json::{self, Value};
     use self::ring::aead;
-    use hex::ToHex;
 
     #[test]
     fn test_ecall() {
@@ -97,12 +96,11 @@ pub mod tests {
         //Making a request
         let address = fill_the_db();
         let enclave = init_enclave_wrapper().unwrap();
-        let (req,sig) = ptt_req(enclave.geteid(), &address).unwrap();
+        let req = ptt_req(enclave.geteid(), &address).unwrap();
 
         // serializing the result from the request
-        let mut des = Deserializer::new(&req[..]);
-        let mut req_val: serde_json::Value = Deserialize::deserialize(&mut des).unwrap();
-
+        let mut des = Deserializer::new(&req.0[..]);
+        let req_val: serde_json::Value = Deserialize::deserialize(&mut des).unwrap();
         let _pubkey: Vec<u8> = serde_json::from_value(req_val["pubkey"].clone()).unwrap();
         let mut pubkey = [0u8; 65];
         pubkey[0] = 4;

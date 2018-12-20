@@ -57,7 +57,6 @@ use enigma_tools_t::build_arguments_g::*;
 use enigma_types::EnclaveReturn;
 use enigma_types::traits::SliceCPtr;
 
-
 use sgx_types::*;
 use std::string::ToString;
 use std::vec::Vec;
@@ -345,7 +344,6 @@ pub mod tests {
     pub extern "C" fn ecall_run_tests() {
         rsgx_unit_tests!(test_full_sealing_storage,
                          test_signing,
-                         test_recovering,
                          test_ecdh,
                          test_rand_encrypt_decrypt,
                          test_encryption,

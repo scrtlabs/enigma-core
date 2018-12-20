@@ -2,21 +2,19 @@
 #![feature(proc_macro_gen)]
 #![feature(proc_macro_non_items)]
 
-extern crate proc_macro2;
 extern crate eng_wasm;
-extern crate eng_wasm_dispatch;
-extern crate syn;
+extern crate eng_wasm_derive;
 
 use eng_wasm::*;
-use eng_wasm_dispatch::dispatch;
-use eng_wasm_dispatch::eth_contract;
+use eng_wasm_derive::pub_interface;
+use eng_wasm_derive::eth_contract;
 
 use eng_wasm::String;
 
 #[eth_contract("Test.json")]
 struct EthContract;
 
-#[dispatch]
+#[pub_interface]
 pub trait ContractInterface{
     fn write();
     fn print_test(U256,U256);

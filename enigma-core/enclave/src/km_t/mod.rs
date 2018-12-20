@@ -12,9 +12,6 @@ use std::vec::Vec;
 use std::u32;
 
 pub(crate) use enigma_tools_t::km_primitives::{ContractAddress, Message, MessageType, MsgID, StateKey};
-
-use enigma_tools_t::common::utils_t::{EthereumAddress, FromHex, Keccak256};
-
 pub mod db;
 
 lazy_static! { pub static ref DH_KEYS: SgxMutex< HashMap<MsgID, KeyPair >> = SgxMutex::new(HashMap::new()); }
@@ -26,8 +23,6 @@ pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: 
     let req = Message::new(data, keys.get_pubkey())?;
     let msg = req.to_message()?;
     *sig = SIGNINING_KEY.sign(&msg[..])?;
-    println!("the enclave address: {:?}", SIGNINING_KEY.get_pubkey().address());
-
     DH_KEYS.lock_expect("DH Keys").insert(req.get_id(), keys);
     Ok(msg)
 }
