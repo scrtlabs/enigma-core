@@ -62,7 +62,7 @@ App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
 App_Rust_Path := ./app/target/$(Rust_target_dir)
 App_Enclave_u_Object :=app/libEnclave_u.a
-App_Name := enigma_principal_app
+App_Name := enigma-principal-app
 
 ######## Enclave Settings ########
 
