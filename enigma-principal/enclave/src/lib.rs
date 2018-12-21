@@ -67,8 +67,6 @@ use enigma_types::EnclaveReturn;
 use std::prelude::v1::Box;
 
 lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
-lazy_static! { pub static ref STATE_KEYS: SgxMutex< HashMap<Address, KeyPair >> = SgxMutex::new(HashMap::new()); }
-lazy_static! { pub static ref WORKER_PARAMS: SgxMutex< HashMap<Uint, Log >> = SgxMutex::new(HashMap::new()); }
 
 
 #[no_mangle]

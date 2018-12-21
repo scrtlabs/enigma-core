@@ -1,40 +1,28 @@
-use crate::SIGNINING_KEY;
-
-use sgx_types::*;
-use sgx_trts::trts::rsgx_read_rand;
-use std::sync::SgxMutex;
-
-use std::string::ToString;
-use std::vec::Vec;
-use std::{ptr, slice, str, mem};
-use std::cell::RefCell;
-use std::borrow::ToOwned;
-use std::collections::HashMap;
-use ethabi::{Hash, Bytes, RawLog, Token, EventParam, ParamType, Event, Address, Uint, Log, FixedBytes, encode, decode};
+use ethabi::{Address, Bytes, decode, encode, Event, EventParam, FixedBytes, Hash, Log, ParamType, RawLog, Token, Uint};
 use ethabi::token::{LenientTokenizer, Tokenizer};
-use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::utils_t::LockExpectMutex;
-use std::string::String;
-use std::prelude::v1::Box;
-use std::panic;
 use hexutil;
 use serde::{Deserialize, Serialize};
+use sgx_trts::trts::rsgx_read_rand;
+use sgx_types::*;
+use std::{mem, ptr, slice, str};
+use std::borrow::ToOwned;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::panic;
+use std::prelude::v1::Box;
+use std::string::String;
+use std::string::ToString;
+use std::sync::SgxMutex;
+use std::vec::Vec;
+
+use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::utils_t::LockExpectMutex;
+use enigma_tools_t::eth_tools_t::epoch_t::{Epoch, WorkerParams};
+
+use crate::SIGNINING_KEY;
 
 const INIT_NONCE: uint32_t = 0;
 
-#[derive(Debug, Clone)]
-pub struct WorkerParams {
-    block_number: Uint,
-    workers: Vec<Address>,
-    balances: Vec<Uint>,
-}
-
-// TODO: Write serializer/deserializer using the Token module to encode ABI types to bytes
-#[derive(Debug, Clone)]
-pub struct Epoch {
-    seed: Uint,
-    worker_params: Option<WorkerParams>,
-}
 // The epoch seed contains the seeds + a nonce that must match the Ethereum tx
 // TODO: Seal / unseal
 lazy_static! { pub static ref EPOCH: SgxMutex< HashMap<Uint, Epoch >> = SgxMutex::new(HashMap::new()); }
@@ -86,6 +74,7 @@ pub(crate) fn ecall_get_verified_log_internal(receipt_tokens: Vec<Token>, receip
     println!("Creating log from receipt tokens: {:?}", receipt_tokens);
     // TODO: add error handling for token conversion
     // TODO: merkle up the receipt root
+    // To validate tries: https://github.com/paritytech/parity-common/tree/master/triehash
     // TODO: verify hash of the block header
     // TODO: verify the linkage between the block header and last verified block
     let address = receipt_tokens[0].clone().to_address().unwrap();
@@ -95,51 +84,8 @@ pub(crate) fn ecall_get_verified_log_internal(receipt_tokens: Vec<Token>, receip
     Ok((nonce, RawLog { topics, data }))
 }
 
-pub(crate) fn ecall_set_worker_params_internal(nonce: Uint, rawLog: RawLog) -> Result<(), EnclaveError> {
-    println!("Parsing raw log: {:?}", rawLog);
-    let event = Event {
-        name: "WorkersParameterized".to_string(),
-        inputs: vec![EventParam {
-            name: "seed".to_string(),
-            kind: ParamType::Uint(256),
-            indexed: false,
-        }, EventParam {
-            name: "blockNumber".to_string(),
-            kind: ParamType::Uint(256),
-            indexed: false,
-        }, EventParam {
-            name: "workers".to_string(),
-            kind: ParamType::Array(Box::new(ParamType::Address)),
-            indexed: false,
-        }, EventParam {
-            name: "balances".to_string(),
-            kind: ParamType::Array(Box::new(ParamType::Uint(256))),
-            indexed: false,
-        }],
-        anonymous: false,
-    };
-    let log = match event.parse_log(rawLog) {
-        Ok(log) => {
-            println!("the decoded log: {:?}", log);
-            log
-        }
-        Err(err) => {
-            return Err(EnclaveError::WorkerAuthError {
-                err: format!("Unable to parse the log: {:?}", err),
-            });
-        }
-    };
-    let block_number = panic::catch_unwind(|| {
-        log.params[1].value.clone().to_uint().unwrap()
-    }).expect("Unable to cast block number");
-    let workers = panic::catch_unwind(|| {
-        log.params[2].value.clone().to_array().unwrap().iter().map(|t| t.clone().to_address().unwrap()).collect()
-    }).expect("Unable to cast workers.");
-    let balances = panic::catch_unwind(|| {
-        log.params[3].value.clone().to_array().unwrap().iter().map(|t| t.clone().to_uint().unwrap()).collect()
-    }).expect("Unable to cast balances.");
+pub(crate) fn ecall_set_worker_params_internal(nonce: Uint, raw_log: RawLog) -> Result<(), EnclaveError> {
     let mut params_guard = EPOCH.lock_expect("Epoch");
-    let worker_params = WorkerParams { block_number, workers, balances };
     let epoch = match params_guard.get_mut(&nonce) {
         Some(value) => value,
         None => {
@@ -148,9 +94,8 @@ pub(crate) fn ecall_set_worker_params_internal(nonce: Uint, rawLog: RawLog) -> R
             });
         }
     };
-    epoch.worker_params = Some(worker_params);
+    epoch.set_worker_params(raw_log)?;
     println!("Worker parameters set for nonce: {:?} => {:?}", nonce, epoch);
-
     Ok(())
 }
 
@@ -174,8 +119,6 @@ pub(crate) fn ecall_get_epoch_workers_internal(sc_addr: Address, block_number: O
         });
     }
     println!("Running worker selection using Epoch: {:?}", epoch);
-
-    // TODO: implement the worker selection algo
-    let workers = epoch.worker_params.unwrap().workers;
+    let workers = epoch.get_selected_workers(sc_addr)?;
     Ok(workers)
 }

@@ -12,6 +12,8 @@ failure = { version = "=0.1.1", default-features = false, features = ["derive"] 
 etcommon-rlp = {version = "0.2", default-features = false}
 etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
+ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "sgx-v6.1.0", default-features = false}
+
 
 #libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
 libsecp256k1 = "0.2.1"
