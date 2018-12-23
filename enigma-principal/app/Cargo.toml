@@ -12,7 +12,6 @@ libc = "0.2.41"
 etcommon-rlp = "0.2"
 failure = "=0.1.1"
 failure_derive="=0.1.1"
-web3 = "0.5.0"
 rustc-hex = "1.0.0"
 tokio-core = "0.1.17"
 serde_json = "1.0"
@@ -23,6 +22,8 @@ url = "1.7.1"
 tiny-keccak = "1.4.2"
 colour = "0.2.1"
 dirs = "1.0"
+web3 = { git = "https://github.com/tomusdrw/rust-web3.git" } #TODO: Change after a new version is released.
+
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
