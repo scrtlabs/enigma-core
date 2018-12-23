@@ -78,7 +78,7 @@ pub(self) mod handling {
     }
     /// Not implemented.
     pub fn identity_challange(id: String, nonce: String) -> Result<Message, Error> {
-        unimplemented!(id, nonce)
+        unimplemented!("identity_challange: {}, {}", id, nonce)
     }
 
     pub fn get_tip(id: String, input: String) -> Result<Message, Error> {
