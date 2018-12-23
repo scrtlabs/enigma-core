@@ -132,7 +132,6 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> i8 {
-    let len = (*end-*start) as usize;
 
     let mut cache_id = addr.to_vec();
     cache_id.write_u32::<BigEndian>(*start).unwrap();

@@ -73,12 +73,12 @@ pub mod tests {
 
     use crate::esgx::general::init_enclave_wrapper;
     use super::{ContractAddress, ptt_req, ptt_res, ptt_build_state};
-    use crate::db::{DeltaKey, DATABASE, ResultType, ResultTypeVec, CRUDInterface};
+    use crate::db::{DeltaKey, DATABASE, CRUDInterface};
     use crate::db::Stype::{Delta, State};
     use enigma_tools_u::common_u::Sha256;
     use self::rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
-    use self::secp256k1::{PublicKey, SecretKey, Message, SharedSecret};
+    use self::secp256k1::{PublicKey, SecretKey, SharedSecret};
     use serde_json::{self, Value};
     use self::ring::aead;
 

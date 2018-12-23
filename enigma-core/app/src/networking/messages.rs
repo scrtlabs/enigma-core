@@ -98,7 +98,7 @@ impl From<Message> for IpcRequest {
 impl Into<Message> for IpcResponse {
     fn into(self) -> Message {
         let msg = serde_json::to_vec(&self).unwrap();
-        Message::from_slice(&msg).unwrap()
+        Message::from_slice(&msg)
     }
 }
 
@@ -112,7 +112,7 @@ impl<E: std::fmt::Debug> UnwrapDefault<Message> for Result<Message, E> {
             Ok(m) => m,
             Err(e) => {
                 error!("Unwrapped p2p Message failed: {:?}", e);
-                Message::new().unwrap()
+                Message::new()
             }
         }
     }

@@ -9,23 +9,22 @@ enigma-tools-u = {path = "../../enigma-tools-u"}
 enigma-types = { path = "../../enigma-types" }
 
 futures = "0.1.25"
-tokio = "0.1"
-tokio-zmq = "0.8"
+tokio = "0.1.13"
+tokio-zmq = "0.9.0"
 tempdir = "0.3.7"
 base64 = "0.10.0"
-zmq = "0.8"
+zmq = "0.9.0"
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
-failure = "=0.1.1"
-failure_derive="=0.1.1"
+failure = "0.1.3"
+failure_derive = "0.1.3"
 rustc-hex = "1.0.0" # 2.0.1?
-reqwest = "0.9.4"
-dirs = "1.0"
+reqwest = "0.9.5"
+dirs = "1.0.4"
 rocksdb = { git = "https://github.com/elichai/rust-rocksdb.git" } # This is temporary, until PR is merged
-db-key = "0.0.5"
-lazy_static = "1.1.0"
-byteorder = "1.2"
+lazy_static = "1.2.0"
+byteorder = "1.2.7"
 lru-cache = "0.1.1"
 log = "0.4.6"
 
@@ -36,7 +35,6 @@ sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" 
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 
 [dev-dependencies]
-
 rmp-serde = "0.13.7"
 libsecp256k1 = "0.2.1"
 rand = "0.4.3"
