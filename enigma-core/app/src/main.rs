@@ -14,6 +14,9 @@ extern crate lazy_static;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
 extern crate zmq;
+extern crate tokio;
+extern crate tokio_zmq;
+extern crate futures;
 // errors
 #[macro_use]
 extern crate failure;
@@ -27,6 +30,8 @@ extern crate serde;
 extern crate lru_cache;
 extern crate byteorder;
 extern crate tempdir;
+#[macro_use]
+extern crate log;
 
 //use sgx_types::*;
 use std::thread;
@@ -39,7 +44,7 @@ mod km_u;
 mod networking;
 mod wasm_u;
 
-pub use esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_save_to_memory, ocall_update_state,
+pub use crate::esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_save_to_memory, ocall_update_state,
                          ocall_get_deltas_sizes, ocall_get_deltas, ocall_get_state, ocall_get_state_size};
 use networking::{constants, surface_server};
 

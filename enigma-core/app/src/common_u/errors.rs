@@ -40,6 +40,14 @@ pub struct AttestationServiceErr {
     pub message: String,
 }
 
+
+#[derive(Fail, Debug)]
+#[fail(display = "Error while parsing the p2p messages, command: {}, error: {}", cmd, msg)]
+pub struct P2PErr {
+    pub cmd: String,
+    pub msg: String,
+}
+
 #[derive(Fail, Debug)]
 #[fail(display = "Error while trying to {}, Because: {}", command, kind)]
 pub struct DBErr {
