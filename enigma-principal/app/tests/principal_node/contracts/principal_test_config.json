@@ -9,7 +9,7 @@
     "url": "http://localhost:8545",
     "epoch_size": 2,
     "polling_interval": 1,
-    "max_epochs": 5,
+    "max_epochs": 10,
     "spid": "1601F95C39B9EA307FEAABB901ADC3EE",
     "attestation_service_url": "https://sgx.enigma.co/api"
 }

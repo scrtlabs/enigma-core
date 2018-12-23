@@ -213,33 +213,32 @@ mod test {
         the_config.set_accounts_address(account.to_hex());
         the_config.set_enigma_contract_address(enigma_contract.address().to_hex());
         the_config.set_ethereum_url(get_node_url());
-        let url = the_config.url.clone();
 
         // run event filter in the background
         let event_name = "WorkersParameterized(uint256,address[],bool)";
         let w3 = Arc::clone(&enigma_contract.web3);
         let child = thread::spawn(move || {
-                                      let mut counter = 0;
-                                      loop {
-                                          counter += 1;
-                                          let logs = filter_random(&Arc::clone(&w3), None, &event_name).expect("err filtering random");
-                                          // the test: if events recieved >2 (more than 2 emitts of random)
-                                          // assert topic (keccack(event_name))
-                                          if logs.len() > 2 {
-                                              //                    println!("FOUND 2 LOGS!!!! {:?}", logs);
-                                              for (idx, log) in logs.iter().enumerate() {
-                                                  let expected_topic = event_name.as_bytes().keccak256();
-                                                  assert!(log.topics[0].contains(&H256::from_slice(&expected_topic)));
-                                              }
-                                              break;
-                                          }
-                                          thread::sleep(time::Duration::from_secs(1));
-                                          let max_time = 30;
-                                          if counter > max_time {
-                                              panic!("test failed, more than {} seconds without events", max_time)
-                                          }
-                                      }
-                                  });
+            let mut counter = 0;
+            loop {
+                counter += 1;
+                let logs = filter_random(&Arc::clone(&w3), None, &event_name).expect("err filtering random");
+                // the test: if events recieved >2 (more than 2 emitts of random)
+                // assert topic (keccack(event_name))
+                if logs.len() >= 2 {
+//                    println!("FOUND 2 LOGS!!!! {:?}", logs);
+                    for  log in logs.iter() {
+                        let expected_topic = event_name.as_bytes().keccak256();
+                        assert!(log.topics[0].contains(&H256::from_slice(&expected_topic)));
+                    }
+                    break;
+                }
+                thread::sleep(time::Duration::from_secs(1));
+                let max_time = 30;
+                if counter > max_time {
+                    panic!("test failed, more than {} seconds without events", max_time)
+                }
+            }
+        });
 
         // run principal
         let principal = PrincipalManager::new_delegated(the_config, enigma_contract, eid);

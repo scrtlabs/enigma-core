@@ -6,9 +6,9 @@ use std::sync::Arc;
 use std::thread;
 use std::time;
 use web3::contract::{CallFuture, Contract, Options};
-use web3::futures::{Future, Stream};
+use web3::futures::Future;
 use web3::transports::Http;
-use web3::types::{Address, Bytes, H256, U256};
+use web3::types::{Address, H256, U256};
 use web3::Transport;
 
 use crate::esgx::random_u;
@@ -52,8 +52,7 @@ impl<G: Into<U256>> Principal<G> for EnigmaContract {
     }
 
     fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
-                    max_epochs: Option<usize>)
-    {
+                    max_epochs: Option<usize>) {
         // Make Arcs to support passing the refrence to multiple futures.
         let prev_epoch = Arc::new(AtomicUsize::new(0));
         let w3_contract = Arc::new(self.w3_contract.clone());
@@ -64,14 +63,14 @@ impl<G: Into<U256>> Principal<G> for EnigmaContract {
         let mut epoch_counter = 0;
         loop {
             // Clone these arcs to be moved into the future.
-            let account_clone = Arc::clone(&account);
+            let account = Arc::clone(&account);
             let prev_epoch = Arc::clone(&prev_epoch);
-            let w3_contract_clone = Arc::clone(&w3_contract);
+            let w3_contract = Arc::clone(&w3_contract);
 
             let future = self.web3.eth().block_number().and_then(move |num| {
                     let curr_block = num.low_u64() as usize;
                     let prev_block_ref = prev_epoch.load(Ordering::Relaxed);
-                    println!("current block: {}, next: {}", curr_block, (prev_block_ref + epoch_size));
+                    println!("previous: {}, current block: {}, next: {}", prev_block_ref, curr_block, (prev_block_ref + epoch_size));
                     if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
                         prev_epoch.swap(curr_block, Ordering::Relaxed);
                         thread::sleep(time::Duration::from_secs(2));
@@ -81,11 +80,11 @@ impl<G: Into<U256>> Principal<G> for EnigmaContract {
                     Err(web3::Error::from_kind(web3::ErrorKind::InvalidResponse("not the right block".to_string())))
             }).map_err(From::from)
                 .and_then(move |_| {
-                        EnigmaContract::set_worker_params_internal(&w3_contract_clone, &account_clone, eid, gas_limit)
+                    println!("sending params!");
+                    EnigmaContract::set_worker_params_internal(&w3_contract, &account, eid, gas_limit)
                 });
 
-            self.eloop.remote().spawn(|_| {
-                                          future.map_err(|err| eprintln!("Errored with: {:?}", err))
+            self.eloop.remote().spawn(|_| { future.map_err(|err| eprintln!("Errored with: {:?}", err))
                                                 .map(|res| println!("Res: {:?}", res))
                                       });
             thread::sleep(time::Duration::from_secs(polling_interval));
