@@ -5,6 +5,7 @@ use sgx_types::sgx_status_t;
 use std::str;
 use std::string::{String, ToString};
 use wasmi::{self, TrapKind};
+use pwasm_utils as wasm_utils;
 
 #[derive(Debug, Fail)]
 pub enum EnclaveError {
@@ -99,6 +100,10 @@ impl From<wasmi::Trap> for EnclaveError {
             TrapKind::StackOverflow => {
                 EnclaveError::ExecutionError { code: "".to_string(), err: "stack overflow".to_string() }
             }
+            TrapKind::Host(_) => {
+                EnclaveError::ExecutionError { code: "".to_string(), err: trap.to_string() }
+            }
+
         }
     }
 }
@@ -133,4 +138,20 @@ impl Into<EnclaveReturn> for EnclaveError {
 
 impl ResultToEnclaveReturn for EnclaveError {
     fn into_enclave_return(self) -> EnclaveReturn { self.into() }
+}
+
+impl From<parity_wasm::elements::Error> for EnclaveError{
+    fn from(err: parity_wasm::elements::Error) -> EnclaveError { EnclaveError::ExecutionError { code: "parity_wasm".to_string(), err: err.to_string()} }
+}
+
+impl From<parity_wasm::elements::Module> for EnclaveError{
+    fn from(err: parity_wasm::elements::Module) -> EnclaveError { EnclaveError::ExecutionError { code: "inject gas counter".to_string(), err: "".to_string()} }
+}
+
+impl From<wasm_utils::stack_height::Error> for EnclaveError{
+    fn from(err: wasm_utils::stack_height::Error) -> EnclaveError { EnclaveError::ExecutionError { code: "inject stack height limiter".to_string(), err: format!("{:?}", err)} }
+}
+
+impl From<wasmi::Error> for EnclaveError{
+    fn from(err: wasmi::Error) -> EnclaveError { EnclaveError::ExecutionError { code: "convert to wasm module".to_string(), err: format!("{:?}", err)} }
 }
