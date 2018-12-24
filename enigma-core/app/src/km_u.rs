@@ -15,6 +15,9 @@ extern "C" {
                      signature: &mut [u8; 65], serialized_ptr: *mut u64) -> sgx_status_t;
     fn ecall_ptt_res(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, msg_ptr: *const u8, msg_len: usize) -> sgx_status_t;
     fn ecall_build_state(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, failed_ptr: *mut u64) -> sgx_status_t;
+    fn ecall_get_user_key(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
+                          signature: &mut [u8; 65], serialized_ptr: *mut u64) -> sgx_status_t;
+
 }
 
 pub fn ptt_build_state(eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Error> {
@@ -46,7 +49,7 @@ pub fn ptt_res(eid: sgx_enclave_id_t, msg: &[u8]) -> Result<(), Error> {
 
 
 
-pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(Vec<u8>, [u8; 65]), Error> {
+pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(Box<[u8]>, [u8; 65]), Error> {
     let mut sig = [0u8; 65];
     let mut ret = EnclaveReturn::Success;
     let mut serialized_ptr = 0u64;
@@ -63,7 +66,25 @@ pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(
     }
     let box_ptr = serialized_ptr as *mut Box<[u8]>;
     let part = unsafe { Box::from_raw(box_ptr) };
-    Ok( (part.to_vec(), sig) )
+    Ok( (*part, sig) )
+}
+
+pub fn get_user_key(eid: sgx_enclave_id_t) -> Result<Box<[u8]>, Error> {
+    let mut sig = [0u8; 65];
+    let mut ret = EnclaveReturn::Success;
+    let mut serialized_ptr = 0u64;
+
+    let status = unsafe { ecall_get_user_key(eid,
+                                        &mut ret as *mut EnclaveReturn,
+                                        &mut sig,
+                                        &mut serialized_ptr as *mut u64
+    )};
+    if ret != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
+        return Err(EnclaveFailError{err: ret, status}.into());
+    }
+    let box_ptr = serialized_ptr as *mut Box<[u8]>;
+    let part = unsafe { Box::from_raw(box_ptr) };
+    Ok(*part)
 }
 
 #[cfg(test)]
@@ -87,7 +108,22 @@ pub mod tests {
     use std::collections::HashSet;
 
     #[test]
-    fn test_ecall() {
+    fn test_get_user_key() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let data = super::get_user_key(enclave.geteid()).unwrap();
+
+        let mut des = Deserializer::new(&data[..]);
+        let res: Value = Deserialize::deserialize(&mut des).unwrap();
+        let prefix = serde_json::from_value::<[u8; 14]>(res["prefix"].clone()).unwrap();
+        let id = serde_json::from_value::<[u8; 12]>(res["id"].clone()).unwrap();
+        let pubkey = serde_json::from_value::<Vec<u8>>(res["pubkey"].clone()).unwrap();
+        assert_eq!(b"Enigma Message", &prefix);
+        assert_ne!(id, [0u8; 12]);
+        assert_ne!(pubkey, vec![0u8; 64]);
+    }
+
+    #[test]
+    fn test_ptt_req() {
         let enclave = init_enclave_wrapper().unwrap();
         let addresses: [ContractAddress; 3] = [[1u8 ;32], [2u8; 32], [3u8; 32]];
         let (msg, sig) = ptt_req(enclave.geteid(), &addresses).unwrap();

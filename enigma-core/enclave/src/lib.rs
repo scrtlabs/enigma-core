@@ -44,7 +44,7 @@ mod km_t;
 mod ocalls_t;
 mod wasm_g;
 
-use crate::km_t::{ContractAddress, ecall_ptt_req_internal, ecall_ptt_res_internal, ecall_build_state_internal};
+use crate::km_t::{ContractAddress, ecall_ptt_req_internal, ecall_ptt_res_internal, ecall_build_state_internal, ecall_get_user_key_internal};
 use crate::evm_t::abi::{create_callback, prepare_evm_input};
 use crate::evm_t::evm::call_sputnikvm;
 use crate::wasm_g::execution;
@@ -178,6 +178,21 @@ pub unsafe extern "C" fn ecall_build_state(failed_ptr: *mut u64) -> EnclaveRetur
 }
 
 
+#[no_mangle]
+pub unsafe extern "C" fn ecall_get_user_key(sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
+    let msg = match ecall_get_user_key_internal(sig) {
+        Ok(msg) => msg,
+        Err(e) => return e.into(),
+    };
+    *serialized_ptr = match ocalls_t::save_to_untrusted_memory(&msg[..]) {
+        Ok(ptr) => ptr,
+        Err(e) => return e.into(),
+    };
+    EnclaveReturn::Success
+}
+
+
+
 
 
 unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], callable_args_slice: &[u8],
@@ -251,7 +266,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
 
     if let Some(state) = exec_res.updated_state {
         // Saving the updated state into the db
-        let enc_state = km_t::principal::encrypt_state(state)?;
+        let enc_state = km_t::encrypt_state(state)?;
         enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
     }
 
@@ -291,7 +306,7 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>,
 
     match delta_option {
         Some(delta) => {
-            let enc_delta = km_t::principal::encrypt_delta(delta)?;
+            let enc_delta = km_t::encrypt_delta(delta)?;
             *delta_data_out = ocalls_t::save_to_untrusted_memory(&enc_delta.data)?;
             *delta_hash_out = enc_delta.contract_id;
             *delta_index_out = enc_delta.index;
@@ -337,7 +352,8 @@ pub mod tests {
     use std::string::{String, ToString};
     use std::vec::Vec;
     use crate::wasm_g::execution::tests::*;
-    use crate::km_t::tests::*;
+    use crate::km_t::principal::tests::*;
+//    use crate::km_t::users::tests::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {

@@ -65,7 +65,7 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, Error> {
 }
 
 const MAX_EVM_RESULT: usize = 100_000;
-pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8])-> Result<Box<[u8]>, Error> {
+pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8]) -> Result<Box<[u8]>, Error> {
 
     let deploy_bytecode = build_constructor(&bytecode)?;
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
@@ -92,7 +92,7 @@ pub struct WasmResult {
     pub eth_contract_addr: [u8;20],
 }
 
-pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &str)-> Result<WasmResult,Error>{
+pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &str)-> Result<WasmResult, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
@@ -150,7 +150,6 @@ pub mod tests {
     #![allow(dead_code, unused_assignments, unused_variables)]
 
     use crate::esgx::general::init_enclave_wrapper;
-    use sgx_urts::SgxEnclave;
     use std::fs::File;
     use std::io::Read;
     use std::path::PathBuf;
@@ -161,7 +160,7 @@ pub mod tests {
     use crate::km_u::tests::instantiate_encryption_key;
     use enigma_tools_u::common_u::Sha256;
 
-    fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str) -> Box<[u8]>{
+    fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str) -> Box<[u8]> {
         let mut dir = PathBuf::new();
         dir.push(test_path);
         let mut output = Command::new("cargo")

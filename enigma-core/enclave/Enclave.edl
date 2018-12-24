@@ -38,6 +38,8 @@ enclave {
 
         public EnclaveReturn ecall_build_state([out] uint64_t* failed_ptr);
 
+        public EnclaveReturn ecall_get_user_key([out] uint8_t sig[65], [out] uint64_t* serialized_ptr);
+
     };
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] size_t* result_length);

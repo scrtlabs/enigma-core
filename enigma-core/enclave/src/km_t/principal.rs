@@ -1,42 +1,20 @@
 use crate::SIGNINING_KEY;
+use super::{STATE_KEYS, DH_KEYS};
 use enigma_runtime_t::data::{ContractState, DeltasInterface, StatePatch};
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 use enigma_tools_t::cryptography_t::Encryption;
-use std::collections::HashMap;
 use std::string::ToString;
-use std::sync::SgxMutex;
 use std::vec::Vec;
 use std::u32;
-use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch};
-use enigma_tools_t::km_primitives::{ContractAddress, Message, MessageType, MsgID, StateKey};
-
-lazy_static! { pub static ref DH_KEYS: SgxMutex< HashMap<MsgID, KeyPair >> = SgxMutex::new(HashMap::new()); }
-lazy_static! { pub static ref STATE_KEYS: SgxMutex< HashMap<ContractAddress, StateKey >> = SgxMutex::new(HashMap::new()); }
-
-
-pub fn encrypt_delta(del: StatePatch) -> Result<EncryptedPatch, EnclaveError> {
-    let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
-    let key = statekeys_guard.get(&del.contract_id)
-        .ok_or(EnclaveError::KeyError{ key_type: "State Key".to_string(), key: "Missing Key".to_string() })?;
-    del.encrypt(&key)
-}
-
-
-pub fn encrypt_state(state: ContractState) -> Result<EncryptedContractState<u8>, EnclaveError> {
-    let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
-    let key = statekeys_guard.get(&state.contract_id)
-        .ok_or(EnclaveError::KeyError{ key_type: "State Key".to_string(), key: "Missing Key".to_string() })?;
-    state.encrypt(&key)
-}
-
+use enigma_tools_t::km_primitives::{ContractAddress, Message, MessageType, StateKey};
 
 pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let keys = KeyPair::new()?;
     let data = MessageType::Request(addresses.to_vec());
-    let req = Message::new(data, keys.get_pubkey())?;
+    let req = Message::new(Some(data), keys.get_pubkey())?;
     let msg = req.to_message()?;
     *sig = SIGNINING_KEY.sign(&msg[..])?;
     DH_KEYS.lock_expect("DH Keys").insert(req.get_id(), keys);
@@ -55,12 +33,12 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
         let aes = keys.get_aes_key(&res.get_pubkey())?;
         msg = Message::decrypt(res, &aes)?;
     }
-    if let MessageType::Response(v) = msg.data {
+    if let Some(MessageType::Response(v)) = msg.data {
         for (addr, key) in v {
             STATE_KEYS.lock_expect("state keys").insert(addr, key);
         }
     } else {
-        unreachable!() // This should never execute.
+        unreachable!() // This should never execute. // TODO: Replace with an error.
     }
     guard.remove(&id);
     Ok(())
@@ -186,7 +164,7 @@ pub mod tests {
         let km_node_keys = KeyPair::new().unwrap();
         let restype: Vec<(ContractAddress, StateKey)> = address.clone().into_iter().zip(state_keys.into_iter()).collect();
 
-        let res_obj = Message::new_id(MessageType::Response(restype), req_obj.get_id(), km_node_keys.get_pubkey());
+        let res_obj = Message::new_id(Some(MessageType::Response(restype)), req_obj.get_id(), km_node_keys.get_pubkey());
         let dh_key = km_node_keys.get_aes_key(&req_obj.get_pubkey()).unwrap();
         let enc_req = res_obj.encrypt(&dh_key).unwrap();
 
