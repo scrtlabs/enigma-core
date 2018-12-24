@@ -15,7 +15,7 @@ json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-wasmi = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+wasmi = { git = "https://github.com/enigmampc/wasmi", features = ["core"]}
 
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
