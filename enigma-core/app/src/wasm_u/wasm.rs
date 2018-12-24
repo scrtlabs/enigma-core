@@ -149,28 +149,17 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &s
 pub mod tests {
     #![allow(dead_code, unused_assignments, unused_variables)]
 
-    use esgx;
+    use crate::esgx::general::init_enclave_wrapper;
     use sgx_urts::SgxEnclave;
     use std::fs::File;
     use std::io::Read;
     use std::path::PathBuf;
     use sgx_types::*;
     use std::process::Command;
-    use wasm_u::wasm;
+    use crate::wasm_u::wasm;
     use std::str::from_utf8;
-
-    fn init_enclave() -> SgxEnclave {
-        let enclave = match esgx::general::init_enclave_wrapper() {
-            Ok(r) => {
-                println!("[+] Init Enclave Successful {}!", r.geteid());
-                r
-            }
-            Err(x) => {
-                panic!("[-] Init Enclave Failed {}!", x.as_str());
-            }
-        };
-        enclave
-    }
+    use crate::km_u::tests::instantiate_encryption_key;
+    use enigma_tools_u::common_u::Sha256;
 
     fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str) -> Box<[u8]>{
         let mut dir = PathBuf::new();
@@ -193,7 +182,8 @@ pub mod tests {
 
     #[test]
     fn simple() {
-        let enclave = init_enclave();
+        let enclave = init_enclave_wrapper().unwrap();
+        instantiate_encryption_key(&[b"Enigma".sha256()], enclave.geteid());
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
 //        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
         let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "").expect("Execution failed");
@@ -203,7 +193,8 @@ pub mod tests {
 
     #[test]
     fn eth_bridge() {
-        let enclave = init_enclave();
+        let enclave = init_enclave_wrapper().unwrap();
+        instantiate_encryption_key(&[b"Enigma".sha256()], enclave.geteid());
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/contract_with_eth_calls");
         let result = wasm::execute(enclave.geteid(), &contract_code, "test()", "").expect("Execution failed");
         enclave.destroy();
@@ -219,7 +210,7 @@ pub mod tests {
         let mut wasm_code = Vec::new();
         f.read_to_end(&mut wasm_code).unwrap();
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
-        let enclave = init_enclave();
+        let enclave = init_enclave_wrapper().unwrap();
         let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
         let result = wasm::execute(enclave.geteid(),&contract_code, "call", "").expect("Execution failed");
         assert_eq!(from_utf8(&result.output).unwrap(), "157");

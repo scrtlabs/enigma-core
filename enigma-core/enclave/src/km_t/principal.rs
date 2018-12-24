@@ -43,6 +43,7 @@ pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: 
     Ok(msg)
 }
 
+
 pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveError> {
     let res = Message::from_message(msg_slice)?;
 

@@ -8,6 +8,8 @@ use crate::common_u::errors::EnclaveFailError;
 use std::mem;
 
 pub type ContractAddress = [u8; 32];
+pub type StateKey = [u8; 32];
+
 extern "C" {
     fn ecall_ptt_req(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, addresses: *const ContractAddress, len: usize,
                      signature: &mut [u8; 65], serialized_ptr: *mut u64) -> sgx_status_t;
@@ -72,7 +74,7 @@ pub mod tests {
     extern crate ring;
 
     use crate::esgx::general::init_enclave_wrapper;
-    use super::{ContractAddress, ptt_req, ptt_res, ptt_build_state};
+    use super::{ContractAddress, StateKey, ptt_req, ptt_res, ptt_build_state};
     use crate::db::{DeltaKey, DATABASE, CRUDInterface};
     use crate::db::Stype::{Delta, State};
     use enigma_tools_u::common_u::Sha256;
@@ -81,6 +83,8 @@ pub mod tests {
     use self::secp256k1::{PublicKey, SecretKey, SharedSecret};
     use serde_json::{self, Value};
     use self::ring::aead;
+    use sgx_types::sgx_enclave_id_t;
+    use std::collections::HashSet;
 
     #[test]
     fn test_ecall() {
@@ -89,6 +93,71 @@ pub mod tests {
         let (msg, sig) = ptt_req(enclave.geteid(), &addresses).unwrap();
         assert_ne!(msg.len(), 0);
         assert_ne!(sig.to_vec(), vec![0u8; 64]);
+    }
+
+    pub fn instantiate_encryption_key(addresses: &[ContractAddress], eid: sgx_enclave_id_t) {
+        let req = ptt_req(eid, &addresses).unwrap();
+
+        let mut des = Deserializer::new(&req.0[..]);
+        let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
+
+        let enc_response = make_encrpted_resposnse(req_val);
+
+        let mut serialized_enc_response = Vec::new();
+        enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
+
+        ptt_res(eid, &serialized_enc_response).unwrap();
+
+    }
+
+    fn make_encrpted_resposnse(req: Value) -> Value {
+        // Making the response
+        let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
+        let _response_data: Vec<(ContractAddress, StateKey)>  = req_data.into_iter().map(|add| (add, add.sha256())).collect();
+
+        let mut response_data = Vec::new();
+        _response_data.serialize(&mut Serializer::new(&mut response_data)).unwrap();
+
+
+        // Getting the node DH Public Key
+        let _pubkey: Vec<u8> = serde_json::from_value(req["pubkey"].clone()).unwrap();
+        let mut pubkey = [0u8; 65];
+        pubkey[0] = 4;
+        pubkey[1..].copy_from_slice(&_pubkey);
+        let node_pubkey = PublicKey::parse(&pubkey).unwrap();
+
+        // Generating a second pair of priv-pub keys for the DH
+        let mut rng = rand::thread_rng(); // TODO: Consider replacing random with constant key
+        let km_priv_key = SecretKey::random(&mut rng);
+        let km_pubkey = PublicKey::from_secret_key(&km_priv_key);
+
+        // Generating the ECDH key for AES
+        let shared = SharedSecret::new(&node_pubkey, &km_priv_key).unwrap();
+        let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, shared.as_ref()).unwrap();
+
+        // Encrypting the response
+        let iv = [1u8; 12];
+        response_data.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
+        let s = aead::seal_in_place(&seal_key, &iv, &[], &mut response_data, aead::AES_256_GCM.tag_len()).unwrap();
+        assert_eq!(s, response_data.len());
+        response_data.extend(&iv);
+
+        // Building the Encrypted Response.
+        let mut enc_template: Value = serde_json::from_str(
+            "{\"data\":{\
+                    \"EncryptedResponse\":[239,255,23,228,191,26,143,198,128,188,100,241,178,217,234,168,108,235,78,65,238,186,149,171,226,107,165,133,44,177,27,14,128,38,137,97,202,160,120,230,88,226,218,127,41,16,29,135,167,0,186,110,21,164,73,226,244,202,243,227,78,75,216,216,138,135,158,26,136,143,45,118,11,248,0,66,204,94,63,193,31,148,110,58,35,104,219,233,159,244,176,244,33,8,214,223,107,103,44,243,28,237,155,104,3,243,217,122,233,16,192,163,112,164,66,250,116,194,45,111,174,65,142,179,228,132,195,118,123,34,219,135,245,83,113,8,141,6,241,156,136,70,134,206,238,227,26,106,248,215,20,130,181,231,216,193,238,87,241,150,14,45,180,22,191,100,207,148,82,89,5,158,241,173,193,140,214,109,139,18,91,200,251,121,16,119,21,243,177,104,46,254,48,41,115,56,8,37,27,155,95,51,125,244,75,154,90,47,181,110,126,174,96,90,25,34,92,89,250,240,5,200,147,228,148,158,193,54,12,249,243,47,172,27,131,158,32,167,116,200,110,29,151,13,78,23,41,199,188,127,142,109,3,130,202,179,168,111,128,246,242,23,7,247,87,151,110,102,30,226,94,135,249,244,48,250,32,177,155,28,217,175,25,89,231,167,1,54,204,124,20,196,168,239,148,200,45,213,185,37,144,138,244,194,211,141,5,171,93,146,138,154,5,4,243,9,123,237,186,233,215,42,121,152,75,208,13,156,53,86,254,123,182,21,210,230,235,237,12]\
+                },\
+                \"id\":[99,31,224,64,105,252,120,51,200,241,224,56],\
+                \"prefix\":[69,110,105,103,109,97,32,77,101,115,115,97,103,101],\
+                \"pubkey\":[127,228,135,71,145,246,191,25,182,250,194,154,40,157,166,47,6,214,203,209,7,71,48,253,171,195,26,131,255,59,181,47,202,186,164,88,190,47,24,102,237,57,130,227,253,190,12,121,200,130,221,255,42,121,136,131,170,143,132,174,21,219,245,153]\
+            }"
+        ).unwrap();
+        enc_template["data"]["EncryptedResponse"] = json!(response_data);
+        enc_template["id"] = req["id"].clone();
+        let km_pubkey_slice = km_pubkey.serialize()[1..65].to_vec();
+        enc_template["pubkey"] = json!(km_pubkey_slice);
+
+        enc_template
     }
 
     #[test]
@@ -100,47 +169,21 @@ pub mod tests {
 
         // serializing the result from the request
         let mut des = Deserializer::new(&req.0[..]);
-        let req_val: serde_json::Value = Deserialize::deserialize(&mut des).unwrap();
-        let _pubkey: Vec<u8> = serde_json::from_value(req_val["pubkey"].clone()).unwrap();
-        let mut pubkey = [0u8; 65];
-        pubkey[0] = 4;
-        pubkey[1..].copy_from_slice(&_pubkey);
-        let node_pubkey = PublicKey::parse(&pubkey).unwrap();
+        let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
-        // Building a Response
-        let mut rng = rand::thread_rng();
-        let km_priv_key = SecretKey::random(&mut rng);
-        let km_pubkey = PublicKey::from_secret_key(&km_priv_key);
-        let km_pubkey_slice = km_pubkey.serialize()[1..65].to_vec();
-        let mut response_data = vec![147, 146, 220, 0, 32, 204, 167, 204, 147, 123, 100, 204, 184, 204, 202, 204, 165, 204, 143, 3, 114, 27, 204, 182, 204, 186, 204, 207, 92, 120, 204, 203, 35, 95, 204, 235, 204, 224, 204, 231, 11, 27, 204, 132, 204, 205, 204, 153, 84, 20, 97, 204, 160, 204, 142, 220, 0, 32, 204, 203, 204, 226, 66, 204, 165, 204, 158, 32, 27, 204, 215, 58, 204, 241, 36, 204, 204, 204, 208, 29, 204, 168, 60, 204, 170, 204, 235, 59, 115, 204, 253, 204, 150, 59, 11, 204, 225, 204, 220, 3, 204, 170, 44, 204, 132, 204, 175, 204, 255, 146, 220, 0, 32, 22, 54, 122, 204, 172, 204, 182, 122, 74, 1, 124, 204, 141, 204, 168, 204, 171, 204, 149, 104, 44, 204, 203, 57, 8, 99, 120, 15, 113, 20, 204, 221, 204, 160, 204, 160, 204, 224, 204, 197, 86, 68, 204, 199, 204, 196, 220, 0, 32, 76, 58, 204, 178, 204, 153, 5, 204, 170, 204, 249, 204, 172, 115, 204, 247, 36, 100, 75, 204, 152, 204, 164, 204, 226, 94, 204, 239, 17, 204, 155, 57, 80, 32, 120, 39, 204, 242, 56, 204, 156, 204, 163, 204, 205, 70, 204, 239, 146, 220, 0, 32, 204, 177, 204, 233, 204, 147, 36, 80, 91, 204, 211, 45, 204, 160, 204, 225, 204, 248, 93, 204, 207, 94, 25, 204, 160, 204, 157, 204, 176, 72, 30, 204, 138, 21, 204, 246, 44, 65, 204, 235, 50, 3, 4, 204, 168, 204, 233, 39, 220, 0, 32, 32, 113, 16, 109, 97, 43, 105, 124, 204, 152, 204, 147, 204, 212, 89, 204, 143, 32, 72, 204, 170, 30, 204, 223, 204, 128, 204, 182, 204, 148, 94, 7, 204, 189, 204, 200, 204, 140, 204, 140, 45, 68, 204, 224, 127, 88];
+        // Generating the response
+        let enc_response = make_encrpted_resposnse(req_val);
 
-        let shared = SharedSecret::new(&node_pubkey, &km_priv_key).unwrap();
-        let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, shared.as_ref()).unwrap();
-        let iv = [1u8; 12];
-        response_data.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
-        let s = aead::seal_in_place(&seal_key, &iv, &[], &mut response_data, aead::AES_256_GCM.tag_len()).unwrap();
-        assert_eq!(s, response_data.len());
-        response_data.extend(&iv);
-
-        let mut enc_template: Value = serde_json::from_str(
-            "{\"data\":{\
-                    \"EncryptedResponse\":[239,255,23,228,191,26,143,198,128,188,100,241,178,217,234,168,108,235,78,65,238,186,149,171,226,107,165,133,44,177,27,14,128,38,137,97,202,160,120,230,88,226,218,127,41,16,29,135,167,0,186,110,21,164,73,226,244,202,243,227,78,75,216,216,138,135,158,26,136,143,45,118,11,248,0,66,204,94,63,193,31,148,110,58,35,104,219,233,159,244,176,244,33,8,214,223,107,103,44,243,28,237,155,104,3,243,217,122,233,16,192,163,112,164,66,250,116,194,45,111,174,65,142,179,228,132,195,118,123,34,219,135,245,83,113,8,141,6,241,156,136,70,134,206,238,227,26,106,248,215,20,130,181,231,216,193,238,87,241,150,14,45,180,22,191,100,207,148,82,89,5,158,241,173,193,140,214,109,139,18,91,200,251,121,16,119,21,243,177,104,46,254,48,41,115,56,8,37,27,155,95,51,125,244,75,154,90,47,181,110,126,174,96,90,25,34,92,89,250,240,5,200,147,228,148,158,193,54,12,249,243,47,172,27,131,158,32,167,116,200,110,29,151,13,78,23,41,199,188,127,142,109,3,130,202,179,168,111,128,246,242,23,7,247,87,151,110,102,30,226,94,135,249,244,48,250,32,177,155,28,217,175,25,89,231,167,1,54,204,124,20,196,168,239,148,200,45,213,185,37,144,138,244,194,211,141,5,171,93,146,138,154,5,4,243,9,123,237,186,233,215,42,121,152,75,208,13,156,53,86,254,123,182,21,210,230,235,237,12]\
-                },\
-                \"id\":[99,31,224,64,105,252,120,51,200,241,224,56],\
-                \"prefix\":[69,110,105,103,109,97,32,77,101,115,115,97,103,101],\
-                \"pubkey\":[127,228,135,71,145,246,191,25,182,250,194,154,40,157,166,47,6,214,203,209,7,71,48,253,171,195,26,131,255,59,181,47,202,186,164,88,190,47,24,102,237,57,130,227,253,190,12,121,200,130,221,255,42,121,136,131,170,143,132,174,21,219,245,153]\
-            }"
-        ).unwrap();
-        enc_template["data"]["EncryptedResponse"] = json!(response_data);
-        enc_template["id"] = req_val["id"].clone();
-        enc_template["pubkey"] = json!(km_pubkey_slice);
         let mut serialized_enc_response = Vec::new();
-        enc_template.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
+        enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
 
         ptt_res(enclave.geteid(), &serialized_enc_response).unwrap();
 
-        assert_eq!(ptt_build_state(enclave.geteid()).unwrap(), vec![address[2]])
-
+        // Testing equality while ignoring order.
+        let address_result = ptt_build_state(enclave.geteid()).unwrap();
+        assert_eq!(address_result.len(), address.len());
+        let address_set: HashSet<&ContractAddress> = address.iter().collect();
+        assert!(address_result.iter().all(|x| address_set.contains(x)));
     }
 
     fn fill_the_db() -> Vec<[u8; 32]> {

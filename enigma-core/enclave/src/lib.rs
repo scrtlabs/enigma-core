@@ -62,9 +62,7 @@ use std::string::ToString;
 use std::vec::Vec;
 use std::{ptr, slice, str, mem};
 
-lazy_static! {
-    pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper();
-}
+lazy_static! { pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, real_report: &mut sgx_report_t) -> sgx_status_t {
@@ -253,7 +251,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
 
     if let Some(state) = exec_res.updated_state {
         // Saving the updated state into the db
-        let enc_state = km_t::db::encrypt_state(state)?;
+        let enc_state = km_t::principal::encrypt_state(state)?;
         enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
     }
 
@@ -293,7 +291,7 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>,
 
     match delta_option {
         Some(delta) => {
-            let enc_delta = km_t::db::encrypt_delta(delta)?;
+            let enc_delta = km_t::principal::encrypt_delta(delta)?;
             *delta_data_out = ocalls_t::save_to_untrusted_memory(&enc_delta.data)?;
             *delta_hash_out = enc_delta.contract_id;
             *delta_index_out = enc_delta.index;
