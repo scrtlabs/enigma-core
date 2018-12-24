@@ -1,26 +1,21 @@
-// SGX
 extern crate sgx_types;
 extern crate sgx_urts;
-
 extern crate base64;
 extern crate dirs;
 extern crate reqwest;
-//DB
 extern crate rocksdb;
 #[macro_use]
 extern crate lazy_static;
-// networking apt install libzmq3-dev
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
+extern crate rmp_serde;
 extern crate zmq;
 extern crate tokio;
 extern crate tokio_zmq;
 extern crate futures;
-// errors
 #[macro_use]
 extern crate failure;
 extern crate rustc_hex as hex;
-//enigma utils
 extern crate enigma_tools_u;
 extern crate enigma_types;
 #[macro_use]

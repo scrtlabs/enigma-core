@@ -48,7 +48,6 @@ pub fn ptt_res(eid: sgx_enclave_id_t, msg: &[u8]) -> Result<(), Error> {
 }
 
 
-
 pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(Box<[u8]>, [u8; 65]), Error> {
     let mut sig = [0u8; 65];
     let mut ret = EnclaveReturn::Success;
@@ -69,7 +68,8 @@ pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(
     Ok( (*part, sig) )
 }
 
-pub fn get_user_key(eid: sgx_enclave_id_t) -> Result<Box<[u8]>, Error> {
+
+pub fn get_user_key(eid: sgx_enclave_id_t) -> Result<(Box<[u8]>, [u8; 65]), Error> {
     let mut sig = [0u8; 65];
     let mut ret = EnclaveReturn::Success;
     let mut serialized_ptr = 0u64;
@@ -84,12 +84,11 @@ pub fn get_user_key(eid: sgx_enclave_id_t) -> Result<Box<[u8]>, Error> {
     }
     let box_ptr = serialized_ptr as *mut Box<[u8]>;
     let part = unsafe { Box::from_raw(box_ptr) };
-    Ok(*part)
+    Ok((*part, sig))
 }
 
 #[cfg(test)]
 pub mod tests {
-    extern crate rmp_serde;
     extern crate secp256k1;
     extern crate rand;
     extern crate ring;
@@ -98,10 +97,10 @@ pub mod tests {
     use super::{ContractAddress, StateKey, ptt_req, ptt_res, ptt_build_state};
     use crate::db::{DeltaKey, DATABASE, CRUDInterface};
     use crate::db::Stype::{Delta, State};
-    use enigma_tools_u::common_u::Sha256;
-    use self::rmp_serde::{Deserializer, Serializer};
+    use enigma_tools_u::common_u::{Sha256, Keccak256};
+    use rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
-    use self::secp256k1::{PublicKey, SecretKey, SharedSecret};
+    use self::secp256k1::{PublicKey, SecretKey, SharedSecret, Message, Signature, RecoveryId};
     use serde_json::{self, Value};
     use self::ring::aead;
     use sgx_types::sgx_enclave_id_t;
@@ -110,16 +109,23 @@ pub mod tests {
     #[test]
     fn test_get_user_key() {
         let enclave = init_enclave_wrapper().unwrap();
-        let data = super::get_user_key(enclave.geteid()).unwrap();
+        let (data, _sig) = super::get_user_key(enclave.geteid()).unwrap();
 
         let mut des = Deserializer::new(&data[..]);
         let res: Value = Deserialize::deserialize(&mut des).unwrap();
         let prefix = serde_json::from_value::<[u8; 14]>(res["prefix"].clone()).unwrap();
         let id = serde_json::from_value::<[u8; 12]>(res["id"].clone()).unwrap();
-        let pubkey = serde_json::from_value::<Vec<u8>>(res["pubkey"].clone()).unwrap();
         assert_eq!(b"Enigma Message", &prefix);
         assert_ne!(id, [0u8; 12]);
-        assert_ne!(pubkey, vec![0u8; 64]);
+
+        let mut sig = [0u8; 64];
+        sig.copy_from_slice(&_sig[..64]);
+        let sig = Signature::parse(&sig);
+
+        let msg = Message::parse(&data.keccak256());
+        let recovery_id = RecoveryId::parse(_sig[64]-27).unwrap();
+        let pubkey = secp256k1::recover(&msg, &sig, &recovery_id).unwrap();
+        assert!(secp256k1::verify(&msg, &sig, &pubkey));
     }
 
     #[test]

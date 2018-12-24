@@ -15,6 +15,7 @@ pub enum IpcResponse {
     GetContract { id: String, result: IpcResults },
     UpdateNewContract { id: String, address: String, result: IpcResults },
     UpdateDeltas { id: String, result: IpcUpdateDeltasResult },
+    NewTaskEncryptionKey { id: String, result: IpcDHMessage }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -27,7 +28,6 @@ pub enum IpcResults {
     Status(String),
     Tips(Vec<IpcDelta>),
 }
-
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -44,7 +44,18 @@ pub enum IpcRequest {
     GetContract { id: String, input: String },
     UpdateNewContract { id: String, address: String, bytecode: String },
     UpdateDeltas { id: String, deltas: Vec<IpcDelta> },
+    NewTaskEncryptionKey { id: String }
+}
 
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IpcDHMessage {
+    #[serde(rename = "msgId")]
+    pub msg_id: String,
+    #[serde(rename = "workerEncryptionKey")]
+    pub dh_key: String,
+    #[serde(rename = "workerSig")]
+    pub sig: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
