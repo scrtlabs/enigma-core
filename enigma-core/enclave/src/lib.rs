@@ -251,11 +251,12 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
                         ethereum_payload_ptr,
                         ethereum_contract_addr)?;
 
-    if exec_res.updated_state.is_some() {
+    if let Some(state) = exec_res.updated_state {
         // Saving the updated state into the db
-        let enc_state = km_t::db::encrypt_state(exec_res.updated_state.unwrap());
+        let enc_state = km_t::db::encrypt_state(state)?;
         enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
     }
+
     Ok(())
 }
 
@@ -292,7 +293,7 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>,
 
     match delta_option {
         Some(delta) => {
-            let enc_delta = km_t::db::encrypt_delta(delta);
+            let enc_delta = km_t::db::encrypt_delta(delta)?;
             *delta_data_out = ocalls_t::save_to_untrusted_memory(&enc_delta.data)?;
             *delta_hash_out = enc_delta.contract_id;
             *delta_index_out = enc_delta.index;
