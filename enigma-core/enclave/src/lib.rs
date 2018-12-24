@@ -38,6 +38,12 @@ extern crate rustc_hex as hex;
 extern crate sputnikvm;
 extern crate sputnikvm_network_classic;
 extern crate wasmi;
+extern crate parity_wasm;
+
+/// This module builds Wasm code for contract deployment from the Wasm contract.
+/// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
+/// The code is based on Parity wasm_utils::cli.
+extern crate pwasm_utils as wasm_utils;
 
 mod evm_t;
 mod km_t;
@@ -56,6 +62,7 @@ use enigma_tools_t::{common, cryptography_t, quote_t};
 use enigma_tools_t::build_arguments_g::*;
 use enigma_types::EnclaveReturn;
 use enigma_types::traits::SliceCPtr;
+use wasm_utils::{build, SourceTarget};
 
 use sgx_types::*;
 use std::string::ToString;
@@ -111,6 +118,7 @@ pub unsafe extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize, cal
 pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                        callable: *const u8, callable_len: usize,
                                        callable_args: *const u8, callable_args_len: usize,
+                                       gas_limit: &u64,
                                        output_ptr: *mut u64, delta_data_ptr: *mut u64,
                                        delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
                                        ethereum_payload_ptr: *mut u64,
@@ -122,6 +130,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     ecall_execute_internal(bytecode_slice,
                                        callable_slice,
                                        callable_args_slice,
+                                       *gas_limit,
                                        output_ptr,
                                        delta_data_ptr,
                                        delta_hash_out,
@@ -139,9 +148,9 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 /// * `bytecode_len` - the length of the `bytecode`.
 /// * `output` - the output holder, which will hold the bytecode for deployment
 /// * `output_len` - the length of the output
-pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, output_ptr: *mut u64) -> EnclaveReturn {
+pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, gas_limit: &u64, output_ptr: *mut u64) -> EnclaveReturn {
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
-    ecall_deploy_internal(bytecode_slice, output_ptr).into()
+    ecall_deploy_internal(bytecode_slice, *gas_limit, output_ptr).into()
 }
 
 
@@ -216,6 +225,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
 unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
                                  callable_slice: &[u8],
                                  callable_args_slice: &[u8],
+                                 gas_limit: u64,
                                  output_ptr: *mut u64,
                                  delta_data_ptr: *mut u64,
                                  delta_hash_out: &mut [u8; 32],
@@ -238,7 +248,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
         },
     };
 
-    let exec_res = execution::execute(&bytecode_slice, state, function_name, types, params)?;
+    let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, params)?;
 
     prepare_wasm_result(exec_res.state_delta,
                         &exec_res.result[..],
@@ -259,8 +269,45 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
     Ok(())
 }
 
-unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], output_ptr: *mut u64) -> Result<(), EnclaveError> {
-    let exec_res = execution::execute_constructor(&bytecode_slice)?;
+/// Builds Wasm code for contract deployment from the Wasm contract.
+/// Gets byte vector with Wasm code.
+/// Writes created code to a file constructor.wasm in a current directory.
+/// This code is based on https://github.com/paritytech/wasm-utils/blob/master/cli/build/main.rs#L68
+/// The parameters' values to build function are default parameters as they appear in the original code.
+pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+    let module = parity_wasm::deserialize_buffer(wasm_code)?;
+
+    let (module, ctor_module) = match build(module,
+                                            SourceTarget::Unknown,
+                                            None,
+                                            &Vec::new(),
+                                            false,
+                                            "49152".parse().expect("New stack size is not valid u32"),
+                                            false)
+        {
+            Ok(v) => v,
+            Err(e) => panic!(""),
+        };
+
+    let result;
+
+    if let Some(ctor_module) = ctor_module {
+        result = parity_wasm::serialize(ctor_module); /*.map_err(Error::Encoding)*/
+    } else {
+        result = parity_wasm::serialize(module); /*.map_err(Error::Encoding)*/
+    }
+
+    match result {
+        Ok(v) => Ok(v),
+        Err(e) => panic!(""),
+    }
+}
+
+
+unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], gas_limit: u64, output_ptr: *mut u64) -> Result<(), EnclaveError> {
+    let deploy_bytecode = build_constructor(bytecode_slice)?;
+
+    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit)?;
 
     let result = &exec_res.result[..];
     *output_ptr = ocalls_t::save_to_untrusted_memory(&result)?;
