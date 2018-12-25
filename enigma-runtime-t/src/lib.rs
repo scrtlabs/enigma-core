@@ -51,12 +51,11 @@ pub struct Runtime {
     current_state: ContractState,
 }
 
-type Result<T> = ::std::result::Result<T, EnclaveError>;
-
-/*
 #[derive(Debug)]
 pub enum WasmError{
     GasLimit,
+    Memory(String),
+    Delta(String),
     Other,
 }
 
@@ -64,10 +63,12 @@ impl wasmi::HostError for WasmError { }
 
 type Result<T> = ::std::result::Result<T, WasmError>;
 
-impl ::std::fmt::Display for WasmError {
+impl std::fmt::Display for WasmError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
         match *self {
             WasmError::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
+            WasmError::Memory(ref s) => write!(f, "{}", s),
+            WasmError::Delta(ref s) => write!(f, "{}", s),
             WasmError::Other => write!(f, "Other"),
         }
     }
@@ -87,7 +88,7 @@ impl From<WasmError> for EnclaveError {
 impl From<str::Utf8Error> for WasmError {
     fn from(err: str::Utf8Error) -> Self { WasmError::Other }
 }
-*/
+
 impl Runtime {
 
     pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32], function_name: &String, args_types: String) -> Runtime {
@@ -125,7 +126,7 @@ impl Runtime {
 
         match self.memory.set(ptr, &self.args){
             Ok(_v) => Ok(()),
-            Err(e) => return Err(EnclaveError::ExecutionError{code: "fetching arguments".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e))),
         }
     }
 
@@ -138,7 +139,7 @@ impl Runtime {
 
         match self.memory.set(ptr, &self.function_name.as_bytes()){
             Ok(_v) => Ok(()),
-            Err(e) => return Err(EnclaveError::ExecutionError{code: "fetching function name".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         }
     }
 
@@ -151,7 +152,7 @@ impl Runtime {
 
         match self.memory.set(ptr, &self.args_types.as_bytes()){
             Ok(_v) => Ok(()),
-            Err(e) => return Err(EnclaveError::ExecutionError{code: "fetching arguments' types".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         }
     }
     /// args:
@@ -174,14 +175,14 @@ impl Runtime {
                     Ok( () ) => {
                         self.result.result = match self.memory.get(0, value_len as usize) {
                             Ok(v) => v,
-                            Err(e) => return Err(EnclaveError::ExecutionError {code: "ret code".to_string(), err: e.to_string()}),
+                            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
                         };
                     },
-                    Err(e) => return Err(EnclaveError::ExecutionError {code: "memory".to_string(), err: e.to_string()}),
+                    Err(e) => return Err(WasmError::Memory(format!("{}", e)))
                 }
                 Ok(())
             },
-            Err(e) => Err(EnclaveError::ExecutionError {code: "memory".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         }
     }
 
@@ -200,7 +201,7 @@ impl Runtime {
         }
         match self.memory.get_into(key.unwrap(), &mut buf[..]) {
             Ok( () ) => (),
-            Err(e) => return Err(EnclaveError::ExecutionError {code: "read state".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         }
         let key1 = str::from_utf8(&buf)?;
         let value_vec = serde_json::to_vec(&self.current_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
@@ -230,7 +231,7 @@ impl Runtime {
 
         match self.memory.get_into(key.unwrap(), &mut buf[..]){
             Ok(v) => v,
-            Err(e) => return Err(EnclaveError::ExecutionError {code: "write state".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         }
 
         let mut val = Vec::with_capacity(value_len as usize);
@@ -240,7 +241,7 @@ impl Runtime {
 
         match self.memory.get_into(value, &mut val[..]){
             Ok(v) => v,
-            Err(e) => return Err(EnclaveError::ExecutionError {code: "write state".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         }
 
         let key1 = str::from_utf8(&buf)?;
@@ -265,7 +266,7 @@ impl Runtime {
 
         match self.memory.get_into(payload, &mut self.result.ethereum_payload[..]){
             Ok(v) => v,
-            Err(e) => return Err(EnclaveError::ExecutionError{code: "write payload".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         }
 
         Ok(())
@@ -280,7 +281,7 @@ impl Runtime {
 
         match self.memory.get_into(address, &mut self.result.ethereum_contract_addr[..]){
             Ok(v) => v,
-            Err(e) => return Err(EnclaveError::ExecutionError{code: "write payload".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         }
 
         Ok(())
@@ -298,18 +299,17 @@ impl Runtime {
 
         self.result.result = match self.memory.get(ptr, len as usize){
             Ok(v)=>v,
-            Err(e)=>return Err(EnclaveError::ExecutionError {code: "Error in getting value from runtime memory".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         };
         Ok(())
     }
 
     /// Destroy the runtime, returning currently recorded result of the execution
-    pub fn into_result(mut self) -> /*Vec<u8>*/Result<RuntimeResult> {
-        //self.result.result.to_owned()
+    pub fn into_result(mut self) -> Result<RuntimeResult> {
         self.result.state_delta =
             match ContractState::generate_delta(&self.init_state, &self.current_state) {
                 Ok(v) => Some(v),
-                Err(e) => return Err(EnclaveError::ExecutionError {code: "Error in generating state delta".to_string(), err: e.to_string()}),
+                Err(e) => return Err(WasmError::Delta(format!("{}", e)))
             };
 
         self.result.updated_state = Some(self.current_state);
@@ -325,7 +325,7 @@ impl Runtime {
                 println!("PRINT: {}", st);
 
             },
-            Err(e) => return Err(EnclaveError::ExecutionError {code: "Error in Logging debug".to_string(), err: e.to_string()}),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e)))
         }
         Ok(())
     }
@@ -335,14 +335,13 @@ impl Runtime {
         if self.charge_gas(amount as u64) {
             Ok(())
         } else {
-            Err(EnclaveError::ExecutionError {code: "Error in execution".to_string(), err: "not enough gas".to_string()})
+            Err(WasmError::GasLimit)
         }
     }
 
     fn charge_gas(&mut self, amount: u64) -> bool {
         let prev = self.gas_counter;
         match prev.checked_add(amount) {
-            // gas charge overflow protection
             None => false,
             Some(val) if val > self.gas_limit => false,
             Some(_) => {
@@ -360,23 +359,24 @@ mod ext_impl {
         fn invoke_index(&mut self, index: usize, args: RuntimeArgs) -> Result<Option<RuntimeValue>, Trap> {
             match index {
                 eng_resolver::ids::RET_FUNC => {
-                    Runtime::ret(self, args);
+                    Runtime::ret(self, args)?;
                     Ok(None)
                 }
                 eng_resolver::ids::WRITE_STATE_FUNC => {
-                    Runtime::write_state(self, args);
+                    Runtime::write_state(self, args)?;
                     Ok(None)
                 }
                 eng_resolver::ids::READ_STATE_FUNC => {
-                    Ok(Some(RuntimeValue::I32(Runtime::read_state(self, args).unwrap())))
+                    let res = Runtime::read_state(self, args)?;
+                    Ok(Some(RuntimeValue::I32(res)))
                 }
                 eng_resolver::ids::FROM_MEM_FUNC => {
-                    Runtime::from_memory(self, args);
+                    Runtime::from_memory(self, args)?;
                     Ok(None)
                 }
 
                 eng_resolver::ids::EPRINT_FUNC => {
-                    Runtime::eprint(self, args);
+                    Runtime::eprint(self, args)?;
                     Ok(None)
                 }
 
@@ -385,7 +385,7 @@ mod ext_impl {
                 }
 
                 eng_resolver::ids::NAME_FUNC => {
-                    Runtime::fetch_function_name(self, args);
+                    Runtime::fetch_function_name(self, args)?;
                     Ok(None)
                 }
 
@@ -394,7 +394,7 @@ mod ext_impl {
                 }
 
                 eng_resolver::ids::ARGS_FUNC => {
-                    Runtime::fetch_args(self, args);
+                    Runtime::fetch_args(self, args)?;
                     Ok(None)
                 }
 
@@ -403,22 +403,22 @@ mod ext_impl {
                 }
 
                 eng_resolver::ids::TYPES_FUNC => {
-                    Runtime::fetch_types(self, args);
+                    Runtime::fetch_types(self, args)?;
                     Ok(None)
                 }
 
                 eng_resolver::ids::WRITE_PAYLOAD_FUNC => {
-                    Runtime::write_payload(self, args);
+                    Runtime::write_payload(self, args)?;
                     Ok(None)
                 }
 
                 eng_resolver::ids::WRITE_ADDRESS_FUNC => {
-                    Runtime::write_address(self, args);
+                    Runtime::write_address(self, args)?;
                     Ok(None)
                 }
 
                 eng_resolver::ids::GAS_FUNC => {
-                    Runtime::gas(self, args);
+                    Runtime::gas(self, args)?;
                     Ok(None)
                 }
 
