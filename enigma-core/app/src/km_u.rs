@@ -90,7 +90,6 @@ pub fn get_user_key(eid: sgx_enclave_id_t) -> Result<(Box<[u8]>, [u8; 65]), Erro
 #[cfg(test)]
 pub mod tests {
     extern crate secp256k1;
-    extern crate rand;
     extern crate ring;
 
     use crate::esgx::general::init_enclave_wrapper;
@@ -169,8 +168,7 @@ pub mod tests {
         let node_pubkey = PublicKey::parse(&pubkey).unwrap();
 
         // Generating a second pair of priv-pub keys for the DH
-        let mut rng = rand::thread_rng(); // TODO: Consider replacing random with constant key
-        let km_priv_key = SecretKey::random(&mut rng);
+        let km_priv_key = SecretKey::parse(&b"Enigma".sha256()).unwrap();
         let km_pubkey = PublicKey::from_secret_key(&km_priv_key);
 
         // Generating the ECDH key for AES
