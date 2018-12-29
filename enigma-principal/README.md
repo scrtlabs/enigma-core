@@ -6,6 +6,45 @@ Currently it is a centralized to maintain simplicity while testing and developin
 
 <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=principal-node-isan" />
 
+## JSON RPC Server
+This module implements a [JSON-RPC 2.0](https://www.jsonrpc.org/specification_)-compliant server
+
+This module implements the following methods:
+
+## getStateKeys
+
+Requests the private secret contract state keys. Only the worker node assigned to a given contract for the current epoch
+is authorized to make this request. The Principal node's enclave keeps a sealed list of active worker for 
+each epoch by formally verifying the `WorkerParameterized` event in 
+[Enigma.sol](https://github.com/enigmampc/enigma-contract-internal/blob/master/contracts/Enigma.sol).
+The response contains an encrypted list of state keys.
+The encryption method relies on a DH key exchange between the Principal node and the authorized worker node.
+
+**Parameters**
+
+- `requestMessage` (String) - The HEX string of a serialized KM [Message](https://github.com/enigmampc/enigma-core-internal/blob/develop/enigma-tools-t/src/km_primitives.rs) struct. The Request data contains a list of secret contract addresses (`Vec<ContractAddress>`).
+- `workerSig` (String) - The HEX string of the signature of the hash of the serialized KM Message (`msg.to_message()`). This allows the Principal node to recover the worker's signer address. 
+
+**Returns**
+
+`encryptedResponseMessage` (String) - The HEX string of the encrypted KM Message Response. The Response data contains a list of secret contract address / state key tuples (`Vec<(ContractAddress, StateKey)>`).
+
+**Example**
+
+```sh
+// Request
+curl -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "id":1, "method":"getStateKeys", "params": {"requestMessage": "84a46461746181a75265717565737493dc0020cca7cc937b64ccb8cccacca5cc8f03721bccb6ccbacccf5c78cccb235fccebcce0cce70b1bcc84cccdcc99541461cca0cc8edc002016367accacccb67a4a017ccc8dcca8ccabcc95682ccccb390863780f7114ccddcca0cca0cce0ccc55644ccc7ccc4dc0020ccb1cce9cc9324505bccd32dcca0cce1ccf85dcccf5e19cca0cc9dccb0481ecc8a15ccf62c41cceb320304cca8cce927a269649c1363ccb3301c101f33cce1cc9a0524a67072656669789e456e69676d61204d657373616765a67075626b6579dc0040cce5ccbe28cc9dcc9a2eccbd08ccc0457a5f16ccdfcc9fccdc256c5d5f6c3514cccdcc95ccb47c11ccc4cccd3e31ccf0cce4ccefccc83ccc80cce8121c3939ccbb2561cc80ccec48ccbecca8ccc569ccd2cca3ccda6bcce415ccfa20cc9bcc98ccda", "workerSig": "43f19586b0a0ae626b9418fe8355888013be1c9b4263a4b3a27953de641991e936ed6c4076a2a383b3b001936bf0eb6e23c78fbec1ee36f19c6a9d24d75e9e081c"}}'
+
+// Result
+{
+	"jsonrpc":"2.0",
+	"id": 1,
+	"result": {
+	    "encryptedResponseMessage": "0061d93b5412c0c99c3c7867db13c4e13e51292bd52565d002ecf845bb0cfd8adfa5459173364ea8aff3fe24054cca88581f6c3c5e928097b9d4d47fce12ae47",
+	}
+}
+```
+ 
 ## To see all of the options available once compiled cd into /bin and type
 ```
 $./enigma_principal_app --info
