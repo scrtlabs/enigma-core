@@ -8,6 +8,9 @@ build = "build.rs"
 enigma-tools-u = {path = "../../enigma-tools-u"}
 enigma-types = { path = "../../enigma-types" }
 
+futures = "0.1.25"
+tokio = "0.1"
+tokio-zmq = "0.8"
 tempdir = "0.3.7"
 base64 = "0.10.0"
 zmq = "0.8"
@@ -24,9 +27,7 @@ db-key = "0.0.5"
 lazy_static = "1.1.0"
 byteorder = "1.2"
 lru-cache = "0.1.1"
-
-parity-wasm = "0.31" # 0.35?
-pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git" } # TODO: add a version specific branch.
+log = "0.4.6"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

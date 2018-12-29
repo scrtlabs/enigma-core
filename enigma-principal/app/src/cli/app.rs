@@ -1,132 +1,91 @@
-// general modules
-use sgx_types::{uint8_t, uint32_t};
-use sgx_types::{sgx_enclave_id_t, sgx_status_t};
+use failure::Error;
+use sgx_types::sgx_enclave_id_t;
 use structopt::StructOpt;
-use std::thread;
-// enigma modules 
-pub use esgx::general::ocall_get_home;
-use boot_network::principal_utils::EmittParams;
-use boot_network::principal_manager::{PrincipalConfig,Sampler,PrincipalManager};
+
 use boot_network::deploy_scripts;
-use enigma_tools_u::web3_utils::w3utils;
-use boot_network::principal_manager;
-use esgx::equote;
+use boot_network::principal_manager::{self, PrincipalManager, Sampler};
 use cli;
+use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
+use rustc_hex::ToHex;
+use std::path::Path;
 
+pub use esgx::general::ocall_get_home;
 
-pub fn start(eid : sgx_enclave_id_t){
-
+pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     let opt = cli::options::Opt::from_args();
-    let config = opt.deploy_config.as_str();
-    let principal_config = opt.principal_config.as_str();
+    let config = deploy_scripts::load_config(opt.deploy_config.as_str())?;
+    let mut principal_config = PrincipalManager::load_config(opt.principal_config.as_str())?;
+    let sign_key = deploy_scripts::get_signing_address(eid)?;
 
-    match opt.info {
-        // show info only
-        true =>{
+    if opt.info {
+        cli::options::print_info(&sign_key);
+    } else {
+        cli::options::print_logo();
 
-            let sign_key = deploy_scripts::get_signing_address(eid).expect("cannot load signing key");
-            cli::options::print_info(&sign_key);
+        // deploy the contracts Enigma,EnigmaToken (not deployed yet)
+        if opt.deploy {
+            println!("[Mode:] deploying to default.");
+            /* step1 : prepeare the contracts (deploy Enigma,EnigmaToken) */
+            // load the config
+            // deploy all contracts. (Enigma & EnigmaToken)
+            let enigma_contract = EnigmaContract::deploy_contract(Path::new(&config.enigma_token_contract_path),
+                                                                  Path::new(&config.enigma_contract_path),
+                                                                  &config.url,
+                                                                  None, // This means that account no. 0 will be used, we should use the one from the JSON or add an `--account` cli option. or
+                                                                  &sign_key)?;
 
-        },
-        // run the node 
-        false =>{
+            /* step2 : build the config of the principal node   */
+            // optional : set time limit for the principal node
+            let ttl = if opt.time_to_live > 0 { Some(opt.time_to_live) } else { None };
 
-            cli::options::print_logo();
+            let gas_limit = 5_999_999;
+            let contract_addr = enigma_contract.address();
+            principal_config.set_accounts_address(enigma_contract.account.to_hex());
+            principal_config.set_enigma_contract_address(contract_addr.to_hex());
+            principal_config.max_epochs = ttl;
 
-            match opt.deploy{
-                // deploy the contracts Enigma,EnigmaToken (not deployed yet)
-                true =>{
+            let principal: PrincipalManager = PrincipalManager::new_delegated(principal_config, enigma_contract, eid);
 
-                        println!("[Mode:] deploying to default.");
-                        /* step1 : prepeare the contracts (deploy Enigma,EnigmaToken) */
+            /* step3 optional - run miner to simulate blocks */
+            let join_handle = if opt.mine > 0 {
+                Some(principal_manager::run_miner(principal.get_account_address(), principal.get_web3(), opt.mine as u64))
+            } else {
+                None
+            };
 
-                        // load the config 
-                        let mut config = deploy_scripts::load_config(config);
-                        let url = config.URL.clone();
-                        // get dynamic eth addrress
-                        let accounts = w3utils::get_accounts(config.URL.clone().as_str()).unwrap();
-                        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
-                        // modify to dynamic address
-                        config.set_accounts_address(deployer);
-                        // deploy all contracts. (Enigma & EnigmaToken)
-                        let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
-                        (
-                            eid, 
-                            config, 
-                            None
-                        )
-                        .expect("cannot deploy Enigma,EnigmaToken");
+            /* step4 : run the principal manager */
+            principal.run(gas_limit).unwrap();
+            if let Some(t) = join_handle { t.join().unwrap(); }
+        // contracts deployed, just run
+        } else {
+            println!("[Mode:] run node NO DEPLOY.");
 
-                        /* step2 : build the config of the principal node   */
+            /* step1 : build the config of the principal node   */
+            // optional : set time limit for the principal node
 
-                        // optional : set time limit for the principal node 
-                        let mut ttl = None;
-                        if opt.time_to_live > 0{
-                            ttl = Some(opt.time_to_live);
-                        }
-                        let mut params : EmittParams = EmittParams{ 
-                            eid : eid, 
-                            gas_limit : String::from("5999999"),
-                            max_epochs : ttl, 
-                            ..Default::default()
-                        };
+            let enigma_contract = EnigmaContract::from_deployed(&config.account_address,
+                                                                Path::new(&config.enigma_contract_path),
+                                                                None, // This means that account no. 0 will be used, we should use the one from the JSON or add an `--account` cli option. or
+                                                                &config.url)?;
 
-                        let mut the_config = PrincipalManager::load_config(principal_config);
-                        let contract_addr : String = w3utils::address_to_string_addr(&enigma_contract.address());
-                        let deployer = w3utils::address_to_string_addr(&accounts[0]);
-                        the_config.set_accounts_address(deployer);
-                        the_config.set_enigma_contract_address(contract_addr.clone());
-                        
-                        /* step3 optional - run miner to simulate blocks */
-                        
-                        if opt.mine >0 {
-                            cli::options::run_miner(url, &accounts, opt.mine);
-                        }
+            let ttl = if opt.time_to_live > 0 { Some(opt.time_to_live) } else { None };
 
-                        /* step4 : run the principal manager */
+            let gas_limit = 5_999_999;
+            principal_config.max_epochs = ttl;
 
-                        let principal : PrincipalManager = PrincipalManager::new_delegated(principal_config, params, the_config);
-                        principal.run().unwrap();
+            let principal: PrincipalManager = PrincipalManager::new_delegated(principal_config, enigma_contract, eid);
 
-                },
-                // contracts deployed, just run 
-                false =>{
-                    
-                    println!("[Mode:] run node NO DEPLOY.");
+            /* step2 optional - run miner to simulate blocks */
+            let join_handle = if opt.mine > 0 {
+                Some(principal_manager::run_miner(principal.get_account_address(), principal.get_web3(), opt.mine as u64))
+            } else {
+                None
+            };
 
-                     /* step1 : build the config of the principal node   */
-
-                    // optional : set time limit for the principal node 
-                    let mut ttl = None;
-                    if opt.time_to_live > 0{
-                        ttl = Some(opt.time_to_live);
-                    }
-                    let mut params : EmittParams = EmittParams{ 
-                        eid : eid, 
-                        gas_limit : String::from("5999999"),
-                        max_epochs : ttl, 
-                        ..Default::default()
-                    };
-                    
-                    let principal : PrincipalManager = PrincipalManager::new(principal_config, params, None);
-            
-                    /* step2 optional - run miner to simulate blocks */
-                    
-                    if opt.mine >0 {
-                        cli::options::run_miner
-                        (
-                            principal.get_network_url(), 
-                            &vec![principal.get_account_address().unwrap()], 
-                            opt.mine
-                        );
-                    }
-
-                    /* step3 : run the principal manager */
-                    
-                    principal.run().unwrap();
-                }
-            }
-        },
-    };
-
+            /* step3 : run the principal manager */
+            principal.run(gas_limit).unwrap();
+            if let Some(t) = join_handle { t.join().unwrap(); }
+        }
+    }
+    Ok(())
 }

@@ -6,7 +6,7 @@
     "TEST_NET" : true,
     "WITH_PRIVATE_KEY" : false,
     "PRIVATE_KEY" : "",
-    "URL" : "http://localhost:9545",
+    "URL" : "http://localhost:8545",
     "EPOCH_SIZE" : 100,
     "POLLING_INTERVAL" : 5,
     "SPID" : "1601F95C39B9EA307FEAABB901ADC3EE",

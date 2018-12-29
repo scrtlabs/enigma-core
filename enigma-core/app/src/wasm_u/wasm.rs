@@ -10,72 +10,30 @@ use sgx_types::*;
 
 extern "C" {
     fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
-                    output_ptr: *mut u64) -> sgx_status_t;
+                    gas_limit: *const u64, output_ptr: *mut u64) -> sgx_status_t;
 
     fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
                      bytecode: *const u8, bytecode_len: usize,
                      callable: *const u8, callable_len: usize,
                      callable_args: *const u8, callable_args_len: usize,
+                     gas_limit: *const u64,
                      output: *mut u64, delta_data_ptr: *mut u64,
                      delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
                      ethereum_payload: *mut u64,
                      ethereum_contract_addr: &mut [u8; 20]) -> sgx_status_t;
 }
 
-extern crate parity_wasm;
-/// This module builds Wasm code for contract deployment from the Wasm contract.
-/// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
-/// The code is based on Parity wasm_utils::cli.
-extern crate pwasm_utils as utils;
-
-use self::utils::{build, SourceTarget};
-
-/// Builds Wasm code for contract deployment from the Wasm contract.
-/// Gets byte vector with Wasm code.
-/// Writes created code to a file constructor.wasm in a current directory.
-/// This code is based on https://github.com/paritytech/wasm-utils/blob/master/cli/build/main.rs#L68
-/// The parameters' values to build function are default parameters as they appear in the original code.
-pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, Error> {
-    let module = parity_wasm::deserialize_buffer(wasm_code)?;
-
-    let (module, ctor_module) = match build(module,
-                                            SourceTarget::Unknown,
-                                            None,
-                                            &Vec::new(),
-                                            false,
-                                            "49152".parse().expect("New stack size is not valid u32"),
-                                            false)
-    {
-        Ok(v) => v,
-        Err(e) => panic!(""),
-    };
-
-    let result;
-
-    if let Some(ctor_module) = ctor_module {
-        result = parity_wasm::serialize(ctor_module); /*.map_err(Error::Encoding)*/
-    } else {
-        result = parity_wasm::serialize(module); /*.map_err(Error::Encoding)*/
-    }
-
-    match result {
-        Ok(v) => Ok(v),
-        Err(e) => panic!(""),
-    }
-}
-
 const MAX_EVM_RESULT: usize = 100_000;
-pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8])-> Result<Box<[u8]>, Error> {
-
-    let deploy_bytecode = build_constructor(&bytecode)?;
+pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], gas_limit: u64)-> Result<Box<[u8]>, Error> {
     let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
     let mut output_ptr: u64 = 0;
 
     let result = unsafe {
         ecall_deploy(eid,
                      &mut retval,
-                     deploy_bytecode.as_c_ptr() as *const u8,
-                     deploy_bytecode.len(),
+                     bytecode.as_c_ptr() as *const u8,
+                     bytecode.len(),
+                     &gas_limit as *const u64,
                      &mut output_ptr as *mut u64)
     };
     let box_ptr = output_ptr as *mut Box<[u8]>;
@@ -92,7 +50,7 @@ pub struct WasmResult {
     pub eth_contract_addr: [u8;20],
 }
 
-pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &str)-> Result<WasmResult,Error>{
+pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &str, gas_limit: u64)-> Result<WasmResult,Error>{
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
@@ -110,6 +68,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &s
                       callable.len(),
                       args.as_c_ptr() as *const u8,
                       args.len(),
+                      &gas_limit as *const u64,
                       &mut output as *mut u64,
                       &mut delta_data_ptr as *mut u64,
                       &mut delta_hash,
@@ -188,7 +147,7 @@ pub mod tests {
         let mut wasm_code = Vec::new();
         f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
-        wasm::deploy(eid, &wasm_code).expect("Deploy Failed")
+        wasm::deploy(eid, &wasm_code, 100_000).expect("Deploy Failed")
     }
 
     #[test]
@@ -196,7 +155,7 @@ pub mod tests {
         let enclave = init_enclave();
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
 //        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
-        let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "", 100_000).expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
     }
@@ -205,7 +164,7 @@ pub mod tests {
     fn eth_bridge() {
         let enclave = init_enclave();
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/contract_with_eth_calls");
-        let result = wasm::execute(enclave.geteid(), &contract_code, "test()", "").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &contract_code, "test()", "", 100_000).expect("Execution failed");
         enclave.destroy();
     }
 
@@ -220,8 +179,8 @@ pub mod tests {
         f.read_to_end(&mut wasm_code).unwrap();
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
         let enclave = init_enclave();
-        let contract_code = wasm::deploy(enclave.geteid(), &wasm_code).expect("Deploy Failed");
-        let result = wasm::execute(enclave.geteid(),&contract_code, "call", "").expect("Execution failed");
+        let contract_code = wasm::deploy(enclave.geteid(), &wasm_code, 100_000).expect("Deploy Failed");
+        let result = wasm::execute(enclave.geteid(),&contract_code, "call", "", 100_000).expect("Execution failed");
         assert_eq!(from_utf8(&result.output).unwrap(), "157");
     }
 }

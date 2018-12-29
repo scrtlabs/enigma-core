@@ -16,3 +16,9 @@ pub struct QuoteErr {
 pub struct WasmError {
     pub message: String,
 }
+
+#[derive(Fail, Debug)]
+#[fail(display = "Error while using the web3 server = ({})", message)]
+pub struct Web3Error {
+    pub message: String,
+}

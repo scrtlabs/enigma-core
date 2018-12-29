@@ -1,5 +1,7 @@
 use std::sync::{Mutex, MutexGuard};
 use tiny_keccak::Keccak;
+use failure::Error;
+use hex::FromHex;
 
 pub trait LockExpectMutex<T> {
     fn lock_expect(&self, name: &str) -> MutexGuard<T>;
@@ -18,6 +20,21 @@ pub trait Sha256<T> {
 pub trait Keccak256<T> {
     fn keccak256(&self) -> T where T: Sized;
 }
+
+pub trait FromHex32<T> {
+    fn from_hex_32(&self) -> T where T: Sized;
+}
+
+impl FromHex32<Result<[u8; 32], Error>> for str {
+    fn from_hex_32(&self) -> Result<[u8; 32], Error> {
+        let hex = self.from_hex()?;
+        if hex.len() != 32 { bail!("Wrong length"); }
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hex);
+        Ok(result)
+    }
+}
+
 
 impl Keccak256<[u8; 32]> for [u8] {
     fn keccak256(&self) -> [u8; 32] {

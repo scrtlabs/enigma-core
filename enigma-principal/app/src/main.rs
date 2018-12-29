@@ -4,65 +4,61 @@ extern crate structopt;
 extern crate failure;
 #[macro_use]
 extern crate colour;
-extern crate url;
-extern crate sgx_types;
-extern crate sgx_urts;
 extern crate base64;
-extern crate rlp;
+extern crate dirs;
 extern crate enigma_tools_u;
-extern crate tiny_keccak;
-extern crate serde_json;
+extern crate rlp;
+extern crate rustc_hex;
 extern crate serde;
 extern crate serde_derive;
-extern crate web3;
-extern crate rustc_hex;
+extern crate serde_json;
+extern crate sgx_types;
+extern crate sgx_urts;
+extern crate tiny_keccak;
 extern crate tokio_core;
-extern crate dirs;
+extern crate url;
+extern crate web3;
 extern crate jsonrpc_minihttp_server;
 extern crate ethabi;
 extern crate rocksdb;
 extern crate enigma_types;
-
 // enigma modules
-mod esgx;
-mod common_u;
 mod boot_network;
 mod cli;
-// general modules
-use sgx_types::{uint8_t, uint32_t};
-use sgx_types::{sgx_enclave_id_t, sgx_status_t};
+mod common_u;
+mod esgx;
+
 pub use esgx::general::ocall_get_home;
 
 #[allow(unused_variables, unused_mut)]
 fn main() {
-
-    /// init enclave
+    // init enclave
     let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
             r
-        },
+        }
         Err(x) => {
             println!("[-] Init Enclave Failed {}!", x.as_str());
             return;
-        },
+        }
     };
 
-    /// run THE app
-    ///
+    // run THE app
     let eid = enclave.geteid();
-    cli::app::start(eid);
+    cli::app::start(eid).unwrap();
 
-    /// drop enclave when done
+    // drop enclave when done
     enclave.destroy();
 }
-
 
 #[cfg(test)]
 mod tests {
     use esgx::general::init_enclave_wrapper;
     use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-    extern { fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t; }
+    extern "C" {
+        fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;
+    }
 
     #[test]
     pub fn test_enclave_internal() {
@@ -71,15 +67,15 @@ mod tests {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r
-            },
+            }
             Err(x) => {
                 println!("[-] Init Enclave Failed {}!", x.as_str());
-                assert_eq!(0,1);
+                assert_eq!(0, 1);
                 return;
-            },
+            }
         };
         let ret = unsafe { ecall_run_tests(enclave.geteid()) };
-        assert_eq!(ret,sgx_status_t::SGX_SUCCESS);
+        assert_eq!(ret, sgx_status_t::SGX_SUCCESS);
         enclave.destroy();
     }
 }
