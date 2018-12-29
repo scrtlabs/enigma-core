@@ -46,7 +46,7 @@ pub struct PrincipalManager {
     as_service: service::AttestationService,
     pub contract: EnigmaContract,
     pub eid: sgx_enclave_id_t,
-    pub server: PrincipalHttpServer,
+//    pub server: PrincipalHttpServer,
 }
 
 impl PrincipalManager {
@@ -85,7 +85,7 @@ pub trait Sampler {
     fn get_network_url(&self) -> String;
 
     // after initialization, start the HTTP server for the JSON RPC api
-    fn start_server(&self) -> Result<(), Error>;
+//    fn start_server(&self) -> Result<(), Error>;
 
     /// after initiation, this will run the principal node and block.
     fn run<G: Into<U256>>(&self, gas: G) -> Result<(), Error>;

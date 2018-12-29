@@ -12,22 +12,20 @@ use web3::contract::tokens::Tokenizable;
 use enigma_tools_u;
 use enigma_tools_u::attestation_service::constants;
 use enigma_tools_u::attestation_service::service;
-use enigma_types::traits::SliceCPtr;
-use enigma_types::EnclaveReturn;
 
 extern {
     fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t,
-                             rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> EnclaveReturn;
+                             rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t;
 
     fn ecall_set_worker_params(eid: sgx_enclave_id_t, retval: &mut sgx_status_t,
                                receipt_tokens: *const u8, receipt_tokens_len: usize,
-                               sig_out: &mut [u8; 65]) -> EnclaveReturn;
+                               sig_out: &mut [u8; 65]) -> sgx_status_t;
 
     fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut sgx_status_t,
                                 enc_msg: *const u8, enc_msg_len: usize,
                                 sig: &[u8; 65],
                                 enc_response_out: *mut u8, enc_response_len_out: &mut usize,
-                                sig_out: &mut [u8; 65]) -> EnclaveReturn;
+                                sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
 
 pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
@@ -37,7 +35,7 @@ pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
     let result = unsafe {
         ecall_get_random_seed(eid, &mut retval, &mut rand_out, &mut sig_out)
     };
-    assert_eq!(result, EnclaveReturn::Success); // TODO: Replace with good Error handling.
+    assert_eq!(result, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
     (rand_out, sig_out)
 }
 
@@ -56,12 +54,12 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, log: Log, receipt_hashes: Option
         ecall_set_worker_params(
             eid,
             &mut retval,
-            receipt_tokens.as_c_ptr() as *const u8,
+            receipt_tokens.as_ptr() as *const u8,
             receipt_tokens.len(),
             &mut sig_out,
         )
     };
-    assert_eq!(result, EnclaveReturn::Success); // TODO: Replace with good Error handling.
+    assert_eq!(result, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
     (sig_out)
 }
 
@@ -79,7 +77,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, enc_msg: Vec<u8>, sig: [u8; 65]
         ecall_get_enc_state_keys(
             eid,
             &mut retval,
-            enc_msg.as_c_ptr() as *const u8,
+            enc_msg.as_ptr() as *const u8,
             enc_msg.len(),
             &sig,
             enc_response_slice.as_mut_ptr() as *mut u8,
@@ -87,7 +85,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, enc_msg: Vec<u8>, sig: [u8; 65]
             &mut sig_out,
         )
     };
-    assert_eq!(response, EnclaveReturn::Success); // TODO: Replace with good Error handling.
+    assert_eq!(response, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
     println!("got encrypted state keys: {:?}", response);
     let enc_response_out = enc_response_slice[0..enc_response_len_out].iter().cloned().collect();
     (enc_response_out, sig_out)

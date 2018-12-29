@@ -7,8 +7,10 @@ use std::thread;
 use std::time;
 use web3::contract::{CallFuture, Contract, Options};
 use web3::futures::Future;
+use web3::futures::stream::Stream;
 use web3::transports::Http;
 use web3::types::{Address, H256, U256, FilterBuilder};
+use web3::Transport;
 use web3::helpers;
 use web3::contract::tokens::Tokenizable;
 use ethabi::Event;
@@ -26,8 +28,6 @@ pub trait Principal<G: Into<U256>> {
     fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error>
         where Self: Sized;
 
-    fn filter_worker_params(&self) -> Result<(), Error>;
-
     fn set_worker_params(&self, eid: sgx_enclave_id_t, gas_limit: G) -> CallFuture<H256, <Http as Transport>::Out>;
 
     fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
@@ -35,6 +35,8 @@ pub trait Principal<G: Into<U256>> {
 
     fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
                     max_epochs: Option<usize>);
+
+    fn filter_worker_params(&self) -> Result<(), Error>;
 }
 
 impl<G: Into<U256>> Principal<G> for EnigmaContract {
@@ -49,6 +51,17 @@ impl<G: Into<U256>> Principal<G> for EnigmaContract {
 
     fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
                                   -> CallFuture<H256, <Http as Transport>::Out> {
+        // get seed,signature
+        let (rand_seed, sig) = random_u::get_signed_random(eid);
+        let the_seed: U256 = U256::from_big_endian(&rand_seed);
+        println!("[---\u{25B6} seed: {} \u{25C0}---]", the_seed);
+        // set gas options for the tx
+        let mut options = Options::default();
+        options.gas = Some(gas_limit.into());
+        // set random seed
+        contract.call("setWorkersParams", (the_seed, sig.to_vec()), *account, options)
+    }
+
     fn filter_worker_params(&self) -> Result<(), Error> {
         let event = Event {
             name: "WorkersParameterized".to_owned(),
@@ -70,7 +83,7 @@ impl<G: Into<U256>> Principal<G> for EnigmaContract {
         let event_sig = event.signature();
         // Filter for Hello event in our contract
         let filter = FilterBuilder::default()
-            .address(vec![self.contract.address()])
+            .address(vec![self.address()])
             .topics(
                 Some(vec![
                     event_sig.into(),
@@ -109,18 +122,6 @@ impl<G: Into<U256>> Principal<G> for EnigmaContract {
         Ok(())
     }
 
-    // set (seed,signature(seed)) into the enigma smart contract
-    fn set_worker_params(&self, eid: sgx_enclave_id_t, gas_limit: &str) -> Result<(), Error> {
-        // get seed,signature
-        let (rand_seed, sig) = random_u::get_signed_random(eid);
-        let the_seed: U256 = U256::from_big_endian(&rand_seed);
-        println!("[---\u{25B6} seed: {} \u{25C0}---]", the_seed);
-        // set gas options for the tx
-        let mut options = Options::default();
-        options.gas = Some(gas_limit.into());
-        // set random seed
-        contract.call("setWorkersParams", (the_seed, sig.to_vec()), *account, options)
-    }
 
     fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
                     max_epochs: Option<usize>) {
