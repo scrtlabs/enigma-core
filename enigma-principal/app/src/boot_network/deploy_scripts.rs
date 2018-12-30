@@ -34,6 +34,7 @@ impl ScriptDeployConfig {
 }
 
 pub fn load_config(config_path: &str) -> Result<ScriptDeployConfig, Error> {
+    println!("Loading deploy config: {:?}", config_path);
     let mut f = File::open(config_path)?;
     let mut contents = String::new();
     f.read_to_string(&mut contents)?;

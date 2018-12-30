@@ -52,6 +52,7 @@ pub struct PrincipalManager {
 impl PrincipalManager {
     // load json config into the struct
     pub fn load_config(config_path: &str) -> Result<PrincipalConfig, Error> {
+        println!("Loading Principal config: {:?}", config_path);
         let mut f = File::open(config_path)?;
 
         let mut contents = String::new();
@@ -195,7 +196,7 @@ mod test {
 
         let eid = enclave.geteid();
         // load the config
-        let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
+        let deploy_config = "../app/tests/principal_node/config/deploy_config.json";
         let mut config = deploy_scripts::load_config(deploy_config).unwrap();
         // modify to dynamic address
         //        config.set_accounts_address(deployer);
@@ -214,7 +215,7 @@ mod test {
         // run simulated miner
         run_miner(account, Arc::clone(&enigma_contract.web3), 1);
 
-        let principal_config = "../app/tests/principal_node/contracts/principal_test_config.json";
+        let principal_config = "../app/tests/principal_node/config/principal_test_config.json";
         let mut the_config = PrincipalManager::load_config(principal_config).unwrap();
         the_config.set_accounts_address(account.to_hex());
         the_config.set_enigma_contract_address(enigma_contract.address().to_hex());

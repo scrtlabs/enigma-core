@@ -25,11 +25,11 @@ pub struct Opt {
     pub time_to_live: usize,
 
     /// Optional: if --deploy then change default to custom config file
-    #[structopt(short = "dc", long = "deploy-config", default_value = "../app/tests/principal_node/contracts/deploy_config.json")]
+    #[structopt(short = "dc", long = "deploy-config", default_value = "../app/tests/principal_node/config/deploy_config.json")]
     pub deploy_config: String,
 
     /// Optional: change the default principal node config
-    #[structopt(short = "pc", long = "principal-config", default_value = "../app/tests/principal_node/contracts/principal_test_config.json")]
+    #[structopt(short = "pc", long = "principal-config", default_value = "../app/tests/principal_node/config/principal_test_config.json")]
     pub principal_config: String,
 }
 

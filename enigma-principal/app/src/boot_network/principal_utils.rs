@@ -140,25 +140,28 @@ impl<G: Into<U256>> Principal<G> for EnigmaContract {
             let w3_contract = Arc::clone(&w3_contract);
 
             let future = self.web3.eth().block_number().and_then(move |num| {
-                    let curr_block = num.low_u64() as usize;
-                    let prev_block_ref = prev_epoch.load(Ordering::Relaxed);
-                    println!("previous: {}, current block: {}, next: {}", prev_block_ref, curr_block, (prev_block_ref + epoch_size));
-                    if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
-                        prev_epoch.swap(curr_block, Ordering::Relaxed);
-                        thread::sleep(time::Duration::from_secs(2));
-                        println!("[\u{1F50A} ] @ block {}, prev block @ {} [\u{1F50A} ]", curr_block, prev_block_ref);
-                        return Ok(());
-                    }
-                    Err(web3::Error::from_kind(web3::ErrorKind::InvalidResponse("not the right block".to_string())))
+                let curr_block = num.low_u64() as usize;
+                let prev_block_ref = prev_epoch.load(Ordering::Relaxed);
+                println!("previous: {}, current block: {}, next: {}", prev_block_ref, curr_block, (prev_block_ref + epoch_size));
+//                // Account for the fact that starting the app does not restart the chain
+                if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
+                    prev_epoch.swap(curr_block, Ordering::Relaxed);
+                } else if curr_block < prev_block_ref {
+                    return Err(web3::Error::from_kind(web3::ErrorKind::InvalidResponse("not the right block".to_string())))
+                }
+                thread::sleep(time::Duration::from_secs(2));
+                println!("[\u{1F50A} ] @ block {}, prev block @ {} [\u{1F50A} ]", curr_block, prev_block_ref);
+                Ok(())
             }).map_err(From::from)
                 .and_then(move |_| {
                     println!("sending params!");
                     EnigmaContract::set_worker_params_internal(&w3_contract, &account, eid, gas_limit)
                 });
 
-            self.eloop.remote().spawn(|_| { future.map_err(|err| eprintln!("Errored with: {:?}", err))
-                                                .map(|res| println!("Res: {:?}", res))
-                                      });
+            self.eloop.remote().spawn(|_| {
+                future.map_err(|err| eprintln!("Errored with: {:?}", err))
+                    .map(|res| println!("Res: {:?}", res))
+            });
             thread::sleep(time::Duration::from_secs(polling_interval));
             epoch_counter += 1;
             if max_epochs != 0 && epoch_counter == max_epochs {
