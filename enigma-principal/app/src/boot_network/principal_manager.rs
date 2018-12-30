@@ -44,7 +44,7 @@ impl PrincipalConfig {
 pub struct PrincipalManager {
     pub config: PrincipalConfig,
     as_service: service::AttestationService,
-    pub contract: EnigmaContract,
+    pub contract: Arc<EnigmaContract>,
     pub eid: sgx_enclave_id_t,
 //    pub server: PrincipalHttpServer,
 }
@@ -67,11 +67,11 @@ impl PrincipalManager {
 // General interface of a Sampler == The entity that manages the principal node logic.
 pub trait Sampler {
     /// load with config from file
-    fn new(config_path: &str, contract: EnigmaContract, eid: sgx_enclave_id_t) -> Result<Self, Error>
+    fn new(config_path: &str, contract: Arc<EnigmaContract>, eid: sgx_enclave_id_t) -> Result<Self, Error>
         where Self: Sized;
 
     /// load with config passed from the caller (for mutation purposes)
-    fn new_delegated(config: PrincipalConfig, contract: EnigmaContract, eid: sgx_enclave_id_t) -> Self;
+    fn new_delegated(config: PrincipalConfig, contract: Arc<EnigmaContract>, eid: sgx_enclave_id_t) -> Self;
 
     fn get_contract_address(&self) -> Address;
 
@@ -93,12 +93,12 @@ pub trait Sampler {
 }
 
 impl Sampler for PrincipalManager {
-    fn new(config_path: &str, contract: EnigmaContract, eid: sgx_enclave_id_t) -> Result<Self, Error> {
+    fn new(config_path: &str, contract: Arc<EnigmaContract>, eid: sgx_enclave_id_t) -> Result<Self, Error> {
         let config = PrincipalManager::load_config(config_path)?;
         Ok(Self::new_delegated(config, contract, eid))
     }
 
-    fn new_delegated(config: PrincipalConfig, contract: EnigmaContract, eid: sgx_enclave_id_t) -> Self {
+    fn new_delegated(config: PrincipalConfig, contract: Arc<EnigmaContract>, eid: sgx_enclave_id_t) -> Self {
         let as_service = service::AttestationService::new(&config.attestation_service_url);
         PrincipalManager { eid, config, as_service, contract }
     }
@@ -130,12 +130,22 @@ impl Sampler for PrincipalManager {
         let (rlp_encoded, _) = self.get_report(&quote)?;
         // get enigma contract
         let enigma_contract = &self.contract;
+//        let enigma_contract = &self.contract;
         let gas_limit: U256 = gas_limit.into();
         // register worker
         //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
         let signer = self.get_signing_address()?;
         println!("signing address = {}", signer);
         enigma_contract.register(&signer, &rlp_encoded, gas_limit)?;
+
+        // watcher for WorkerParameterized events
+        let child_contract = Arc::clone(&enigma_contract);
+        let child = thread::spawn(move || {
+            println!("Starting the worker parameters watcher in child thread");
+            println!("The contract address: {:?}", child_contract.address());
+            child_contract.filter_worker_params();
+        });
+
         // watch blocks
         let polling_interval = self.config.polling_interval;
         let epoch_size = self.config.epoch_size;

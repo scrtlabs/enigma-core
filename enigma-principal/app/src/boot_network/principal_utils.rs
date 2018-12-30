@@ -24,32 +24,33 @@ use crate::esgx::random_u;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 
 // this trait should extend the EnigmaContract into Principal specific functions.
-pub trait Principal<G: Into<U256>> {
+pub trait Principal {
     fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error>
         where Self: Sized;
 
-    fn set_worker_params(&self, eid: sgx_enclave_id_t, gas_limit: G) -> CallFuture<H256, <Http as Transport>::Out>;
+    fn set_worker_params<G: Into<U256>>(&self, eid: sgx_enclave_id_t, gas_limit: G) -> CallFuture<H256, <Http as Transport>::Out>;
 
-    fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
+    fn set_worker_params_internal<G: Into<U256>>(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
                                   -> CallFuture<H256, <Http as Transport>::Out>;
 
-    fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
+    fn filter_worker_params(&self);
+
+    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
                     max_epochs: Option<usize>);
 
-    fn filter_worker_params(&self) -> Result<(), Error>;
 }
 
-impl<G: Into<U256>> Principal<G> for EnigmaContract {
+impl Principal for EnigmaContract {
     fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error> {
         Ok(Self::from_deployed(address, path, Some(account), url)?)
     }
 
     // set (seed,signature(seed)) into the enigma smart contract
-    fn set_worker_params(&self, eid: sgx_enclave_id_t, gas_limit: G) -> CallFuture<H256, <Http as Transport>::Out> {
+    fn set_worker_params<G: Into<U256>>(&self, eid: sgx_enclave_id_t, gas_limit: G) -> CallFuture<H256, <Http as Transport>::Out> {
         Self::set_worker_params_internal(&self.w3_contract, &self.account, eid, gas_limit)
     }
 
-    fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
+    fn set_worker_params_internal<G: Into<U256>>(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
                                   -> CallFuture<H256, <Http as Transport>::Out> {
         // get seed,signature
         let (rand_seed, sig) = random_u::get_signed_random(eid);
@@ -62,7 +63,7 @@ impl<G: Into<U256>> Principal<G> for EnigmaContract {
         contract.call("setWorkersParams", (the_seed, sig.to_vec()), *account, options)
     }
 
-    fn filter_worker_params(&self) -> Result<(), Error> {
+    fn filter_worker_params(&self) {
         let event = Event {
             name: "WorkersParameterized".to_owned(),
             inputs: vec![EventParam {
@@ -119,11 +120,10 @@ impl<G: Into<U256>> Principal<G> for EnigmaContract {
             })
             .map_err(|_| ());
         event_future.wait().unwrap();
-        Ok(())
     }
 
 
-    fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
+    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
                     max_epochs: Option<usize>) {
         // Make Arcs to support passing the refrence to multiple futures.
         let prev_epoch = Arc::new(AtomicUsize::new(0));

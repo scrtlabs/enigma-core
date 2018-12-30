@@ -10,6 +10,7 @@ use rustc_hex::ToHex;
 use std::path::Path;
 
 pub use esgx::general::ocall_get_home;
+use std::sync::Arc;
 
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     let opt = cli::options::Opt::from_args();
@@ -28,11 +29,11 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             /* step1 : prepeare the contracts (deploy Enigma,EnigmaToken) */
             // load the config
             // deploy all contracts. (Enigma & EnigmaToken)
-            let enigma_contract = EnigmaContract::deploy_contract(Path::new(&config.enigma_token_contract_path),
+            let enigma_contract = Arc::new(EnigmaContract::deploy_contract(Path::new(&config.enigma_token_contract_path),
                                                                   Path::new(&config.enigma_contract_path),
                                                                   &config.url,
                                                                   None, // This means that account no. 0 will be used, we should use the one from the JSON or add an `--account` cli option. or
-                                                                  &sign_key)?;
+                                                                  &sign_key)?);
 
             /* step2 : build the config of the principal node   */
             // optional : set time limit for the principal node
@@ -63,10 +64,10 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             /* step1 : build the config of the principal node   */
             // optional : set time limit for the principal node
 
-            let enigma_contract = EnigmaContract::from_deployed(&config.account_address,
+            let enigma_contract = Arc::new(EnigmaContract::from_deployed(&config.account_address,
                                                                 Path::new(&config.enigma_contract_path),
                                                                 None, // This means that account no. 0 will be used, we should use the one from the JSON or add an `--account` cli option. or
-                                                                &config.url)?;
+                                                                &config.url)?);
 
             let ttl = if opt.time_to_live > 0 { Some(opt.time_to_live) } else { None };
 
