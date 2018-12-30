@@ -119,7 +119,7 @@ impl Sampler for PrincipalManager {
         Ok(signing_address)
     }
 
-    fn get_account_address(&self) -> Address { self.contract.account }
+    fn get_account_address(&self) -> Address { self.contract.account.clone() }
 
     fn get_network_url(&self) -> String { self.config.url.clone() }
 
@@ -214,11 +214,11 @@ mod test {
 
         let signer_addr = deploy_scripts::get_signing_address(eid).unwrap();
         // deploy all contracts. (Enigma & EnigmaToken)
-        let enigma_contract = EnigmaContract::deploy_contract(&config.enigma_token_contract_path,
+        let enigma_contract = Arc::new(EnigmaContract::deploy_contract(&config.enigma_token_contract_path,
                                                               &config.enigma_contract_path,
                                                               &config.url,
                                                               None,
-                                                              &signer_addr).expect("cannot deploy Enigma,EnigmaToken");
+                                                              &signer_addr).expect("cannot deploy Enigma,EnigmaToken"));
 
         let account = enigma_contract.account.clone();
 
