@@ -9,7 +9,7 @@ use web3::contract::{CallFuture, Contract, Options};
 use web3::futures::Future;
 use web3::futures::stream::Stream;
 use web3::transports::Http;
-use web3::types::{Address, H256, U256, FilterBuilder};
+use web3::types::{Address, H256, U256, FilterBuilder, BlockId, BlockHeader};
 use web3::Transport;
 use web3::helpers;
 use web3::contract::tokens::Tokenizable;
@@ -20,10 +20,11 @@ use ethabi::RawLog;
 use ethabi::Log;
 use ethabi::Token;
 
-use crate::esgx::random_u;
+use crate::esgx::keymgmt_u;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 
 const ACTIVE_EPOCH_CODE: &str = "ACTIVE_EPOCH";
+
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
     fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error>
@@ -34,7 +35,7 @@ pub trait Principal {
     fn set_worker_params_internal<G: Into<U256>>(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
                                                  -> CallFuture<H256, <Http as Transport>::Out>;
 
-    fn filter_worker_params(&self);
+    fn filter_worker_params(&self, eid: sgx_enclave_id_t);
 
     fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
                                    max_epochs: Option<usize>);
@@ -53,7 +54,7 @@ impl Principal for EnigmaContract {
     fn set_worker_params_internal<G: Into<U256>>(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
                                                  -> CallFuture<H256, <Http as Transport>::Out> {
         // get seed,signature
-        let (rand_seed, sig) = random_u::get_signed_random(eid);
+        let (rand_seed, sig) = keymgmt_u::generate_epoch_seed(eid);
         let the_seed: U256 = U256::from_big_endian(&rand_seed);
         println!("[---\u{25B6} seed: {} \u{25C0}---]", the_seed);
         // set gas options for the tx
@@ -63,7 +64,7 @@ impl Principal for EnigmaContract {
         contract.call("setWorkersParams", (the_seed, sig.to_vec()), account.clone(), options)
     }
 
-    fn filter_worker_params(&self) {
+    fn filter_worker_params(&self, eid: sgx_enclave_id_t) {
         let event = Event {
             name: "WorkersParameterized".to_owned(),
             inputs: vec![EventParam {
@@ -102,23 +103,36 @@ impl Principal for EnigmaContract {
                     .unwrap()
                     .stream(time::Duration::from_secs(1))
                     .for_each(|log| {
-                        println!("got web3 log: {:?}", log);
-                        // ethabi wants the data as a raw Vec so we extract from the Bytes wrapper
-                        let rawLog = RawLog { topics: log.topics, data: log.data.0 };
-                        let log = match event.parse_log(rawLog) {
-                            Ok(log) => log,
-                            Err(e) => panic!("unable to parse event log")
-                        };
-                        let seedToken: Token = log.params[0].value.to_owned();
-                        let seed: U256 = Tokenizable::from_token(seedToken).unwrap();
-
-                        let workersToken = log.params[1].value.to_owned();
-                        let workers: Vec<Address> = Tokenizable::from_token(workersToken).unwrap();
-                        println!("got log: {:?}, seed {:?}, workers {:?}", log, seed, workers);
+                        // Set the worker parameters in the enclave
+                        // TODO: Make sure that errors are caught properly
+                        let block_id = BlockId::Hash(log.block_hash.unwrap());
+                        println!("Fetching block: {:?}", block_id);
+                        let block = self.web3.eth().block(block_id)
+                            .and_then(|res| {
+                                let block = match res {
+                                    Ok(block) => block.unwrap(),
+                                    Err(err) => panic!("Unable to fetch block: {:?}", err)
+                                };
+                                println!("Got block: {:?}", block);
+                                for tx in block.transactions {
+                                    let _ = self.web3.eth().transaction_receipt(tx);
+                                }
+                                Ok(())
+                            })
+                            .and_then(|_| {
+                                // TODO: switch to Batch eloop handle: https://github.com/tomusdrw/rust-web3/blob/cfff89445a7462f14e562a447fd612b9fd926778/examples/batch.rs
+                                self.web3.transport().submit_batch().then(|receipts| {
+                                    println!("Got block receipts: {:?}", receipts);
+                                    Ok(())
+                                })
+                            });
+                        self.eloop.remote().spawn(move |_| block);
+                        let sig = keymgmt_u::set_worker_params(eid.clone(), log, None, None);
+                        println!("Worker parameters stored in Enclave. The signature: {:?}", sig.to_vec());
                         Ok(())
                     })
             })
-            .map_err(|_| ());
+            .map_err(|err| eprintln!("Unable to store worker parameters: {:?}", err));
         event_future.wait().unwrap();
     }
 
@@ -133,6 +147,7 @@ impl Principal for EnigmaContract {
         let gas_limit: U256 = gas_limit.into();
         let max_epochs = max_epochs.unwrap_or(0);
         let mut epoch_counter = 0;
+        // TODO: Consider subscribing to block header instead of a loop like this: https://github.com/tomusdrw/rust-web3/blob/52cb309c951467625c201a9274ba0d7d739ebb3c/src/api/eth_subscribe.rs
         loop {
             // Clone these arcs to be moved into the future.
             let account = Arc::clone(&account);

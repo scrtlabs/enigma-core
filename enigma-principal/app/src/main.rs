@@ -1,3 +1,4 @@
+#![feature(integer_atomics)]
 #[macro_use]
 extern crate structopt;
 #[macro_use]

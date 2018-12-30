@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use boot_network::deploy_scripts;
 use boot_network::principal_utils::Principal;
 use boot_network::principal_server::PrincipalHttpServer;
@@ -16,6 +17,7 @@ use std::thread;
 use web3::transports::Http;
 use web3::types::{Address, U256};
 use web3::Web3;
+
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PrincipalConfig {
@@ -140,10 +142,11 @@ impl Sampler for PrincipalManager {
 
         // watcher for WorkerParameterized events
         let child_contract = Arc::clone(&enigma_contract);
+        let child_eid = AtomicU64::new(self.eid);
         let child = thread::spawn(move || {
             println!("Starting the worker parameters watcher in child thread");
             println!("The contract address: {:?}", child_contract.address());
-            child_contract.filter_worker_params();
+            child_contract.filter_worker_params(child_eid.load(Ordering::SeqCst));
         });
 
         // watch blocks
