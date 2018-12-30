@@ -2,7 +2,8 @@
 extern crate sgx_types;
 extern crate sgx_urts;
 
-use common_u::errors::EnclaveFailError;
+use crate::db::{DeltaKey, Stype};
+use crate::common_u::errors::EnclaveFailError;
 use enigma_types::EnclaveReturn;
 use enigma_types::traits::SliceCPtr;
 use failure::Error;
@@ -79,6 +80,7 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8]) -> Result<Box<[u8]>, Erro
                      &mut output_ptr as *mut u64)
     };
     let box_ptr = output_ptr as *mut Box<[u8]>;
+    assert!(!box_ptr.is_null()); // TODO: Think about this
     let part = unsafe { Box::from_raw(box_ptr ) };
     Ok(*part)
 }
@@ -93,7 +95,7 @@ pub struct WasmResult {
 }
 
 pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &str)-> Result<WasmResult, Error> {
-    let mut retval: EnclaveReturn = EnclaveReturn::Success;
+    let mut retval = EnclaveReturn::default();
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
     let mut delta_hash = [0u8; 32];
@@ -134,10 +136,9 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &s
     if delta_data_ptr != 0 && delta_hash != [0u8; 32] && delta_index != 0 {
         // TODO: Replace 0 with maybe max int(accordingly).
         let box_ptr = delta_data_ptr as *mut Box<[u8]>;
+        assert!(!box_ptr.is_null()); // TODO: Think about this
         let delta_data = unsafe { Box::from_raw(box_ptr) };
         result.delta.value = delta_data.to_vec();
-        // TODO: Elichai look at this please.
-        use db::{DeltaKey, Stype};
         result.delta.key = DeltaKey::new(delta_hash, Stype::Delta(delta_index));
     } else {
         bail!("Weird delta results")
@@ -147,7 +148,6 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &s
 
 #[cfg(test)]
 pub mod tests {
-    #![allow(dead_code, unused_assignments, unused_variables)]
 
     use crate::esgx::general::init_enclave_wrapper;
     use std::fs::File;

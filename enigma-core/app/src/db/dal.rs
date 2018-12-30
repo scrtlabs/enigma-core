@@ -9,7 +9,6 @@ use db::primitives::SplitKey;
 // These are global variables for Reade/Write/Create Options
 const SYNC: bool = true;
 
-#[allow(dead_code)] // TODO: Remove in the future
 pub struct DB {
     pub location: PathBuf,
     pub database: rocks_db,
@@ -18,7 +17,6 @@ pub struct DB {
     pub options: Options,
 }
 
-#[allow(dead_code)] // TODO: Remove in the future
 impl DB {
     /// Constructs a new `DB`. with a db file accordingly.
     ///

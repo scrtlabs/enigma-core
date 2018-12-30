@@ -2,6 +2,7 @@ use crate::km_u::ContractAddress;
 use crate::db::{DeltaKey, Stype, DATABASE, P2PCalls, ResultType, ResultTypeVec, CRUDInterface};
 use crate::esgx::general;
 use enigma_types::traits::SliceCPtr;
+use enigma_types::EnclaveReturn;
 use enigma_tools_u::common_u::{LockExpectMutex, Sha256};
 use byteorder::{BigEndian, WriteBytesExt};
 use std::{slice,ptr, mem};
@@ -19,37 +20,32 @@ pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_update_state(id: &[u8; 32], enc_state: *const u8, state_len: usize) -> i8 {
+pub unsafe extern "C" fn ocall_update_state(id: &[u8; 32], enc_state: *const u8, state_len: usize) -> EnclaveReturn {
     let encrypted_state = slice::from_raw_parts(enc_state, state_len);
 
     let key = DeltaKey::new(*id, Stype::State);
-
     match DATABASE.lock().expect("Database mutex is poison").force_update(&key, encrypted_state) {
-        Ok(_) => (), // No Error
+        Ok(_) => EnclaveReturn::Success,
         Err(e) => {
             println!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
-            return 17; // according to errno.h and errno-base.h (maybe use https://docs.rs/nix/0.11.0/src/nix/errno.rs.html, or something else)
+            EnclaveReturn::OcallDBError
         }
-    };
-    //    println!("logging: saving state {:?} in {:?}", key, encrypted_state);
-    0
+    }
 }
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32],
-                                         _delta_index: *const u32) -> i8 {
+                                         _delta_index: *const u32) -> EnclaveReturn {
     let delta_index = ptr::read(_delta_index);
     let encrypted_delta = slice::from_raw_parts(enc_delta, delta_len);
     let key = DeltaKey::new(*delta_hash, Stype::Delta(delta_index));
-    // TODO: How should we handle the already existing error?
     match DATABASE.lock().expect("Database mutex is poison").force_update(&key, encrypted_delta) {
-        Ok(_) => (), // No Error
+        Ok(_) => EnclaveReturn::Success,
         Err(e) => {
             println!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
-            return 17; // according to errno.h and errno-base.h (maybe use https://docs.rs/nix/0.11.0/src/nix/errno.rs.html, or something else)
+            EnclaveReturn::OcallDBError
         }
     }
-    0
 }
 
 #[no_mangle]
@@ -60,7 +56,7 @@ pub unsafe extern "C" fn ocall_save_to_memory(data_ptr: *const u8, data_len: usi
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size: *mut usize) -> i8 {
+pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size: *mut usize) -> EnclaveReturn {
 
     let mut cache_id = addr.to_vec();
     let _state_key = DeltaKey::new(*addr, Stype::State);
@@ -70,29 +66,29 @@ pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size
             *state_size = state_len;
             cache_id.write_uint::<BigEndian>(state_len as u64, mem::size_of_val(&state_len)).unwrap();
             DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), vec![state]);
-            0
+            EnclaveReturn::Success
         },
-        Err(_) => 17
+        Err(_) => EnclaveReturn::OcallDBError
     }
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut u8, state_size: usize) -> i8 {
+pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut u8, state_size: usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
     cache_id.write_uint::<BigEndian>(state_size as u64, mem::size_of_val(&state_size)).unwrap();
     match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
         Some(state) => {
             write_ptr(&state[0][..], state_ptr, state_size);
-            0
+            EnclaveReturn::Success
         },
         None => {
             let _state_key = DeltaKey::new(*addr, Stype::State);
             match DATABASE.lock_expect("Database").read(&_state_key) {
                 Ok(state) => {
                     write_ptr(&state, state_ptr, state_size);
-                    0
+                    EnclaveReturn::Success
                 },
-                Err(_) => 17,
+                Err(_) => EnclaveReturn::OcallDBError,
             }
         }
     }
@@ -100,10 +96,10 @@ pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut
 
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut usize, res_len: usize) -> i8 {
+pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut usize, res_len: usize) -> EnclaveReturn {
     let len = (*end-*start) as usize;
     if len != res_len {
-        return 29;
+        return EnclaveReturn::OcallError;
     }
     let mut cache_id = addr.to_vec();
     cache_id.write_u32::<BigEndian>(*start).unwrap();
@@ -114,7 +110,7 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
     match get_deltas(*addr, *start, *end) {
        Ok(deltas_type) => {
            match deltas_type {
-               ResultType::None => return 17,
+               ResultType::None => return EnclaveReturn::OcallDBError,
                ResultType::Full(deltas) | ResultType::Partial(deltas) => {
                    for delta in deltas {
                        sizes.push(delta.1.len());
@@ -123,15 +119,15 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
                },
            }
        }
-        Err(_) => return 17
+        Err(_) => return EnclaveReturn::OcallDBError,
     };
     DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), deltas_vec);
     write_ptr(&sizes, res_ptr, res_len);
-    0
+    EnclaveReturn::Success
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> i8 {
+pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> EnclaveReturn {
 
     let mut cache_id = addr.to_vec();
     cache_id.write_u32::<BigEndian>(*start).unwrap();
@@ -139,28 +135,28 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
     match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
         Some(deltas_vec) => {
             // The results here are flatten to one big array.
-            // The Enclave needs to seperate them back to the original.
+            // The Enclave needs to separate them back to the original.
             let res = deltas_vec.into_iter().flatten().collect::<Vec<u8>>();
             write_ptr(&res[..], res_ptr, res_len);
+            EnclaveReturn::Success
         }
         None => { // If the data doesn't exist in the cache I need to pull it from the DB
             match get_deltas(*addr, *start, *end) {
                 Ok(deltas_type) => {
                     match deltas_type {
-                        ResultType::None => return 17,
+                        ResultType::None => EnclaveReturn::OcallDBError,
                         ResultType::Full(deltas) | ResultType::Partial(deltas) => {
                             let res = deltas.iter().map(|(_, val)| val.clone()).flatten().collect::<Vec<u8>>();
                             println!("res: {:?}", res);
                             write_ptr(&res[..], res_ptr, res_len);
-
-                        },
+                            EnclaveReturn::Success
+                        }
                     }
                 }
-                Err(_) => return 17
-            };
+                Err(_) => EnclaveReturn::OcallDBError
+            }
         }
     }
-    0
 }
 
 
