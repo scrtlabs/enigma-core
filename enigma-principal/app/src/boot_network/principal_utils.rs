@@ -1,7 +1,7 @@
 // general
 use failure::Error;
 use sgx_types::sgx_enclave_id_t;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::time;
@@ -9,7 +9,7 @@ use web3::contract::{CallFuture, Contract, Options};
 use web3::futures::Future;
 use web3::futures::stream::Stream;
 use web3::transports::Http;
-use web3::types::{Address, H256, U256, FilterBuilder, BlockId, BlockHeader};
+use web3::types::{Address, H256, U256, FilterBuilder, BlockId, BlockHeader, Log};
 use web3::Transport;
 use web3::helpers;
 use web3::contract::tokens::Tokenizable;
@@ -17,13 +17,19 @@ use ethabi::Event;
 use ethabi::EventParam;
 use ethabi::ParamType;
 use ethabi::RawLog;
-use ethabi::Log;
 use ethabi::Token;
 
 use crate::esgx::keymgmt_u;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
+use enigma_tools_u::web3_utils::w3utils::connect_batch;
+use web3::BatchTransport;
+use web3::types::TransactionReceipt;
+use web3::Web3;
+use web3::transports::Batch;
+use web3::transports::EventLoopHandle;
 
 const ACTIVE_EPOCH_CODE: &str = "ACTIVE_EPOCH";
+
 
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
@@ -34,8 +40,6 @@ pub trait Principal {
 
     fn set_worker_params_internal<G: Into<U256>>(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
                                                  -> CallFuture<H256, <Http as Transport>::Out>;
-
-    fn filter_worker_params(&self, eid: sgx_enclave_id_t);
 
     fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
                                    max_epochs: Option<usize>);
@@ -62,78 +66,6 @@ impl Principal for EnigmaContract {
         options.gas = Some(gas_limit.into());
         // set random seed
         contract.call("setWorkersParams", (the_seed, sig.to_vec()), account.clone(), options)
-    }
-
-    fn filter_worker_params(&self, eid: sgx_enclave_id_t) {
-        let event = Event {
-            name: "WorkersParameterized".to_owned(),
-            inputs: vec![EventParam {
-                name: "seed".to_owned(),
-                kind: ParamType::Uint(256),
-                indexed: false,
-            }, EventParam {
-                name: "workers".to_owned(),
-                kind: ParamType::Array(Box::new(ParamType::Address)),
-                indexed: false,
-            }, EventParam {
-                name: "_success".to_owned(),
-                kind: ParamType::Bool,
-                indexed: false,
-            }],
-            anonymous: false,
-        };
-        let event_sig = event.signature();
-        // Filter for Hello event in our contract
-        let filter = FilterBuilder::default()
-            .address(vec![self.address()])
-            .topics(
-                Some(vec![
-                    event_sig.into(),
-                ]),
-                None,
-                None,
-                None,
-            )
-            .build();
-
-        let event_future = self.web3.eth_filter()
-            .create_logs_filter(filter)
-            .then(|filter| {
-                filter
-                    .unwrap()
-                    .stream(time::Duration::from_secs(1))
-                    .for_each(|log| {
-                        // Set the worker parameters in the enclave
-                        // TODO: Make sure that errors are caught properly
-                        let block_id = BlockId::Hash(log.block_hash.unwrap());
-                        println!("Fetching block: {:?}", block_id);
-                        let block = self.web3.eth().block(block_id)
-                            .and_then(|res| {
-                                let block = match res {
-                                    Ok(block) => block.unwrap(),
-                                    Err(err) => panic!("Unable to fetch block: {:?}", err)
-                                };
-                                println!("Got block: {:?}", block);
-                                for tx in block.transactions {
-                                    let _ = self.web3.eth().transaction_receipt(tx);
-                                }
-                                Ok(())
-                            })
-                            .and_then(|_| {
-                                // TODO: switch to Batch eloop handle: https://github.com/tomusdrw/rust-web3/blob/cfff89445a7462f14e562a447fd612b9fd926778/examples/batch.rs
-                                self.web3.transport().submit_batch().then(|receipts| {
-                                    println!("Got block receipts: {:?}", receipts);
-                                    Ok(())
-                                })
-                            });
-                        self.eloop.remote().spawn(move |_| block);
-                        let sig = keymgmt_u::set_worker_params(eid.clone(), log, None, None);
-                        println!("Worker parameters stored in Enclave. The signature: {:?}", sig.to_vec());
-                        Ok(())
-                    })
-            })
-            .map_err(|err| eprintln!("Unable to store worker parameters: {:?}", err));
-        event_future.wait().unwrap();
     }
 
 
@@ -189,5 +121,98 @@ impl Principal for EnigmaContract {
                 break;
             }
         }
+    }
+}
+
+pub struct EpochMgmt {
+    pub contract: Arc<EnigmaContract>,
+    eid: AtomicU64,
+}
+
+impl EpochMgmt {
+    pub fn new(eid: AtomicU64, contract: Arc<EnigmaContract>) -> Result<Self, Error> {
+        Ok(EpochMgmt { contract, eid })
+    }
+
+    pub fn store_epoch(&self, log: Log) {
+        // Set the worker parameters in the enclave
+        // TODO: Make sure that errors are caught properly
+//                        let web3 = connect_batch(self.web3.transport().clone());
+//                        println!("Fetching block: {:?}", block_id);
+//                        // TODO: Use web3 Batch requests instead. I had difficulty creating a Batch transport that works with the same eloop.
+        let block_id = BlockId::Hash(log.block_hash.unwrap());
+        let future = self.contract.web3.eth().block(block_id).then(move |res| {
+            let block = res.unwrap().unwrap();
+            println!("Got block: {:?}", block);
+            for tx in block.transactions {
+//                let receipt = self.web3.eth().transaction_receipt(tx).then(move |res| {
+//                    println!("Got receipt for {:?}", tx);
+//                    Ok(())
+//                }).map_err(|err: Error| eprintln!("{:?}", err));
+//                    self.eloop.remote().spawn(|_| receipt);
+            }
+            Ok(())
+        }).map_err(|err: Error| eprintln!("{:?}", err));
+////                            .and_then(move |block| {
+////                                let mut future: Option<CallFuture<Option<TransactionReceipt>, Transport::Out>> = None;
+////                                for tx in block.transactions {
+////                                    let _  = web3.eth().transaction_receipt(tx);
+//////                                    future = match future {
+//////                                        Some(f) => f.join(req),
+//////                                        None => req,
+//////                                    }
+////                                }
+////                                future.unwrap()
+////                            });
+        self.contract.eloop.remote().spawn(|_| future);
+        let sig = keymgmt_u::set_worker_params(self.eid.load(Ordering::SeqCst), log, None, None);
+        println!("Worker parameters stored in Enclave. The signature: {:?}", sig.to_vec());
+    }
+
+    pub fn filter_worker_params(&self) {
+        let event = Event {
+            name: "WorkersParameterized".to_owned(),
+            inputs: vec![EventParam {
+                name: "seed".to_owned(),
+                kind: ParamType::Uint(256),
+                indexed: false,
+            }, EventParam {
+                name: "workers".to_owned(),
+                kind: ParamType::Array(Box::new(ParamType::Address)),
+                indexed: false,
+            }, EventParam {
+                name: "_success".to_owned(),
+                kind: ParamType::Bool,
+                indexed: false,
+            }],
+            anonymous: false,
+        };
+        let event_sig = event.signature();
+        // Filter for Hello event in our contract
+        let filter = FilterBuilder::default()
+            .address(vec![self.contract.address()])
+            .topics(
+                Some(vec![
+                    event_sig.into(),
+                ]),
+                None,
+                None,
+                None,
+            )
+            .build();
+
+        let event_future = self.contract.web3.eth_filter()
+            .create_logs_filter(filter)
+            .then(|filter| {
+                filter
+                    .unwrap()
+                    .stream(time::Duration::from_secs(1))
+                    .for_each(|log| {
+                        self.store_epoch(log);
+                        Ok(())
+                    })
+            })
+            .map_err(|err| eprintln!("Unable to store worker parameters: {:?}", err));
+        event_future.wait().unwrap();
     }
 }

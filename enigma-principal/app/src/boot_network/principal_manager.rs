@@ -17,6 +17,7 @@ use std::thread;
 use web3::transports::Http;
 use web3::types::{Address, U256};
 use web3::Web3;
+use boot_network::principal_utils::EpochMgmt;
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -141,12 +142,14 @@ impl Sampler for PrincipalManager {
         enigma_contract.register(&signer, &rlp_encoded, gas_limit)?;
 
         // watcher for WorkerParameterized events
-        let child_contract = Arc::clone(&enigma_contract);
         let child_eid = AtomicU64::new(self.eid);
+        let child_contract = Arc::clone(&enigma_contract);
         let child = thread::spawn(move || {
             println!("Starting the worker parameters watcher in child thread");
-            println!("The contract address: {:?}", child_contract.address());
-            child_contract.filter_worker_params(child_eid.load(Ordering::SeqCst));
+            match EpochMgmt::new(child_eid, child_contract) {
+                Ok(em) => em.filter_worker_params(),
+                Err(err) => eprintln!("Unable to instantiate EpochMgmt: {:?}", err),
+            };
         });
 
         // watch blocks
@@ -160,8 +163,8 @@ impl Sampler for PrincipalManager {
 /// Helper method to start 'miner' that simulates blocks.
 pub fn run_miner(account: Address, w3: Arc<Web3<Http>>, interval: u64) -> thread::JoinHandle<()> {
     thread::spawn(move || {
-                      deploy_scripts::forward_blocks(&Arc::clone(&w3), interval, account).unwrap();
-                  })
+        deploy_scripts::forward_blocks(&Arc::clone(&w3), interval, account).unwrap();
+    })
 }
 
 //////////////////////// TESTS  /////////////////////////////////////////
@@ -194,6 +197,7 @@ mod test {
         let logs = w3utils::filter_blocks(&w3, contract_addr, event_name)?;
         Ok(logs)
     }
+
     /// This test is more like a system-test than a unit-test.
     /// It is only dependent on an ethereum node running under the NODE_URL evn var or the default localhost:8545
     /// First it deploys all the contracts related (EnigmaToken, Enigma) and runs miner to simulate blocks.
@@ -218,10 +222,10 @@ mod test {
         let signer_addr = deploy_scripts::get_signing_address(eid).unwrap();
         // deploy all contracts. (Enigma & EnigmaToken)
         let enigma_contract = Arc::new(EnigmaContract::deploy_contract(&config.enigma_token_contract_path,
-                                                              &config.enigma_contract_path,
-                                                              &config.url,
-                                                              None,
-                                                              &signer_addr).expect("cannot deploy Enigma,EnigmaToken"));
+                                                                       &config.enigma_contract_path,
+                                                                       &config.url,
+                                                                       None,
+                                                                       &signer_addr).expect("cannot deploy Enigma,EnigmaToken"));
 
         let account = enigma_contract.account.clone();
 
@@ -246,7 +250,7 @@ mod test {
                 // assert topic (keccack(event_name))
                 if logs.len() >= 2 {
 //                    println!("FOUND 2 LOGS!!!! {:?}", logs);
-                    for  log in logs.iter() {
+                    for log in logs.iter() {
                         let expected_topic = event_name.as_bytes().keccak256();
                         assert!(log.topics[0].contains(&H256::from_slice(&expected_topic)));
                     }
@@ -265,5 +269,4 @@ mod test {
         principal.run(5999999).unwrap();
         child.join().unwrap();
     }
-
 }

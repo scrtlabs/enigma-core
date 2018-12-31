@@ -7,7 +7,8 @@ use web3;
 use web3::contract::tokens::Tokenize;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
-use web3::transports::Http;
+use web3::transports::{Http, EventLoopHandle, Batch};
+use web3::BatchTransport;
 use web3::types::BlockNumber;
 use web3::types::FilterBuilder;
 use web3::types::{Address, Log, U256};
@@ -21,6 +22,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::sync::Arc;
+
+const DEFAULT_MAX_PARALLEL: usize = 64;
 
 pub struct DeployParams {
     pub deployer: Address,
@@ -60,13 +63,18 @@ pub fn load_contract_abi<R: Read>(rdr: R) -> Result<String, Error> {
 // Every time Web3::new() is called it spawns a new thread that is tied to eloop.
 // Important!! When eloop is Dropped, the underlying Transport dies.
 // https://github.com/tomusdrw/rust-web3/blob/master/src/transports/http.rs#L79
-pub fn connect(url: &str) -> Result<(web3::transports::EventLoopHandle, Web3<Http>), Error> {
+pub fn connect(url: &str) -> Result<(EventLoopHandle, Web3<Http>), Error> {
     let (_eloop, http) = match web3::transports::Http::new(url) {
         Ok((eloop, http)) => (eloop, http),
         Err(_) => return Err(errors::Web3Error { message: String::from("unable to create an http connection") }.into()),
     };
     let w3 = web3::Web3::new(http);
     Ok((_eloop, w3))
+}
+
+pub fn connect_batch(http: Http) -> Web3<Batch<Http>>  {
+    let w3 = web3::Web3::new(web3::transports::Batch::new(http));
+    w3
 }
 
 // connect to an existing deployed smart contract
@@ -99,9 +107,9 @@ pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_para
     options.gas = Some(tx_params.gas_limit);
 
     let builder = Contract::deploy(
-            web3.eth(),
-            tx_params.abi.as_bytes(),
-        ).unwrap()
+        web3.eth(),
+        tx_params.abi.as_bytes(),
+    ).unwrap()
         .confirmations(tx_params.confirmations)
         .poll_interval(time::Duration::from_secs(tx_params.poll_interval));
 
@@ -119,9 +127,9 @@ pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_para
 
 fn build_event_filter(event_name: &str, contract_addr: Option<&str>) -> web3::types::Filter {
     let filter =
-        FilterBuilder::default().topics(Some(vec![event_name.as_bytes().keccak256().into(),]), None, None, None)
-                                .from_block(BlockNumber::Earliest)
-                                .to_block(BlockNumber::Latest);
+        FilterBuilder::default().topics(Some(vec![event_name.as_bytes().keccak256().into(), ]), None, None, None)
+            .from_block(BlockNumber::Earliest)
+            .to_block(BlockNumber::Latest);
     match contract_addr {
         Some(addr) => filter.address(vec![addr.parse().unwrap()]).build(),
         None => filter.build(),
@@ -174,6 +182,7 @@ pub fn filter_blocks(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_na
 #[cfg(test)]
 mod test {
     extern crate rustc_hex;
+
     use super::*;
     use std::env;
     use web3_utils::w3utils;
@@ -186,6 +195,7 @@ mod test {
     /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
     /// The default is set to ganache cli "http://localhost:8545"
     fn get_node_url() -> String { env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string()) }
+
     // helper: given a contract name return the bytecode and the abi
     fn get_contract(ctype: &str) -> (String, String) {
         let path = env::current_dir().unwrap();
@@ -206,6 +216,7 @@ mod test {
         let (abi, bytecode) = w3utils::load_contract_abi_bytecode(to_load).unwrap();
         (abi, bytecode)
     }
+
     // helper to quickly mock params for deployment of a contract to generate DeployParams
     fn get_deploy_params(account: Address, ctype: &str) -> w3utils::DeployParams {
         let deployer = account.to_hex();
@@ -215,6 +226,7 @@ mod test {
         let (abi, bytecode) = get_contract(&ctype.to_string());
         w3utils::DeployParams::new(&deployer, abi, bytecode, gas_limit, poll_interval, confirmations).unwrap()
     }
+
     // helper connect to web3
     fn connect() -> (web3::transports::EventLoopHandle, Web3<Http>, Vec<Address>) {
         let uri = get_node_url();
@@ -222,12 +234,14 @@ mod test {
         let accounts = w3.eth().accounts().wait().unwrap();
         (eloop, w3, accounts)
     }
+
     // helper deploy a dummy contract and return the contract instance
     fn deploy_dummy(w3: &Web3<Http>, account: Address) -> Contract<Http> {
         let tx = get_deploy_params(account, "Dummy");
         let contract = w3utils::deploy_contract(&w3, &tx, ()).unwrap();
         contract
     }
+
     #[test]
     //#[ignore]
     fn test_deploy_dummy_contract() {
@@ -239,6 +253,7 @@ mod test {
         let param: U256 = result.wait().unwrap();
         assert_eq!(param.as_u64(), 1);
     }
+
     #[test]
     //#[ignore]
     fn test_deploy_enigma_contract() {
@@ -254,6 +269,7 @@ mod test {
         // 4) deploy the contract
         w3utils::deploy_contract(&w3, &tx, fake_input).unwrap();
     }
+
     #[test]
     //#[ignore]
     fn test_deployed_contract() {
