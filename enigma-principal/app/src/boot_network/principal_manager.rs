@@ -143,13 +143,10 @@ impl Sampler for PrincipalManager {
 
         // watcher for WorkerParameterized events
         let child_eid = AtomicU64::new(self.eid);
-        let child_contract = Arc::clone(&enigma_contract);
-        let child = thread::spawn(move || {
+        let em = Arc::new(EpochMgmt::new(child_eid, self.contract.clone()).unwrap());
+        thread::spawn(move || {
             println!("Starting the worker parameters watcher in child thread");
-            match EpochMgmt::new(child_eid, child_contract) {
-                Ok(em) => em.filter_worker_params(),
-                Err(err) => eprintln!("Unable to instantiate EpochMgmt: {:?}", err),
-            };
+            EpochMgmt::filter_worker_params(em);
         });
 
         // watch blocks

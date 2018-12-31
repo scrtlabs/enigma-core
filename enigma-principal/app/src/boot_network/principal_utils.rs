@@ -27,6 +27,9 @@ use web3::types::TransactionReceipt;
 use web3::Web3;
 use web3::transports::Batch;
 use web3::transports::EventLoopHandle;
+use enigma_tools_u::common_u::errors::Web3Error;
+use serde_json;
+use serde_json::Value;
 
 const ACTIVE_EPOCH_CODE: &str = "ACTIVE_EPOCH";
 
@@ -134,42 +137,39 @@ impl EpochMgmt {
         Ok(EpochMgmt { contract, eid })
     }
 
-    pub fn store_epoch(&self, log: Log) {
+    pub fn store_epoch(em: Arc<EpochMgmt>, log: Log) -> Result<(), Error> {
         // Set the worker parameters in the enclave
-        // TODO: Make sure that errors are caught properly
-//                        let web3 = connect_batch(self.web3.transport().clone());
-//                        println!("Fetching block: {:?}", block_id);
-//                        // TODO: Use web3 Batch requests instead. I had difficulty creating a Batch transport that works with the same eloop.
         let block_id = BlockId::Hash(log.block_hash.unwrap());
-        let future = self.contract.web3.eth().block(block_id).then(move |res| {
-            let block = res.unwrap().unwrap();
-            println!("Got block: {:?}", block);
-            for tx in block.transactions {
-//                let receipt = self.web3.eth().transaction_receipt(tx).then(move |res| {
-//                    println!("Got receipt for {:?}", tx);
-//                    Ok(())
-//                }).map_err(|err: Error| eprintln!("{:?}", err));
-//                    self.eloop.remote().spawn(|_| receipt);
-            }
-            Ok(())
-        }).map_err(|err: Error| eprintln!("{:?}", err));
-////                            .and_then(move |block| {
-////                                let mut future: Option<CallFuture<Option<TransactionReceipt>, Transport::Out>> = None;
-////                                for tx in block.transactions {
-////                                    let _  = web3.eth().transaction_receipt(tx);
-//////                                    future = match future {
-//////                                        Some(f) => f.join(req),
-//////                                        None => req,
-//////                                    }
-////                                }
-////                                future.unwrap()
-////                            });
-        self.contract.eloop.remote().spawn(|_| future);
-        let sig = keymgmt_u::set_worker_params(self.eid.load(Ordering::SeqCst), log, None, None);
+        let block = match em.contract.web3.eth().block(block_id).wait() {
+            Ok(block) => block.unwrap(),
+            Err(e) => return Err(Web3Error { message: format!("Unable to fetch block {:?} : {:?}", log.block_hash.unwrap(), e) }.into()),
+        };
+        println!("Got block: {:?}", block);
+        let web3_batch = connect_batch(em.contract.web3.transport().clone());
+        for tx in block.transactions.clone() {
+            println!("Fetching receipt for tx: {:?}", tx);
+            let _ = web3_batch.eth().transaction_receipt(tx);
+        }
+        println!("Submitting the batch request");
+        let receipts = web3_batch.transport()
+            .submit_batch()
+            .map(|results| {
+                let mut receipts: Vec<TransactionReceipt> = Vec::new();
+                for result in results {
+                    println!("Casting the receipt: {:?}", result);
+                    let receipt: TransactionReceipt = serde_json::from_value(result.unwrap()).unwrap();
+                    receipts.push(receipt);
+                }
+                receipts
+            })
+            .wait().unwrap();
+        println!("Done with receipts: {:?}", receipts);
+        let sig = keymgmt_u::set_worker_params(em.eid.load(Ordering::SeqCst), log, None, None);
         println!("Worker parameters stored in Enclave. The signature: {:?}", sig.to_vec());
+        Ok(())
     }
 
-    pub fn filter_worker_params(&self) {
+    pub fn filter_worker_params(em: Arc<EpochMgmt>) {
         let event = Event {
             name: "WorkersParameterized".to_owned(),
             inputs: vec![EventParam {
@@ -190,7 +190,7 @@ impl EpochMgmt {
         let event_sig = event.signature();
         // Filter for Hello event in our contract
         let filter = FilterBuilder::default()
-            .address(vec![self.contract.address()])
+            .address(vec![em.contract.address()])
             .topics(
                 Some(vec![
                     event_sig.into(),
@@ -201,14 +201,19 @@ impl EpochMgmt {
             )
             .build();
 
-        let event_future = self.contract.web3.eth_filter()
+        let event_future = em.contract.web3.eth_filter()
             .create_logs_filter(filter)
             .then(|filter| {
                 filter
                     .unwrap()
                     .stream(time::Duration::from_secs(1))
-                    .for_each(|log| {
-                        self.store_epoch(log);
+                    .for_each(move |log| {
+                        println!("Got WorkerParameterized event log");
+                        let child_em = Arc::clone(&em);
+//                        let child_log = Arc::new(log.clone());
+                        let child = thread::spawn(move || {
+                            EpochMgmt::store_epoch(child_em, log);
+                        });
                         Ok(())
                     })
             })
