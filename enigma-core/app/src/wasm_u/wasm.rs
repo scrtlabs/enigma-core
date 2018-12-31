@@ -195,7 +195,8 @@ pub mod tests {
     fn simple() {
         let enclave = init_enclave();
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
-//        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(),&contract_code, "print_test(uint256,uint256)", "c20f16").expect("Execution failed");
+        assert_eq!(from_utf8(&result.output).unwrap(), "22");
         let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "").expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
