@@ -49,6 +49,7 @@ impl Erc20Interface for Contract {
         let sum_to: u64 = read_state!(&to_str);
 
         write_state!(&from_str => (sum_from - tokens.as_u64()), &to_str => (sum_to + tokens.as_u64()))
+
     }
 //
 //    #[no_mangle]

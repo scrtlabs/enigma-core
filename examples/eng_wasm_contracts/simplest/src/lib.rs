@@ -13,7 +13,7 @@ use eng_wasm::String;
 #[pub_interface]
 pub trait ContractInterface{
     fn write();
-    fn print_test(U256,U256) ;
+    fn print_test(x: U256, y: U256) ;
 }
 
 pub struct Contract;
@@ -36,6 +36,9 @@ impl ContractInterface for Contract {
     #[no_mangle]
     fn print_test(x: U256, y: U256) {
         eprint!("{:?} {:?}", x.as_u64(), y.as_u64());
+        write_state!("x" => x.as_u64(), "y" => y.as_u64());
+        let x: u64 = read_state!("x");
+        let y: u64 = read_state!("y");
     }
 }
 

@@ -242,7 +242,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
 
     let args_vector = get_args(&callable_args, &types_vector)?;
 
-    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], false){
+    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], true){
         Ok(v) => v,
         Err(e) => {
             return Err(EnclaveError::ExecutionError{code: "interpretation of call parameters".to_string(), err: e.to_string()});
