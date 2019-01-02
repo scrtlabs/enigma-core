@@ -32,7 +32,7 @@ impl Erc20Interface for Contract {
     fn addition(addr: Vec<u8>, tokens: U256) {
         let address = from_utf8(&addr).unwrap();
         write_state!(&address => tokens.as_u64());
-        let read_val: u64 = read_state!(&address);
+        let read_val: u64 = read_state!(&address).unwrap();
         eprint!("read_val: {:?}, tokens: {:?}",read_val, tokens.as_u64());
         assert_eq!(read_val, tokens.as_u64());
     }
@@ -45,8 +45,8 @@ impl Erc20Interface for Contract {
         let from_str = from_utf8(&from).unwrap();
         let to_str = from_utf8(&to).unwrap();
 
-        let sum_from: u64 = read_state!(&from_str);
-        let sum_to: u64 = read_state!(&to_str);
+        let sum_from: u64 = read_state!(&from_str).unwrap();
+        let sum_to: u64 = read_state!(&to_str).unwrap();
 
         write_state!(&from_str => (sum_from - tokens.as_u64()), &to_str => (sum_to + tokens.as_u64()))
 
