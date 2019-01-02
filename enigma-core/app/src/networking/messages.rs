@@ -44,7 +44,7 @@ pub enum IpcRequest {
     GetContract { id: String, input: String },
     UpdateNewContract { id: String, address: String, bytecode: String },
     UpdateDeltas { id: String, deltas: Vec<IpcDelta> },
-    NewTaskEncryptionKey { id: String }
+    NewTaskEncryptionKey { id: String, pubkey: String },
 }
 
 

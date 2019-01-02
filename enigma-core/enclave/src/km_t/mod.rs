@@ -14,7 +14,6 @@ use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::cryptography_t::Encryption;
 use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch, StatePatch, ContractState};
 
-lazy_static! { pub static ref DH_KEYS: SgxMutex< HashMap<MsgID, KeyPair >> = SgxMutex::new(HashMap::new()); }
 lazy_static! { pub static ref STATE_KEYS: SgxMutex< HashMap<ContractAddress, StateKey >> = SgxMutex::new(HashMap::new()); }
 
 

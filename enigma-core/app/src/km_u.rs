@@ -9,6 +9,7 @@ use std::mem;
 
 pub type ContractAddress = [u8; 32];
 pub type StateKey = [u8; 32];
+pub type PubKey = [u8; 64];
 
 extern "C" {
     fn ecall_ptt_req(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, addresses: *const ContractAddress, len: usize,
@@ -16,7 +17,7 @@ extern "C" {
     fn ecall_ptt_res(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, msg_ptr: *const u8, msg_len: usize) -> sgx_status_t;
     fn ecall_build_state(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, failed_ptr: *mut u64) -> sgx_status_t;
     fn ecall_get_user_key(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
-                          signature: &mut [u8; 65], serialized_ptr: *mut u64) -> sgx_status_t;
+                          signature: &mut [u8; 65], user_pubkey: &PubKey, serialized_ptr: *mut u64) -> sgx_status_t;
 
 }
 
@@ -50,7 +51,7 @@ pub fn ptt_res(eid: sgx_enclave_id_t, msg: &[u8]) -> Result<(), Error> {
 
 pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(Box<[u8]>, [u8; 65]), Error> {
     let mut sig = [0u8; 65];
-    let mut ret = EnclaveReturn::Success;
+    let mut ret = EnclaveReturn::default();
     let mut serialized_ptr = 0u64;
 
     let status = unsafe { ecall_ptt_req(eid,
@@ -69,7 +70,7 @@ pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(
 }
 
 
-pub fn get_user_key(eid: sgx_enclave_id_t) -> Result<(Box<[u8]>, [u8; 65]), Error> {
+pub fn get_user_key(eid: sgx_enclave_id_t, user_pubkey: &PubKey) -> Result<(Box<[u8]>, [u8; 65]), Error> {
     let mut sig = [0u8; 65];
     let mut ret = EnclaveReturn::Success;
     let mut serialized_ptr = 0u64;
@@ -77,6 +78,7 @@ pub fn get_user_key(eid: sgx_enclave_id_t) -> Result<(Box<[u8]>, [u8; 65]), Erro
     let status = unsafe { ecall_get_user_key(eid,
                                         &mut ret as *mut EnclaveReturn,
                                         &mut sig,
+                                        &user_pubkey,
                                         &mut serialized_ptr as *mut u64
     )};
     if ret != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
@@ -108,14 +110,13 @@ pub mod tests {
     #[test]
     fn test_get_user_key() {
         let enclave = init_enclave_wrapper().unwrap();
-        let (data, _sig) = super::get_user_key(enclave.geteid()).unwrap();
+        let pubkey = [1u8; 64];
+        let (data, _sig) = super::get_user_key(enclave.geteid(), &pubkey).unwrap();
 
         let mut des = Deserializer::new(&data[..]);
         let res: Value = Deserialize::deserialize(&mut des).unwrap();
-        let prefix = serde_json::from_value::<[u8; 14]>(res["prefix"].clone()).unwrap();
-        let id = serde_json::from_value::<[u8; 12]>(res["id"].clone()).unwrap();
-        assert_eq!(b"Enigma Message", &prefix);
-        assert_ne!(id, [0u8; 12]);
+        let prefix = serde_json::from_value::<[u8; 19]>(res["prefix"].clone()).unwrap();
+        assert_eq!(b"Enigma User Message", &prefix);
 
         let mut sig = [0u8; 64];
         sig.copy_from_slice(&_sig[..64]);
@@ -123,8 +124,8 @@ pub mod tests {
 
         let msg = Message::parse(&data.keccak256());
         let recovery_id = RecoveryId::parse(_sig[64]-27).unwrap();
-        let pubkey = secp256k1::recover(&msg, &sig, &recovery_id).unwrap();
-        assert!(secp256k1::verify(&msg, &sig, &pubkey));
+        let _pubkey = secp256k1::recover(&msg, &sig, &recovery_id).unwrap();
+        // TODO: Consider verifying this against ecall_get_signing_address
     }
 
     #[test]

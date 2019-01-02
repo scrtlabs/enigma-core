@@ -1,20 +1,25 @@
 use crate::SIGNINING_KEY;
-use super::{STATE_KEYS, DH_KEYS};
+use super::STATE_KEYS;
 use enigma_runtime_t::data::{ContractState, DeltasInterface, StatePatch};
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 use enigma_tools_t::cryptography_t::Encryption;
+use enigma_tools_t::km_primitives::{ContractAddress, MsgID, StateKey};
 use std::string::ToString;
 use std::vec::Vec;
+use std::sync::SgxMutex;
+use std::collections::HashMap;
 use std::u32;
-use enigma_tools_t::km_primitives::{ContractAddress, Message, MessageType, StateKey};
+use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
+
+lazy_static! { pub static ref DH_KEYS: SgxMutex< HashMap<MsgID, KeyPair >> = SgxMutex::new(HashMap::new()); }
 
 pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let keys = KeyPair::new()?;
-    let data = MessageType::Request(addresses.to_vec());
-    let req = Message::new(Some(data), keys.get_pubkey())?;
+    let data = PrincipalMessageType::Request(addresses.to_vec());
+    let req = PrincipalMessage::new(data, keys.get_pubkey())?;
     let msg = req.to_message()?;
     *sig = SIGNINING_KEY.sign(&msg[..])?;
     DH_KEYS.lock_expect("DH Keys").insert(req.get_id(), keys);
@@ -23,7 +28,7 @@ pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: 
 
 
 pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveError> {
-    let res = Message::from_message(msg_slice)?;
+    let res = PrincipalMessage::from_message(msg_slice)?;
 
     let mut guard = DH_KEYS.lock_expect("DH Keys");
     let id = res.get_id();
@@ -31,9 +36,9 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     {
         let keys = guard.get(&id).ok_or(EnclaveError::KeyError{key_type: "dh keys".to_string(), key: "".to_string()})?;
         let aes = keys.get_aes_key(&res.get_pubkey())?;
-        msg = Message::decrypt(res, &aes)?;
+        msg = PrincipalMessage::decrypt(res, &aes)?;
     }
-    if let Some(MessageType::Response(v)) = msg.data {
+    if let PrincipalMessageType::Response(v) = msg.data {
         for (addr, key) in v {
             STATE_KEYS.lock_expect("state keys").insert(addr, key);
         }
@@ -129,7 +134,7 @@ pub mod tests {
     use super::*;
     use enigma_tools_t::common::Sha256;
     use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-    use enigma_tools_t::km_primitives::{Message, MessageType, ContractAddress};
+    use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType, ContractAddress};
     use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch};
     use enigma_runtime_t::data::IOInterface;
 
@@ -158,13 +163,13 @@ pub mod tests {
         // Generating the request
         let mut _sig = [0u8; 65];
         let req_msg = unsafe { ecall_ptt_req_internal(&address, &mut _sig).unwrap() };
-        let req_obj = Message::from_message(&req_msg).unwrap();
+        let req_obj = PrincipalMessage::from_message(&req_msg).unwrap();
 
         // Mimicking the Principal/KM Node
         let km_node_keys = KeyPair::new().unwrap();
         let restype: Vec<(ContractAddress, StateKey)> = address.clone().into_iter().zip(state_keys.into_iter()).collect();
 
-        let res_obj = Message::new_id(Some(MessageType::Response(restype)), req_obj.get_id(), km_node_keys.get_pubkey());
+        let res_obj = PrincipalMessage::new_id(PrincipalMessageType::Response(restype), req_obj.get_id(), km_node_keys.get_pubkey());
         let dh_key = km_node_keys.get_aes_key(&req_obj.get_pubkey()).unwrap();
         let enc_req = res_obj.encrypt(&dh_key).unwrap();
 

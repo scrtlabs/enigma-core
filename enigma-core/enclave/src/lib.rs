@@ -179,8 +179,8 @@ pub unsafe extern "C" fn ecall_build_state(failed_ptr: *mut u64) -> EnclaveRetur
 
 
 #[no_mangle]
-pub unsafe extern "C" fn ecall_get_user_key(sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
-    let msg = match ecall_get_user_key_internal(sig) {
+pub unsafe extern "C" fn ecall_get_user_key(sig: &mut [u8; 65], user_pubkey: &[u8; 64], serialized_ptr: *mut u64) -> EnclaveReturn {
+    let msg = match ecall_get_user_key_internal(sig, user_pubkey) {
         Ok(msg) => msg,
         Err(e) => return e.into(),
     };
