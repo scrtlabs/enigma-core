@@ -28,7 +28,7 @@ impl ContractInterface for Contract {
         let key = "code";
         eprint!("{}", a);
         write_state!(key => &a);
-        let read_val: String = read_state!(key);
+        let read_val: String = read_state!(key).unwrap();
 
         assert_eq!(read_val, a);
     }

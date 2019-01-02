@@ -193,10 +193,11 @@ impl Runtime {
     /// Read `key` from the memory, then read from the state the value under the `key`
     /// and copy it to the memory at address 0.
     pub fn read_state (&mut self, args: RuntimeArgs) -> Result<i32> {
+        // TODO: Handle the error here, should we return len=0?;
         let key = args.nth_checked(0);
         let key_len: u32 = args.nth_checked(1).unwrap();
         let mut buf = Vec::with_capacity(key_len as usize);
-        for _ in 0..key_len{
+        for _ in 0..key_len {
             buf.push(0);
         }
         match self.memory.get_into(key.unwrap(), &mut buf[..]) {
@@ -207,7 +208,6 @@ impl Runtime {
         let value_vec = serde_json::to_vec(&self.current_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
         self.memory.set(0, &value_vec).unwrap(); // TODO: Impl From so we could use `?`
         Ok( value_vec.len() as i32 )
-
     }
 
     /// args:
