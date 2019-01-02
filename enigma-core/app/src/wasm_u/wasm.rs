@@ -9,7 +9,7 @@ use failure::Error;
 use sgx_types::*;
 
 extern "C" {
-    fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
+    fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, bytecode: *const u8, bytecode_len: usize,
                     gas_limit: *const u64, output_ptr: *mut u64) -> sgx_status_t;
 
     fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
@@ -25,10 +25,10 @@ extern "C" {
 
 const MAX_EVM_RESULT: usize = 100_000;
 pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], gas_limit: u64)-> Result<Box<[u8]>, Error> {
-    let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
+    let mut retval = EnclaveReturn::Success;
     let mut output_ptr: u64 = 0;
 
-    let result = unsafe {
+    let status = unsafe {
         ecall_deploy(eid,
                      &mut retval,
                      bytecode.as_c_ptr() as *const u8,
@@ -36,6 +36,9 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], gas_limit: u64)-> Result<
                      &gas_limit as *const u64,
                      &mut output_ptr as *mut u64)
     };
+    if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
+        return Err(EnclaveFailError{err: retval, status}.into());
+    }
     let box_ptr = output_ptr as *mut Box<[u8]>;
     let part = unsafe { Box::from_raw(box_ptr ) };
     Ok(*part)
@@ -158,6 +161,30 @@ pub mod tests {
         let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "", 100_000).expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
+    }
+
+    #[test]
+    fn erc20_simple() {
+        let enclave = init_enclave();
+        let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20");
+//        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
+        // args must be rlp encoded: 0x5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f,0x07,0x05
+        let result = wasm::execute(enclave.geteid(), &contract_code, "addition(string,uint256)", "eaa8356564386365653662363362316336616663653361643763393266346664376531623866616439660a", 100_000).expect("Execution failed");
+        println!("result: {:?}", from_utf8(&result.output).unwrap());
+        enclave.destroy();
+        assert_eq!(from_utf8(&result.output).unwrap(), "10");
+    }
+
+    #[test]
+    fn erc20() {
+        let enclave = init_enclave();
+        let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20");
+//        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
+        // args must be rlp encoded: 0x5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f,0x07,0x05
+        let result = wasm::execute(enclave.geteid(), &contract_code, "addition(string,uint256)", "eaa8356564386365653662363362316336616663653361643763393266346664376531623866616439660a", 100_000).expect("Execution failed");
+        enclave.destroy();
+
+        assert_eq!(from_utf8(&result.output).unwrap(), "10");
     }
 
     #[test]

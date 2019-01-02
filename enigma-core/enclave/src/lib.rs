@@ -233,7 +233,8 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
                                  ethereum_payload_ptr: *mut u64,
                                  ethereum_contract_addr: &mut [u8; 20]) -> Result<(), EnclaveError> {
     let callable = str::from_utf8(callable_slice)?;
-    let callable_args = hexutil::read_hex(str::from_utf8(callable_args_slice).unwrap()).unwrap();
+    let s = str::from_utf8(callable_args_slice).unwrap();
+    let callable_args = hexutil::read_hex(s).unwrap();
     let state = execution::get_state();
 
     let (types, function_name) = get_types(callable)?;
