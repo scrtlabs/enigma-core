@@ -176,6 +176,7 @@ pub mod tests {
         assert_eq!(from_utf8(&result.output).unwrap(), "10");
     }
 
+    // todo: need to add an initial state in order to test this function's functionality
     #[test]
     fn erc20() {
         let enclave = init_enclave();
@@ -183,11 +184,14 @@ pub mod tests {
 //        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
         // args must be rlp encoded: 0x5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f,0x0a
         let rlp_args_add = "eaa8356564386365653662363362316336616663653361643763393266346664376531623866616439660a";
-        let res_addr_account = wasm::execute(enclave.geteid(), &contract_code, "addition(string,uint256)", rlp_args_add, 100_000).expect("Execution failed");
+        let res_addr_account = wasm::execute(enclave.geteid(), &contract_code, "addition(string,uint256)", rlp_args_add, 100_000_000).expect("Execution failed");
         // args before encoding: ["5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f","de0b295669a9fd93d5f28d9ec85e40f4cb697bae",0x03]
         let rlp_args_transfer = "f853a835656438636565366236336231633661666365336164376339326634666437653162386661643966a86465306232393536363961396664393364356632386439656338356534306634636236393762616503";
-        let res_addr_account = wasm::execute(enclave.geteid(), &contract_code, "transfer(string,string,uint256)", rlp_args_transfer, 100_000).expect("Execution failed");
+        //rlp_test: ["hi","there",0x05]
+//        let rlp_test = "ca82686985746865726505";
+        let res_addr_account = wasm::execute(enclave.geteid(), &contract_code, "transfer(string,string,uint256)", rlp_args_transfer, 100_000_000).expect("Execution failed");
         enclave.destroy();
+
 
         assert_eq!(from_utf8(&res_addr_account.output).unwrap(), "3");
     }

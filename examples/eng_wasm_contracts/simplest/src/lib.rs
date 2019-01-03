@@ -37,8 +37,8 @@ impl ContractInterface for Contract {
     fn print_test(x: U256, y: U256) {
         eprint!("{:?} {:?}", x.as_u64(), y.as_u64());
         write_state!("x" => x.as_u64(), "y" => y.as_u64());
-        let x: u64 = read_state!("x");
-        let y: u64 = read_state!("y");
+        let x: u64 = read_state!("x").unwrap();
+        let y: u64 = read_state!("y").unwrap();
     }
 }
 

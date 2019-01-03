@@ -44,16 +44,16 @@ impl Erc20Interface for Contract {
     fn transfer(from: Vec<u8>, to: Vec<u8>, tokens: U256) {
         let from_str = from_utf8(&from).unwrap();
         let to_str = from_utf8(&to).unwrap();
+        let sum_from: u64 = read_state!(&from_str).expect("User does not own tokens- invalid action");
+        let amount_to: u64 = match read_state!(&to_str) {
+            Some(amount) => amount,
+            None => 0,
+        };
 
-        let sum_from: u64 = read_state!(&from_str).unwrap();
-        let sum_to: u64 = read_state!(&to_str).unwrap();
-
-        write_state!(&from_str => (sum_from - tokens.as_u64()), &to_str => (sum_to + tokens.as_u64()))
-
+        write_state!(&from_str => (sum_from - tokens.as_u64()), &to_str => (amount_to + tokens.as_u64()));
+//         for test: check if the amount was updated
+        let final_to_sum: u64 = read_state!(&to_str).unwrap();
     }
-//
-//    #[no_mangle]
-//    fn transfer_from(from: Address, to: Address, tokens: U256){}
 //
 //    #[no_mangle]
 //    fn approve(spender: Address, tokens: U256){}
