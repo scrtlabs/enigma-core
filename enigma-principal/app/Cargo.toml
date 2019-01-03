@@ -10,7 +10,12 @@ enigma-tools-u = {path = "../../enigma-tools-u"}
 ethabi = "6.0.1"
 base64 = "0.10.0"
 libc = "0.2.41"
-etcommon-rlp = "0.2"
+etcommon-rlp = {git = "https://github.com/ETCDEVTeam/etcommon-rs.git"}
+etcommon-trie = {git = "https://github.com/ETCDEVTeam/etcommon-rs.git"}
+etcommon-block-core = {git = "https://github.com/ETCDEVTeam/etcommon-rs.git"}
+etcommon-block = {git = "https://github.com/ETCDEVTeam/etcommon-rs.git"}
+etcommon-bigint = {git = "https://github.com/ETCDEVTeam/etcommon-rs.git"}
+etcommon-bloom = {git = "https://github.com/ETCDEVTeam/etcommon-rs.git"}
 failure = "=0.1.1"
 failure_derive="=0.1.1"
 rustc-hex = "1.0.0"

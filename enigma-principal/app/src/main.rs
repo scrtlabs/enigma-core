@@ -1,4 +1,5 @@
 #![feature(integer_atomics)]
+#![feature(arbitrary_self_types)]
 #[macro_use]
 extern crate structopt;
 #[macro_use]
@@ -8,7 +9,6 @@ extern crate colour;
 extern crate base64;
 extern crate dirs;
 extern crate enigma_tools_u;
-extern crate rlp;
 extern crate rustc_hex;
 extern crate serde;
 extern crate serde_derive;
@@ -21,7 +21,14 @@ extern crate url;
 extern crate web3;
 extern crate jsonrpc_minihttp_server;
 extern crate ethabi;
-extern crate rocksdb;
+
+//etcommon
+extern crate rlp;
+extern crate trie;
+extern crate block_core;
+extern crate block;
+extern crate bigint;
+extern crate bloom;
 
 // enigma modules
 mod boot_network;

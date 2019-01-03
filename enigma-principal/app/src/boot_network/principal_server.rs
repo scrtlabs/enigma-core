@@ -8,14 +8,14 @@ use jsonrpc_minihttp_server::DomainsValidation;
 use web3::types::Address;
 
 pub struct StateKeyRequest {
-    pub scAddress: Address,
-    pub workerAddress: Address,
+    pub sc_address: Address,
+    pub worker_address: Address,
     pub signature: [u8; 65],
-    pub encryptionPubKey:[u8; 65],
+    pub encryption_pub_key:[u8; 65],
 }
 pub struct StakeKeyResponse {
-    pub scAddress: Address,
-    pub encryptedStateKey: Vec<u8>,
+    pub sc_address: Address,
+    pub encrypted_state_key: Vec<u8>,
     pub signature: [u8; 65],
 }
 pub struct PrincipalHttpServer {
