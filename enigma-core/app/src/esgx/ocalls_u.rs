@@ -78,14 +78,14 @@ pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut
     cache_id.write_uint::<BigEndian>(state_size as u64, mem::size_of_val(&state_size)).unwrap();
     match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
         Some(state) => {
-            write_ptr(&state[0][..], state_ptr, state_size);
+            enigma_types::write_ptr(&state[0][..], state_ptr, state_size);
             EnclaveReturn::Success
         },
         None => {
             let _state_key = DeltaKey::new(*addr, Stype::State);
             match DATABASE.lock_expect("Database").read(&_state_key) {
                 Ok(state) => {
-                    write_ptr(&state, state_ptr, state_size);
+                    enigma_types::write_ptr(&state, state_ptr, state_size);
                     EnclaveReturn::Success
                 },
                 Err(_) => EnclaveReturn::OcallDBError,
@@ -122,7 +122,7 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
         Err(_) => return EnclaveReturn::OcallDBError,
     };
     DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), deltas_vec);
-    write_ptr(&sizes, res_ptr, res_len);
+    enigma_types::write_ptr(&sizes, res_ptr, res_len);
     EnclaveReturn::Success
 }
 
@@ -137,7 +137,7 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
             // The results here are flatten to one big array.
             // The Enclave needs to separate them back to the original.
             let res = deltas_vec.into_iter().flatten().collect::<Vec<u8>>();
-            write_ptr(&res[..], res_ptr, res_len);
+            enigma_types::write_ptr(&res[..], res_ptr, res_len);
             EnclaveReturn::Success
         }
         None => { // If the data doesn't exist in the cache I need to pull it from the DB
@@ -148,7 +148,7 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
                         ResultType::Full(deltas) | ResultType::Partial(deltas) => {
                             let res = deltas.iter().map(|(_, val)| val.clone()).flatten().collect::<Vec<u8>>();
                             println!("res: {:?}", res);
-                            write_ptr(&res[..], res_ptr, res_len);
+                            enigma_types::write_ptr(&res[..], res_ptr, res_len);
                             EnclaveReturn::Success
                         }
                     }
@@ -157,14 +157,6 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
             }
         }
     }
-}
-
-
-unsafe fn write_ptr<T>(src: &[T], dst: *mut T, count: usize) {
-    if src.len() > count {
-        unimplemented!()
-    }
-    ptr::copy_nonoverlapping(src.as_c_ptr(), dst, src.len());
 }
 
 fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> ResultTypeVec<(DeltaKey, Vec<u8>)> {

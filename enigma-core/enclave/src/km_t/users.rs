@@ -17,3 +17,10 @@ pub(crate) unsafe fn ecall_get_user_key_internal(sig: &mut [u8; 65], user_pubkey
     DH_KEYS.lock_expect("DH Keys").insert(user_pubkey.to_vec(), keys);
     Ok(msg)
 }
+
+
+pub fn get_encryption_key(user_key: &PubKey) -> Option<[u8; 32]> {
+    let guard = DH_KEYS.lock_expect("users DH");
+    let keypair = guard.get(&user_key[..])?;
+    keypair.get_aes_key(user_key).ok()
+}

@@ -22,7 +22,10 @@ enclave {
 	                                   [out, size=100000] uint8_t* output, [out] uint8_t signiture[65], [out] uint64_t* result_length);
 
 
-        public EnclaveReturn ecall_deploy([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len, [in] const uint64_t* gas_limit, [out] uint64_t* output_ptr);
+        public EnclaveReturn ecall_deploy([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
+                                          [in, count=args_len] const uint8_t* args, size_t args_len,
+                                          [in] uint8_t user_key[64], [in] const uint64_t* gas_limit,
+                                          [out] uint64_t* output_ptr);
 
         public EnclaveReturn ecall_execute([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
                                           [in, size=callable_len] const uint8_t* callable, size_t callable_len,

@@ -55,18 +55,17 @@ use crate::evm_t::abi::{create_callback, prepare_evm_input};
 use crate::evm_t::evm::call_sputnikvm;
 use crate::wasm_g::execution;
 use enigma_runtime_t::data::StatePatch;
-use enigma_tools_t::common::utils_t::EthereumAddress;
+use enigma_tools_t::common::utils_t::{LockExpectMutex};
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::{common, cryptography_t, quote_t};
+use enigma_tools_t::cryptography_t::{asymmetric, self};
+use enigma_tools_t::{common, quote_t};
 use enigma_tools_t::build_arguments_g::*;
-use enigma_types::EnclaveReturn;
-use enigma_types::traits::SliceCPtr;
+use enigma_tools_t::km_primitives::PubKey;
+use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 use wasm_utils::{build, SourceTarget};
 
 use sgx_types::*;
-use std::string::ToString;
-use std::vec::Vec;
+use std::{string::ToString, vec::Vec};
 use std::{ptr, slice, str, mem};
 
 lazy_static! { pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -144,11 +143,18 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 ///    `bytecode` contains one function `call`, which invokes `deploy` from the original Wasm
 ///    contract and returns bytecode for deployment.
 /// * `bytecode_len` - the length of the `bytecode`.
+/// * `args` - arguments(might be encrypted) for the constructor, supplied by the user
+/// * `args_len` - the length of `args`
+/// * `user_key` - the DH key of the user
 /// * `output` - the output holder, which will hold the bytecode for deployment
 /// * `output_len` - the length of the output
-pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize, gas_limit: &u64, output_ptr: *mut u64) -> EnclaveReturn {
+pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
+                                      args: *const u8, args_len: usize,
+                                      user_key: &PubKey, gas_limit: *const u64,
+                                      output_ptr: *mut u64) -> EnclaveReturn {
+    let args = slice::from_raw_parts(args, args_len);
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
-    ecall_deploy_internal(bytecode_slice, *gas_limit, output_ptr).into()
+    ecall_deploy_internal(bytecode_slice, args, user_key, *gas_limit, output_ptr).into()
 }
 
 
@@ -188,7 +194,7 @@ pub unsafe extern "C" fn ecall_build_state(failed_ptr: *mut u64) -> EnclaveRetur
 
 
 #[no_mangle]
-pub unsafe extern "C" fn ecall_get_user_key(sig: &mut [u8; 65], user_pubkey: &[u8; 64], serialized_ptr: *mut u64) -> EnclaveReturn {
+pub unsafe extern "C" fn ecall_get_user_key(sig: &mut [u8; 65], user_pubkey: &PubKey, serialized_ptr: *mut u64) -> EnclaveReturn {
     let msg = match ecall_get_user_key_internal(sig, user_pubkey) {
         Ok(msg) => msg,
         Err(e) => return e.into(),
@@ -199,9 +205,6 @@ pub unsafe extern "C" fn ecall_get_user_key(sig: &mut [u8; 65], user_pubkey: &[u
     };
     EnclaveReturn::Success
 }
-
-
-
 
 
 unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], callable_args_slice: &[u8],
@@ -300,7 +303,7 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
                                             false)
         {
             Ok(v) => v,
-            Err(e) => panic!(""),
+            Err(e) => panic!(""), // TODO: Return error
         };
 
     let result;
@@ -313,13 +316,16 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 
     match result {
         Ok(v) => Ok(v),
-        Err(e) => panic!(""),
+        Err(e) => panic!(""), // TODO: Return Error
     }
 }
 
 
-unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], gas_limit: u64, output_ptr: *mut u64) -> Result<(), EnclaveError> {
+unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], args: &[u8], user_key: &PubKey,
+                                gas_limit: u64, output_ptr: *mut u64) -> Result<(), EnclaveError> {
     let deploy_bytecode = build_constructor(bytecode_slice)?;
+    let encryption_key = km_t::users::get_encryption_key(user_key);
+    // TODO: Parse the args and decrypt what's needed
 
     let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit)?;
 

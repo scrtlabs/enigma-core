@@ -3,6 +3,7 @@ extern crate sgx_types;
 extern crate sgx_urts;
 
 use crate::db::{DeltaKey, Stype};
+use crate::km_u::PubKey;
 use crate::common_u::errors::EnclaveFailError;
 use enigma_types::EnclaveReturn;
 use enigma_types::traits::SliceCPtr;
@@ -10,8 +11,11 @@ use failure::Error;
 use sgx_types::*;
 
 extern "C" {
-    fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
-                    gas_limit: *const u64, output_ptr: *mut u64) -> sgx_status_t;
+    fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
+                    bytecode: *const u8, bytecode_len: usize,
+                    args: *const u8, args_len: usize,
+                    user_key: &PubKey, gas_limit: *const u64,
+                    output_ptr: *mut u64) -> sgx_status_t;
 
     fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
                      bytecode: *const u8, bytecode_len: usize,
@@ -25,15 +29,18 @@ extern "C" {
 }
 
 const MAX_EVM_RESULT: usize = 100_000;
-pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], gas_limit: u64)-> Result<Box<[u8]>, Error> {
-    let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
+pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], args: &[u8], user_pubkey: &PubKey, gas_limit: u64)-> Result<Box<[u8]>, Error> {
+    let mut retval = EnclaveReturn::default();
     let mut output_ptr: u64 = 0;
 
     let result = unsafe {
         ecall_deploy(eid,
                      &mut retval,
-                     bytecode.as_c_ptr() as *const u8,
+                     bytecode.as_c_ptr(),
                      bytecode.len(),
+                     args.as_c_ptr(),
+                     args.len(),
+                     &user_pubkey,
                      &gas_limit as *const u64,
                      &mut output_ptr as *mut u64)
     };
@@ -135,7 +142,7 @@ pub mod tests {
         let mut wasm_code = Vec::new();
         f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
-        wasm::deploy(eid, &wasm_code, 100_000).expect("Deploy Failed")
+        wasm::deploy(eid, &wasm_code, &[], &[0u8; 64], 100_000).expect("Deploy Failed")
     }
 
     #[test]
@@ -169,7 +176,7 @@ pub mod tests {
         f.read_to_end(&mut wasm_code).unwrap();
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
         let enclave = init_enclave_wrapper().unwrap();
-        let contract_code = wasm::deploy(enclave.geteid(), &wasm_code, 100_000).expect("Deploy Failed");
+        let contract_code = wasm::deploy(enclave.geteid(), &wasm_code, &[], &[0u8; 64], 100_000).expect("Deploy Failed");
         let result = wasm::execute(enclave.geteid(),&contract_code, "call", "", 100_000).expect("Execution failed");
         assert_eq!(from_utf8(&result.output).unwrap(), "157");
     }
