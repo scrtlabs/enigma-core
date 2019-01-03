@@ -55,10 +55,9 @@ use crate::evm_t::abi::{create_callback, prepare_evm_input};
 use crate::evm_t::evm::call_sputnikvm;
 use crate::wasm_g::execution;
 use enigma_runtime_t::data::StatePatch;
-use enigma_tools_t::common::utils_t::{LockExpectMutex};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::cryptography_t::{asymmetric, self};
-use enigma_tools_t::{common, quote_t};
+use enigma_tools_t::{quote_t, common::EthereumAddress};
 use enigma_tools_t::build_arguments_g::*;
 use enigma_tools_t::km_primitives::PubKey;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
@@ -115,7 +114,8 @@ pub unsafe extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize, cal
 pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                        callable: *const u8, callable_len: usize,
                                        callable_args: *const u8, callable_args_len: usize,
-                                       gas_limit: &u64,
+                                       user_key: &PubKey, contract_address: &ContractAddress,
+                                       gas_limit: *const u64,
                                        output_ptr: *mut u64, delta_data_ptr: *mut u64,
                                        delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
                                        ethereum_payload_ptr: *mut u64,

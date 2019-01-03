@@ -2,11 +2,11 @@ use ethabi;
 use ethabi::param_type::{ParamType, Reader};
 use ethabi::signature::short_signature;
 use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
-use evm_t::error::Error;
+use crate::evm_t::error::Error;
+use crate::evm_t::preprocessor;
+use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::utils_t::ToHex;
 
-use common::errors_t::EnclaveError;
-use common::utils_t::ToHex;
-use evm_t::preprocessor;
 use std::str::from_utf8;
 use std::string::String;
 use std::string::ToString;

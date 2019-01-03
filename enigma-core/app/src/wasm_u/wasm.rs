@@ -3,7 +3,7 @@ extern crate sgx_types;
 extern crate sgx_urts;
 
 use crate::db::{DeltaKey, Stype};
-use crate::km_u::PubKey;
+use crate::km_u::{PubKey, ContractAddress};
 use crate::common_u::errors::EnclaveFailError;
 use enigma_types::EnclaveReturn;
 use enigma_types::traits::SliceCPtr;
@@ -21,10 +21,11 @@ extern "C" {
                      bytecode: *const u8, bytecode_len: usize,
                      callable: *const u8, callable_len: usize,
                      callable_args: *const u8, callable_args_len: usize,
+                     user_key: &PubKey, contract_address: &ContractAddress,
                      gas_limit: *const u64,
-                     output: *mut u64, delta_data_ptr: *mut u64,
+                     output_ptr: *mut u64, delta_data_ptr: *mut u64,
                      delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
-                     ethereum_payload: *mut u64,
+                     ethereum_payload_ptr: *mut u64,
                      ethereum_contract_addr: &mut [u8; 20]) -> sgx_status_t;
 }
 
@@ -59,7 +60,8 @@ pub struct WasmResult {
     pub eth_contract_addr: [u8;20],
 }
 
-pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &str, gas_limit: u64)-> Result<WasmResult,Error>{
+pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &str,
+               user_pubkey: &PubKey, address: &ContractAddress, gas_limit: u64)-> Result<WasmResult,Error>{
     let mut retval = EnclaveReturn::default();
     let mut output = 0u64;
     let mut delta_data_ptr = 0u64;
@@ -77,6 +79,8 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &s
                       callable.len(),
                       args.as_c_ptr() as *const u8,
                       args.len(),
+                      &user_pubkey,
+                      &address,
                       &gas_limit as *const u64,
                       &mut output as *mut u64,
                       &mut delta_data_ptr as *mut u64,
@@ -148,10 +152,11 @@ pub mod tests {
     #[test]
     fn simple() {
         let enclave = init_enclave_wrapper().unwrap();
-        instantiate_encryption_key(&[b"Enigma".sha256()], enclave.geteid());
+        let address = b"Enigma".sha256();
+        instantiate_encryption_key(&[address], enclave.geteid());
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
 //        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
-        let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "", 100_000).expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "", &[0u8; 64], &address, 100_000).expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
     }
@@ -159,9 +164,10 @@ pub mod tests {
     #[test]
     fn eth_bridge() {
         let enclave = init_enclave_wrapper().unwrap();
-        instantiate_encryption_key(&[b"Enigma".sha256()], enclave.geteid());
+        let address = b"Enigma".sha256();
+        instantiate_encryption_key(&[address], enclave.geteid());
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/contract_with_eth_calls");
-        let result = wasm::execute(enclave.geteid(), &contract_code, "test()", "", 100_000).expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &contract_code, "test()", "", &[0u8; 64], &address, 100_000).expect("Execution failed");
         enclave.destroy();
     }
 
@@ -176,8 +182,10 @@ pub mod tests {
         f.read_to_end(&mut wasm_code).unwrap();
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
         let enclave = init_enclave_wrapper().unwrap();
+        let address = b"Enigma".sha256();
+        instantiate_encryption_key(&[address], enclave.geteid());
         let contract_code = wasm::deploy(enclave.geteid(), &wasm_code, &[], &[0u8; 64], 100_000).expect("Deploy Failed");
-        let result = wasm::execute(enclave.geteid(),&contract_code, "call", "", 100_000).expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(),&contract_code, "call", "",  &[0u8; 64], &address,100_000).expect("Execution failed");
         assert_eq!(from_utf8(&result.output).unwrap(), "157");
     }
 }

@@ -1,6 +1,6 @@
 use std::string::String;
-use common::errors_t::EnclaveError;
-use common::utils_t::Sha256;
+use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::utils_t::Sha256;
 use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeResult};
 use std::string::ToString;
 use std::vec::Vec;
