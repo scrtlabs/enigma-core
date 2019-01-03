@@ -22,11 +22,12 @@ enclave {
 	                                   [out, size=100000] uint8_t* output, [out] uint8_t signiture[65], [out] uint64_t* result_length);
 
 
-        public EnclaveReturn ecall_deploy([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len, [out] uint64_t* output_ptr);
+        public EnclaveReturn ecall_deploy([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len, [in] const uint64_t* gas_limit, [out] uint64_t* output_ptr);
 
         public EnclaveReturn ecall_execute([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
                                           [in, size=callable_len] const uint8_t* callable, size_t callable_len,
                                           [in, size=callable_args_len] const uint8_t* callable_args, size_t callable_args_len,
+                                          [in] const uint64_t* gas_limit,
         	                              [out] uint64_t* output_ptr, [out] uint64_t* delta_data_ptr, [out] uint8_t delta_hash_out[32], [out] uint32_t* delta_index_out,
         	                              [out] uint64_t* ethereum_payload_ptr, [out, size=20] uint8_t* ethereum_contract_addr);
 

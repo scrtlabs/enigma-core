@@ -18,6 +18,8 @@ extern crate sgx_trts;
 extern crate sgx_tse;
 extern crate sgx_tseal;
 extern crate sgx_types;
+extern crate parity_wasm;
+extern crate pwasm_utils;
 
 extern crate hexutil;
 extern crate ring;

@@ -14,6 +14,8 @@ default = []
 #debug = true
 
 [dependencies]
+pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", default-features = false }
+parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
 enigma-tools-t = {path = "../../enigma-tools-t"}
 enigma-runtime-t = {path = "../../enigma-runtime-t"}
 enigma-types = { path = "../../enigma-types" }
@@ -32,7 +34,7 @@ sputnikvm-network-classic = { git = "https://github.com/enigmampc/sputnikvm.git"
 sputnikvm = {git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-next", default-features = false }
 
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-wasmi = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+wasmi = { git = "https://github.com/enigmampc/wasmi", features = ["core"]}
 ring = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

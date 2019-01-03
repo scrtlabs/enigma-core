@@ -154,7 +154,7 @@ dependencies = [
  "serde_json 1.0.24 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "sgx_tstd 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "sgx_types 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
- "wasmi 0.4.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
+ "wasmi 0.4.2 (git+https://github.com/enigmampc/wasmi)",
 ]
 
 [[package]]
@@ -169,6 +169,8 @@ dependencies = [
  "failure_derive 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "json-patch 0.2.2 (git+https://github.com/enigmampc/json-patch.git?rev=sgx-0.2.2-v1.0.4)",
  "libsecp256k1 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wasm 0.31.3 (git+https://github.com/enigmampc/parity-wasm.git?branch=enigma)",
+ "pwasm-utils 0.5.0 (git+https://github.com/enigmampc/wasm-utils.git)",
  "ring 0.13.2 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "rmp-serde 0.14.0 (git+https://github.com/enigmampc/msgpack-rust.git?rev=sgx-v1.0.4)",
  "serde 1.0.71 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
@@ -180,7 +182,7 @@ dependencies = [
  "sgx_tstd 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "sgx_types 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "wasmi 0.4.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
+ "wasmi 0.4.2 (git+https://github.com/enigmampc/wasmi)",
 ]
 
 [[package]]
@@ -262,6 +264,11 @@ dependencies = [
 ]
 
 [[package]]
+name = "hashmap_core"
+version = "0.1.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "hmac"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -320,6 +327,11 @@ version = "0.2.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "libm"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "libsecp256k1"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -342,16 +354,8 @@ dependencies = [
 
 [[package]]
 name = "memory_units"
-version = "0.4.0"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "nan-preserving-float"
-version = "0.1.0"
-source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4#212d9f4bab149d967b73bc6eb0a48fe459cd98eb"
-dependencies = [
- "sgx_tstd 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
-]
 
 [[package]]
 name = "nodrop"
@@ -369,7 +373,7 @@ dependencies = [
 [[package]]
 name = "parity-wasm"
 version = "0.31.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+source = "git+https://github.com/enigmampc/parity-wasm.git?branch=enigma#faeef762467f398b70ee3cc0ce63b99c019b8b4e"
 dependencies = [
  "byteorder 1.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -388,6 +392,17 @@ version = "0.4.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "pwasm-utils"
+version = "0.5.0"
+source = "git+https://github.com/enigmampc/wasm-utils.git#4071dc1f563c851f0ecbef0c602b8aff9eb79066"
+dependencies = [
+ "byteorder 1.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wasm 0.31.3 (git+https://github.com/enigmampc/parity-wasm.git?branch=enigma)",
+ "sgx_tstd 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
 ]
 
 [[package]]
@@ -857,16 +872,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "wasmi"
-version = "0.4.0"
-source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4#212d9f4bab149d967b73bc6eb0a48fe459cd98eb"
+version = "0.4.2"
+source = "git+https://github.com/enigmampc/wasmi#cf901b5bf80bf81d3afde20d04be2fae9fcd7230"
 dependencies = [
  "byteorder 1.2.1 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
- "memory_units 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "nan-preserving-float 0.1.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
- "parity-wasm 0.31.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.71 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
- "serde_derive 1.0.71 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
- "sgx_tstd 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
+ "hashmap_core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libm 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "memory_units 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parity-wasm 0.31.3 (git+https://github.com/enigmampc/parity-wasm.git?branch=enigma)",
 ]
 
 [[package]]
@@ -917,6 +930,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum fuchsia-zircon 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2e9763c69ebaae630ba35f74888db465e49e259ba1bc0eda7d06f4a067615d82"
 "checksum fuchsia-zircon-sys 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "3dcaa9ae7725d12cdb85b3ad99a434db70b468c09ded17e012d86b5c1010f7a7"
 "checksum generic-array 0.8.3 (registry+https://github.com/rust-lang/crates.io-index)" = "fceb69994e330afed50c93524be68c42fa898c2d9fd4ee8da03bd7363acd26f2"
+"checksum hashmap_core 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "4a9548e1de55e2a7cbcedefa9b6528e63f0ecba750fa060a325769fcf6298d11"
 "checksum hmac 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7a13f4163aa0c5ca1be584aace0e2212b2e41be5478218d4f657f5f778b2ae2a"
 "checksum hmac-drbg 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "4fe727d41d2eec0a6574d887914347e5ff96a3b87177817e2a9820c5c87fecc2"
 "checksum itoa 0.4.1 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)" = "<none>"
@@ -924,15 +938,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum json-patch 0.2.2 (git+https://github.com/enigmampc/json-patch.git?rev=sgx-0.2.2-v1.0.4)" = "<none>"
 "checksum lazy_static 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a374c89b9db55895453a74c1e38861d9deec0b01b405a82516e9d5de4820dea1"
 "checksum libc 0.2.45 (registry+https://github.com/rust-lang/crates.io-index)" = "2d2857ec59fadc0773853c664d2d18e7198e83883e7060b63c924cb077bd5c74"
+"checksum libm 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "03c0bb6d5ce1b5cc6fd0578ec1cbc18c9d88b5b591a5c7c1d6c6175e266a0819"
 "checksum libsecp256k1 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "466745d6ef984dc24e0d3152c5fd1a6491c903612f8901e22a23eb43768c5c8e"
 "checksum log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)" = "c84ec4b527950aa83a329754b01dbe3f58361d1c5efacd1f6d68c494d08a17c6"
-"checksum memory_units 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
-"checksum nan-preserving-float 0.1.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)" = "<none>"
+"checksum memory_units 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "71d96e3f3c0b6325d8ccd83c33b28acb183edcb6c67938ba104ec546854b0882"
 "checksum nodrop 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)" = "2f9667ddcc6cc8a43afc9b7917599d7216aa09c463919ea32c59ed6cac8bc945"
 "checksum num-traits 0.2.5 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)" = "<none>"
-"checksum parity-wasm 0.31.3 (registry+https://github.com/rust-lang/crates.io-index)" = "511379a8194230c2395d2f5fa627a5a7e108a9f976656ce723ae68fca4097bfc"
+"checksum parity-wasm 0.31.3 (git+https://github.com/enigmampc/parity-wasm.git?branch=enigma)" = "<none>"
 "checksum proc-macro2 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)" = "1b06e2f335f48d24442b35a19df506a835fb3547bc3c06ef27340da9acf5cae7"
 "checksum proc-macro2 0.4.24 (registry+https://github.com/rust-lang/crates.io-index)" = "77619697826f31a02ae974457af0b29b723e5619e113e9397b8b82c6bd253f09"
+"checksum pwasm-utils 0.5.0 (git+https://github.com/enigmampc/wasm-utils.git)" = "<none>"
 "checksum quote 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "9949cfe66888ffe1d53e6ec9d9f3b70714083854be20fd5e271b232a017401e8"
 "checksum quote 0.6.10 (registry+https://github.com/rust-lang/crates.io-index)" = "53fa22a1994bd0f9372d7a816207d8a2677ad0325b073f5c5332760f0fb62b5c"
 "checksum rand 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)" = "8356f47b32624fef5b3301c1be97e5944ecdd595409cc5da11d05f211db6cfbd"
@@ -988,7 +1003,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum unicode-xid 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fc72304796d0818e357ead4e000d19c9c174ab23dc11093ac919054d20a6a7fc"
 "checksum untrusted 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "55cd1f4b4e96b46aeb8d4855db4a7a9bd96eeeb5c6a1ab54593328761642ce2f"
 "checksum vec_map 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "05c78687fb1a80548ae3250346c3db86a80a7cdd77bda190189f2d0a0987c81a"
-"checksum wasmi 0.4.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)" = "<none>"
+"checksum wasmi 0.4.2 (git+https://github.com/enigmampc/wasmi)" = "<none>"
 "checksum winapi 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "92c1eb33641e276cfa214a0522acad57be5c56b10cb348b3c5117db75f3ac4b0"
 "checksum winapi-i686-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ac3b87c63620426dd9b991e5ce0329eff545bccbbb34f3be09ff6fb6ab51b7b6"
 "checksum winapi-x86_64-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"

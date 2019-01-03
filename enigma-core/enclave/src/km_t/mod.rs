@@ -1,13 +1,12 @@
 pub(crate) mod principal;
 pub(crate) mod users;
 
-pub(crate) use enigma_tools_t::km_primitives::{ContractAddress, MsgID, StateKey};
+pub(crate) use enigma_tools_t::km_primitives::{ContractAddress, StateKey};
 pub(crate) use self::principal::{ecall_ptt_req_internal, ecall_ptt_res_internal, ecall_build_state_internal};
 pub(crate) use self::users::ecall_get_user_key_internal;
 
 use std::sync::SgxMutex;
 use std::collections::HashMap;
-use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 use enigma_tools_t::common::LockExpectMutex;
 use std::string::ToString;
 use enigma_tools_t::common::errors_t::EnclaveError;

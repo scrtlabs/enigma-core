@@ -21,6 +21,7 @@ pub mod ids {
     pub const TYPES_FUNC: usize = 11;
     pub const WRITE_PAYLOAD_FUNC: usize = 12;
     pub const WRITE_ADDRESS_FUNC: usize = 13;
+    pub const GAS_FUNC: usize = 14;
 }
 
 pub mod signatures {
@@ -94,6 +95,11 @@ pub mod signatures {
         None,
     );
 
+    pub const GAS: StaticSignature = StaticSignature(
+        &[I32],
+        None,
+    );
+
     impl Into<wasmi::Signature> for StaticSignature {
         fn into(self) -> wasmi::Signature {
             wasmi::Signature::new(self.0, self.1)
@@ -105,7 +111,7 @@ pub mod signatures {
 /// Maps all functions that runtime support to the corresponding contract import
 /// entries.
 /// Also manages initial memory request from the runtime.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct ImportResolver {
     max_memory: u32,
     memory: RefCell<Option<MemoryRef>>,
@@ -163,6 +169,7 @@ impl ModuleImportResolver for ImportResolver {
             "fetch_types" => FuncInstance::alloc_host(signatures::TYPES.into(), ids::TYPES_FUNC),
             "write_payload" => FuncInstance::alloc_host(signatures::WRITE_PAYLOAD.into(), ids::WRITE_PAYLOAD_FUNC),
             "write_address" => FuncInstance::alloc_host(signatures::WRITE_ADDRESS.into(), ids::WRITE_ADDRESS_FUNC),
+            "gas" => FuncInstance::alloc_host(signatures::GAS.into(), ids::GAS_FUNC),
             _ => {
                 return Err(wasmi::Error::Instantiation(
                     format!("Export {} not found", field_name),
