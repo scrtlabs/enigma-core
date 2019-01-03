@@ -38,11 +38,11 @@ fn generate_eng_wasm_aux_functions() -> proc_macro2::TokenStream{
             }
         }
         #[no_mangle]
-        pub fn args() -> String {
+        pub fn args() -> Vec<u8> {
             let length_result = unsafe { external::fetch_args_length() };
 
             match length_result {
-                0 => "".to_string(),
+                0 => Vec::new(),
                 length => {
                     let mut data = Vec::with_capacity(length as usize);
                     for _ in 0..length{
@@ -52,7 +52,8 @@ fn generate_eng_wasm_aux_functions() -> proc_macro2::TokenStream{
                     unsafe {
                         external::fetch_args(data.as_mut_ptr());
                     }
-                    from_utf8(&data).unwrap().to_string()
+//                    from_utf8(&data).unwrap().to_string()
+                    data
                 }
             }
         }
@@ -91,7 +92,7 @@ fn generate_dispatch(input: syn::Item) -> proc_macro2::TokenStream{
                     //println!("METHOD {:#?} TYPES {:#?}", item, arg_types);
                     Some(quote!{
                         #name => {
-                            let mut stream = pwasm_abi::eth::Stream::new(args.as_bytes());
+                            let mut stream = pwasm_abi::eth::Stream::new(args);
 
                             Contract::#func(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
 
@@ -104,7 +105,7 @@ fn generate_dispatch(input: syn::Item) -> proc_macro2::TokenStream{
 
 
     quote! {
-        pub fn dispatch(name: &str, args: &str){
+        pub fn dispatch(name: &str, args: &[u8]){
             match name{
             #(#it,)*
             _=>panic!(),
