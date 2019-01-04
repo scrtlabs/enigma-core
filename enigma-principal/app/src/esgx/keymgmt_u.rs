@@ -67,7 +67,7 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, log: Log, receipt_hashes: Option
 
 const MAX_ENC_RESPONSE_LEN: usize = 100_000;
 
-pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> (Result<StateKeyResponse, Error>) {
+pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Result<StateKeyResponse, Error> {
     let mut sig_out: [u8; 65] = [0; 65];
     let mut enc_response = vec![0u8; MAX_ENC_RESPONSE_LEN];
     let enc_response_slice = enc_response.as_mut_slice();
