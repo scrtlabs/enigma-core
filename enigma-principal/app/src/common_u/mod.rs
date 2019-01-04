@@ -1,3 +1,3 @@
 pub mod errors;
-pub mod hashing;
+pub mod trie_wrapper;
 pub mod types;

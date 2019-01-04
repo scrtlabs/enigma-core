@@ -3,7 +3,7 @@
     "enigma_token_contract_path": "../app/tests/principal_node/contracts/EnigmaToken.json",
     "enigma_contract_remote_path": "",
     "enigma_contract_address": "f25186B5081Ff5cE73482AD761DB0eB0d25abfBF",
-    "account_address": "627306090abab3a6e1400e9345bc60c78a8bef57",
+    "account_address": "b4e4d9c2234d712d9bf6c9445f1cc402106bb02b",
     "test_net": true,
     "with_private_key": false,
     "private_key": "",

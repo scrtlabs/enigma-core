@@ -120,3 +120,6 @@ fabric.properties
 sgx-tests
 CMakeLists.txt
 dockerfile-elichai/
+
+/target
+**/*.rs.bk

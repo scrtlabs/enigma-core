@@ -11,6 +11,7 @@ use rlp::Encodable;
 use rlp::Decodable;
 use enigma_tools_u::common_u::Keccak256;
 use rustc_hex::ToHex;
+use block::HeaderHash;
 
 
 pub trait BigIntWrapper<T> {
@@ -28,6 +29,8 @@ impl BigIntWrapper<bigint::U256> for U256 { fn bigint(self) -> bigint::U256 { bi
 impl BigIntWrapper<bigint::U128> for U128 { fn bigint(self) -> bigint::U128 { bigint::U128(self.0) } }
 
 impl BigIntWrapper<bigint::Gas> for U256 { fn bigint(self) -> bigint::Gas { bigint::Gas::from(bigint::U256(self.0)) } }
+
+impl BigIntWrapper<u64> for U256 { fn bigint(self) -> u64 { self.as_u64() } }
 
 impl BigIntWrapper<LogsBloom> for H2048 { fn bigint(self) -> LogsBloom { LogsBloom::from(bigint::H2048(self.0)) } }
 
@@ -79,30 +82,6 @@ pub trait HeaderWrapper {
     fn leaf_hash(&self) -> Self::Hash;
 }
 
-impl HeaderWrapper for Transaction {
-    type Hash = H256;
-    type Leaf = UnsignedTransaction;
-    fn leaf(&self) -> Self::Leaf {
-        UnsignedTransaction {
-            nonce: self.nonce.bigint(),
-            gas_price: self.gas_price.bigint(),
-            gas_limit: self.gas.bigint(),
-            action: TransactionAction::Create,
-            value: self.value.bigint(),
-            input: self.input.0.clone()
-        }
-    }
-    fn leaf_hash(&self) -> Self::Hash {
-        println!("Hashing transaction tx: {:?}", self);
-        let tx: UnsignedTransaction = self.leaf();
-        println!("The tx bytes: {}", tx.rlp_bytes().to_hex());
-        let txs = vec![tx];
-        let tx_root = block::transactions_root(&txs);
-        println!("Got tx root: {:?}", tx_root);
-        H256::from(0)
-    }
-}
-
 impl HeaderWrapper for Block<H256> {
     type Hash = H256;
     type Leaf = Header;
@@ -120,7 +99,7 @@ impl HeaderWrapper for Block<H256> {
             gas_limit: self.gas_limit.bigint(),
             gas_used: self.gas_used.bigint(),
             timestamp: self.timestamp.bigint(),
-            extra_data: self.extra_data.bigint(),
+            extra_data: self.extra_data.clone().bigint(),
             mix_hash: bigint::H256::from(0), // TODO: missing from web3
             nonce: bigint::H64::from(bigint::H256::from(0)), // TODO: missing from web3
         }
@@ -128,7 +107,7 @@ impl HeaderWrapper for Block<H256> {
     fn leaf_hash(&self) -> Self::Hash {
         println!("Hashing transaction tx: {:?}", self);
         let block_header: Header = self.leaf();
-        println!("The header hash: {}", block_header.header_hash().0.to_hex());
+        println!("The header hash: {}", block_header.header_hash());
         H256::from(0)
     }
 }

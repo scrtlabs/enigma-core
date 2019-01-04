@@ -30,7 +30,7 @@ use enigma_tools_u::common_u::errors::Web3Error;
 use serde_json;
 use serde_json::Value;
 use std::sync::Mutex;
-use common_u::hashing::ReceiptWrapper;
+use common_u::trie_wrapper::ReceiptWrapper;
 
 
 const ACTIVE_EPOCH_CODE: &str = "ACTIVE_EPOCH";
