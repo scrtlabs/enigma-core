@@ -35,7 +35,7 @@ pub struct PrincipalConfig {
     pub max_epochs: Option<usize>,
     pub spid: String,
     pub attestation_service_url: String,
-    pub HTTP_PORT: String,
+    pub http_port: String,
 }
 
 impl PrincipalConfig {
@@ -49,7 +49,6 @@ pub struct PrincipalManager {
     as_service: service::AttestationService,
     pub contract: Arc<EnigmaContract>,
     pub eid: sgx_enclave_id_t,
-//    pub server: PrincipalHttpServer,
 }
 
 impl PrincipalManager {
@@ -87,9 +86,6 @@ pub trait Sampler {
     fn get_account_address(&self) -> Address;
 
     fn get_network_url(&self) -> String;
-
-    // after initialization, start the HTTP server for the JSON RPC api
-//    fn start_server(&self) -> Result<(), Error>;
 
     /// after initiation, this will run the principal node and block.
     fn run<G: Into<U256>>(&self, gas: G) -> Result<(), Error>;
@@ -141,12 +137,20 @@ impl Sampler for PrincipalManager {
         println!("signing address = {}", signer);
         enigma_contract.register(&signer, &rlp_encoded, gas_limit)?;
 
-        // watcher for WorkerParameterized events
-        let child_eid = AtomicU64::new(self.eid);
-        let em = Arc::new(EpochMgmt::new(child_eid, self.contract.clone()));
+        /// Start the WorkerParameterized Web3 log filter
+        let eid = Arc::new(AtomicU64::new(self.eid));
+        let em = Arc::new(EpochMgmt::new(Arc::clone(&eid), self.contract.clone()));
         thread::spawn(move || {
             println!("Starting the worker parameters watcher in child thread");
             em.filter_worker_params();
+        });
+
+        // Start the JSON-RPC Server
+        let port = self.config.http_port.clone();
+        thread::spawn(move || {
+            println!("Starting the JSON RPC Server");
+            let server = PrincipalHttpServer::new(eid, &port);
+            server.start();
         });
 
         // watch blocks

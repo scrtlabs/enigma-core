@@ -11,7 +11,9 @@ extern crate dirs;
 extern crate enigma_tools_u;
 extern crate rustc_hex;
 extern crate serde;
+#[macro_use]
 extern crate serde_derive;
+#[macro_use]
 extern crate serde_json;
 extern crate sgx_types;
 extern crate sgx_urts;

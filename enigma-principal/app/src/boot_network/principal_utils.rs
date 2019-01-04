@@ -132,11 +132,11 @@ impl Principal for EnigmaContract {
 pub struct EpochMgmt {
     contract: Arc<EnigmaContract>,
     last_block_number: Option<AtomicUsize>,
-    eid: AtomicU64,
+    eid: Arc<AtomicU64>,
 }
 
 impl EpochMgmt {
-    pub fn new(eid: AtomicU64, contract: Arc<EnigmaContract>) -> Self {
+    pub fn new(eid: Arc<AtomicU64>, contract: Arc<EnigmaContract>) -> Self {
         EpochMgmt { contract, last_block_number: None, eid }
     }
 

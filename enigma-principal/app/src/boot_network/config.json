@@ -13,5 +13,5 @@
     "max_epochs": 10,
     "spid": "1601F95C39B9EA307FEAABB901ADC3EE",
     "attestation_service_url": "https://sgx.enigma.co/api",
-    "HTTP_PORT": "3040"
+    "http_port": "3040"
 }
