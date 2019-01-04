@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64};
 use boot_network::deploy_scripts;
 use boot_network::principal_utils::Principal;
 use boot_network::principal_server::PrincipalHttpServer;
@@ -17,7 +17,7 @@ use std::thread;
 use web3::transports::Http;
 use web3::types::{Address, U256};
 use web3::Web3;
-use boot_network::principal_utils::EpochMgmt;
+use boot_network::epoch_provider::EpochProvider;
 
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -137,9 +137,9 @@ impl Sampler for PrincipalManager {
         println!("signing address = {}", signer);
         enigma_contract.register(&signer, &rlp_encoded, gas_limit)?;
 
-        /// Start the WorkerParameterized Web3 log filter
+        // Start the WorkerParameterized Web3 log filter
         let eid = Arc::new(AtomicU64::new(self.eid));
-        let em = Arc::new(EpochMgmt::new(Arc::clone(&eid), self.contract.clone()));
+        let em = Arc::new(EpochProvider::new(Arc::clone(&eid), self.contract.clone()));
         thread::spawn(move || {
             println!("Starting the worker parameters watcher in child thread");
             em.filter_worker_params();

@@ -1,15 +1,10 @@
 use rlp;
 use block::Log;
-use block::{Receipt, TransactionAction, UnsignedTransaction, Header};
+use block::{Receipt, Header};
 use bigint;
 use bloom::LogsBloom;
-use web3::types::{TransactionReceipt, Block, H256, H160, U256, H2048, Transaction, U128, Bytes, H64};
-use std::convert::Into;
-use trie::merkle::MerkleNode;
-use rlp::Rlp;
+use web3::types::{TransactionReceipt, Block, H256, H160, U256, H2048, U128, Bytes, H64};
 use rlp::Encodable;
-use rlp::Decodable;
-use enigma_tools_u::common_u::Keccak256;
 use rustc_hex::ToHex;
 use block::HeaderHash;
 

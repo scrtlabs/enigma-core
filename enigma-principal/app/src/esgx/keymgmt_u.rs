@@ -1,19 +1,12 @@
+use ethabi::{encode, Token};
 use failure::Error;
 // general
 //sgx
-use sgx_types::{uint32_t, uint8_t};
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use ethabi::{
-    RawLog, ParamType, Hash, Event, EventParam, Token, encode, decode,
-};
-use web3::types::{H256, BlockHeader, Log};
 use web3::contract::tokens::Tokenizable;
+use web3::types::{BlockHeader, H256, Log};
 
-use enigma_tools_u;
-use enigma_tools_u::attestation_service::constants;
-use enigma_tools_u::attestation_service::service;
 use boot_network::principal_server::{StateKeyRequest, StateKeyResponse, StringWrapper};
-use rustc_hex::FromHex;
 
 extern {
     fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t,
@@ -89,10 +82,10 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Re
     };
     assert_eq!(response, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
     println!("got encrypted state keys: {:?}", response);
-    let enc_response_out:Vec<u8> = enc_response_slice[0..enc_response_len_out].iter().cloned().collect();
+    let enc_response_out: Vec<u8> = enc_response_slice[0..enc_response_len_out].iter().cloned().collect();
     Ok(StateKeyResponse {
         encrypted_response_message: StringWrapper::from(enc_response_out),
-        sig: StringWrapper::from(sig_out)
+        sig: StringWrapper::from(sig_out),
     })
 }
 
@@ -102,17 +95,18 @@ pub mod tests {
 
     use std::prelude::v1::Vec;
 
+    use ethabi::{Address, Uint};
+    use ethabi::token::{LenientTokenizer, Tokenizer};
     use rustc_hex::FromHex;
     use rustc_hex::ToHex;
+    use serde_json as ser;
     use sgx_urts::SgxEnclave;
     use tiny_keccak::Keccak;
     use web3::types::Bytes;
 
     use esgx;
     use esgx::random_u::get_signed_random;
-    use ethabi::{Uint, Address};
-    use ethabi::token::{Tokenizer, LenientTokenizer};
-    use serde_json as ser;
+
     use super::*;
 
     fn init_enclave() -> SgxEnclave {
