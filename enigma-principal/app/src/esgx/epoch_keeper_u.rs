@@ -17,7 +17,14 @@ extern {
                                sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
 
+/// Returns a 32 bytes signed random seed.
+/// # Examples
+/// ```
+/// let enclave = esgx::general::init_enclave().unwrap();
+/// let (rand_seed, sig) = generate_epoch_seed(enclave.geteid());
+/// ```
 pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
+    // TODO: Also return nonce
     let mut rand_out: [u8; 32] = [0; 32];
     let mut sig_out: [u8; 65] = [0; 65];
     let mut retval = sgx_status_t::default();
