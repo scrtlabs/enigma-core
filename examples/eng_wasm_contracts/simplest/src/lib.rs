@@ -4,15 +4,18 @@
 
 extern crate eng_wasm;
 extern crate eng_wasm_derive;
+extern crate rustc_hex as hex;
 
 use eng_wasm::*;
 use eng_wasm_derive::pub_interface;
 
 use eng_wasm::String;
+use hex::ToHex;
 
 #[pub_interface]
 pub trait ContractInterface{
     fn write();
+    fn get_address(addr: Address);
     fn print_test(x: U256, y: U256) ;
 }
 
@@ -31,6 +34,15 @@ impl ContractInterface for Contract {
         let read_val: String = read_state!(key).unwrap();
 
         assert_eq!(read_val, a);
+    }
+
+    #[no_mangle]
+    fn get_address(addr: Address) {
+
+        write_state!("addr" => addr.to_hex());
+        let read_val: String = read_state!("addr").unwrap();
+
+        assert_eq!(read_val, addr.to_hex());
     }
 
     #[no_mangle]

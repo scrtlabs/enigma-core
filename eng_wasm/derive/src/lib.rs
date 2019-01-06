@@ -141,7 +141,7 @@ trait Write{
 }
 
 impl Write for ParamType{
-    /// Returns string which is a formatted represenation of param.
+    /// Returns string which is a formatted representation of param.
     fn write(&self) -> String {
         match *self{
             ParamType::Address => "Address".to_owned(),
@@ -152,7 +152,7 @@ impl Write for ParamType{
                 _ => panic!("{}", self.error()),
             },
             ParamType::Uint(len) => match len{
-                32 | 64 => format!("i{}", len),
+                32 | 64 => format!("u{}", len),
                 256 => "U256".to_owned(),
                 _ => panic!("{}", self.error()),
             },

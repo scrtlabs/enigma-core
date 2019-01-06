@@ -1,6 +1,7 @@
 #![allow(dead_code,unused_assignments,unused_variables)]
 extern crate sgx_types;
 extern crate sgx_urts;
+extern crate rustc_hex;
 
 use common_u::errors::EnclaveFailError;
 use enigma_types::EnclaveReturn;
@@ -157,11 +158,22 @@ pub mod tests {
     fn simple() {
         let enclave = init_enclave();
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
-        let result = wasm::execute(enclave.geteid(),&contract_code, "print_test(uint256,uint256)", "c20f16", 100_000).expect("Execution failed");
-        assert_eq!(from_utf8(&result.output).unwrap(), "22");
+//        let result = wasm::execute(enclave.geteid(),&contract_code, "print_test(uint256,uint256)", "c20f16", 100_000).expect("Execution failed");
+//        assert_eq!(from_utf8(&result.output).unwrap(), "22");
         let result = wasm::execute(enclave.geteid(), &contract_code, "write()", "", 100_000).expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
+    }
+
+    #[test]
+    fn simple_address() {
+        let enclave = init_enclave();
+        let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
+        // encoding of the address: 0x5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f
+        let arg = "d5945ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f";
+        let result = wasm::execute(enclave.geteid(), &contract_code, "get_address(address)", arg, 100_000).expect("Execution failed");
+        enclave.destroy();
+        assert_eq!(from_utf8(&result.output).unwrap(), "\"5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f\"");
     }
 
     #[test]
@@ -178,7 +190,7 @@ pub mod tests {
 
     // todo: need to add an initial state in order to test this function's functionality
     #[test]
-    fn erc20() {
+    fn erc20_transfer() {
         let enclave = init_enclave();
         let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20");
 //        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", "c20102").expect("Execution failed");
