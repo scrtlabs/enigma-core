@@ -17,7 +17,6 @@ use enigma_tools_u::web3_utils::w3utils::connect_batch;
 use enigma_tools_u::web3_utils::provider_types::{ReceiptWrapper, ReceiptHashesWrapper, BlockHeaders};
 use enigma_tools_u::web3_utils::keeper_types_u::EventWrapper;
 
-use crate::esgx::keymgmt_u;
 
 pub struct EpochProvider {
     contract: Arc<EnigmaContract>,
@@ -132,6 +131,7 @@ mod test {
     /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:9545")) }
 
+    //noinspection RsTypeCheck
     #[test]
     fn test_mock_receipt() {
         let event = EventWrapper::workers_parameterized();

@@ -7,7 +7,7 @@ use jsonrpc_minihttp_server::DomainsValidation;
 use web3::types::Address;
 use rustc_hex::ToHex;
 use rustc_hex::FromHex;
-use esgx::keymgmt_u::get_enc_state_keys;
+use esgx::keys_keeper_u::get_enc_state_keys;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use failure::Error;
