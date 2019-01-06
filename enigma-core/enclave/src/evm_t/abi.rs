@@ -67,7 +67,7 @@ fn create_function_signature(types_vector: Vec<String>, function_name: String) -
     Ok(callback_signature)
 }
 
-pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EnclaveError> {
     let callable: &str = from_utf8(callable).unwrap();
 
     let (types, function_name) = match get_types(callable) {
@@ -75,7 +75,7 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8]) 
         Err(e) => return Err(e),
     };
     let types_vector = extract_types(&types);
-    let mut args_vector = match get_args(callable_args, &extract_types(&types)) {
+    let mut args_vector = match get_args(callable_args, &extract_types(&types), &key) {
         Ok(v) => v,
         Err(e) => return Err(e),
     };

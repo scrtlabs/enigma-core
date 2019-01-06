@@ -98,20 +98,33 @@ pub mod tests {
     use super::{ContractAddress, StateKey, ptt_req, ptt_res, ptt_build_state};
     use crate::db::{DeltaKey, DATABASE, CRUDInterface};
     use crate::db::Stype::{Delta, State};
+    use super::PubKey;
     use enigma_tools_u::common_u::{Sha256, Keccak256};
     use rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
     use self::secp256k1::{PublicKey, SecretKey, SharedSecret, Message, Signature, RecoveryId};
     use serde_json::{self, Value};
-    use self::ring::aead;
+    use self::ring::{aead, rand::*};
     use sgx_types::sgx_enclave_id_t;
     use std::collections::HashSet;
+
+    const PUBKEY_DUMMY: [u8; 64] = [ 27, 132, 197, 86, 123, 18, 100, 64, 153, 93, 62, 213, 170, 186, 5, 101, 215, 30, 24, 52, 96, 72, 25, 255, 156, 23, 245, 233, 213, 221, 7, 143, 112, 190, 175, 143, 88, 139, 84, 21, 7, 254, 214, 166, 66, 197, 171, 66, 223, 223, 129, 32, 167, 246, 57, 222, 81, 34, 212, 122, 105, 168, 232, 209];
+
+    pub fn exchange_keys(id: sgx_enclave_id_t) -> (PubKey, Box<[u8]>, [u8; 65]) {
+        let mut _priv = [0u8; 32];
+        SystemRandom::new().fill(&mut _priv).unwrap();
+        let privkey = SecretKey::parse(&_priv).unwrap();
+        let _pubkey = PublicKey::from_secret_key(&privkey);
+        let mut pubkey = [0u8; 64];
+        pubkey.clone_from_slice(&_pubkey.serialize()[1..]);
+        let (data, sig) = super::get_user_key(id, &pubkey).unwrap();
+        (pubkey, data, sig)
+    }
 
     #[test]
     fn test_get_user_key() {
         let enclave = init_enclave_wrapper().unwrap();
-        let pubkey = [1u8; 64];
-        let (data, _sig) = super::get_user_key(enclave.geteid(), &pubkey).unwrap();
+        let (_, data, _sig) = exchange_keys(enclave.geteid());
 
         let mut des = Deserializer::new(&data[..]);
         let res: Value = Deserialize::deserialize(&mut des).unwrap();
