@@ -2,7 +2,7 @@ use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{BlockHeader, H256, Log};
 
-use boot_network::principal_server::{StateKeyRequest, StateKeyResponse, StringWrapper};
+use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors;
 use enigma_tools_u::web3_utils::provider_types::{BlockHeaders, BlockHeaderWrapper, encode, ReceiptHashesWrapper, ReceiptWrapper};
 

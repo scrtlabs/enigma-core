@@ -25,16 +25,6 @@ impl IntoBigint<bigint::B256> for Bytes { fn bigint(self) -> bigint::B256 { bigi
 #[derive(Debug, Clone)]
 pub struct LogWrapper(pub Log);
 
-impl Into<Vec<Token>> for LogWrapper {
-    fn into(self) -> Vec<Token> {
-        vec![
-            Tokenizable::into_token(self.0.address),
-            Tokenizable::into_token(self.0.topics),
-            Token::Bytes(self.0.data.0),
-        ]
-    }
-}
-
 impl Encodable for LogWrapper {
     fn rlp_append(&self, s: &mut RlpStream) {
         s.begin_list(3);
@@ -71,6 +61,7 @@ impl Encodable for BlockHeaderWrapper {
 
 #[derive(Debug, Clone)]
 pub struct BlockHeaders(pub Vec<BlockHeaderWrapper>);
+
 impl Encodable for BlockHeaders {
     fn rlp_append(&self, s: &mut RlpStream) {
         s.begin_list(1);

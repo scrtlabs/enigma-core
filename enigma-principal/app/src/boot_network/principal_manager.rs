@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicU64};
 use boot_network::deploy_scripts;
 use boot_network::principal_utils::Principal;
-use boot_network::principal_server::PrincipalHttpServer;
+use boot_network::keys_provider_http::PrincipalHttpServer;
 use enigma_tools_u::attestation_service::service;
 use enigma_tools_u::esgx::equote::retry_quote;
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, EnigmaContract};
