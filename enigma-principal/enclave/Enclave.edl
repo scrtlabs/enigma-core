@@ -20,7 +20,9 @@ enclave {
 
         public EnclaveReturn ecall_get_random_seed( [out, size=32] uint8_t* rand_out, [out, size=65] uint8_t* sig_out);
 
-        public EnclaveReturn ecall_set_worker_params([in, size=receipt_tokens_len] const uint8_t* receipt_tokens, size_t receipt_tokens_len,
+        public EnclaveReturn ecall_set_worker_params([in, size=receipt_rlp_len] const uint8_t* receipt_rlp, size_t receipt_rlp_len,
+                                        [in, size=receipt_hashes_rlp_len] const uint8_t* receipt_hashes_rlp, size_t receipt_hashes_rlp_len,
+                                        [in, size=headers_rlp_len] const uint8_t* headers_rlp, size_t headers_rlp_len,
                                         [out, size=65] uint8_t* sig_out);
 
         public EnclaveReturn ecall_get_enc_state_keys([in, size=enc_msg_len] const uint8_t* enc_msg, size_t enc_msg_len,

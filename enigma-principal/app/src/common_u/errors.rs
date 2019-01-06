@@ -24,3 +24,9 @@ pub struct GetRegisterKeyErr {
 pub struct AttestationServiceErr {
     pub message: String,
 }
+
+#[derive(Fail, Debug)]
+#[fail(display = "Error while setting worker parameters from Ethereum receipts and blocks  = ({})", message)]
+pub struct WorkerParamsErr {
+    pub message: String,
+}

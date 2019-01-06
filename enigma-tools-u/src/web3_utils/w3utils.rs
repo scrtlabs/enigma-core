@@ -63,7 +63,7 @@ pub fn load_contract_abi<R: Read>(rdr: R) -> Result<String, Error> {
 // Every time Web3::new() is called it spawns a new thread that is tied to eloop.
 // Important!! When eloop is Dropped, the underlying Transport dies.
 // https://github.com/tomusdrw/rust-web3/blob/master/src/transports/http.rs#L79
-// Precision!! This is true for Transport::new(), not Web3::new()
+// Precision: This is true for Transport::new(), not Web3::new()
 pub fn connect(url: &str) -> Result<(EventLoopHandle, Web3<Http>), Error> {
     let (_eloop, http) = match web3::transports::Http::new(url) {
         Ok((eloop, http)) => (eloop, http),

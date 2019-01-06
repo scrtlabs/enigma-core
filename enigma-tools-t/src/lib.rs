@@ -29,6 +29,8 @@ extern crate wasmi;
 extern crate bigint;
 extern crate rlp;
 extern crate ethabi;
+extern crate ethereum_types;
+
 pub mod common;
 pub mod cryptography_t;
 pub mod km_primitives;

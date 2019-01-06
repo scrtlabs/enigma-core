@@ -1,5 +1,5 @@
 use ethabi::{Hash};
 
-struct EthVerify {
+struct Verify {
     checkpoint_block_hash: Hash,
 }

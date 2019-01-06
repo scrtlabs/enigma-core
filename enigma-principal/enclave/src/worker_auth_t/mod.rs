@@ -1,4 +1,4 @@
-use ethabi::{Address, Bytes, decode, encode, Event, EventParam, FixedBytes, Hash, Log, ParamType, RawLog, Token, Uint};
+use ethabi::{Address, Bytes, decode, encode, Event, EventParam, FixedBytes, Hash, ParamType, RawLog, Token, Uint};
 use ethabi::token::{LenientTokenizer, Tokenizer};
 use hexutil;
 use serde::{Deserialize, Serialize};
@@ -18,6 +18,7 @@ use std::vec::Vec;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::eth_tools_t::epoch_t::{Epoch, WorkerParams};
+use enigma_tools_t::eth_tools_t::type_wrappers_t::{ReceiptHashes, Receipt, BlockHeader, BlockHeaders, Log};
 
 use crate::SIGNINING_KEY;
 
@@ -58,8 +59,8 @@ pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], sig_ou
     Ok(nonce)
 }
 
-pub(crate) fn ecall_get_verified_log_internal(receipt_tokens: Vec<Token>, receipt_hashes: Vec<Hash>,
-                                              block_header_tokens: Vec<Token>) -> Result<(Uint, RawLog), EnclaveError> {
+pub(crate) fn ecall_get_verified_worker_params(receipt: Receipt, receipt_hashes: ReceiptHashes,
+                                               block_headers: BlockHeaders) -> Result<WorkerParams, EnclaveError> {
     let mut epoch_guard = EPOCH.lock_expect("Epoch");
     let nonce: Uint = match epoch_guard.keys().max() {
         Some(n) => n.clone(),
@@ -70,23 +71,23 @@ pub(crate) fn ecall_get_verified_log_internal(receipt_tokens: Vec<Token>, receip
         }
     };
     println!("Verifying receipt for epoch nonce: {:?}", nonce);
+    let params: WorkerParams = WorkerParams::from(receipt.logs[0].clone());
+    // TODO: verify the nonce against the receipt
 
-    println!("Creating log from receipt tokens: {:?}", receipt_tokens);
+    println!("Verifying log data: {:?}", receipt_tokens);
     // TODO: add error handling for token conversion
     // TODO: merkle up the receipt root
     // To validate tries: https://github.com/paritytech/parity-common/tree/master/triehash
     // TODO: verify hash of the block header
     // TODO: verify the linkage between the block header and last verified block
-    let address = receipt_tokens[0].clone().to_address().unwrap();
-    let topic_tokens = receipt_tokens[1].clone().to_array().unwrap();
-    let topics: Vec<Hash> = topic_tokens.into_iter().map(|t| Hash::from(t.to_uint().unwrap())).collect();
-    let data: Bytes = receipt_tokens[2].clone().to_bytes().unwrap();
-    Ok((nonce, RawLog { topics, data }))
+    Ok(params)
 }
 
-pub(crate) fn ecall_set_worker_params_internal(nonce: Uint, raw_log: RawLog) -> Result<(), EnclaveError> {
-    let mut params_guard = EPOCH.lock_expect("Epoch");
-    let epoch = match params_guard.get_mut(&nonce) {
+pub(crate) fn ecall_set_worker_params_internal(params: WorkerParams) -> Result<(), EnclaveError> {
+    // TODO: Get the nonce from the worker params
+    let nonce = Uint::from(1);
+    let mut epoch_guard = EPOCH.lock_expect("Epoch");
+    let epoch = match epoch_guard.get_mut(&nonce) {
         Some(value) => value,
         None => {
             return Err(EnclaveError::WorkerAuthError {
@@ -94,8 +95,8 @@ pub(crate) fn ecall_set_worker_params_internal(nonce: Uint, raw_log: RawLog) -> 
             });
         }
     };
-    epoch.set_worker_params(raw_log)?;
-    println!("Worker parameters set for nonce: {:?} => {:?}", nonce, epoch);
+    epoch.set_worker_params(params)?;
+    println!("Worker parameters set successfully: {:?}", epoch);
     Ok(())
 }
 

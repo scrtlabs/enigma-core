@@ -10,6 +10,7 @@ extern crate base64;
 extern crate libc;
 extern crate openssl;
 extern crate rlp;
+extern crate bigint;
 extern crate rustc_hex as hex;
 extern crate serde;
 extern crate tiny_keccak;
@@ -19,6 +20,7 @@ extern crate web3;
 // SGX Libraries
 extern crate sgx_types;
 extern crate sgx_urts;
+extern crate ethereum_types;
 
 pub mod attestation_service;
 pub mod common_u;

@@ -47,6 +47,7 @@ use enigma_tools_t::quote_t;
 use enigma_tools_t::km_primitives::MsgID;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
+use enigma_tools_t::eth_tools_t::type_wrappers_t::{decode, Receipt, BlockHeader, ReceiptHashes, BlockHeaders};
 
 use enigma_types::traits::SliceCPtr;
 use std::string::ToString;
@@ -55,11 +56,12 @@ use std::{ptr, slice, str, mem};
 use std::cell::RefCell;
 use std::borrow::ToOwned;
 use std::collections::HashMap;
-use ethabi::{Hash, Bytes, RawLog, Token, EventParam, ParamType, Event, Address, Uint, Log, decode};
+use ethabi::{Hash, Bytes, RawLog, Token, EventParam, ParamType, Event, Address, Uint, Log};
+
 
 use crate::worker_auth_t::{
     ecall_generate_epoch_seed_internal,
-    ecall_get_verified_log_internal,
+    ecall_get_verified_worker_params,
     ecall_set_worker_params_internal,
 };
 use crate::key_provider_t::ecall_get_enc_state_keys_internal;
@@ -115,30 +117,26 @@ pub extern "C" fn ecall_get_random_seed(rand_out: &mut [u8; 32], sig_out: &mut [
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ecall_set_worker_params(receipt_tokens: *const u8, receipt_tokens_len: usize,
+pub unsafe extern "C" fn ecall_set_worker_params(receipt_rlp: *const u8, receipt_rlp_len: usize,
+                                                 receipt_hashes_rlp: *const u8, receipt_hashes_rlp_len: usize,
+                                                 headers_rlp: *const u8, headers_rlp_len: usize,
                                                  sig_out: &mut [u8; 65]) -> EnclaveReturn {
     // TODO: Prove that the log is part of the block where the epoch originated
     println!("setting worker parameters for epochs");
-    let receipt_slice = slice::from_raw_parts(receipt_tokens, receipt_tokens_len);
-    let receipt_param_types = vec![
-        ParamType::Address,
-        ParamType::Array(Box::new(ParamType::Uint(256))),
-        ParamType::Bytes,
-    ];
-    let decoded_receipt_tokens = decode(&receipt_param_types, receipt_slice).unwrap();
-    println!("The decoded receipt tokens: {:?}", decoded_receipt_tokens);
-    // TODO: replace dummy data
-    let decoded_receipt_hashes = vec![Hash::from(0)];
-    let decoded_block_header_tokens = vec![Token::Bytes(vec![0, 0, 0])];
+    let receipt_rlp = slice::from_raw_parts(receipt_rlp, receipt_hashes_rlp_len);
+    let receipt_hashes_rlp = slice::from_raw_parts(receipt_hashes_rlp, receipt_hashes_rlp_len);
+    let headers_rlp = slice::from_raw_parts(headers_rlp, headers_rlp_len);
 
-    let (nonce, raw_log) = match ecall_get_verified_log_internal(decoded_receipt_tokens, decoded_receipt_hashes, decoded_block_header_tokens) {
-        Ok(raw_log) => {
-            println!("the raw log: {:?}", raw_log);
-            raw_log
-        }
+    // RLP decoding the necessary data
+    let receipt: Receipt = decode(receipt_rlp);
+    let receipt_hashes: ReceiptHashes = decode(receipt_hashes_rlp);
+    let headers: BlockHeaders = decode(headers_rlp);
+
+    let worker_params = match ecall_get_verified_worker_params(receipt.clone(), receipt_hashes, block_headers) {
+        Ok(params) => params,
         Err(err) => return err.into(),
     };
-    match ecall_set_worker_params_internal(nonce, raw_log) {
+    match ecall_set_worker_params_internal(worker_params) {
         Ok(_) => println!("worker parameters set successfully"),
         Err(err) => return err.into(),
     };

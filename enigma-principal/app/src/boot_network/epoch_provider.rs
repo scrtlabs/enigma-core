@@ -4,8 +4,6 @@ use std::thread;
 use std::time;
 
 use ethabi::Event;
-use ethabi::EventParam;
-use ethabi::ParamType;
 // general
 use failure::Error;
 use serde_json;
@@ -13,10 +11,11 @@ use web3::futures::Future;
 use web3::futures::stream::Stream;
 use web3::types::{Block, BlockId, FilterBuilder, H256, Log, TransactionReceipt};
 
-use common_u::trie_wrapper::ReceiptWrapper;
 use enigma_tools_u::common_u::errors::Web3Error;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use enigma_tools_u::web3_utils::w3utils::connect_batch;
+use enigma_tools_u::web3_utils::type_wrappers::{ReceiptWrapper, ReceiptHashesWrapper, BlockHeaders};
+use enigma_tools_u::web3_utils::type_wrappers_t::EventWrapper;
 
 use crate::esgx::keymgmt_u;
 
@@ -31,29 +30,9 @@ impl EpochProvider {
         EpochProvider { contract, last_block_number: None, eid }
     }
 
-    pub fn get_workers_parameterized_event() -> Event {
-        Event {
-            name: "WorkersParameterized".to_owned(),
-            inputs: vec![EventParam {
-                name: "seed".to_owned(),
-                kind: ParamType::Uint(256),
-                indexed: false,
-            }, EventParam {
-                name: "workers".to_owned(),
-                kind: ParamType::Array(Box::new(ParamType::Address)),
-                indexed: false,
-            }, EventParam {
-                name: "_success".to_owned(),
-                kind: ParamType::Bool,
-                indexed: false,
-            }],
-            anonymous: false,
-        }
-    }
-
     pub fn filter_worker_params(self: Arc<Self>) {
-        let event = EpochProvider::get_workers_parameterized_event();
-        let event_sig = event.signature();
+        let event = EventWrapper::workers_parameterized();
+        let event_sig = event.0.signature();
         // Filter for Hello event in our contract
         let filter = FilterBuilder::default()
             .address(vec![self.contract.address()])
@@ -119,14 +98,70 @@ impl EpochProvider {
 
     pub fn store_epoch(&self, log: Log) -> Result<(), Error> {
         let block = self.fetch_block(log.block_hash.unwrap())?;
-        let receipts_hashes: Vec<H256> = self.fetch_receipts(block.transactions.clone())?
+        let receipts = self.fetch_receipts(block.transactions.clone())?
             .into_iter()
-            .map(|r| -> H256 { r.leaf_hash(block.clone()) })
-            .collect();
+            .map(|r| { ReceiptWrapper { receipt: r, block: block.clone() } })
+            .collect::<Vec<ReceiptWrapper>>();
 //        println!("Got receipt hashes: {:?}", receipts_hashes);
         // Set the worker parameters in the enclave
-        let sig = keymgmt_u::set_worker_params(self.eid.load(Ordering::SeqCst), log, None, None);
+        // TODO: enable when all objects are available
+//        let sig = keymgmt_u::set_worker_params(self.eid.load(Ordering::SeqCst), log, None, None);
 //        println!("Worker parameters stored in Enclave. The signature: {:?}", sig.to_vec());
         Ok(())
+    }
+}
+
+//////////////////////// TESTS  /////////////////////////////////////////
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use enigma_tools_u::web3_utils::w3utils;
+    use ethabi::{Token, Bytes, RawLog};
+    use ethabi;
+    use std::env;
+    use web3::types::U256;
+    use web3::contract::tokens::Tokenizable;
+    use enigma_tools_u::web3_utils::type_wrappers::{encode, LogWrapper, ReceiptWrapper};
+    use enigma_tools_u::web3_utils::type_wrappers_t::{decode, Log, Receipt, Epoch};
+
+    /// This function is important to enable testing both on the CI server and local.
+    /// On the CI Side:
+    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+    /// The default is set to ganache cli "http://localhost:8545"
+    pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:9545")) }
+
+    #[test]
+    fn test_mock_receipt() {
+        let event = EventWrapper::workers_parameterized();
+        let url = get_node_url();
+        println!("Connection to Ethereum node: {:?}", url);
+        let (_eloop, web3) = w3utils::connect(&url).unwrap();
+        println!("Got web3");
+
+        let tx = serde_json::from_str::<H256>("\"0x33c3c14e3cd8764911d243e67c229adf7279b3e920a3dbb317ff989946ad47bb\"").unwrap();
+        println!("Fetching Receipt for: {:?}", tx);
+        let receipt = web3.eth().transaction_receipt(tx).wait().unwrap().unwrap();
+
+        let block_id = BlockId::Hash(receipt.clone().block_hash.unwrap());
+        let block = web3.eth().block(block_id).wait().unwrap().unwrap();
+
+        let receipt_wrapper = ReceiptWrapper { receipt: receipt.clone(), block };
+        let receipt_bytes = encode(&receipt_wrapper);
+        println!("The receipt RLP bytes: {:?}", receipt_bytes);
+
+        let decoded_receipt: Receipt = decode(&receipt_bytes);
+        println!("The receipt: {:?}", decoded_receipt);
+
+        let log = LogWrapper(receipt.clone().logs[0].clone());
+        let tokens: Vec<Token> = log.clone().into();
+        println!("The log ABI tokens: {:?}", ethabi::encode(&tokens));
+
+        let bytes = encode(&log);
+        println!("The log RLP bytes: {:?}", bytes);
+
+        let decoded_log: Log = decode(&bytes);
+        println!("The receipt raw log: {:?}", decoded_log);
     }
 }
