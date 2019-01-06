@@ -54,7 +54,7 @@ use crate::km_t::{ContractAddress, ecall_ptt_req_internal, ecall_ptt_res_interna
 use crate::evm_t::abi::{create_callback, prepare_evm_input};
 use crate::evm_t::evm::call_sputnikvm;
 use crate::wasm_g::execution;
-use enigma_runtime_t::data::StatePatch;
+use enigma_runtime_t::data::{StatePatch, ContractState};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::cryptography_t::{asymmetric, self};
@@ -126,17 +126,17 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
 
     ecall_execute_internal(bytecode_slice,
-                                       callable_slice,
-                                       callable_args_slice,
-                                       &user_key,
-                                       &contract_address,
-                                       *gas_limit,
-                                       output_ptr,
-                                       delta_data_ptr,
-                                       delta_hash_out,
-                                       delta_index_out,
-                                       ethereum_payload_ptr,
-                                       ethereum_contract_addr).into()
+                           callable_slice,
+                           callable_args_slice,
+                           &user_key,
+                           &contract_address,
+                           *gas_limit,
+                           output_ptr,
+                           delta_data_ptr,
+                           delta_hash_out,
+                           delta_index_out,
+                           ethereum_payload_ptr,
+                           ethereum_contract_addr).into()
 }
 
 #[no_mangle]
@@ -153,11 +153,11 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 /// * `output_len` - the length of the output
 pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
                                       args: *const u8, args_len: usize,
-                                      user_key: &PubKey, gas_limit: *const u64,
-                                      output_ptr: *mut u64) -> EnclaveReturn {
+                                      address: &ContractAddress, user_key: &PubKey,
+                                      gas_limit: *const u64, output_ptr: *mut u64) -> EnclaveReturn {
     let args = slice::from_raw_parts(args, args_len);
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
-    ecall_deploy_internal(bytecode_slice, args, user_key, *gas_limit, output_ptr).into()
+    ecall_deploy_internal(bytecode_slice, args, address, user_key, *gas_limit, output_ptr).into()
 }
 
 
@@ -256,16 +256,16 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
                                  ethereum_contract_addr: &mut [u8; 20]) -> Result<(), EnclaveError> {
     let callable = str::from_utf8(callable_slice)?;
     let callable_args = hexutil::read_hex(str::from_utf8(callable_args_slice).unwrap()).unwrap();
-    let state = execution::get_state();
+    let state = execution::get_state(*address)?;
 
     let (types, function_name) = get_types(callable)?;
     let types_vector = extract_types(&types.to_string());
 
-    let encryption_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
+    let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(EnclaveError::KeyError {key_type: "Missing DH Key".to_string(), key: "".to_string()})?;
 
-    let args_vector = get_args(&callable_args, &types_vector, &encryption_key)?;
+    let args_vector = get_args(&callable_args, &types_vector, &inputs_key)?;
 
     let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], false){
         Ok(v) => v,
@@ -330,20 +330,32 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 }
 
 
-unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], args: &[u8], user_key: &PubKey,
+unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], args: &[u8],
+                                address: &ContractAddress, user_key: &PubKey,
                                 gas_limit: u64, output_ptr: *mut u64) -> Result<(), EnclaveError> {
     let deploy_bytecode = build_constructor(bytecode_slice)?;
 
-    let encryption_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
+    let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(EnclaveError::KeyError {key_type: "Missing DH Key".to_string(), key: "".to_string()})?;
     // TODO: decrypt and parse the args
 
-    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit)?;
+    let state = ContractState::new(*address);
+
+    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state)?;
+
+    // TODO: What about delta?
+    // TODO: Can the user make an ethereum payload in the constructor?
+    // TODO: Maybe it can be the same as `prepare_wasm_result`?
+
+    if let Some(state) = exec_res.updated_state {
+        // Saving the updated state into the db
+        let enc_state = km_t::encrypt_state(state)?;
+        enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
+    }
 
     let result = &exec_res.result[..];
     *output_ptr = ocalls_t::save_to_untrusted_memory(&result)?;
-
     Ok(())
 }
 
