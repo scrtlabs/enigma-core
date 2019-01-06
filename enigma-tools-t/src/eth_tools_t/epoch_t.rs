@@ -7,7 +7,7 @@ use std::vec::Vec;
 use std::panic;
 use std::convert::From;
 use serde_json as ser;
-use eth_tools_t::type_wrappers_t::{EventWrapper, Log};
+use eth_tools_t::keeper_types_t::{EventWrapper, Log};
 use ethereum_types::{H160, U256};
 use common::errors_t::EnclaveError;
 
@@ -44,8 +44,9 @@ pub struct Epoch {
 }
 
 impl Epoch {
-    pub fn set_worker_params(&mut self, params: WorkerParams) {
+    pub fn set_worker_params(&mut self, params: WorkerParams) -> Result<(), EnclaveError> {
         self.worker_params = Some(params);
+        Ok(())
     }
 
     pub fn get_selected_workers(self, sc_addr: Address) -> Result<Vec<Address>, EnclaveError> {

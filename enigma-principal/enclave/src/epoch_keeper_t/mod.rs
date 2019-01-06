@@ -18,7 +18,7 @@ use std::vec::Vec;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::eth_tools_t::epoch_t::{Epoch, WorkerParams};
-use enigma_tools_t::eth_tools_t::type_wrappers_t::{ReceiptHashes, Receipt, BlockHeader, BlockHeaders, Log};
+use enigma_tools_t::eth_tools_t::keeper_types_t::{ReceiptHashes, Receipt, BlockHeader, BlockHeaders, Log};
 
 use crate::SIGNINING_KEY;
 
@@ -48,19 +48,16 @@ pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], sig_ou
     sig_out.copy_from_slice(&sig[..]);
 
     let seed_token = Token::Uint(rand_out[..].into());
-    println!("The random seed token: {:?}", seed_token);
     let seed = seed_token.to_uint().unwrap();
 
     let epoch = Epoch { seed, worker_params: None };
     // TODO: catch error
     guard.insert(nonce, epoch);
-    // EnclaveError::WorkerAuthError { err: format!("Cannot insert data for epoch nonce: {:?}", nonce) }
-    println!("Random inside Enclave: {:?}", hexutil::to_hex(&rand_out[..]));
     Ok(nonce)
 }
 
-pub(crate) fn ecall_get_verified_worker_params(receipt: Receipt, receipt_hashes: ReceiptHashes,
-                                               block_headers: BlockHeaders) -> Result<WorkerParams, EnclaveError> {
+pub(crate) fn ecall_get_verified_worker_params_internal(receipt: Receipt, receipt_hashes: ReceiptHashes,
+                                                        block_headers: BlockHeaders) -> Result<WorkerParams, EnclaveError> {
     let mut epoch_guard = EPOCH.lock_expect("Epoch");
     let nonce: Uint = match epoch_guard.keys().max() {
         Some(n) => n.clone(),
@@ -70,11 +67,11 @@ pub(crate) fn ecall_get_verified_worker_params(receipt: Receipt, receipt_hashes:
             });
         }
     };
-    println!("Verifying receipt for epoch nonce: {:?}", nonce);
+    println!("Verifying receipt for epoch nonce: {:?}...", nonce);
     let params: WorkerParams = WorkerParams::from(receipt.logs[0].clone());
     // TODO: verify the nonce against the receipt
 
-    println!("Verifying log data: {:?}", receipt_tokens);
+    println!("Against the worker parameters: {:?}", params);
     // TODO: add error handling for token conversion
     // TODO: merkle up the receipt root
     // To validate tries: https://github.com/paritytech/parity-common/tree/master/triehash
@@ -96,7 +93,6 @@ pub(crate) fn ecall_set_worker_params_internal(params: WorkerParams) -> Result<(
         }
     };
     epoch.set_worker_params(params)?;
-    println!("Worker parameters set successfully: {:?}", epoch);
     Ok(())
 }
 

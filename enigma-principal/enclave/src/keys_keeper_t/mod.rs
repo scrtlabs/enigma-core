@@ -19,7 +19,7 @@ use enigma_tools_t::storage_t::SEAL_LOG_SIZE;
 use std::string::String;
 use std::prelude::v1::Box;
 use secp256k1;
-use crate::worker_auth_t::ecall_get_epoch_workers_internal;
+use crate::epoch_keeper_t::ecall_get_epoch_workers_internal;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 use enigma_tools_t::common::EthereumAddress;
 use enigma_tools_t::km_primitives::{MessageType, StateKey, Message, ContractAddress};

@@ -6,67 +6,63 @@
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 #![feature(tool_lints)]
 
-//#[cfg(not(target_env = "sgx"))]
+extern crate enigma_tools_t;
+extern crate enigma_types;
+extern crate ethabi;
+extern crate hexutil;
 #[macro_use]
-extern crate sgx_tstd as std;
+extern crate lazy_static;
+extern crate rustc_hex as hex;
+extern crate secp256k1;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde_json;
 extern crate sgx_rand;
 extern crate sgx_trts;
 extern crate sgx_tse;
 extern crate sgx_tseal;
+//#[cfg(not(target_env = "sgx"))]
+#[macro_use]
+extern crate sgx_tstd as std;
 extern crate sgx_tunittest;
 extern crate sgx_types;
 
-#[macro_use]
-extern crate lazy_static;
-extern crate enigma_tools_t;
-extern crate enigma_types;
-extern crate ethabi;
-extern crate rustc_hex as hex;
-extern crate hexutil;
-
-#[macro_use]
-extern crate serde_derive;
-extern crate serde_json;
-extern crate serde;
-extern crate secp256k1;
-
-mod ocalls_t;
-mod worker_auth_t;
-mod key_provider_t;
-
-use sgx_types::*;
+use ethabi::{Address, Bytes, Event, EventParam, Hash, Log, ParamType, RawLog, Token, Uint};
 use sgx_trts::trts::rsgx_read_rand;
+use sgx_types::*;
+use std::{mem, ptr, slice, str};
+use std::borrow::ToOwned;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::prelude::v1::Box;
+use std::string::ToString;
 use std::sync::SgxMutex;
+use std::vec::Vec;
 
+use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::utils_t::{EthereumAddress, FromHex, ToHex};
+use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-use enigma_tools_t::common::utils_t::{ToHex, FromHex, EthereumAddress};
-use enigma_tools_t::storage_t;
-use enigma_tools_t::quote_t;
+use enigma_tools_t::eth_tools_t::keeper_types_t::{BlockHeader, BlockHeaders, decode, Receipt, ReceiptHashes};
 use enigma_tools_t::km_primitives::MsgID;
-use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::eth_tools_t::type_wrappers_t::{decode, Receipt, BlockHeader, ReceiptHashes, BlockHeaders};
-
+use enigma_tools_t::quote_t;
+use enigma_tools_t::storage_t;
+use enigma_types::EnclaveReturn;
 use enigma_types::traits::SliceCPtr;
-use std::string::ToString;
-use std::vec::Vec;
-use std::{ptr, slice, str, mem};
-use std::cell::RefCell;
-use std::borrow::ToOwned;
-use std::collections::HashMap;
-use ethabi::{Hash, Bytes, RawLog, Token, EventParam, ParamType, Event, Address, Uint, Log};
 
-
-use crate::worker_auth_t::{
+use crate::epoch_keeper_t::{
     ecall_generate_epoch_seed_internal,
-    ecall_get_verified_worker_params,
+    ecall_get_verified_worker_params_internal,
     ecall_set_worker_params_internal,
 };
-use crate::key_provider_t::ecall_get_enc_state_keys_internal;
-use enigma_types::EnclaveReturn;
-use std::prelude::v1::Box;
+use crate::keys_keeper_t::ecall_get_enc_state_keys_internal;
+
+mod ocalls_t;
+mod epoch_keeper_t;
+mod keys_keeper_t;
 
 lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
@@ -121,8 +117,7 @@ pub unsafe extern "C" fn ecall_set_worker_params(receipt_rlp: *const u8, receipt
                                                  receipt_hashes_rlp: *const u8, receipt_hashes_rlp_len: usize,
                                                  headers_rlp: *const u8, headers_rlp_len: usize,
                                                  sig_out: &mut [u8; 65]) -> EnclaveReturn {
-    // TODO: Prove that the log is part of the block where the epoch originated
-    println!("setting worker parameters for epochs");
+    // Assembling byte arrays with the RLP data
     let receipt_rlp = slice::from_raw_parts(receipt_rlp, receipt_hashes_rlp_len);
     let receipt_hashes_rlp = slice::from_raw_parts(receipt_hashes_rlp, receipt_hashes_rlp_len);
     let headers_rlp = slice::from_raw_parts(headers_rlp, headers_rlp_len);
@@ -130,9 +125,9 @@ pub unsafe extern "C" fn ecall_set_worker_params(receipt_rlp: *const u8, receipt
     // RLP decoding the necessary data
     let receipt: Receipt = decode(receipt_rlp);
     let receipt_hashes: ReceiptHashes = decode(receipt_hashes_rlp);
-    let headers: BlockHeaders = decode(headers_rlp);
+    let block_headers: BlockHeaders = decode(headers_rlp);
 
-    let worker_params = match ecall_get_verified_worker_params(receipt.clone(), receipt_hashes, block_headers) {
+    let worker_params = match ecall_get_verified_worker_params_internal(receipt, receipt_hashes, block_headers) {
         Ok(params) => params,
         Err(err) => return err.into(),
     };
@@ -168,8 +163,9 @@ pub mod tests {
     extern crate enigma_tools_t;
 
     use sgx_tunittest::*;
-    use std::vec::Vec;
     use std::string::String;
+    use std::vec::Vec;
+
     use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
 

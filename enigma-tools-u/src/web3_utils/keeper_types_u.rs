@@ -21,6 +21,8 @@ impl FromBigint<bigint::H160> for H160 { fn from_bigint(b: bigint::H160) -> Self
 
 impl FromBigint<bigint::U256> for U256 { fn from_bigint(b: bigint::U256) -> Self { U256(b.0) } }
 
+impl FromBigint<bigint::H2048> for H2048 { fn from_bigint(b: bigint::H2048) -> Self { H2048(b.0) } }
+
 #[derive(Debug, Clone)]
 pub struct Log {
     pub address: Address,
@@ -84,11 +86,35 @@ pub struct BlockHeader {
     pub mix_hash: H256,
     pub nonce: H64,
 }
-// TODO: add decode
+impl Decodable for BlockHeader {
+    fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+        Ok(Self {
+            parent_hash: H256::from_bigint(rlp.val_at(0)?),
+            uncles_hash: H256::from_bigint(rlp.val_at(1)?),
+            author: H160::from_bigint(rlp.val_at(2)?),
+            state_root: H256::from_bigint(rlp.val_at(3)?),
+            transactions_root: H256::from_bigint(rlp.val_at(4)?),
+            receipts_root: H256::from_bigint(rlp.val_at(5)?),
+            logs_bloom: H2048::from_bigint(rlp.val_at(6)?),
+            difficulty: U256::from_bigint(rlp.val_at(7)?),
+            number: U256::from_bigint(rlp.val_at(8)?),
+            gas_limit: U256::from_bigint(rlp.val_at(9)?),
+            gas_used: U256::from_bigint(rlp.val_at(10)?),
+            timestamp: U256::from_bigint(rlp.val_at(11)?),
+            extra_data: rlp.val_at(12)?,
+            mix_hash: H256::from_bigint(rlp.val_at(13)?),
+            nonce: H64::from_bigint(rlp.val_at(14)?)
+        })
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct BlockHeaders(pub Vec<BlockHeader>);
-// TODO: add decode
+impl Decodable for BlockHeaders {
+    fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+        Ok(BlockHeaders(rlp.list_at(0)?))
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct EventWrapper(pub Event);
@@ -114,8 +140,8 @@ impl EventWrapper {
                 kind: ParamType::Array(Box::new(ParamType::Uint(256))),
                 indexed: false,
             }, EventParam {
-                name: "_success".to_string(),
-                kind: ParamType::Bool,
+                name: "nonce".to_string(),
+                kind: ParamType::Uint(256),
                 indexed: false,
             }],
             anonymous: false,
