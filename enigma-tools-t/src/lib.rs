@@ -1,6 +1,7 @@
 #![no_std]
 #![crate_type = "lib"]
 #![feature(core_intrinsics)]
+#![feature(try_from)]
 
 extern crate enigma_types;
 

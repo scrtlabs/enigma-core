@@ -1,10 +1,10 @@
 #![crate_name = "enigma_principal_enclave"]
 #![crate_type = "staticlib"]
 #![no_std]
-//#![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 #![feature(tool_lints)]
+#![feature(try_from)]
 
 extern crate enigma_tools_t;
 extern crate enigma_types;
@@ -46,7 +46,7 @@ use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-use enigma_tools_t::eth_tools_t::keeper_types_t::{BlockHeader, BlockHeaders, decode, Receipt, ReceiptHashes};
+use enigma_tools_t::eth_tools_t::keeper_types_t::{BlockHeader, BlockHeaders, decode, Decodable, Receipt, ReceiptHashes};
 use enigma_tools_t::km_primitives::MsgID;
 use enigma_tools_t::quote_t;
 use enigma_tools_t::storage_t;
@@ -118,19 +118,22 @@ pub unsafe extern "C" fn ecall_set_worker_params(receipt_rlp: *const u8, receipt
                                                  headers_rlp: *const u8, headers_rlp_len: usize,
                                                  sig_out: &mut [u8; 65]) -> EnclaveReturn {
     // Assembling byte arrays with the RLP data
-    let receipt_rlp = slice::from_raw_parts(receipt_rlp, receipt_hashes_rlp_len);
+    let receipt_rlp = slice::from_raw_parts(receipt_rlp, receipt_rlp_len);
     let receipt_hashes_rlp = slice::from_raw_parts(receipt_hashes_rlp, receipt_hashes_rlp_len);
     let headers_rlp = slice::from_raw_parts(headers_rlp, headers_rlp_len);
+    println!("Successfully assembled RLP arguments");
 
     // RLP decoding the necessary data
     let receipt: Receipt = decode(receipt_rlp);
     let receipt_hashes: ReceiptHashes = decode(receipt_hashes_rlp);
     let block_headers: BlockHeaders = decode(headers_rlp);
+    println!("Successfully decoded RLP objects");
 
     let worker_params = match ecall_get_verified_worker_params_internal(receipt, receipt_hashes, block_headers) {
         Ok(params) => params,
         Err(err) => return err.into(),
     };
+    println!("Successfully verified the worker parameters in the receipt");
     match ecall_set_worker_params_internal(worker_params) {
         Ok(_) => println!("worker parameters set successfully"),
         Err(err) => return err.into(),

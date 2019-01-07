@@ -14,7 +14,7 @@ use web3::types::{Block, BlockId, FilterBuilder, H256, Log, TransactionReceipt};
 use enigma_tools_u::common_u::errors::Web3Error;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use enigma_tools_u::web3_utils::w3utils::connect_batch;
-use enigma_tools_u::web3_utils::provider_types::{ReceiptWrapper, ReceiptHashesWrapper, BlockHeaders};
+use enigma_tools_u::web3_utils::provider_types::{ReceiptWrapper, ReceiptHashesWrapper, BlockHeadersWrapper};
 use enigma_tools_u::web3_utils::keeper_types_u::EventWrapper;
 
 
@@ -120,9 +120,8 @@ mod test {
     use ethabi;
     use std::env;
     use web3::types::U256;
-    use web3::contract::tokens::Tokenizable;
     use enigma_tools_u::web3_utils::provider_types::{encode, LogWrapper, ReceiptWrapper};
-    use enigma_tools_u::web3_utils::keeper_types_u::{decode, Log, Receipt, Epoch};
+    use enigma_tools_u::web3_utils::keeper_types_u::{decode, Log, Receipt};
 
     /// This function is important to enable testing both on the CI server and local.
     /// On the CI Side:
@@ -155,9 +154,6 @@ mod test {
         println!("The receipt: {:?}", decoded_receipt);
 
         let log = LogWrapper(receipt.clone().logs[0].clone());
-        let tokens: Vec<Token> = log.clone().into();
-        println!("The log ABI tokens: {:?}", ethabi::encode(&tokens));
-
         let bytes = encode(&log);
         println!("The log RLP bytes: {:?}", bytes);
 

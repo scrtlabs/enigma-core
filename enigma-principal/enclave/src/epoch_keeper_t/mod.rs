@@ -14,6 +14,7 @@ use std::string::String;
 use std::string::ToString;
 use std::sync::SgxMutex;
 use std::vec::Vec;
+use core::convert::TryFrom;
 
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
@@ -68,7 +69,7 @@ pub(crate) fn ecall_get_verified_worker_params_internal(receipt: Receipt, receip
         }
     };
     println!("Verifying receipt for epoch nonce: {:?}...", nonce);
-    let params: WorkerParams = WorkerParams::from(receipt.logs[0].clone());
+    let params: WorkerParams = WorkerParams::try_from(receipt.logs[0].clone())?;
     // TODO: verify the nonce against the receipt
 
     println!("Against the worker parameters: {:?}", params);

@@ -4,7 +4,6 @@ use web3::types::{BlockHeader, H256, Log};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors;
-use enigma_tools_u::web3_utils::provider_types::{BlockHeaders, BlockHeaderWrapper, encode, ReceiptHashesWrapper, ReceiptWrapper};
 
 extern {
     fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut sgx_status_t,
@@ -50,6 +49,7 @@ pub mod tests {
     #![allow(dead_code, unused_assignments, unused_variables)]
 
     use std::prelude::v1::Vec;
+    use sgx_urts::SgxEnclave;
 
     use esgx::epoch_keeper_u::generate_epoch_seed;
     use esgx::epoch_keeper_u::tests::set_mock_worker_params;

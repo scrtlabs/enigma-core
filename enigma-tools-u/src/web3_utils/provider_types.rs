@@ -16,8 +16,6 @@ impl IntoBigint<bigint::H256> for H256 { fn bigint(self) -> bigint::H256 { bigin
 
 impl IntoBigint<bigint::U256> for U256 { fn bigint(self) -> bigint::U256 { bigint::U256(self.0) } }
 
-impl IntoBigint<bigint::U128> for U128 { fn bigint(self) -> bigint::U128 { bigint::U128(self.0) } }
-
 impl IntoBigint<bigint::H2048> for H2048 { fn bigint(self) -> bigint::H2048 { bigint::H2048(self.0) } }
 
 impl IntoBigint<bigint::B256> for Bytes { fn bigint(self) -> bigint::B256 { bigint::B256::new(&self.0) } }
@@ -40,6 +38,8 @@ pub struct BlockHeaderWrapper(pub Block<H256>);
 
 impl Encodable for BlockHeaderWrapper {
     fn rlp_append(&self, s: &mut RlpStream) {
+        //TODO: panic if None?
+        let block_number = &self.0.number.unwrap();
         s.begin_list(15);
         s.append(&self.0.parent_hash.bigint());
         s.append(&self.0.uncles_hash.bigint());
@@ -49,20 +49,20 @@ impl Encodable for BlockHeaderWrapper {
         s.append(&self.0.receipts_root.bigint());
         s.append(&self.0.logs_bloom.bigint());
         s.append(&self.0.difficulty.bigint());
-        s.append(&self.0.number.unwrap().bigint());
+        s.append(&U256::from(*block_number).bigint());
         s.append(&self.0.gas_limit.bigint());
         s.append(&self.0.gas_used.bigint());
         s.append(&self.0.timestamp.bigint());
         s.append(&self.0.extra_data.clone().bigint());
         s.append(&H256::from(0).bigint()); // TODO: missing from web3
-        s.append(&H256::from(0).bigint()); // TODO: missing from web3
+        s.append(&H64::from(0).bigint()); // TODO: missing from web3
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct BlockHeaders(pub Vec<BlockHeaderWrapper>);
+pub struct BlockHeadersWrapper(pub Vec<BlockHeaderWrapper>);
 
-impl Encodable for BlockHeaders {
+impl Encodable for BlockHeadersWrapper {
     fn rlp_append(&self, s: &mut RlpStream) {
         s.begin_list(1);
         s.append_list(&self.0);
