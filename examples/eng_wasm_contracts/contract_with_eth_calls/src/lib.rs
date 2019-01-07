@@ -17,7 +17,7 @@ struct EthContract;
 #[pub_interface]
 pub trait ContractInterface{
     fn write();
-    fn print_test(U256,U256);
+    fn print_test(x: U256, y: U256);
     fn test();
 }
 
@@ -34,7 +34,7 @@ impl ContractInterface for Contract {
         let key = "code";
         eprint!("{}", a);
         write_state!(key => &a);
-        let read_val: String = read_state!(key);
+        let read_val: String = read_state!(key).unwrap();
 
         assert_eq!(read_val, a);
     }

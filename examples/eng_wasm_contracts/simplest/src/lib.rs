@@ -16,6 +16,7 @@ use hex::ToHex;
 pub trait ContractInterface{
     fn write();
     fn get_address(addr: Address);
+    fn get_addresses(from: Address, to: Address);
     fn print_test(x: U256, y: U256) ;
 }
 
@@ -43,6 +44,18 @@ impl ContractInterface for Contract {
         let read_val: String = read_state!("addr").unwrap();
 
         assert_eq!(read_val, addr.to_hex());
+    }
+
+    #[no_mangle]
+    fn get_addresses(from: Address, to: Address) {
+        write_state!("from" => from.to_hex());
+        write_state!("to" => to.to_hex());
+
+        let read_from: String = read_state!("from").unwrap();
+        let read_to: String = read_state!("to").unwrap();
+
+        assert_eq!(read_from, from.to_hex());
+        assert_eq!(read_to, to.to_hex());
     }
 
     #[no_mangle]
