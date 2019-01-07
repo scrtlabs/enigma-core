@@ -1,6 +1,6 @@
 use bigint;
 pub use rlp::{Encodable, RlpStream, encode};
-use web3::types::{Log, TransactionReceipt, Block, H256, H64, H160, U256, U128, H2048, Bytes};
+use web3::types::{Log, TransactionReceipt, Block, H256, H64, H160, U256, U128, H2048, Bytes, U64};
 use ethabi::{Token, Bytes as AbiBytes, RawLog};
 use web3::contract::tokens::Tokenizable;
 
@@ -13,6 +13,7 @@ impl IntoBigint<bigint::H64> for H64 { fn bigint(self) -> bigint::H64 { bigint::
 impl IntoBigint<bigint::H160> for H160 { fn bigint(self) -> bigint::H160 { bigint::H160(self.0) } }
 
 impl IntoBigint<bigint::H256> for H256 { fn bigint(self) -> bigint::H256 { bigint::H256(self.0) } }
+
 
 impl IntoBigint<bigint::U256> for U256 { fn bigint(self) -> bigint::U256 { bigint::U256(self.0) } }
 
@@ -77,8 +78,10 @@ pub struct ReceiptWrapper {
 
 impl Encodable for ReceiptWrapper {
     fn rlp_append(&self, s: &mut RlpStream) {
-        s.begin_list(1);
-        s.append(&self.block.state_root.bigint());
+        // Supports EIP-658 rules only (blocks after Metropolis)
+        let status_code: &u64 = &self.receipt.status.unwrap().as_u64();
+        s.begin_list(4);
+        s.append(status_code);
         s.append(&self.receipt.cumulative_gas_used.bigint());
         s.append(&self.block.logs_bloom.bigint());
         s.append_list(&self.receipt.logs.iter().map(|l| LogWrapper(l.clone())).collect::<Vec<LogWrapper>>());

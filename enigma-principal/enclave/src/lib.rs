@@ -9,6 +9,7 @@
 extern crate enigma_tools_t;
 extern crate enigma_types;
 extern crate ethabi;
+extern crate ethereum_types;
 extern crate hexutil;
 #[macro_use]
 extern crate lazy_static;

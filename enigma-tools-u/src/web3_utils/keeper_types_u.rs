@@ -1,6 +1,6 @@
 pub use rlp::{Decodable, DecoderError, decode, UntrustedRlp};
 use ethabi::{Token, Bytes, RawLog, Event, EventParam, ParamType, Hash, Address};
-use ethereum_types::{H256, H160, U256, H64};
+use ethereum_types::{H256, H160, U256, H64, U64};
 use ethabi::token::Tokenizer;
 use ethabi::token::LenientTokenizer;
 use std::vec::Vec;
@@ -42,7 +42,7 @@ impl Decodable for Log {
 
 #[derive(Debug, Clone)]
 pub struct Receipt {
-    pub state_root: H256,
+    pub status: U64,
     pub cumulative_gas_used: U256,
     pub logs_bloom: H2048,
     pub logs: Vec<Log>,
@@ -50,8 +50,10 @@ pub struct Receipt {
 
 impl Decodable for Receipt {
     fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
+        // Supports EIP-658 rules only (blocks after Metropolis)
+        let status_code: u64 = rlp.val_at(0)?;
         Ok(Self {
-            state_root: H256::from_bigint(rlp.val_at(0)?),
+            status: U64::from(status_code),
             cumulative_gas_used: U256::from_bigint(rlp.val_at(1)?),
             logs_bloom: rlp.val_at(2)?,
             logs: rlp.list_at(3)?,
@@ -86,6 +88,7 @@ pub struct BlockHeader {
     pub mix_hash: H256,
     pub nonce: H64,
 }
+
 impl Decodable for BlockHeader {
     fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
         Ok(Self {
@@ -103,13 +106,14 @@ impl Decodable for BlockHeader {
             timestamp: U256::from_bigint(rlp.val_at(11)?),
             extra_data: rlp.val_at(12)?,
             mix_hash: H256::from_bigint(rlp.val_at(13)?),
-            nonce: H64::from_bigint(rlp.val_at(14)?)
+            nonce: H64::from_bigint(rlp.val_at(14)?),
         })
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct BlockHeaders(pub Vec<BlockHeader>);
+
 impl Decodable for BlockHeaders {
     fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
         Ok(BlockHeaders(rlp.list_at(0)?))

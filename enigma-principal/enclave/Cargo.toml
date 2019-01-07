@@ -18,6 +18,7 @@ serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "sgx-v6.1.0", default-features = false}
+ethereum-types = { git = "https://github.com/enigmampc/primitives.git", rev = "sgx-v0.4.0", default-features = false}
 rustc-hex = { git = "https://github.com/enigmampc/rustc-hex.git", rev = "sgx-2.0.1-v1.0.4"}
 etcommon-hexutil = { version = "0.2", default-features = false }
 libsecp256k1 = "0.2.1"

@@ -46,6 +46,7 @@ impl TryFrom<Log> for WorkerParams {
 pub struct Epoch {
     pub seed: U256,
     pub worker_params: Option<WorkerParams>,
+    pub preverified_block_hash: Hash,
 }
 
 impl Epoch {
