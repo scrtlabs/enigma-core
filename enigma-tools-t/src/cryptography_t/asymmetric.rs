@@ -1,8 +1,7 @@
 use crate::common::{utils_t::{Keccak256, ToHex}, errors_t::EnclaveError};
 use secp256k1::{PublicKey, SecretKey, SharedSecret, self};
 use sgx_trts::trts::rsgx_read_rand;
-use std::{string::ToString, vec::Vec, mem};
-use byteorder::{BigEndian, ByteOrder};
+use std::string::ToString;
 
 #[derive(Debug)]
 pub struct KeyPair {
@@ -99,14 +98,7 @@ impl KeyPair {
     /// let sig = keys.sign_multiple(&[msg, msg2]).unwrap();
     /// ```
     pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], EnclaveError> {
-        let ready: Vec<_> = messages.into_iter().flat_map(|s| {
-            let len = s.len();
-            let size = mem::size_of_val(&len);
-            let mut tmp = Vec::with_capacity(len + size);
-            tmp.extend_from_slice(s);
-            BigEndian::write_uint(&mut tmp, len as u64, size);
-            tmp
-        }).collect();
+        let ready = super::prepare_hash_multiple(messages);
         self.sign(&ready)
     }
 }

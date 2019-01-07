@@ -116,7 +116,8 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                        output_ptr: *mut u64, delta_data_ptr: *mut u64,
                                        delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
                                        ethereum_payload_ptr: *mut u64,
-                                       ethereum_contract_addr: &mut [u8; 20]) -> EnclaveReturn {
+                                       ethereum_contract_addr: &mut [u8; 20],
+                                       sig: &mut [u8; 65]) -> EnclaveReturn {
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let callable_slice = slice::from_raw_parts(callable, callable_len);
     let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
@@ -132,7 +133,8 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                            delta_hash_out,
                            delta_index_out,
                            ethereum_payload_ptr,
-                           ethereum_contract_addr).into()
+                           ethereum_contract_addr,
+                           sig).into()
 }
 
 #[no_mangle]
@@ -249,7 +251,8 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
                                  delta_hash_out: &mut [u8; 32],
                                  delta_index_out: *mut u32,
                                  ethereum_payload_ptr: *mut u64,
-                                 ethereum_contract_addr: &mut [u8; 20]) -> Result<(), EnclaveError> {
+                                 ethereum_contract_addr: &mut [u8; 20],
+                                 sig: &mut [u8; 65]) -> Result<(), EnclaveError> {
     let callable = str::from_utf8(callable_slice)?;
     let callable_args = hexutil::read_hex(str::from_utf8(callable_args_slice).unwrap()).unwrap();
     let state = execution::get_state(*address)?;
@@ -272,7 +275,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
 
     let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, params)?;
 
-    prepare_wasm_result(exec_res.state_delta,
+    prepare_wasm_result(exec_res.state_delta.clone(),
                         &exec_res.result[..],
                         &exec_res.ethereum_payload[..],
                         &exec_res.ethereum_contract_addr,
@@ -283,11 +286,22 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
                         ethereum_payload_ptr,
                         ethereum_contract_addr)?;
 
-    if let Some(state) = exec_res.updated_state {
-        // Saving the updated state into the db
+    // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
+    let args_hash = cryptography_t::prepare_hash_multiple(&[callable_slice, &callable_args, address]).keccak256();
+    let output_hash = exec_res.result.keccak256();
+    let exe_code_hash = bytecode_slice.keccak256();
+    let mut delta_hash = [0].keccak256();
+    if let (Some(state), Some(delta)) = (exec_res.updated_state, exec_res.state_delta) {
         let enc_state = km_t::encrypt_state(state)?;
+        let enc_delta = km_t::encrypt_delta(delta)?;
         enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
+        enigma_runtime_t::ocalls_t::save_delta(&enc_delta)?;
+
+        delta_hash = enc_delta.data.keccak256();
     }
+    // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
+    let to_sign = &[&exe_code_hash[..], &args_hash, &delta_hash, &output_hash];
+    *sig = SIGNINING_KEY.sign_multiple(to_sign)?;
     Ok(())
 }
 

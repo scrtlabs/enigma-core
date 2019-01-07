@@ -26,7 +26,8 @@ extern "C" {
                      output_ptr: *mut u64, delta_data_ptr: *mut u64,
                      delta_hash_out: &mut [u8; 32], delta_index_out: *mut u32,
                      ethereum_payload_ptr: *mut u64,
-                     ethereum_contract_addr: &mut [u8; 20]) -> sgx_status_t;
+                     ethereum_contract_addr: &mut [u8; 20],
+                     sig: &mut [u8; 65]) -> sgx_status_t;
 }
 
 const MAX_EVM_RESULT: usize = 100_000;
@@ -62,6 +63,7 @@ pub struct WasmResult {
     pub delta: ::db::Delta,
     pub eth_payload: Vec<u8>,
     pub eth_contract_addr: [u8;20],
+    pub signature: Vec<u8>,
 }
 
 pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &str,
@@ -73,6 +75,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &s
     let mut delta_index = 0u32;
     let mut ethereum_payload = 0u64;
     let mut ethereum_contract_addr = [0u8; 20];
+    let mut signature = [0u8; 65];
 
     let status = unsafe {
         ecall_execute(eid,
@@ -91,7 +94,8 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &s
                       &mut delta_hash,
                       &mut delta_index as *mut u32,
                       &mut ethereum_payload as *mut u64,
-                      &mut ethereum_contract_addr)
+                      &mut ethereum_contract_addr,
+                      &mut signature)
     };
 
     if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
@@ -100,6 +104,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &s
     // TODO: Write a handle wrapper that will free the pointers memory in case of an Error.
 
     let mut result: WasmResult = Default::default();
+    result.signature = signature.to_vec();
     let box_ptr = output as *mut Box<[u8]>;
     let output = unsafe { Box::from_raw(box_ptr) };
     result.output = output.to_vec();

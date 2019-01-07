@@ -14,11 +14,11 @@ etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
 parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
 pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", default-features = false }
-byteorder = { version = "1.2", default-features = false }
 
 #libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
 libsecp256k1 = "0.2"
 rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "sgx-v1.0.4" }
+byteorder = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
