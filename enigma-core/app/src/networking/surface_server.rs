@@ -169,7 +169,7 @@ mod test {
             assert!(requester.connect(constants::CLIENT_CONNECTION_STR_TST).is_ok());
             // test commands
             test_get_register_cmd(&requester);
-            test_execevm_cmd(&requester);
+//            test_execevm_cmd(&requester);
             test_stop_cmd(&requester);
         }
         child_server.join().unwrap();
@@ -243,6 +243,8 @@ mod test {
         let errored = v["errored"].as_bool().unwrap();
         let _signature = v["signature"].as_str().unwrap();
         let result = v["result"].as_str().unwrap();
+        println!("{:?}", msg);
+        println!("{:?}", v);
 
         // 3. validate result
         assert_eq!(errored, false);
