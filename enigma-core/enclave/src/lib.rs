@@ -312,7 +312,7 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
                                             false)
         {
             Ok(v) => v,
-            Err(e) => panic!(""), // TODO: Return error
+            Err(e) => panic!("build_constructor: {:?}", e), // TODO: Return error
         };
 
     let result;
@@ -325,7 +325,7 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 
     match result {
         Ok(v) => Ok(v),
-        Err(e) => panic!(""), // TODO: Return Error
+        Err(e) => panic!("build_constructor: {:?}", e), // TODO: Return Error
     }
 }
 
@@ -344,15 +344,19 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], args: &[u8],
 
     let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state)?;
 
-    // TODO: What about delta?
     // TODO: Can the user make an ethereum payload in the constructor?
     // TODO: Maybe it can be the same as `prepare_wasm_result`?
+    if let Some(delta) = exec_res.state_delta {
+        // Saving the dela into the db
+        let enc_delta = km_t::encrypt_delta(delta)?;
+        enigma_runtime_t::ocalls_t::save_delta(&enc_delta)?;
+    } else { unreachable!() }
 
     if let Some(state) = exec_res.updated_state {
         // Saving the updated state into the db
         let enc_state = km_t::encrypt_state(state)?;
         enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
-    }
+    } else { unreachable!() }
 
     let result = &exec_res.result[..];
     *output_ptr = ocalls_t::save_to_untrusted_memory(&result)?;
