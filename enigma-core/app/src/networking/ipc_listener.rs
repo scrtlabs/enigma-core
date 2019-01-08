@@ -32,7 +32,7 @@ impl IpcListener {
     }
 }
 
-fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
+pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
     let mut response = Multipart::new();
     for msg in request {
         let response_msg = match msg.into() {

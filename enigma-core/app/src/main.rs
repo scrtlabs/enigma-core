@@ -27,9 +27,6 @@ extern crate tempdir;
 #[macro_use]
 extern crate log;
 
-//use sgx_types::*;
-use std::thread;
-// enigma modules
 mod common_u;
 mod db;
 mod esgx;
@@ -38,13 +35,14 @@ mod km_u;
 mod networking;
 mod wasm_u;
 
+use futures::Future;
+
 pub use crate::esgx::ocalls_u::{ocall_get_home, ocall_new_delta, ocall_save_to_memory, ocall_update_state,
                          ocall_get_deltas_sizes, ocall_get_deltas, ocall_get_state, ocall_get_state_size};
-use networking::{constants, surface_server};
 
-#[allow(unused_variables, unused_mut)]
+use networking::{IpcListener, constants, ipc_listener};
+
 fn main() {
-    /* this is an example of initiating an enclave */
 
     let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
@@ -56,14 +54,11 @@ fn main() {
             return;
         }
     };
-    let eid = enclave.geteid();
-    let child = thread::spawn(move || {
-                                  let mut server = surface_server::Server::new(constants::CONNECTION_STR, eid);
-                                  server.run();
-                              });
-    child.join().unwrap();
+    let server = IpcListener::new(constants::CLIENT_CONNECTION_STR_TST);
+    server.run(move |multi| {
+        ipc_listener::handle_message (multi, enclave.geteid())
+    }).wait().unwrap();
 
-    enclave.destroy();
 }
 
 #[cfg(test)]
