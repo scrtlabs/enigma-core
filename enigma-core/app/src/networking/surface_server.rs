@@ -31,7 +31,7 @@ impl ClientHandler {
                 self.handle_unkown(&v)?
             }
         };
-        responder.send_str(&result, 0).unwrap();
+        responder.send(&result, 0).unwrap();
         Ok(keep_running)
     }
     fn handle_unkown(&self, msg: &Value) -> Result<(String), Error> {
@@ -107,7 +107,7 @@ impl Server {
     }
 
     pub fn run(&mut self) {
-        let mut msg = zmq::Message::new().unwrap();
+        let mut msg = zmq::Message::new();
         loop {
             println!("[+] Server awaiting connection...");
             self.responder.recv(&mut msg, 0).unwrap();
@@ -119,7 +119,7 @@ impl Server {
                     }
                 }
                 Err(e) => {
-                    println!("[-] Server Err {}, {}", e.cause(), e.backtrace());
+                    println!("[-] Server Err {}, {}", e.as_fail(), e.backtrace());
                 }
             }
         }
@@ -186,9 +186,9 @@ mod test {
         }
         // 1. request quote+key getregister
         let cmd_request = serde_json::to_string(&GetRegisterReq { cmd: String::from("getregister") }).unwrap();
-        requester.send_str(&cmd_request, 0).unwrap();
+        requester.send(&cmd_request, 0).unwrap();
         // 2. parse the response
-        let mut msg = zmq::Message::new().unwrap();
+        let mut msg = zmq::Message::new();
         requester.recv(&mut msg, 0).unwrap();
         let v: Value = serde_json::from_str(msg.as_str().unwrap()).unwrap();
         let errored = v["errored"].as_bool().unwrap(); //{
@@ -235,9 +235,9 @@ mod test {
         };
         // 1. request computation
         let cmd_request = serde_json::to_string(&evm_input).unwrap();
-        requester.send_str(&cmd_request, 0).unwrap();
+        requester.send(&cmd_request, 0).unwrap();
         // 2. extract result
-        let mut msg = zmq::Message::new().unwrap();
+        let mut msg = zmq::Message::new();
         requester.recv(&mut msg, 0).unwrap();
         let v: Value = serde_json::from_str(msg.as_str().unwrap()).unwrap();
         let errored = v["errored"].as_bool().unwrap();
@@ -260,9 +260,9 @@ mod test {
         // 1. build the command
         let cmd_request = serde_json::to_string(&StopRequest { cmd: String::from("stop") }).unwrap();
         // 2. send shutdown request
-        requester.send_str(&cmd_request, 0).unwrap();
+        requester.send(&cmd_request, 0).unwrap();
         // 3. validate response
-        let mut msg = zmq::Message::new().unwrap();
+        let mut msg = zmq::Message::new();
         requester.recv(&mut msg, 0).unwrap();
         let v: Value = serde_json::from_str(msg.as_str().unwrap()).unwrap();
         let errored = v["errored"].as_bool().unwrap();

@@ -140,10 +140,10 @@ impl P2PCalls<Vec<u8>> for DB {
         // to_hex converts the [u8] to str
         let str_addr = address.to_hex();
         let cf_key = self.database.cf_handle(&str_addr).ok_or(
-            DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+            DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
 
         let iter = self.database.prefix_iterator_cf(cf_key, DELTA_PREFIX)?;
-        let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+        let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
         let k_key = K::from_split(&str_addr, &*last.0)?;
         Ok((k_key, (&*last.1).to_vec()))
 
@@ -166,7 +166,7 @@ impl P2PCalls<Vec<u8>> for DB {
             // list_cf returns "Default" as the first CF,
             // so we remove it if we have elements other than that in the DB.
             l if l > 1 => cf_list.remove(0),
-            _ => return Err(DBErr { command: "get_all_addresses".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+            _ => return Err(DBErr { command: "get_all_addresses".to_string(), kind: DBErrKind::MissingKey }.into()),
         };
         // convert all addresses from strings to slices.
         // filter_map filters all None types from the iterator,
@@ -204,7 +204,7 @@ impl P2PCalls<Vec<u8>> for DB {
         // convert the key to the rocksdb representation
         from.as_split(|from_hash, from_key| {
             // make sure the address exists as a CF in the DB
-            let cf_key = self.database.cf_handle(&from_hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None, })?;
+            let cf_key = self.database.cf_handle(&from_hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, })?;
 
             // if exists, extract the second key for the range.
             to.as_split(|hash_to, to_key| {
@@ -269,9 +269,8 @@ impl P2PCalls<Vec<u8>> for DB {
 
 #[cfg(test)]
 mod test {
-
     use crate::db::dal::{CRUDInterface, DB};
-    use crate::db::iterator::{ContractAddress, P2PCalls, ResultType};
+    use crate::db::iterator::{ContractAddress, P2PCalls};
     use crate::db::primitives::{DeltaKey, Stype};
 
     #[test]

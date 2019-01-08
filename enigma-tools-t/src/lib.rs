@@ -28,6 +28,7 @@ extern crate tiny_keccak;
 extern crate wasmi;
 extern crate bigint;
 extern crate rlp;
+extern crate byteorder;
 pub mod common;
 pub mod cryptography_t;
 pub mod km_primitives;

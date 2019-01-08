@@ -27,7 +27,7 @@ pub trait FromHex32<T> {
 
 impl FromHex32<Result<[u8; 32], Error>> for str {
     fn from_hex_32(&self) -> Result<[u8; 32], Error> {
-        let hex = self.from_hex()?;
+        let hex: Vec<u8> = self.from_hex()?;
         if hex.len() != 32 { bail!("Wrong length"); }
         let mut result = [0u8; 32];
         result.copy_from_slice(&hex);

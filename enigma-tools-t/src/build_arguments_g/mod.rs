@@ -37,8 +37,8 @@ pub fn get_types(function: &str) -> Result<(String, String), EnclaveError>{
     Ok(( function[start_arg_index+1..end_arg_index].to_string(), String::from(&function[..start_arg_index] )))
 }
 
-pub fn get_args(callable_args: &[u8], types: &[String]) -> Result<Vec<String>, EnclaveError>{
-    decode_args(callable_args, types)
+pub fn get_args(callable_args: &[u8], types: &[String], key: &[u8; 32]) -> Result<Vec<String>, EnclaveError>{
+    decode_args(callable_args, types, key)
 }
 
 // decrypt the arguments which all are sent encrypted and return the solidity abi serialized data
