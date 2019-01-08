@@ -99,12 +99,8 @@ pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], nonce_
     };
     println!("Storing epoch: {:?}", new_epoch);
     match guard.insert(nonce, new_epoch) {
-        Some(_) => println!("New epoch stored successfully"),
-        None => {
-            return Err(EnclaveError::WorkerAuthError {
-                err: format!("Unable to store new Epoch"),
-            });
-        }
+        Some(prev) => println!("New epoch stored successfully, previous epoch: {:?}", prev),
+        None => println!("Initial epoch stored successfully"),
     }
     Ok(nonce)
 }
@@ -147,10 +143,8 @@ pub(crate) fn ecall_get_verified_worker_params_internal(receipt: Receipt, receip
 }
 
 pub(crate) fn ecall_set_worker_params_internal(params: WorkerParams) -> Result<(), EnclaveError> {
-    // TODO: Get the nonce from the worker params
-    let nonce = Uint::from(1);
     let mut epoch_guard = EPOCH.lock_expect("Epoch");
-    let epoch = match epoch_guard.get_mut(&nonce) {
+    let epoch = match epoch_guard.get_mut(&params.nonce) {
         Some(value) => value,
         None => {
             return Err(EnclaveError::WorkerAuthError {

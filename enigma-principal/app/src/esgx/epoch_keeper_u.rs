@@ -32,8 +32,8 @@ pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> Result<EpochSeed, Error> {
     let status = unsafe {
         ecall_generate_epoch_seed(eid, &mut retval, &mut rand_out, &mut nonce_out, &mut sig_out)
     };
-    if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError{err: retval, status}.into());
+    if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
+        return Err(EnclaveFailError { err: retval, status }.into());
     }
     Ok(EpochSeed { seed: U256::from_big_endian(&rand_out), nonce: U256::from_big_endian(&nonce_out), sig: Bytes(sig_out.to_vec()) })
 }
@@ -58,8 +58,8 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, receipt: ReceiptWrapper, receipt
             &mut sig_out,
         )
     };
-    if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError{err: retval, status}.into());
+    if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
+        return Err(EnclaveFailError { err: retval, status }.into());
     }
     Ok(sig_out)
 }
@@ -106,9 +106,7 @@ pub mod tests {
         let receipt_raw = serde_json::from_str::<TransactionReceipt>(EXAMPLE_RECEIPT).unwrap();
         let block = serde_json::from_str::<Block<H256>>(EXAMPLE_BLOCK).unwrap();
         let receipt = ReceiptWrapper(receipt_raw);
-        let receipt_rlp = encode(&receipt);
-        let receipt_hash = receipt_rlp.keccak256();
-        let receipt_hashes = ReceiptHashesWrapper(vec![H256(receipt_hash)]);
+        let receipt_hashes = ReceiptHashesWrapper::from_receipts(&vec![receipt.clone()]);
         let block_header = BlockHeaderWrapper(block.clone());
         let headers = BlockHeadersWrapper(vec![block_header]);
         return set_worker_params(eid, receipt, receipt_hashes, headers).unwrap();
@@ -117,10 +115,15 @@ pub mod tests {
     #[test]
     fn test_set_worker_params() {
         let enclave = init_enclave();
-        generate_epoch_seed(enclave.geteid());
+        let epoch_1 = generate_epoch_seed(enclave.geteid()).unwrap();
+        println!("Got epoch seed params: {:?}", epoch_1);
+        assert_eq!(epoch_1.nonce, Uint::from(0));
+
         let sig = set_mock_worker_params(enclave.geteid());
-        generate_epoch_seed(enclave.geteid());
-        println!("got the data signature");
+        println!("got the data signature: {:?}", Bytes(sig.to_vec()));
+        let epoch_2 = generate_epoch_seed(enclave.geteid()).unwrap();
+        println!("Got next epoch seed params: {:?}", epoch_2);
+        assert_eq!(epoch_2.nonce, Uint::from(1));
         enclave.destroy();
     }
 

@@ -51,7 +51,11 @@ pub struct Epoch {
 
 impl Epoch {
     pub fn set_worker_params(&mut self, params: WorkerParams) -> Result<(), EnclaveError> {
-        // TODO: what could go wrong here?
+        if self.worker_params.is_some() {
+            return Err(EnclaveError::WorkerAuthError {
+                err: format!("Worker parameters already set for epoch: {:?}", self),
+            });
+        }
         self.worker_params = Some(params);
         Ok(())
     }
