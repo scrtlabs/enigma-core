@@ -35,6 +35,10 @@ const PREVERIFIED_BLOCK_HASH: &str = "ae67b813aa89d47d4ba4d34dcd8b77a57bd433338a
 // TODO: Seal / unseal
 lazy_static! { pub static ref EPOCH: SgxMutex< HashMap<Uint, Epoch >> = SgxMutex::new(HashMap::new()); }
 
+fn get_max_nonce(guard: &SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>) -> Uint {
+    guard.keys().max().unwrap().clone()
+}
+
 fn get_epoch(guard: &SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>, block_number: Option<Uint>) -> Result<Option<Epoch>, EnclaveError> {
     println!("Getting epoch for block number: {:?}", block_number);
     if block_number.is_some() {
@@ -46,14 +50,7 @@ fn get_epoch(guard: &SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>, block_num
         println!("Epoch not found");
         return Ok(None);
     }
-    let nonce: Uint = match guard.keys().max() {
-        Some(n) => n.clone(),
-        None => {
-            println!("Epoch not found");
-            return Ok(None);
-        }
-    };
-    // Since we just got the key from the make, we know that the key will resolve
+    let nonce = get_max_nonce(&guard);
     let epoch: Epoch = guard.get(&nonce).unwrap().clone();
     Ok(Some(epoch))
 }
@@ -105,8 +102,8 @@ pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], nonce_
     Ok(nonce)
 }
 
-pub(crate) fn ecall_get_verified_worker_params_internal(receipt: Receipt, receipt_hashes: ReceiptHashes,
-                                                        block_headers: BlockHeaders) -> Result<WorkerParams, EnclaveError> {
+pub(crate) fn ecall_set_worker_params_internal(receipt: Receipt, receipt_hashes: ReceiptHashes,
+                                               block_headers: BlockHeaders) -> Result<(), EnclaveError> {
     // TODO: is cloning the whole Vec necessary here?
     let block_headers_raw = block_headers.0.clone();
     let block_header: &BlockHeader = match block_headers_raw.get(0) {
@@ -118,11 +115,17 @@ pub(crate) fn ecall_get_verified_worker_params_internal(receipt: Receipt, receip
         }
     };
     let mut guard = EPOCH.lock_expect("Epoch");
-    let epoch = match get_epoch(&guard, None)? {
-        Some(epoch) => epoch,
+    if guard.is_empty() {
+        return Err(EnclaveError::WorkerAuthError {
+            err: format!("The Epoch store is empty."),
+        });
+    }
+    let nonce = get_max_nonce(&guard);
+    let epoch = match guard.get_mut(&nonce) {
+        Some(value) => value,
         None => {
             return Err(EnclaveError::WorkerAuthError {
-                err: "No Epoch found in storage.".to_string(),
+                err: format!("Epoch not found for WorkerParams nonce: {:?}", nonce),
             });
         }
     };
@@ -133,26 +136,9 @@ pub(crate) fn ecall_get_verified_worker_params_internal(receipt: Receipt, receip
 //    }
 //    verifier.verify_receipt(receipt.clone(), receipt_hashes)?;
 
-    let nonce: &Uint = guard.keys().max().unwrap();
-    println!("Verifying receipt for epoch nonce: {:?}...", nonce);
     let params: WorkerParams = WorkerParams::try_from(receipt.logs[0].clone())?;
-    // TODO: verify the nonce against the receipt
-    println!("Against the worker parameters: {:?}", params);
-
-    Ok(params)
-}
-
-pub(crate) fn ecall_set_worker_params_internal(params: WorkerParams) -> Result<(), EnclaveError> {
-    let mut epoch_guard = EPOCH.lock_expect("Epoch");
-    let epoch = match epoch_guard.get_mut(&params.nonce) {
-        Some(value) => value,
-        None => {
-            return Err(EnclaveError::WorkerAuthError {
-                err: "Cannot set the workers parameters without a nonce in the Epoch mutex.".to_string(),
-            });
-        }
-    };
     epoch.set_worker_params(params)?;
+    // TODO: Replace the preverified block hash of the epoch with last block header
     Ok(())
 }
 

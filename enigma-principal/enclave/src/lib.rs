@@ -56,7 +56,6 @@ use enigma_types::traits::SliceCPtr;
 
 use crate::epoch_keeper_t::{
     ecall_generate_epoch_seed_internal,
-    ecall_get_verified_worker_params_internal,
     ecall_set_worker_params_internal,
 };
 use crate::keys_keeper_t::ecall_get_enc_state_keys_internal;
@@ -130,13 +129,8 @@ pub unsafe extern "C" fn ecall_set_worker_params(receipt_rlp: *const u8, receipt
     let block_headers: BlockHeaders = decode(headers_rlp);
     println!("Successfully decoded RLP objects");
 
-    let worker_params = match ecall_get_verified_worker_params_internal(receipt, receipt_hashes, block_headers) {
-        Ok(params) => params,
-        Err(err) => return err.into(),
-    };
-    println!("Successfully verified the worker parameters in the receipt");
-    match ecall_set_worker_params_internal(worker_params) {
-        Ok(_) => println!("worker parameters set successfully"),
+    match ecall_set_worker_params_internal(receipt, receipt_hashes, block_headers) {
+        Ok(_) => println!("Worker parameters set successfully"),
         Err(err) => return err.into(),
     };
     EnclaveReturn::Success
