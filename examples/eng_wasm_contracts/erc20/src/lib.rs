@@ -16,9 +16,9 @@ use hex::ToHex;
 #[pub_interface]
 pub trait Erc20Interface{
     // Vec<u8> is a temporary substitution for Address
-    fn addition(addr: Vec<u8>, tokens: U256);
+    fn add_to_balance(addr: Address, tokens: U256);
 //    fn balance_of(Address) -> U256;
-    fn transfer(from: Vec<u8>, to: Vec<u8>, tokens: U256);
+    fn transfer(from: Address, to: Address, tokens: U256);
 //    fn transfer_from(Address, Address, U256);
 //    fn approve(Address, U256);
 }
@@ -29,10 +29,9 @@ impl Erc20Interface for Contract {
     /// As a temporary solution the value is converted to a stream of bytes.
     /// Later as part of runtime there will be created a macros for writing and reading any type.
     #[no_mangle]
-    fn addition(addr: Vec<u8>, tokens: U256) {
-        let address = from_utf8(&addr).unwrap();
-        write_state!(&address => tokens.as_u64());
-        let read_val: u64 = read_state!(&address).unwrap();
+    fn add_to_balance(addr: Address, tokens: U256) {
+        write_state!(&addr.to_hex() => tokens.as_u64());
+        let read_val: u64 = read_state!(&addr.to_hex()).unwrap();
         eprint!("read_val: {:?}, tokens: {:?}",read_val, tokens.as_u64());
         assert_eq!(read_val, tokens.as_u64());
     }
@@ -41,9 +40,9 @@ impl Erc20Interface for Contract {
 //    fn balance_of(token_owner: Address) -> U256{}
 
     #[no_mangle]
-    fn transfer(from: Vec<u8>, to: Vec<u8>, tokens: U256) {
-        let from_str = from_utf8(&from).unwrap();
-        let to_str = from_utf8(&to).unwrap();
+    fn transfer(from: Address, to: Address, tokens: U256) {
+        let from_str = from.to_hex();
+        let to_str = to.to_hex();
         let sum_from: u64 = read_state!(&from_str).expect("User does not own tokens- invalid action");
         let amount_to: u64 = match read_state!(&to_str) {
             Some(amount) => amount,

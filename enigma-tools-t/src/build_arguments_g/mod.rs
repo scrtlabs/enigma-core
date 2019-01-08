@@ -1,5 +1,6 @@
 pub mod rlp;
 use cryptography_t::asymmetric::KeyPair;
+use cryptography_t::symmetric::decrypt;
 use common::errors_t::EnclaveError;
 use std::vec::Vec;
 use std::string::String;
@@ -38,6 +39,18 @@ pub fn get_types(function: &str) -> Result<(String, String), EnclaveError>{
 
 pub fn get_args(callable_args: &[u8], types: &[String]) -> Result<Vec<String>, EnclaveError>{
     decode_args(callable_args, types)
+}
+
+// decrypt the arguments which all are sent encrypted and return the solidity abi serialized data
+pub fn decrypt_args(callable_args: &[u8]) -> Result<Vec<u8>, EnclaveError>{
+    // if args is empty we don't want to try decrypting the slice- it will lead to an error
+    if callable_args.is_empty() {
+        Ok(callable_args.to_vec())
+    }
+    else {
+        let key = get_key();
+        decrypt(callable_args, &key)
+    }
 }
 
 pub fn extract_types(types: &str) -> Vec<String>{

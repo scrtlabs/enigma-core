@@ -30,7 +30,6 @@ impl ContractInterface for Contract {
         let mut a = String::new();
         a.push_str("157");
         let key = "code";
-        eprint!("{}", a);
         write_state!(key => &a);
         let read_val: String = read_state!(key).unwrap();
 

@@ -127,6 +127,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     let callable_slice = slice::from_raw_parts(callable, callable_len);
     let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
 
+    // in order to view the specific error print out the result of the function
     ecall_execute_internal(bytecode_slice,
                                        callable_slice,
                                        callable_args_slice,
@@ -233,23 +234,23 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
                                  ethereum_payload_ptr: *mut u64,
                                  ethereum_contract_addr: &mut [u8; 20]) -> Result<(), EnclaveError> {
     let callable = str::from_utf8(callable_slice)?;
-    let s = str::from_utf8(callable_args_slice).unwrap();
-    let callable_args = hexutil::read_hex(s).unwrap();
+//    let s = str::from_utf8(callable_args_slice)?;
+//    let callable_args = hexutil::read_hex(s)?;
     let state = execution::get_state();
 
     let (types, function_name) = get_types(callable)?;
-    let types_vector = extract_types(&types.to_string());
+//    let types_vector = extract_types(&types.to_string());
 
-    let args_vector = get_args(&callable_args, &types_vector)?;
+    let args_vector = decrypt_args(&callable_args_slice)?;
 
-    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], true){
-        Ok(v) => v,
-        Err(e) => {
-            return Err(EnclaveError::ExecutionError{code: "interpretation of call parameters".to_string(), err: e.to_string()});
-        },
-    };
+//    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], true){
+//        Ok(v) => v,
+//        Err(e) => {
+//            return Err(EnclaveError::ExecutionError{code: "interpretation of call parameters".to_string(), err: e.to_string()});
+//        },
+//    };
 
-    let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, params)?;
+    let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, args_vector)?;
 
     prepare_wasm_result(exec_res.state_delta,
                         &exec_res.result[..],
