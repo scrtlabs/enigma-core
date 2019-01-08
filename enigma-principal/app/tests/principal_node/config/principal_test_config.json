@@ -1,7 +1,7 @@
 {
-    "enigma_contract_path": "../app/tests/principal_node/contracts/Enigma.json",
+    "enigma_contract_path": "/root/src/enigma-contract-internal/build/contracts/Enigma.json",
     "enigma_contract_remote_path": "",
-    "enigma_contract_address": "f25186B5081Ff5cE73482AD761DB0eB0d25abfBF",
+    "enigma_contract_address": "79Df91459bFb8c9D2Fc2804B65d7929FAB88B85F",
     "account_address": "b4e4d9c2234d712d9bf6c9445f1cc402106bb02b",
     "test_net": true,
     "with_private_key": false,

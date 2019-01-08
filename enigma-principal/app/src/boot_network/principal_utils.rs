@@ -14,7 +14,8 @@ use web3::types::{Address, FilterBuilder, H256, U256};
 
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 
-use crate::esgx::epoch_keeper_u::generate_epoch_seed;
+use crate::esgx::epoch_keeper_u;
+use enigma_tools_u::web3_utils::provider_types::EpochSeed;
 
 const ACTIVE_EPOCH_CODE: &str = "ACTIVE_EPOCH";
 
@@ -46,14 +47,20 @@ impl Principal for EnigmaContract {
     fn set_worker_params_internal<G: Into<U256>>(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
                                                  -> CallFuture<H256, <Http as Transport>::Out> {
         // get seed,signature
-        let (rand_seed, sig) = generate_epoch_seed(eid);
-        let the_seed: U256 = U256::from_big_endian(&rand_seed);
-        println!("[---\u{25B6} seed: {} \u{25C0}---]", the_seed);
+        println!("Generating epoch seed in the enclave");
+        let epoch_seed: EpochSeed = match epoch_keeper_u::generate_epoch_seed(eid) {
+            Ok(res) => res,
+            Err(err) => {
+                eprintln!("{:?}", err);
+                panic!(format!("{:?}", err))
+            }
+        };
+        println!("[---\u{25B6} seed: {} \u{25C0}---]", epoch_seed.seed);
         // set gas options for the tx
         let mut options = Options::default();
         options.gas = Some(gas_limit.into());
         // set random seed
-        contract.call("setWorkersParams", (the_seed, sig.to_vec()), account.clone(), options)
+        contract.call("setWorkersParams", (epoch_seed.seed, sig.to_vec()), account.clone(), options)
     }
 
 

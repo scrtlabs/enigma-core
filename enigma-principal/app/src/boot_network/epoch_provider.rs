@@ -14,8 +14,9 @@ use web3::types::{Block, BlockId, FilterBuilder, H256, Log, TransactionReceipt};
 use enigma_tools_u::common_u::errors::Web3Error;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use enigma_tools_u::web3_utils::w3utils::connect_batch;
-use enigma_tools_u::web3_utils::provider_types::{ReceiptWrapper, ReceiptHashesWrapper, BlockHeadersWrapper};
+use enigma_tools_u::web3_utils::provider_types::{ReceiptWrapper, ReceiptHashesWrapper, BlockHeadersWrapper, BlockHeaderWrapper};
 use enigma_tools_u::web3_utils::keeper_types_u::EventWrapper;
+use esgx::epoch_keeper_u::set_worker_params;
 
 
 pub struct EpochProvider {
@@ -70,23 +71,21 @@ impl EpochProvider {
             Ok(block) => block.unwrap(),
             Err(e) => return Err(Web3Error { message: format!("Unable to fetch block {:?} : {:?}", block_hash, e) }.into()),
         };
-//        println!("Got block: {:?}", block);
         Ok(block)
     }
 
-    fn fetch_receipts(&self, transactions: Vec<H256>) -> Result<Vec<TransactionReceipt>, Error> {
+    fn fetch_receipts(&self, transactions: Vec<H256>) -> Result<Vec<ReceiptWrapper>, Error> {
         let web3_batch = connect_batch(self.contract.web3.transport().clone());
         for tx in transactions {
-//            println!("Fetching receipt for tx: {:?}", tx);
             let _ = web3_batch.eth().transaction_receipt(tx);
         }
-//        println!("Submitting the batch request");
         let receipts = web3_batch.transport()
             .submit_batch()
             .map(|results| {
-                let mut receipts: Vec<TransactionReceipt> = Vec::new();
+                let mut receipts: Vec<ReceiptWrapper> = Vec::new();
                 for result in results {
-                    let receipt: TransactionReceipt = serde_json::from_value(result.unwrap()).unwrap();
+                    let receipt_raw: TransactionReceipt = serde_json::from_value(result.unwrap()).unwrap();
+                    let receipt = ReceiptWrapper(receipt_raw);
                     receipts.push(receipt);
                 }
                 receipts
@@ -97,15 +96,14 @@ impl EpochProvider {
 
     pub fn store_epoch(&self, log: Log) -> Result<(), Error> {
         let block = self.fetch_block(log.block_hash.unwrap())?;
-        let receipts = self.fetch_receipts(block.transactions.clone())?
-            .into_iter()
-            .map(|r| ReceiptWrapper(r))
-            .collect::<Vec<ReceiptWrapper>>();
-//        println!("Got receipt hashes: {:?}", receipts_hashes);
-        // Set the worker parameters in the enclave
-        // TODO: enable when all objects are available
-//        let sig = keymgmt_u::set_worker_params(self.eid.load(Ordering::SeqCst), log, None, None);
-//        println!("Worker parameters stored in Enclave. The signature: {:?}", sig.to_vec());
+        let receipts = self.fetch_receipts(block.transactions.clone())?;
+        let receipt_hashes = ReceiptHashesWrapper::from_receipts(&receipts);
+        println!("Got receipt hashes: {:?}", receipt_hashes);
+        let receipt = receipts.iter().find(|r| r.0.transaction_hash == log.transaction_hash.unwrap()).unwrap();
+        let block_header = BlockHeaderWrapper(block.clone());
+        let headers = BlockHeadersWrapper(vec![block_header]);
+        let sig = set_worker_params(self.eid.load(Ordering::SeqCst), receipt.clone(), receipt_hashes, headers)?;
+        println!("Worker parameters stored in Enclave. The signature: {:?}", sig.to_vec());
         Ok(())
     }
 }

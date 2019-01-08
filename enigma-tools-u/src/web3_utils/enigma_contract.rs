@@ -7,7 +7,7 @@ use std::sync::Arc;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
 use web3::transports::{EventLoopHandle, Http};
-use web3::types::{Address, H160, U256};
+use web3::types::{Address, H160, U256, H256};
 use web3::Web3;
 
 // This should be used as the main Web3/EventLoop
@@ -72,15 +72,15 @@ impl EnigmaContract {
 pub trait ContractFuncs<G> {
     // register
     // input: _signer: Address, _report: bytes
-    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<(), Error>;
+    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<H256, Error>;
 
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<(), Error>;
+    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<H256, Error>;
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
-    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<(), Error> {
+    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<H256, Error> {
         // register
         let signer_addr: Address = signer.parse()?;
         let mut opts = Options::default();
@@ -89,16 +89,20 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
         match self.w3_contract
             .call("register", (signer_addr, report.to_vec()), self.account, opts)
             .wait() {
-            Ok(_) => Ok(()),
-            Err(e) => Err(errors::Web3Error{ message: format!("error when trying to register- unable to call contract: {:?}", e) }.into()),
+            Ok(tx) => Ok(tx),
+            Err(e) => Err(errors::Web3Error{ message: format!("Unable to call register: {:?}", e) }.into()),
         }
     }
 
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<(), Error> {
+    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<H256, Error> {
         let mut opts: Options = Options::default();
         opts.gas = Some(gas.into());
         let seed: U256 = _seed.into();
-        self.w3_contract.call("setWorkersParams", (seed, _sig.to_vec()), self.account, opts).wait().unwrap();
-        Ok(())
+        match self.w3_contract
+            .call("setWorkersParams", (seed, _sig.to_vec()), self.account, opts)
+            .wait() {
+            Ok(tx) => Ok(tx),
+            Err(e) => Err(errors::Web3Error{ message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
+        }
     }
 }

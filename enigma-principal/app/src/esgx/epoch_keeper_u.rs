@@ -1,10 +1,10 @@
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use web3::types::{BlockHeader, H256, Log};
+use web3::types::{BlockHeader, H256, Log, U256, Bytes};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors;
-use enigma_tools_u::web3_utils::provider_types::{BlockHeadersWrapper, BlockHeaderWrapper, encode, ReceiptHashesWrapper, ReceiptWrapper};
+use enigma_tools_u::web3_utils::provider_types::{EpochSeed, BlockHeadersWrapper, BlockHeaderWrapper, encode, ReceiptHashesWrapper, ReceiptWrapper};
 
 extern {
     fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t,
@@ -21,18 +21,20 @@ extern {
 /// # Examples
 /// ```
 /// let enclave = esgx::general::init_enclave().unwrap();
-/// let (rand_seed, sig) = generate_epoch_seed(enclave.geteid());
+/// let (rand_seed, sig) = generate_epoch_seed(enclave.geteid()).unwrap();
 /// ```
-pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> ([u8; 32], [u8; 65]) {
-    // TODO: Also return nonce
+pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> Result<EpochSeed, Error> {
+    let mut nonce_out: [u8; 32] = [0; 32];
     let mut rand_out: [u8; 32] = [0; 32];
     let mut sig_out: [u8; 65] = [0; 65];
     let mut retval = sgx_status_t::default();
     let result = unsafe {
         ecall_get_random_seed(eid, &mut retval, &mut rand_out, &mut sig_out)
     };
-    assert_eq!(result, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
-    (rand_out, sig_out)
+    if result.ne(&sgx_status_t::SGX_SUCCESS) {
+        return Err(errors::GenerateEpochSeedErr { message: "See Enclave logs for details.".to_string() }.into());
+    }
+    Ok(EpochSeed { seed: U256::from_big_endian(&rand_out), nonce: U256::from_big_edian(&nonce_out), sig: Bytes(sig_out.to_vec()) })
 }
 
 pub fn set_worker_params(eid: sgx_enclave_id_t, receipt: ReceiptWrapper, receipt_hashes: ReceiptHashesWrapper, headers: BlockHeadersWrapper) -> Result<[u8; 65], Error> {
@@ -115,8 +117,8 @@ pub mod tests {
     fn test_set_worker_params() {
         let enclave = init_enclave();
         generate_epoch_seed(enclave.geteid());
-        generate_epoch_seed(enclave.geteid());
         let sig = set_mock_worker_params(enclave.geteid());
+        generate_epoch_seed(enclave.geteid());
         println!("got the data signature");
         enclave.destroy();
     }

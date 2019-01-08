@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicU64};
+use std::sync::atomic::AtomicU64;
 use boot_network::deploy_scripts;
 use boot_network::principal_utils::Principal;
 use boot_network::keys_provider_http::PrincipalHttpServer;
@@ -134,8 +134,9 @@ impl Sampler for PrincipalManager {
         // register worker
         //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
         let signer = self.get_signing_address()?;
-        println!("signing address = {}", signer);
-        enigma_contract.register(&signer, &rlp_encoded, gas_limit)?;
+        println!("Registering Principal node with signing address = {}", signer);
+        let tx = enigma_contract.register(&signer, &rlp_encoded, gas_limit)?;
+        println!("Registered worker with tx: {:?}", tx);
 
         // Start the WorkerParameterized Web3 log filter
         let eid = Arc::new(AtomicU64::new(self.eid));
