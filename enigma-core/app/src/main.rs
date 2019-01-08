@@ -1,3 +1,6 @@
+#![feature(tool_lints)]
+#![warn(clippy::all)]
+
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate base64;

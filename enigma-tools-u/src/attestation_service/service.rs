@@ -252,9 +252,10 @@ impl Default for QReportBody {
 
 #[cfg(test)]
 mod test {
-    use attestation_service;
-    use attestation_service::service::*;
+    use crate::attestation_service::{self, service::*};
     use std::str::from_utf8;
+    use std::mem;
+
     // this unit-test is for the attestation service
     // it uses a hardcoded quote that is validated
     // the test requests a report from the attestation service construct an object with the response

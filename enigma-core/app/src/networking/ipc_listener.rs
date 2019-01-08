@@ -58,6 +58,7 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
 // TODO: Make sure that every ? that doesn't require responding with a empty Message is replaced with an appropriate handling
 pub(self) mod handling {
     #![allow(dead_code)]
+    #![allow(clippy::needless_pass_by_value)]
     use zmq::Message;
     use enigma_tools_u::common_u::{LockExpectMutex, FromHex32};
     use hex::{FromHex, ToHex};
