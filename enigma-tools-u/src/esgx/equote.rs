@@ -23,7 +23,13 @@ extern "C" {
 pub fn retry_quote(eid: sgx_enclave_id_t, spid: &str, times: usize) -> Result<String, Error> {
     let mut quote = String::new();
     for _ in 0..times {
-        quote = produce_quote(eid, spid)?;
+        quote = match produce_quote(eid, spid) {
+            Ok(q) => q,
+            Err(e) => {
+                println!("problem with quote, trying again: {:?}", e);
+                continue;
+            }
+        };
         if !quote.chars().all(|cur_c| cur_c == 'A') {
             return Ok(quote);
         }
