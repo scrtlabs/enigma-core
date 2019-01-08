@@ -348,12 +348,16 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args:
     let deploy_bytecode = build_constructor(bytecode_slice)?;
 // This code is a duplicate of the code from ecall_execute_internal
 // No need to change this since both parts will be removed in the upcoming merge
-    let callable = str::from_utf8(callable_slice)?;
-    let callable_args = hexutil::read_hex(str::from_utf8(constructor_args_slice).unwrap()).unwrap();
-    let (types, function_name) = get_types(callable)?;
+    let constructor = str::from_utf8(constructor)?;
+    let args = hexutil::read_hex(str::from_utf8(args).unwrap()).unwrap();
+    let (types, function_name) = get_types(constructor)?;
     let types_vector = extract_types(&types.to_string());
 
-    let args_vector = get_args(&callable_args, &types_vector)?;
+    let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
+        .remove(&user_key[..])
+        .ok_or(EnclaveError::KeyError {key_type: "Missing DH Key".to_string(), key: "".to_string()})?;
+
+    let args_vector = get_args(&args, &types_vector, &inputs_key)?;
 
     let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], false){
         Ok(v) => v,
@@ -361,11 +365,6 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args:
             return Err(EnclaveError::ExecutionError{code: "interpretation of call parameters".to_string(), err: e.to_string()});
         },
     };
-
-    let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
-        .remove(&user_key[..])
-        .ok_or(EnclaveError::KeyError {key_type: "Missing DH Key".to_string(), key: "".to_string()})?;
-    // TODO: decrypt and parse the args
 
     let state = ContractState::new(*address);
 
