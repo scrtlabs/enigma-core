@@ -9,11 +9,6 @@ use rmps::{Deserializer, Serializer};
 use json_patch;
 
 
-// TODO: Add to the state the hash of the latest delta
-// TODO: Check the hash when applying delta, and use it to make new deltas.
-// TODO: Verify a delta using the new hash.
-// TODO: Do this all over the code.
-
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
 pub struct ContractState {
     #[serde(skip)]
@@ -83,6 +78,7 @@ impl<'a> Encryption<&'a [u8; 32], EnclaveError, EncryptedContractState<u8>, [u8;
             json: enc,
         } )
     }
+
     fn decrypt(enc: EncryptedContractState<u8>, key: &[u8; 32]) -> Result<ContractState, EnclaveError> {
         let dec = symmetric::decrypt(&enc.json, key)?;
         let mut des = Deserializer::new(&dec[..]);

@@ -1,5 +1,4 @@
-#![allow(dead_code,unused_assignments,unused_variables)]
-use failure::Error;
+#![allow(dead_code)]
 use sgx_types::*;
 use std::fmt;
 
@@ -53,8 +52,6 @@ pub struct P2PErr {
 pub struct DBErr {
     pub command: String,
     pub kind: DBErrKind,
-    #[fail(cause)]
-    pub previous: Option<Error>,
 }
 
 #[derive(Debug)]

@@ -1,7 +1,5 @@
-use common::errors_t::EnclaveError;
-use common::utils_t::{Keccak256, ToHex};
-use secp256k1;
-use secp256k1::{PublicKey, SecretKey, SharedSecret};
+use crate::common::{utils_t::{Keccak256, ToHex}, errors_t::EnclaveError};
+use secp256k1::{PublicKey, SecretKey, SharedSecret, self};
 use sgx_trts::trts::rsgx_read_rand;
 use std::string::ToString;
 
@@ -66,7 +64,7 @@ impl KeyPair {
     /// # Examples
     /// Simple Message signing:
     /// ```
-    /// let keys = cryptography_t::asymmetric::KeyPair::new();
+    /// let keys = KeyPair::new();
     /// let msg = b"Sign this";
     /// let sig = keys.sign(&msg);
     /// ```
@@ -87,6 +85,21 @@ impl KeyPair {
         returnvalue[..64].copy_from_slice(&sig.serialize()[..]);
         returnvalue[64] = v + 27;
         Ok(returnvalue)
+    }
+
+    /// The same as sign() but for multiple arguments.
+    /// What this does is appends the length of the messages before each message and make one big slice from all of them.
+    /// e.g.: `S(H(len(a)+a, len(b)+b...))`
+    /// # Examples
+    /// ```
+    /// let keys = KeyPair::new();
+    /// let msg = b"sign";
+    /// let msg2 = b"this";
+    /// let sig = keys.sign_multiple(&[msg, msg2]).unwrap();
+    /// ```
+    pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], EnclaveError> {
+        let ready = super::prepare_hash_multiple(messages);
+        self.sign(&ready)
     }
 }
 

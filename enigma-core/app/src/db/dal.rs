@@ -9,7 +9,6 @@ use db::primitives::SplitKey;
 // These are global variables for Reade/Write/Create Options
 const SYNC: bool = true;
 
-#[allow(dead_code)] // TODO: Remove in the future
 pub struct DB {
     pub location: PathBuf,
     pub database: rocks_db,
@@ -18,7 +17,6 @@ pub struct DB {
     pub options: Options,
 }
 
-#[allow(dead_code)] // TODO: Remove in the future
 impl DB {
     /// Constructs a new `DB`. with a db file accordingly.
     ///
@@ -105,7 +103,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
             // verifies that the key inside the CF doesn't already exist
             match self.database.get_cf(cf_key, &index_key)? {
-                Some(_) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists, previous: None }.into()),
+                Some(_) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists }.into()),
                 None => {
                     let mut write_options = WriteOptions::default();
                     write_options.set_sync(SYNC);
@@ -118,10 +116,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
     fn read(&self, key: &'a K) -> Result<Vec<u8>, Error> {
         key.as_split(|hash, index_key| {
-            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
 
                 self.database.get_cf(cf_key, &index_key)?.map_or_else(
-                    || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+                    || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey }.into()),
                     |data| Ok(data.to_vec())
                 )
         })
@@ -129,10 +127,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
-            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey })?;
 
             if self.database.get_cf(cf_key, &index_key)?.is_none() {
-                return Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey, previous: None }.into());
+                return Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey }.into());
             }
 
             let mut write_options = WriteOptions::default();
@@ -144,10 +142,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
-            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey })?;
 
             if self.database.get_cf(cf_key, &index_key)?.is_none() {
-                return Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey, previous: None }.into());
+                return Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey }.into());
             }
             self.database.delete_cf(cf_key, &index_key)?;
             Ok(())
