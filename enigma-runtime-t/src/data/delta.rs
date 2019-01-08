@@ -1,7 +1,7 @@
-use json_patch;
-use enigma_tools_t::cryptography_t::{Encryption, symmetric};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::Sha256;
+use enigma_tools_t::cryptography_t::{symmetric, Encryption};
+use json_patch;
 use rmps::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use std::vec::Vec;
@@ -23,7 +23,6 @@ pub struct EncryptedPatch {
     pub index: u32,
 }
 
-
 impl StatePatch {
     pub fn sha256_patch(&self) -> Result<[u8; 32], EnclaveError> {
         let mut buf = Vec::new();
@@ -32,15 +31,14 @@ impl StatePatch {
     }
 }
 
-
 impl<'a> Encryption<&'a [u8; 32], EnclaveError, EncryptedPatch, [u8; 12]> for StatePatch {
-    fn encrypt_with_nonce(self, key: &[u8; 32], _iv: Option< [u8; 12] >) -> Result<EncryptedPatch, EnclaveError> {
+    fn encrypt_with_nonce(self, key: &[u8; 32], _iv: Option<[u8; 12]>) -> Result<EncryptedPatch, EnclaveError> {
         let mut buf = Vec::new();
         self.serialize(&mut Serializer::new(&mut buf))?;
         let data = symmetric::encrypt_with_nonce(&buf, key, _iv)?;
         let contract_id = self.contract_id;
         let index = self.index;
-        Ok( EncryptedPatch { data, contract_id, index } )
+        Ok(EncryptedPatch { data, contract_id, index })
     }
 
     fn decrypt(enc: EncryptedPatch, key: &[u8; 32]) -> Result<Self, EnclaveError> {

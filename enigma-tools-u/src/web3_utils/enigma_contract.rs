@@ -86,11 +86,11 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
         let mut opts = Options::default();
         opts.gas = Some(gas.into());
         // call the register function
-        match self.w3_contract
-            .call("register", (signer_addr, report.to_vec()), self.account, opts)
-            .wait() {
+        match self.w3_contract.call("register", (signer_addr, report.to_vec()), self.account, opts).wait() {
             Ok(_) => Ok(()),
-            Err(e) => Err(errors::Web3Error{ message: format!("error when trying to register- unable to call contract: {:?}", e) }.into()),
+            Err(e) => {
+                Err(errors::Web3Error { message: format!("error when trying to register- unable to call contract: {:?}", e) }.into())
+            }
         }
     }
 

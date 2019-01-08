@@ -4,8 +4,8 @@ extern crate sgx_urts;
 
 use sgx_types::*;
 
-use std::iter::FromIterator;
 use enigma_types::traits::SliceCPtr;
+use std::iter::FromIterator;
 
 //failure
 use failure::Error;
@@ -35,13 +35,14 @@ pub struct EvmRequest {
 }
 
 impl EvmRequest {
-    pub fn new(_bytecode: String, _callable: String, _callable_args: String, _preprocessor: Vec<String>,
-               _callback: String) -> Self {
-        EvmRequest { bytecode: _bytecode,
-                     callable: _callable,
-                     callable_args: _callable_args,
-                     preprocessor: _preprocessor,
-                     callback: _callback, }
+    pub fn new(_bytecode: String, _callable: String, _callable_args: String, _preprocessor: Vec<String>, _callback: String) -> Self {
+        EvmRequest {
+            bytecode: _bytecode,
+            callable: _callable,
+            callable_args: _callable_args,
+            preprocessor: _preprocessor,
+            callback: _callback,
+        }
     }
 }
 
@@ -94,9 +95,7 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> Result<EvmRespo
                   &mut result_length)
     };
     let part = Vec::from_iter(slice[0..result_length].iter().cloned());
-    Ok(EvmResponse { errored: retval != sgx_status_t::SGX_SUCCESS,
-                     result: part.to_hex(),
-                     signature: signature.to_hex(), })
+    Ok(EvmResponse { errored: retval != sgx_status_t::SGX_SUCCESS, result: part.to_hex(), signature: signature.to_hex() })
 }
 
 #[cfg(test)]

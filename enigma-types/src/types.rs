@@ -18,7 +18,7 @@ pub enum EnclaveReturn {
     OcallDBError,
     Utf8Error,
     MessagingError,
-    Other
+    Other,
 }
 
 impl Default for EnclaveReturn {
@@ -57,7 +57,7 @@ impl<T: ResultToEnclaveReturn> From<Result<(), T>> for EnclaveReturn {
     fn from(res: Result<(), T>) -> Self {
         match res {
             Ok(()) => EnclaveReturn::Success,
-            Err(e) => ResultToEnclaveReturn::into_enclave_return(e)
+            Err(e) => ResultToEnclaveReturn::into_enclave_return(e),
         }
     }
 }

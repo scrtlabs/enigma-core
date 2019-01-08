@@ -11,7 +11,6 @@ static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 type Key = [u8; 32];
 type IV = [u8; 12];
 
-
 pub fn encrypt(message: &[u8], key: &Key) -> Result<Vec<u8>, EnclaveError> { encrypt_with_nonce(message, key, None) }
 
 pub fn encrypt_with_nonce(message: &[u8], key: &Key, _iv: Option<IV>) -> Result<Vec<u8>, EnclaveError> {
@@ -38,7 +37,7 @@ pub fn encrypt_with_nonce(message: &[u8], key: &Key, _iv: Option<IV>) -> Result<
         Ok(size) => size,
         Err(_) => return Err(EnclaveError::EncryptionError {}),
     };
-//    println!("**Returned size: {:?}, Real size: {:?}", &seal_size, in_out.len());
+    //    println!("**Returned size: {:?}, Real size: {:?}", &seal_size, in_out.len());
     let mut in_out = in_out[..seal_size].to_vec();
     in_out.append(&mut iv.to_vec());
     Ok(in_out)

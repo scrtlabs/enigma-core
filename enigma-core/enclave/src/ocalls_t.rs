@@ -1,11 +1,9 @@
-use enigma_types::traits::SliceCPtr;
 use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_types::traits::SliceCPtr;
 use sgx_types::sgx_status_t;
 use std::{path, str};
 
 const PATH_MAX: usize = 4096; // linux/limits.h - this depends on the FS.
-
-
 
 extern "C" {
     fn ocall_get_home(output: *mut u8, result_len: &mut usize) -> sgx_status_t;

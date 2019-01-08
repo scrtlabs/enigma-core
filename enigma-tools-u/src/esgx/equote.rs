@@ -1,10 +1,10 @@
 use base64;
 use common_u::errors;
 use failure::Error;
+use hex::FromHex;
 use sgx_types::*;
 use std::thread::sleep;
 use std::{self, time};
-use hex::FromHex;
 
 extern "C" {
     pub fn ecall_get_registration_quote(eid: sgx_enclave_id_t, retval: *mut sgx_status_t,
@@ -24,21 +24,22 @@ pub fn retry_quote(eid: sgx_enclave_id_t, spid: &str, times: usize) -> Result<St
     let mut quote = String::new();
     for _ in 0..times {
         quote = produce_quote(eid, spid)?;
-        if !quote.chars().all(|cur_c| cur_c == 'A') { return Ok(quote); }
+        if !quote.chars().all(|cur_c| cur_c == 'A') {
+            return Ok(quote);
+        }
         sleep(time::Duration::new(2, 0));
     }
     Err(errors::QuoteErr { message: quote }.into())
 }
 
 pub fn produce_quote(eid: sgx_enclave_id_t, spid: &str) -> Result<String, Error> {
-
     let mut target_info = sgx_target_info_t::default();
     let mut gid = sgx_epid_group_id_t::default();
 
     // create quote
     let status = unsafe { sgx_init_quote(&mut target_info, &mut gid) };
     if status != sgx_status_t::SGX_SUCCESS {
-        return Err(errors::SgxError{status, function: "sgx_init_quote"}.into());
+        return Err(errors::SgxError { status, function: "sgx_init_quote" }.into());
     }
 
     // create report
@@ -46,14 +47,14 @@ pub fn produce_quote(eid: sgx_enclave_id_t, spid: &str) -> Result<String, Error>
     let mut retval = sgx_status_t::SGX_SUCCESS;
     let status = unsafe { ecall_get_registration_quote(eid, &mut retval, &target_info, &mut report) };
     if status != sgx_status_t::SGX_SUCCESS || retval != sgx_status_t::SGX_SUCCESS {
-        return Err(errors::SgxError{status, function: "ecall_get_registration_quote"}.into());
+        return Err(errors::SgxError { status, function: "ecall_get_registration_quote" }.into());
     }
 
     // calc quote size
     let mut quote_size: u32 = 0;
     let status = unsafe { sgx_calc_quote_size(std::ptr::null(), 0, &mut quote_size) };
     if status != sgx_status_t::SGX_SUCCESS {
-        return Err(errors::SgxError{status, function: "sgx_calc_quote_size"}.into());
+        return Err(errors::SgxError { status, function: "sgx_calc_quote_size" }.into());
     }
 
     // get the actual quote
@@ -76,10 +77,11 @@ pub fn produce_quote(eid: sgx_enclave_id_t, spid: &str) -> Result<String, Error>
                       0,
                       std::ptr::null_mut(),
                       the_quote.as_mut_ptr() as *mut sgx_quote_t,
-                      quote_size)
+                      quote_size,
+        )
     };
     if status != sgx_status_t::SGX_SUCCESS {
-        return Err(errors::SgxError{status, function: "sgx_get_quote"}.into());
+        return Err(errors::SgxError { status, function: "sgx_get_quote" }.into());
     }
     let encoded_quote = base64::encode(&the_quote);
     Ok(encoded_quote)

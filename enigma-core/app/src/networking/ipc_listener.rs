@@ -1,16 +1,14 @@
 #![allow(dead_code)]
-
-use std::sync::Arc;
-use futures::{Future, Stream};
-use tokio_zmq::{Rep, Multipart, Error};
-use tokio_zmq::prelude::*;
 use crate::networking::messages::*;
+use futures::{Future, Stream};
 use sgx_types::sgx_enclave_id_t;
+use std::sync::Arc;
+use tokio_zmq::prelude::*;
+use tokio_zmq::{Error, Multipart, Rep};
 
 pub struct IpcListener {
     context: Arc<zmq::Context>,
-    rep_future: Box<Future<Item=Rep, Error=Error>>,
-
+    rep_future: Box<Future<Item = Rep, Error = Error>>,
 }
 
 impl IpcListener {
@@ -20,14 +18,11 @@ impl IpcListener {
         IpcListener { context, rep_future }
     }
 
-    pub fn run<F>(self, f: F) -> impl Future<Item =(), Error = Error>
-        where F: Fn(Multipart) -> Multipart {
-
+    pub fn run<F>(self, f: F) -> impl Future<Item = (), Error = Error>
+    where F: Fn(Multipart) -> Multipart {
         self.rep_future.and_then(|rep| {
             let (sink, stream) = rep.sink_stream(25).split();
-            stream.map(f)
-                .forward(sink)
-                .map(|(_stream, _sink)| ())
+            stream.map(f).forward(sink).map(|(_stream, _sink)| ())
         })
     }
 }
@@ -36,18 +31,18 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
     let mut response = Multipart::new();
     for msg in request {
         let response_msg = match msg.into() {
-            IpcRequest::GetRegistrationParams{id} => handling::get_registration_params(id, eid),
-            IpcRequest::IdentityChallenge{id, nonce} => handling::identity_challange(id, nonce),
-            IpcRequest::GetTip{id, input} => handling::get_tip(id, input),
-            IpcRequest::GetTips{id, input} => handling::get_tips(id, input),
-            IpcRequest::GetAllTips{id} => handling::get_all_tips(id),
-            IpcRequest::GetAllAddrs{id} => handling::get_all_addrs(id),
-            IpcRequest::GetDelta{id, input} => handling::get_delta(id, input),
-            IpcRequest::GetDeltas{id, input} => handling::get_deltas(id, input),
-            IpcRequest::GetContract{id, input} => handling::get_contract(id, input),
-            IpcRequest::UpdateNewContract{id, address, bytecode} => handling::update_new_contract(id, address, bytecode),
-            IpcRequest::UpdateDeltas{id, deltas} => handling::update_deltas(id, deltas),
-            IpcRequest::NewTaskEncryptionKey{id, pubkey} => handling::get_dh_user_key(id, pubkey, eid),
+            IpcRequest::GetRegistrationParams { id } => handling::get_registration_params(id, eid),
+            IpcRequest::IdentityChallenge { id, nonce } => handling::identity_challange(id, nonce),
+            IpcRequest::GetTip { id, input } => handling::get_tip(id, input),
+            IpcRequest::GetTips { id, input } => handling::get_tips(id, input),
+            IpcRequest::GetAllTips { id } => handling::get_all_tips(id),
+            IpcRequest::GetAllAddrs { id } => handling::get_all_addrs(id),
+            IpcRequest::GetDelta { id, input } => handling::get_delta(id, input),
+            IpcRequest::GetDeltas { id, input } => handling::get_deltas(id, input),
+            IpcRequest::GetContract { id, input } => handling::get_contract(id, input),
+            IpcRequest::UpdateNewContract { id, address, bytecode } => handling::update_new_contract(id, address, bytecode),
+            IpcRequest::UpdateDeltas { id, deltas } => handling::update_deltas(id, deltas),
+            IpcRequest::NewTaskEncryptionKey { id, pubkey } => handling::get_dh_user_key(id, pubkey, eid),
         };
 
         response.push_back(response_msg.unwrap_or_default());
@@ -59,21 +54,21 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
 pub(self) mod handling {
     #![allow(dead_code)]
     #![allow(clippy::needless_pass_by_value)]
-    use zmq::Message;
-    use enigma_tools_u::common_u::{LockExpectMutex, FromHex32};
-    use hex::{FromHex, ToHex};
-    use crate::db::{DATABASE, P2PCalls, DeltaKey, Stype, CRUDInterface};
-    use crate::networking::messages::*;
-    use failure::Error;
     use crate::common_u::errors::P2PErr;
+    use crate::db::{CRUDInterface, DeltaKey, P2PCalls, Stype, DATABASE};
+    use crate::km_u;
+    use crate::networking::messages::*;
+    use enigma_tools_u::common_u::{FromHex32, LockExpectMutex};
     use enigma_tools_u::esgx::equote as equote_tools;
     use esgx::equote;
+    use failure::Error;
+    use hex::{FromHex, ToHex};
     use networking::constants;
-    use sgx_types::sgx_enclave_id_t;
-    use crate::km_u;
     use rmp_serde::Deserializer;
     use serde::Deserialize;
     use serde_json::Value;
+    use sgx_types::sgx_enclave_id_t;
+    use zmq::Message;
 
     pub fn get_registration_params(id: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
         let quote = equote_tools::retry_quote(eid, &constants::SPID, 8)?;
@@ -94,7 +89,9 @@ pub(self) mod handling {
         if let Stype::Delta(key) = tip_key.key_type {
             let delta = IpcDelta { address: None, key, delta: Some(tip_data.to_hex()) };
             Ok(IpcResponse::GetTip { id, result: delta }.into())
-        } else { unreachable!() }
+        } else {
+            unreachable!()
+        }
     }
 
     pub fn get_tips(id: String, input: Vec<String>) -> Result<Message, Error> {
@@ -105,7 +102,9 @@ pub(self) mod handling {
             if let Stype::Delta(indx) = tip_key.key_type {
                 let delta = IpcDelta { address: Some(address.to_hex()), key: indx, delta: Some(tip_data.to_hex()) };
                 tips_results.push(delta);
-            } else { unreachable!() }
+            } else {
+                unreachable!()
+            }
         }
         Ok(IpcResponse::GetTips { id, result: IpcResults::Tips(tips_results) }.into())
     }
@@ -117,24 +116,25 @@ pub(self) mod handling {
             if let Stype::Delta(indx) = key.key_type {
                 let delta = IpcDelta { address: Some(key.hash.to_hex()), key: indx, delta: Some(data.to_hex()) };
                 tips_results.push(delta);
-            } else { unreachable!() }
-
+            } else {
+                unreachable!()
+            }
         }
         Ok(IpcResponse::GetAllTips { id, result: tips_results }.into())
     }
 
     pub fn get_all_addrs(id: String) -> Result<Message, Error> {
-        let addresses: Vec<String> = DATABASE.lock_expect("P2P GetAllAddrs").get_all_addresses().unwrap_or_default()
-            .iter().map(|addr| addr.to_hex()).collect();
+        let addresses: Vec<String> =
+            DATABASE.lock_expect("P2P GetAllAddrs").get_all_addresses().unwrap_or_default().iter().map(|addr| addr.to_hex()).collect();
         Ok(IpcResponse::GetAllAddrs { id, result: IpcResults::Addresses(addresses) }.into())
     }
 
     pub fn get_delta(id: String, input: IpcDelta) -> Result<Message, Error> {
-        let address = input.address.ok_or(P2PErr{ cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?
-            .from_hex_32()?;
+        let address =
+            input.address.ok_or(P2PErr { cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?.from_hex_32()?;
         let delta_key = DeltaKey::new(address, Stype::Delta(input.key));
         let delta = DATABASE.lock_expect("P2P GetDelta").get_delta(delta_key)?;
-        Ok(IpcResponse::GetDelta {id, result: IpcResults::Delta(delta.to_hex())}.into())
+        Ok(IpcResponse::GetDelta { id, result: IpcResults::Delta(delta.to_hex()) }.into())
     }
 
     pub fn get_deltas(id: String, input: Vec<IpcGetDeltas>) -> Result<Message, Error> {
@@ -149,22 +149,24 @@ pub(self) mod handling {
                 results.push(IpcDelta::default());
                 continue; // TODO: Check if this handling makes any sense.
             }
-            for (key, data)  in db_res.unwrap() {
+            for (key, data) in db_res.unwrap() {
                 let address = key.hash.to_hex();
                 if let Stype::Delta(indx) = key.key_type {
                     let delta = IpcDelta { address: Some(address), key: indx, delta: Some(data.to_hex()) };
                     results.push(delta);
-                } else { unreachable!() }
+                } else {
+                    unreachable!()
+                }
             }
         }
 
-        Ok(IpcResponse::GetDeltas {id, result: IpcResults::Deltas(results)}.into())
+        Ok(IpcResponse::GetDeltas { id, result: IpcResults::Deltas(results) }.into())
     }
 
     pub fn get_contract(id: String, input: String) -> Result<Message, Error> {
         let address = input.from_hex_32()?;
         let data = DATABASE.lock_expect("P2P GetContract").get_contract(address).unwrap_or_default();
-        Ok(IpcResponse::GetContract {id, result: IpcResults::Bytecode(data.to_hex())}.into())
+        Ok(IpcResponse::GetContract { id, result: IpcResults::Bytecode(data.to_hex()) }.into())
     }
 
     pub fn update_new_contract(id: String, address: String, bytecode: String) -> Result<Message, Error> {
@@ -172,17 +174,17 @@ pub(self) mod handling {
         let bytecode = bytecode.from_hex()?;
         let delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
         DATABASE.lock_expect("P2P UpdateNewContract").force_update(&delta_key, &bytecode)?;
-        Ok(IpcResponse::UpdateNewContract {id, address, result: IpcResults::Status("0".to_string())}.into())
+        Ok(IpcResponse::UpdateNewContract { id, address, result: IpcResults::Status("0".to_string()) }.into())
     }
 
     pub fn update_deltas(id: String, deltas: Vec<IpcDelta>) -> Result<Message, Error> {
         let mut tuples = Vec::with_capacity(deltas.len());
 
         for delta in deltas.into_iter() {
-            let address = delta.address.ok_or(P2PErr{ cmd: "UpdateDeltas".to_string(), msg: "Address Missing".to_string() })?
-                .from_hex_32()?;
-            let data = delta.delta.ok_or(P2PErr{ cmd: "UpdateDeltas".to_string(), msg: "Delta Data Missing".to_string() })?
-                .from_hex()?;
+            let address =
+                delta.address.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Address Missing".to_string() })?.from_hex_32()?;
+            let data =
+                delta.delta.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Delta Data Missing".to_string() })?.from_hex()?;
             let delta_key = DeltaKey::new(address, Stype::Delta(delta.key));
             tuples.push((delta_key, data));
         }
@@ -195,17 +197,21 @@ pub(self) mod handling {
                     if let Stype::Delta(indx) = deltakey.key_type {
                         let delta = IpcDeltaResult { address: deltakey.hash.to_hex(), key: indx, status: 0 };
                         errors.push(delta);
-                    } else { unreachable!() }
+                    } else {
+                        unreachable!()
+                    }
                 }
                 Err(_) => {
                     if let Stype::Delta(indx) = deltakey.key_type {
                         let delta = IpcDeltaResult { address: deltakey.hash.to_hex(), key: indx, status: 1 };
                         errors.push(delta);
-                    } else { unreachable!() }
+                    } else {
+                        unreachable!()
+                    }
                 }
             }
         }
-        Ok(IpcResponse::UpdateDeltas{ id, result: IpcUpdateDeltasResult { status: 0, errors } }.into())
+        Ok(IpcResponse::UpdateDeltas { id, result: IpcUpdateDeltasResult { status: 0, errors } }.into())
     }
 
     pub fn get_dh_user_key(id: String, _user_pubkey: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
@@ -219,29 +225,31 @@ pub(self) mod handling {
         let msg_id = serde_json::from_value::<[u8; 12]>(res["id"].clone())?;
         let pubkey = serde_json::from_value::<Vec<u8>>(res["pubkey"].clone())?;
 
-        let result = IpcDHMessage { msg_id: msg_id.to_hex(), dh_key: pubkey.to_hex(), sig: sig.to_hex()};
+        let result = IpcDHMessage { msg_id: msg_id.to_hex(), dh_key: pubkey.to_hex(), sig: sig.to_hex() };
 
-        Ok(IpcResponse::NewTaskEncryptionKey{ id, result }.into())
+        Ok(IpcResponse::NewTaskEncryptionKey { id, result }.into())
     }
 }
-
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use serde_json::Value;
-    use crate::db::{DeltaKey, Stype, DATABASE, P2PCalls};
+    use crate::db::{DeltaKey, P2PCalls, Stype, DATABASE};
     use enigma_tools_u::common_u::LockExpectMutex;
+    use serde_json::Value;
 
     #[ignore]
     #[test]
     fn test_the_listener() {
         let conn = "tcp://*:5556";
         let server = IpcListener::new(conn);
-        server.run(|mul| {
-            println!("{:?}", mul);
-            mul
-        }).wait().unwrap();
+        server
+            .run(|mul| {
+                println!("{:?}", mul);
+                mul
+            })
+            .wait()
+            .unwrap();
     }
 
     #[ignore]
@@ -256,19 +264,24 @@ mod test {
         let data = tips.as_array_mut().unwrap();
         data.append(&mut provider_db.as_array_mut().unwrap());
 
-        let data: Vec<(DeltaKey, Vec<u8>)> = data.into_iter().map(|tip| {
-            let hash: [u8; 32] = serde_json::from_value(tip["address"].clone()).unwrap();
-            let key: u32 = serde_json::from_value(tip["key"].clone()).unwrap();
-            let delta_key = DeltaKey { hash, key_type: Stype::Delta(key)};
-            let data: Vec<u8> = serde_json::from_value(tip["delta"].clone()).unwrap();
-            (delta_key, data)
-        }).collect();
+        let data: Vec<(DeltaKey, Vec<u8>)> = data
+            .into_iter()
+            .map(|tip| {
+                let hash: [u8; 32] = serde_json::from_value(tip["address"].clone()).unwrap();
+                let key: u32 = serde_json::from_value(tip["key"].clone()).unwrap();
+                let delta_key = DeltaKey { hash, key_type: Stype::Delta(key) };
+                let data: Vec<u8> = serde_json::from_value(tip["delta"].clone()).unwrap();
+                (delta_key, data)
+            })
+            .collect();
 
-        for res in DATABASE.lock_expect("test").insert_tuples(&data) { res.unwrap(); }
+        for res in DATABASE.lock_expect("test").insert_tuples(&data) {
+            res.unwrap();
+        }
 
         let conn = "tcp://*:5556";
         let server = IpcListener::new(conn);
-        server.run(|multi| { handle_message (multi, enclave.geteid())}).wait().unwrap();
+        server.run(|multi| handle_message(multi, enclave.geteid())).wait().unwrap();
     }
 
 }

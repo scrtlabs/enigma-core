@@ -32,8 +32,8 @@ pub struct DeployParams {
 }
 
 impl DeployParams {
-    pub fn new(deployer: &str, abi: String, bytecode: String, gas_limit: u64, poll_interval: u64,
-               confirmations: usize) -> Result<Self, Error> {
+    pub fn new(deployer: &str, abi: String, bytecode: String, gas_limit: u64,
+               poll_interval: u64, confirmations: usize, ) -> Result<Self, Error> {
         let gas_limit: U256 = gas_limit.into();
 
         let deployer: Address = deployer.parse()?;
@@ -53,7 +53,11 @@ pub fn load_contract_abi_bytecode<P: AsRef<Path>>(path: P) -> Result<(String, St
 
 pub fn load_contract_abi<R: Read>(rdr: R) -> Result<String, Error> {
     let data: Value = serde_json::from_reader(rdr)?;
-    if data.is_array() { Ok(serde_json::to_string(&data)?) } else { Ok(serde_json::to_string(&data["abi"])?) }
+    if data.is_array() {
+        Ok(serde_json::to_string(&data)?)
+    } else {
+        Ok(serde_json::to_string(&data["abi"])?)
+    }
 }
 
 // Important!! Best Practice is to have only one Web3 Instance.
@@ -91,17 +95,15 @@ pub fn truncate_bytecode(bytecode: &str) -> Result<Vec<u8>, Error> {
 
 // deploy any smart contract
 pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_params: P) -> Result<Contract<Http>, Error>
-    where P: Tokenize {
+where P: Tokenize {
     let bytecode: Vec<u8> = truncate_bytecode(&tx_params.bytecode)?;
 
     let deployer_addr = tx_params.deployer;
     let mut options = Options::default();
     options.gas = Some(tx_params.gas_limit);
 
-    let builder = Contract::deploy(
-            web3.eth(),
-            tx_params.abi.as_bytes(),
-        ).unwrap()
+    let builder = Contract::deploy(web3.eth(), tx_params.abi.as_bytes())
+        .unwrap()
         .confirmations(tx_params.confirmations)
         .poll_interval(time::Duration::from_secs(tx_params.poll_interval));
 
@@ -118,10 +120,10 @@ pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_para
 //////////////////////// EVENTS LISTENING START ///////////////////////////
 
 fn build_event_filter(event_name: &str, contract_addr: Option<&str>) -> web3::types::Filter {
-    let filter =
-        FilterBuilder::default().topics(Some(vec![event_name.as_bytes().keccak256().into(),]), None, None, None)
-                                .from_block(BlockNumber::Earliest)
-                                .to_block(BlockNumber::Latest);
+    let filter = FilterBuilder::default()
+        .topics(Some(vec![event_name.as_bytes().keccak256().into()]), None, None, None)
+        .from_block(BlockNumber::Earliest)
+        .to_block(BlockNumber::Latest);
     match contract_addr {
         Some(addr) => filter.address(vec![addr.parse().unwrap()]).build(),
         None => filter.build(),
@@ -174,11 +176,10 @@ pub fn filter_blocks(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_na
 #[cfg(test)]
 mod test {
     extern crate rustc_hex;
+    use self::rustc_hex::ToHex;
     use super::*;
     use std::env;
     use web3_utils::w3utils;
-    use self::rustc_hex::ToHex;
-
 
     /// This function is important to enable testing both on the CI server and local.
     /// On the CI Side:

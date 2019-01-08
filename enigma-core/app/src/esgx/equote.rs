@@ -31,14 +31,13 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<String, Err
 
 #[cfg(test)]
 mod test {
-    use enigma_tools_u::esgx::equote::retry_quote;
     use crate::esgx::general::init_enclave_wrapper;
-    use enigma_tools_u::attestation_service::{service::AttestationService, self};
+    use enigma_tools_u::attestation_service::{self, service::AttestationService};
+    use enigma_tools_u::esgx::equote::retry_quote;
 
     // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
     // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0
     const SPID: &str = "1601F95C39B9EA307FEAABB901ADC3EE"; // Elichai's SPID
-
 
     #[test]
     fn test_produce_quote() {

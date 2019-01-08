@@ -1,5 +1,5 @@
-use crate::SIGNINING_KEY;
 use super::STATE_KEYS;
+use crate::SIGNINING_KEY;
 use enigma_runtime_t::data::{ContractState, DeltasInterface, StatePatch};
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_tools_t::common::errors_t::EnclaveError;
@@ -7,14 +7,16 @@ use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 use enigma_tools_t::cryptography_t::Encryption;
 use enigma_tools_t::km_primitives::{ContractAddress, MsgID, StateKey};
-use std::string::ToString;
-use std::vec::Vec;
-use std::sync::SgxMutex;
-use std::collections::HashMap;
-use std::u32;
 use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
+use std::collections::HashMap;
+use std::string::ToString;
+use std::sync::SgxMutex;
+use std::u32;
+use std::vec::Vec;
 
-lazy_static! { pub static ref DH_KEYS: SgxMutex< HashMap<MsgID, KeyPair >> = SgxMutex::new(HashMap::new()); }
+lazy_static! {
+    pub static ref DH_KEYS: SgxMutex<HashMap<MsgID, KeyPair>> = SgxMutex::new(HashMap::new());
+}
 
 pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let keys = KeyPair::new()?;
@@ -26,7 +28,6 @@ pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: 
     Ok(msg)
 }
 
-
 pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveError> {
     let res = PrincipalMessage::from_message(msg_slice)?;
 
@@ -34,7 +35,7 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     let id = res.get_id();
     let msg;
     {
-        let keys = guard.get(&id).ok_or(EnclaveError::KeyError{key_type: "dh keys".to_string(), key: "".to_string()})?;
+        let keys = guard.get(&id).ok_or(EnclaveError::KeyError { key_type: "dh keys".to_string(), key: "".to_string() })?;
         let aes = keys.get_aes_key(&res.get_pubkey())?;
         msg = PrincipalMessage::decrypt(res, &aes)?;
     }
@@ -49,7 +50,6 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     Ok(())
 }
 
-
 pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, EnclaveError> {
     let guard = STATE_KEYS.lock_expect("State Keys");
     let mut failed_contracts = Vec::with_capacity(guard.len());
@@ -57,7 +57,7 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
     'contract: for (addrs, key) in guard.iter() {
         // Get the state and decrypt it.
         // if no state exist create new one and if failed decrypting push to failed_contracts and move on.
-        let mut state =  match runtime_ocalls_t::get_state(*addrs) {
+        let mut state = match runtime_ocalls_t::get_state(*addrs) {
             Ok(enc_state) => match ContractState::decrypt(enc_state, &key) {
                 Ok(s) => s,
                 Err(_) => {
@@ -71,14 +71,16 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
         let mut start = state.delta_index;
 
         'deltas: while start < u32::MAX {
-            let mut end = start+500;
+            let mut end = start + 500;
             // Get deltas from start to end, if fails save the latest state and move on.
             let deltas = match runtime_ocalls_t::get_deltas(*addrs, start, end) {
                 Ok(deltas) => deltas,
-                Err(_) => { // If it failed to get deltas, encrypt the latest state and save it
+                Err(_) => {
+                    // If it failed to get deltas, encrypt the latest state and save it
                     let enc = match state.encrypt(key) {
                         Ok(s) => s,
-                        Err(_) => { // If Failed to encrypt the latest state push to failed_contracts and move on.
+                        Err(_) => {
+                            // If Failed to encrypt the latest state push to failed_contracts and move on.
                             failed_contracts.push(*addrs);
                             continue 'contract;
                         }
@@ -96,7 +98,8 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
                     Err(_) => {
                         let enc = match state.encrypt(key) {
                             Ok(s) => s,
-                            Err(_) => { // If Failed to encrypt the latest state push to failed_contracts and move on.
+                            Err(_) => {
+                                // If Failed to encrypt the latest state push to failed_contracts and move on.
                                 failed_contracts.push(*addrs);
                                 continue 'contract;
                             }
@@ -115,12 +118,17 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
                     _ => (),
                 }
             }
-            if deltas_len == (end-start) as usize { start = end; } else { start = u32::MAX; }
+            if deltas_len == (end - start) as usize {
+                start = end;
+            } else {
+                start = u32::MAX;
+            }
         }
 
         let enc = match state.encrypt(key) {
             Ok(d) => d,
-            Err(_) => { // If Failed to encrypt the latest state push to failed_contracts and move on.
+            Err(_) => {
+                // If Failed to encrypt the latest state push to failed_contracts and move on.
                 failed_contracts.push(*addrs);
                 continue 'contract;
             }
@@ -132,26 +140,28 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
 
 pub mod tests {
     use super::*;
+    use enigma_runtime_t::data::IOInterface;
+    use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch};
     use enigma_tools_t::common::Sha256;
     use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-    use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType, ContractAddress};
-    use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch};
-    use enigma_runtime_t::data::IOInterface;
+    use enigma_tools_t::km_primitives::{ContractAddress, PrincipalMessage, PrincipalMessageType};
 
     pub fn test_state_internal() {
         // Making the ground work
         let address = vec![b"first".sha256(), b"second".sha256(), b"third".sha256()];
         let state_keys = vec![b"first_key".sha256(), b"second_key".sha256(), b"third_key".sha256()];
         let states_and_deltas = get_states_deltas(&address);
-        let enc_states: Vec<(EncryptedContractState<u8>, Vec<EncryptedPatch>)> = states_and_deltas.into_iter()
+        let enc_states: Vec<(EncryptedContractState<u8>, Vec<EncryptedPatch>)> = states_and_deltas
+            .into_iter()
             .zip(state_keys.iter())
             .map(|((state, delta_vec), key)| {
                 let enc_state = state.encrypt(key);
                 let enc_deltas = delta_vec.into_iter().map(|delta| delta.encrypt(key).unwrap()).collect();
                 (enc_state.unwrap(), enc_deltas)
-            }).collect();
+            })
+            .collect();
 
-//        // Saving the encrypted states and deltas to the db
+        //        // Saving the encrypted states and deltas to the db
         for (enc_state, enc_deltas) in enc_states {
             runtime_ocalls_t::save_state(&enc_state).unwrap();
             for delta in enc_deltas {
@@ -175,19 +185,29 @@ pub mod tests {
 
         let enc_res_slice = enc_req.to_message().unwrap();
 
-
         // Enclave Process Response
         ecall_ptt_res_internal(&enc_res_slice).unwrap();
 
         // Initiate the building
         assert_eq!(ecall_build_state_internal().unwrap(), vec![address[2]])
-
     }
 
-
     fn get_states_deltas(address: &[ContractAddress]) -> Vec<(ContractState, Vec<StatePatch>)> {
-        let states = vec![ ContractState { contract_id: address[0], json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}), delta_hash: [0u8; 32], delta_index: 0, },
-                           ContractState { contract_id: address[1], json: serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#).unwrap(), delta_hash: [0u8; 32], delta_index: 0, }];
+        let states = vec![
+            ContractState {
+                contract_id: address[0],
+                json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
+                delta_hash: [0u8; 32],
+                delta_index: 0,
+            },
+            ContractState {
+                contract_id: address[1],
+                json: serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#)
+                    .unwrap(),
+                delta_hash: [0u8; 32],
+                delta_index: 0,
+            },
+        ];
 
         let mut result = Vec::with_capacity(states.len());
         for mut state in states {

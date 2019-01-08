@@ -10,7 +10,6 @@ use std::str::from_utf8;
 use std::string::String;
 use std::string::ToString;
 use std::vec::Vec;
-use build_arguments_g::*;
 
 enum SolidityType {
     Uint,
