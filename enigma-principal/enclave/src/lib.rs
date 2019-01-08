@@ -105,8 +105,8 @@ pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
 /// unsafe { ecall_get_random_seed(enclave.geteid(), &mut retval, &mut rand_out, &mut sig_out); }
 /// ```
 #[no_mangle]
-pub extern "C" fn ecall_get_random_seed(rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> EnclaveReturn {
-    match ecall_generate_epoch_seed_internal(rand_out, sig_out) {
+pub extern "C" fn ecall_generate_epoch_seed(rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> EnclaveReturn {
+    match ecall_generate_epoch_seed_internal(rand_out, nonce_out, sig_out) {
         Ok(nonce) => println!("the new epoch nonce: {:?}", nonce),
         Err(err) => return err.into(),
     }

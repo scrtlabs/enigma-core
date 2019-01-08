@@ -3,10 +3,11 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{BlockHeader, H256, Log};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
-use common_u::errors;
+use common_u::errors::EnclaveFailError;
+use enigma_types::EnclaveReturn;
 
 extern {
-    fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut sgx_status_t,
+    fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
                                 enc_msg: *const u8, enc_msg_len: usize,
                                 sig: &[u8; 65],
                                 enc_response_out: *mut u8, enc_response_len_out: &mut usize,
@@ -16,14 +17,14 @@ extern {
 const MAX_ENC_RESPONSE_LEN: usize = 100_000;
 
 pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Result<StateKeyResponse, Error> {
+    let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
     let mut enc_response = vec![0u8; MAX_ENC_RESPONSE_LEN];
     let enc_response_slice = enc_response.as_mut_slice();
     let mut enc_response_len_out: usize = 0;
-    let mut retval = sgx_status_t::default();
 
     let enc_msg: Vec<u8> = request.request_message.into();
-    let response = unsafe {
+    let status = unsafe {
         ecall_get_enc_state_keys(
             eid,
             &mut retval,
@@ -35,8 +36,9 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Re
             &mut sig_out,
         )
     };
-    assert_eq!(response, sgx_status_t::SGX_SUCCESS); // TODO: Replace with good Error handling.
-    println!("got encrypted state keys: {:?}", response);
+    if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
+        return Err(EnclaveFailError{err: retval, status}.into());
+    }
     let enc_response_out: Vec<u8> = enc_response_slice[0..enc_response_len_out].iter().cloned().collect();
     Ok(StateKeyResponse {
         encrypted_response_message: StringWrapper::from(enc_response_out),

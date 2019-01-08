@@ -26,13 +26,9 @@ pub struct AttestationServiceErr {
 }
 
 #[derive(Fail, Debug)]
-#[fail(display = "Error while generating the epoch seed  = ({})", message)]
-pub struct GenerateEpochSeedErr {
-    pub message: String,
+#[fail(display = "Error inside the Enclave = ({:?})", err)]
+pub struct EnclaveFailError {
+    pub err: enigma_types::EnclaveReturn,
+    pub status: sgx_status_t,
 }
 
-#[derive(Fail, Debug)]
-#[fail(display = "Error while setting worker parameters from Ethereum receipts and blocks  = ({})", message)]
-pub struct WorkerParamsErr {
-    pub message: String,
-}

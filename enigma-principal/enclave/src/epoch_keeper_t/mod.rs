@@ -58,7 +58,7 @@ fn get_epoch(guard: &SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>, block_num
     Ok(Some(epoch))
 }
 
-pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> Result<Uint, EnclaveError> {
+pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> Result<Uint, EnclaveError> {
     let mut guard = EPOCH.lock_expect("Epoch");
     let epoch = get_epoch(&guard, None)?;
     let nonce: Uint = match epoch {
@@ -66,6 +66,9 @@ pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], sig_ou
         None => Uint::from(INIT_NONCE),
     };
     println!("Got nonce {:?}, generating number", nonce);
+    let nonce_bytes: [u8; 32] = nonce.into();
+    nonce_out.copy_from_slice(&nonce_bytes[..]);
+
     // TODO: Check if needs to check the random is within the curve.
     rsgx_read_rand(&mut rand_out[..])?;
     let sig = SIGNINING_KEY.sign(&rand_out[..])?;

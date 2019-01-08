@@ -3,14 +3,15 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{BlockHeader, H256, Log, U256, Bytes};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
-use common_u::errors;
+use common_u::errors::EnclaveFailError;
 use enigma_tools_u::web3_utils::provider_types::{EpochSeed, BlockHeadersWrapper, BlockHeaderWrapper, encode, ReceiptHashesWrapper, ReceiptWrapper};
+use enigma_types::EnclaveReturn;
 
 extern {
-    fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t,
-                             rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t;
+    fn ecall_generate_epoch_seed(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
+                                 rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t;
 
-    fn ecall_set_worker_params(eid: sgx_enclave_id_t, retval: &mut sgx_status_t,
+    fn ecall_set_worker_params(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
                                receipt_rlp: *const u8, receipt_rlp_len: usize,
                                receipt_hashes_rlp: *const u8, receipt_hashes_rlp_len: usize,
                                headers_rlp: *const u8, headers_rlp_len: usize,
@@ -24,27 +25,27 @@ extern {
 /// let (rand_seed, sig) = generate_epoch_seed(enclave.geteid()).unwrap();
 /// ```
 pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> Result<EpochSeed, Error> {
+    let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut nonce_out: [u8; 32] = [0; 32];
     let mut rand_out: [u8; 32] = [0; 32];
     let mut sig_out: [u8; 65] = [0; 65];
-    let mut retval = sgx_status_t::default();
-    let result = unsafe {
-        ecall_get_random_seed(eid, &mut retval, &mut rand_out, &mut sig_out)
+    let status = unsafe {
+        ecall_generate_epoch_seed(eid, &mut retval, &mut rand_out, &mut nonce_out, &mut sig_out)
     };
-    if result.ne(&sgx_status_t::SGX_SUCCESS) {
-        return Err(errors::GenerateEpochSeedErr { message: "See Enclave logs for details.".to_string() }.into());
+    if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
+        return Err(EnclaveFailError{err: retval, status}.into());
     }
-    Ok(EpochSeed { seed: U256::from_big_endian(&rand_out), nonce: U256::from_big_edian(&nonce_out), sig: Bytes(sig_out.to_vec()) })
+    Ok(EpochSeed { seed: U256::from_big_endian(&rand_out), nonce: U256::from_big_endian(&nonce_out), sig: Bytes(sig_out.to_vec()) })
 }
 
 pub fn set_worker_params(eid: sgx_enclave_id_t, receipt: ReceiptWrapper, receipt_hashes: ReceiptHashesWrapper, headers: BlockHeadersWrapper) -> Result<[u8; 65], Error> {
+    let mut retval: EnclaveReturn = EnclaveReturn::Success;
     // Serialize the receipt into RLP
     let receipt_rlp = encode(&receipt);
     let receipt_hashes_rlp = encode(&receipt_hashes);
     let headers_rlp = encode(&headers);
     let mut sig_out: [u8; 65] = [0; 65];
-    let mut retval = sgx_status_t::default();
-    let result = unsafe {
+    let status = unsafe {
         ecall_set_worker_params(
             eid,
             &mut retval,
@@ -57,8 +58,8 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, receipt: ReceiptWrapper, receipt
             &mut sig_out,
         )
     };
-    if result.ne(&sgx_status_t::SGX_SUCCESS) {
-        return Err(errors::WorkerParamsErr { message: "See Enclave logs for details.".to_string() }.into());
+    if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
+        return Err(EnclaveFailError{err: retval, status}.into());
     }
     Ok(sig_out)
 }

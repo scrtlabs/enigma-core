@@ -60,7 +60,7 @@ impl Principal for EnigmaContract {
         let mut options = Options::default();
         options.gas = Some(gas_limit.into());
         // set random seed
-        contract.call("setWorkersParams", (epoch_seed.seed, sig.to_vec()), account.clone(), options)
+        contract.call("setWorkersParams", (epoch_seed.seed, epoch_seed.sig.0), account.clone(), options)
     }
 
 
