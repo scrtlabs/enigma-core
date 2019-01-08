@@ -15,7 +15,9 @@ fn main() {
     let config = Config {
         language: Language::C,
         no_includes: true,
-        export: ExportConfig { include: vec!["EnclaveReturn".to_string()], ..Default::default() },
+        export: ExportConfig {
+            include: vec![String::from("EnclaveReturn"), String::from("ExecuteResult")],
+            ..Default::default() },
         ..Default::default()
     };
 

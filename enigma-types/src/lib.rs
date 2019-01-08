@@ -4,7 +4,7 @@ pub mod traits;
 mod types;
 
 use crate::traits::SliceCPtr;
-pub use crate::types::{EnclaveReturn, ResultToEnclaveReturn};
+pub use crate::types::{EnclaveReturn, ResultToEnclaveReturn, ExecuteResult};
 
 pub unsafe fn write_ptr<T>(src: &[T], dst: *mut T, count: usize) {
     if src.len() > count {

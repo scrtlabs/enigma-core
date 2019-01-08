@@ -21,6 +21,8 @@ pub fn get_home_path() -> Result<path::PathBuf, EnclaveError> {
     Ok(path::PathBuf::from(home_str))
 }
 
+
+// TODO: Replace u64 with *const u8, and pass it via the ocall using *const *const u8
 pub fn save_to_untrusted_memory(data: &[u8]) -> Result<u64, EnclaveError> {
     let mut ptr = 0u64;
     match unsafe { ocall_save_to_memory(&mut ptr as *mut u64, data.as_c_ptr(), data.len()) } {
