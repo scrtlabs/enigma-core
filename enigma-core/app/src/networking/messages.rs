@@ -48,8 +48,6 @@ pub enum IpcRequest {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcDHMessage {
-    #[serde(rename = "msgId")]
-    pub msg_id: String,
     #[serde(rename = "workerEncryptionKey")]
     pub dh_key: String,
     #[serde(rename = "workerSig")]

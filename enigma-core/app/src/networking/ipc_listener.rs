@@ -222,10 +222,9 @@ pub(self) mod handling {
 
         let mut des = Deserializer::new(&msg[..]);
         let res: Value = Deserialize::deserialize(&mut des).unwrap();
-        let msg_id = serde_json::from_value::<[u8; 12]>(res["id"].clone())?;
         let pubkey = serde_json::from_value::<Vec<u8>>(res["pubkey"].clone())?;
 
-        let result = IpcDHMessage { msg_id: msg_id.to_hex(), dh_key: pubkey.to_hex(), sig: sig.to_hex() };
+        let result = IpcDHMessage {dh_key: pubkey.to_hex(), sig: sig.to_hex() };
 
         Ok(IpcResponse::NewTaskEncryptionKey { id, result }.into())
     }
