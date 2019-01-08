@@ -47,7 +47,6 @@ use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-use enigma_tools_t::eth_tools_t::keeper_types_t::{BlockHeader, BlockHeaders, decode, Decodable, Receipt, ReceiptHashes};
 use enigma_tools_t::km_primitives::MsgID;
 use enigma_tools_t::quote_t;
 use enigma_tools_t::storage_t;
@@ -120,16 +119,9 @@ pub unsafe extern "C" fn ecall_set_worker_params(receipt_rlp: *const u8, receipt
     // Assembling byte arrays with the RLP data
     let receipt_rlp = slice::from_raw_parts(receipt_rlp, receipt_rlp_len);
     let receipt_hashes_rlp = slice::from_raw_parts(receipt_hashes_rlp, receipt_hashes_rlp_len);
-    let headers_rlp = slice::from_raw_parts(headers_rlp, headers_rlp_len);
-    println!("Successfully assembled RLP arguments");
+    let block_headers_rlp = slice::from_raw_parts(headers_rlp, headers_rlp_len);
 
-    // RLP decoding the necessary data
-    let receipt: Receipt = decode(receipt_rlp);
-    let receipt_hashes: ReceiptHashes = decode(receipt_hashes_rlp);
-    let block_headers: BlockHeaders = decode(headers_rlp);
-    println!("Successfully decoded RLP objects");
-
-    match ecall_set_worker_params_internal(receipt, receipt_hashes, block_headers) {
+    match ecall_set_worker_params_internal(receipt_rlp, receipt_hashes_rlp, block_headers_rlp, sig_out) {
         Ok(_) => println!("Worker parameters set successfully"),
         Err(err) => return err.into(),
     };

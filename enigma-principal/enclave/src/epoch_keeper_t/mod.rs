@@ -1,6 +1,6 @@
 use core::convert::TryFrom;
 
-use ethabi::{Address, Bytes, decode, encode, Event, EventParam, FixedBytes, Hash, ParamType, RawLog, Token, Uint};
+use ethabi::{Address, Bytes, encode, Event, EventParam, FixedBytes, Hash, ParamType, RawLog, Token, Uint};
 use ethabi::token::{LenientTokenizer, Tokenizer};
 use ethereum_types::H256;
 use hexutil;
@@ -23,7 +23,7 @@ use std::vec::Vec;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::eth_tools_t::epoch_t::{Epoch, WorkerParams};
-use enigma_tools_t::eth_tools_t::keeper_types_t::{BlockHeader, BlockHeaders, Log, Receipt, ReceiptHashes};
+use enigma_tools_t::eth_tools_t::keeper_types_t::{BlockHeader, BlockHeaders, Log, Receipt, ReceiptHashes, decode};
 use enigma_tools_t::eth_tools_t::verifier_t::BlockVerifier;
 
 use crate::SIGNINING_KEY;
@@ -102,8 +102,14 @@ pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], nonce_
     Ok(nonce)
 }
 
-pub(crate) fn ecall_set_worker_params_internal(receipt: Receipt, receipt_hashes: ReceiptHashes,
-                                               block_headers: BlockHeaders) -> Result<(), EnclaveError> {
+pub(crate) fn ecall_set_worker_params_internal(receipt_rlp: &[u8], receipt_hashes_rlp: &[u8],
+                                               block_headers_rlp: &[u8], sig_out: &mut [u8; 65]) -> Result<(), EnclaveError> {
+    // RLP decoding the necessary data
+    let receipt: Receipt = decode(receipt_rlp);
+    let receipt_hashes: ReceiptHashes = decode(receipt_hashes_rlp);
+    let block_headers: BlockHeaders = decode(block_headers_rlp);
+
+    println!("Successfully decoded RLP objects");
     // TODO: is cloning the whole Vec necessary here?
     let block_headers_raw = block_headers.0.clone();
     let block_header: &BlockHeader = match block_headers_raw.get(0) {
@@ -139,6 +145,8 @@ pub(crate) fn ecall_set_worker_params_internal(receipt: Receipt, receipt_hashes:
     let params: WorkerParams = WorkerParams::try_from(receipt.logs[0].clone())?;
     epoch.set_worker_params(params)?;
     // TODO: Replace the preverified block hash of the epoch with last block header
+    let sig = SIGNINING_KEY.sign(&receipt_rlp[..])?;
+    sig_out.copy_from_slice(&sig[..]);
     Ok(())
 }
 

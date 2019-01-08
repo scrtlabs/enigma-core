@@ -55,7 +55,7 @@ impl Principal for EnigmaContract {
                 panic!(format!("{:?}", err))
             }
         };
-        println!("[---\u{25B6} seed: {} \u{25C0}---]", epoch_seed.seed);
+        println!("[---\u{25B6} seed: {}, nonce: {} \u{25C0}---]", epoch_seed.seed, epoch_seed.nonce);
         // set gas options for the tx
         let mut options = Options::default();
         options.gas = Some(gas_limit.into());

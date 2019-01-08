@@ -18,11 +18,14 @@ extern {
                                sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
 
-/// Returns a 32 bytes signed random seed.
+/// Returns an EpochSeed object 32 bytes signed random seed and an incremented account nonce.
+///
+/// The seed must be submitted to Ethereum in a `setWorkersParams` transaction.
+/// This will emit a `WorkerParameterized` event with a matching account nonce.
 /// # Examples
 /// ```
 /// let enclave = esgx::general::init_enclave().unwrap();
-/// let (rand_seed, sig) = generate_epoch_seed(enclave.geteid()).unwrap();
+/// let epoch_seed: EpochSeed = generate_epoch_seed(enclave.geteid()).unwrap();
 /// ```
 pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> Result<EpochSeed, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
@@ -38,6 +41,22 @@ pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> Result<EpochSeed, Error> {
     Ok(EpochSeed { seed: U256::from_big_endian(&rand_out), nonce: U256::from_big_endian(&nonce_out), sig: Bytes(sig_out.to_vec()) })
 }
 
+/// Returns a signature of the ReceiptWrapper rlp bytes provided.
+///
+/// Successful execution guarantees that:
+/// 1- Merkling the provided receipt bytes, along with the list of receipt hash, equals the `receipt_root` of the max provided Block header
+/// 2- The provided Block headers follow a chain verified with `parent_hash` ending with the latest `verified_block_hash` stored in the Enclave
+/// 3- The first log in the Receipt contains a WorkerParameterized event
+/// 4- The nonce attribute of the WorkerParameterized event equals the nonce returned by `generate_epoch_seed`
+/// # Examples
+/// ```
+/// let enclave = esgx::general::init_enclave().unwrap();
+/// let receipt = ReceiptWrapper(web3_receipt);
+/// let receipt_hashes = ReceiptHashesWrapper::from_receipts(&vec![web3_receipt]);
+/// let block_header = BlockHeaderWrapper(web3_block);
+/// let headers = BlockHeadersWrapper(vec![block_header]);
+/// let sig = set_worker_params(enclave.geteid(), receipt, receipt_hashes, headers).unwrap();
+/// ```
 pub fn set_worker_params(eid: sgx_enclave_id_t, receipt: ReceiptWrapper, receipt_hashes: ReceiptHashesWrapper, headers: BlockHeadersWrapper) -> Result<[u8; 65], Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     // Serialize the receipt into RLP
@@ -112,6 +131,14 @@ pub mod tests {
         return set_worker_params(eid, receipt, receipt_hashes, headers).unwrap();
     }
 
+    #[test]
+    fn test_generate_epoch_seed() {
+        let enclave = init_enclave();
+        let epoch = generate_epoch_seed(enclave.geteid()).unwrap();
+        println!("Got epoch seed params: {:?}", epoch);
+        assert_eq!(epoch.nonce, Uint::from(0));
+        enclave.destroy();
+    }
     #[test]
     fn test_set_worker_params() {
         let enclave = init_enclave();
