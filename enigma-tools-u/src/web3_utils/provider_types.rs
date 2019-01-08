@@ -55,8 +55,16 @@ impl Encodable for BlockHeaderWrapper {
         s.append(&self.0.gas_used.bigint());
         s.append(&self.0.timestamp.bigint());
         s.append(&self.0.extra_data.clone().bigint());
-        s.append(&H256::from(0).bigint()); // TODO: missing from web3
-        s.append(&H64::from(0).bigint()); // TODO: missing from web3
+        let mix_hash = match &self.0.mix_hash {
+            Some(h) => h.bigint(),
+            None => H256::from(0).bigint(),
+        };
+        s.append(&mix_hash);
+        let nonce = match &self.0.nonce {
+            Some(n) => n.bigint(),
+            None => H64::from(0).bigint(),
+        };
+        s.append(&nonce);
     }
 }
 
@@ -71,20 +79,17 @@ impl Encodable for BlockHeadersWrapper {
 }
 
 #[derive(Debug, Clone)]
-pub struct ReceiptWrapper {
-    pub receipt: TransactionReceipt,
-    pub block: Block<H256>,
-}
+pub struct ReceiptWrapper(pub TransactionReceipt);
 
 impl Encodable for ReceiptWrapper {
     fn rlp_append(&self, s: &mut RlpStream) {
         // Supports EIP-658 rules only (blocks after Metropolis)
-        let status_code: &u64 = &self.receipt.status.unwrap().as_u64();
+        let status_code: &u64 = &self.0.status.unwrap().as_u64();
         s.begin_list(4);
         s.append(status_code);
-        s.append(&self.receipt.cumulative_gas_used.bigint());
-        s.append(&self.block.logs_bloom.bigint());
-        s.append_list(&self.receipt.logs.iter().map(|l| LogWrapper(l.clone())).collect::<Vec<LogWrapper>>());
+        s.append(&self.0.cumulative_gas_used.bigint());
+        s.append(&self.0.logs_bloom.bigint());
+        s.append_list(&self.0.logs.iter().map(|l| LogWrapper(l.clone())).collect::<Vec<LogWrapper>>());
     }
 }
 

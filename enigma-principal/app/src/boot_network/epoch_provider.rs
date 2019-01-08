@@ -99,7 +99,7 @@ impl EpochProvider {
         let block = self.fetch_block(log.block_hash.unwrap())?;
         let receipts = self.fetch_receipts(block.transactions.clone())?
             .into_iter()
-            .map(|r| { ReceiptWrapper { receipt: r, block: block.clone() } })
+            .map(|r| ReceiptWrapper(r))
             .collect::<Vec<ReceiptWrapper>>();
 //        println!("Got receipt hashes: {:?}", receipts_hashes);
         // Set the worker parameters in the enclave
@@ -146,7 +146,7 @@ mod test {
         let block_id = BlockId::Hash(receipt.clone().block_hash.unwrap());
         let block = web3.eth().block(block_id).wait().unwrap().unwrap();
 
-        let receipt_wrapper = ReceiptWrapper { receipt: receipt.clone(), block };
+        let receipt_wrapper = ReceiptWrapper(receipt.clone());
         let receipt_bytes = encode(&receipt_wrapper);
         println!("The receipt RLP bytes: {:?}", receipt_bytes);
 

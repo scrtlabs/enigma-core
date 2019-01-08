@@ -20,7 +20,6 @@ base64 = "0.10.0"
 openssl = "0.10.10"
 rustc-hex = "1.0.0" # 2.0.1?
 web3 = { git = "https://github.com/tomusdrw/rust-web3.git" } #TODO: Change after a new version is released.
-#web3 = { path = "../../rust-web3" } #TODO: Change after a new version is released.
 libc = "0.2.41"
 tiny-keccak = "1.4.2"
 ethabi = "6.1.0"

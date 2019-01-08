@@ -28,7 +28,6 @@ url = "1.7.1"
 tiny-keccak = "1.4.2"
 colour = "0.2.1"
 dirs = "1.0"
-#web3 = { path = "../../../rust-web3" } #TODO: Change after a new version is released.
 web3 = { git = "https://github.com/tomusdrw/rust-web3.git" } #TODO: Change after a new version is released.
 
 jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc" }

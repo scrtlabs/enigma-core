@@ -102,7 +102,7 @@ pub mod tests {
     pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t) -> ([u8; 65]) {
         let receipt_raw = serde_json::from_str::<TransactionReceipt>(EXAMPLE_RECEIPT).unwrap();
         let block = serde_json::from_str::<Block<H256>>(EXAMPLE_BLOCK).unwrap();
-        let receipt = ReceiptWrapper { receipt: receipt_raw, block: block.clone() };
+        let receipt = ReceiptWrapper(receipt_raw);
         let receipt_rlp = encode(&receipt);
         let receipt_hash = receipt_rlp.keccak256();
         let receipt_hashes = ReceiptHashesWrapper(vec![H256(receipt_hash)]);
@@ -132,7 +132,7 @@ pub mod tests {
         let block_hash = block_header_rlp.keccak256();
         assert_eq!(format!("0x{}", block_hash.to_hex()), format!("{:?}", block.hash.unwrap()));
 
-        let receipt = ReceiptWrapper { receipt: receipt.clone(), block: block.clone() };
+        let receipt = ReceiptWrapper(receipt.clone());
         let receipt_rlp = encode(&receipt);
         let receipt_decoded: Receipt = decode(&receipt_rlp);
         let receipt_hash = receipt_rlp.keccak256();
