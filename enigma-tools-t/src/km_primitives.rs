@@ -30,18 +30,18 @@ pub struct PrincipalMessage {
 impl PrincipalMessage {
     const PREFIX: &'static [u8; 14] = b"Enigma Message";
 
-    pub fn new(data: PrincipalMessageType, pubkey: PubKey) -> Result<PrincipalMessage, EnclaveError> {
+    pub fn new(data: PrincipalMessageType, pubkey: PubKey) -> Result<Self, EnclaveError> {
         let mut id = [0u8; 12];
         rsgx_read_rand(&mut id)?;
         let pubkey = pubkey.to_vec();
         let prefix = *Self::PREFIX;
-        Ok(PrincipalMessage { data, pubkey, id, prefix })
+        Ok(Self { data, pubkey, id, prefix })
     }
 
-    pub fn new_id(data: PrincipalMessageType, id: [u8; 12], pubkey: PubKey) -> PrincipalMessage {
+    pub fn new_id(data: PrincipalMessageType, id: [u8; 12], pubkey: PubKey) -> Self {
         let pubkey = pubkey.to_vec();
         let prefix = *Self::PREFIX;
-        PrincipalMessage { data, pubkey, id, prefix }
+        Self { data, pubkey, id, prefix }
     }
 
     pub fn to_message(&self) -> Result<Vec<u8>, EnclaveError> {
@@ -54,10 +54,10 @@ impl PrincipalMessage {
         Ok(buf)
     }
 
-    pub fn from_message(msg: &[u8]) -> Result<PrincipalMessage, EnclaveError> {
+    pub fn from_message(msg: &[u8]) -> Result<Self, EnclaveError> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
-        let msg: PrincipalMessage = serde_json::from_value(res).unwrap();
+        let msg: Self = serde_json::from_value(res).unwrap();
         Ok(msg)
     }
 
@@ -130,10 +130,10 @@ pub struct UserMessage {
 impl UserMessage {
     const PREFIX: &'static [u8; 19] = b"Enigma User Message";
 
-    pub fn new(pubkey: PubKey) -> UserMessage {
+    pub fn new(pubkey: PubKey) -> Self {
         let pubkey = pubkey.to_vec();
         let prefix = *Self::PREFIX;
-        UserMessage { prefix, pubkey }
+        Self { prefix, pubkey }
     }
 
     pub fn to_message(&self) -> Result<Vec<u8>, EnclaveError> {
@@ -143,10 +143,10 @@ impl UserMessage {
         Ok(buf)
     }
 
-    pub fn from_message(msg: &[u8]) -> Result<PrincipalMessage, EnclaveError> {
+    pub fn from_message(msg: &[u8]) -> Result<Self, EnclaveError> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
-        let msg: PrincipalMessage = serde_json::from_value(res).unwrap();
+        let msg: Self = serde_json::from_value(res).unwrap();
         Ok(msg)
     }
 

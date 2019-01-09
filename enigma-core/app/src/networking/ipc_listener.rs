@@ -42,7 +42,7 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
             IpcRequest::GetContract { id, input } => handling::get_contract(id, input),
             IpcRequest::UpdateNewContract { id, address, bytecode } => handling::update_new_contract(id, address, bytecode),
             IpcRequest::UpdateDeltas { id, deltas } => handling::update_deltas(id, deltas),
-            IpcRequest::NewTaskEncryptionKey { id, pubkey } => handling::get_dh_user_key(id, pubkey, eid),
+            IpcRequest::NewTaskEncryptionKey { id, user_pubkey } => handling::get_dh_user_key(id, user_pubkey, eid),
         };
 
         response.push_back(response_msg.unwrap_or_default());

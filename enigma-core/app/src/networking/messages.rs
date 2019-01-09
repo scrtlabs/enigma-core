@@ -43,7 +43,7 @@ pub enum IpcRequest {
     GetContract { id: String, input: String },
     UpdateNewContract { id: String, address: String, bytecode: String },
     UpdateDeltas { id: String, deltas: Vec<IpcDelta> },
-    NewTaskEncryptionKey { id: String, pubkey: String },
+    NewTaskEncryptionKey { id: String, #[serde(rename = "userPubKey")] user_pubkey: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
