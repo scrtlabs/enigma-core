@@ -1,30 +1,22 @@
 use core::convert::TryFrom;
 
-use ethabi::{Address, Bytes, encode, Event, EventParam, FixedBytes, Hash, ParamType, RawLog, Token, Uint};
+use ethabi::{Address, Hash, Token, Uint};
 use ethabi::token::{LenientTokenizer, Tokenizer};
 use ethereum_types::H256;
-use hexutil;
-use serde::{Deserialize, Serialize};
 use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
-use std::{mem, ptr, slice, str};
-use std::borrow::ToOwned;
-use std::cell::RefCell;
+use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
-use std::panic;
-use std::prelude::v1::Box;
-use std::string::String;
+use std::str;
 use std::string::ToString;
 use std::sync::SgxMutex;
 use std::sync::SgxMutexGuard;
-use std::collections::hash_map::RandomState;
 use std::vec::Vec;
 
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::eth_tools_t::epoch_t::{Epoch, WorkerParams};
-use enigma_tools_t::eth_tools_t::keeper_types_t::{BlockHeader, BlockHeaders, Log, Receipt, ReceiptHashes, decode};
-use enigma_tools_t::eth_tools_t::verifier_t::BlockVerifier;
+use enigma_tools_t::eth_tools_t::keeper_types_t::{BlockHeader, BlockHeaders, decode, Receipt, ReceiptHashes};
 
 use crate::SIGNINING_KEY;
 

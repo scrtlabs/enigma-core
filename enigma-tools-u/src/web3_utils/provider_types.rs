@@ -1,8 +1,7 @@
 use bigint;
-pub use rlp::{Encodable, RlpStream, encode};
-use web3::types::{Log, TransactionReceipt, Block, H256, H64, H160, U256, U128, H2048, Bytes, U64};
-use ethabi::{Token, Bytes as AbiBytes, RawLog};
-use web3::contract::tokens::Tokenizable;
+pub use rlp::{Encodable, encode, RlpStream};
+use web3::types::{Block, Bytes, H160, H2048, H256, H64, Log, TransactionReceipt, U256};
+
 use common_u::Keccak256;
 
 pub trait IntoBigint<T> {

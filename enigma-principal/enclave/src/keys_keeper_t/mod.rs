@@ -1,28 +1,17 @@
 use crate::SIGNINING_KEY;
 
-use sgx_types::*;
 use sgx_trts::trts::rsgx_read_rand;
 use std::sync::SgxMutex;
 
 use std::string::ToString;
 use std::vec::Vec;
-use std::{ptr, slice, str, mem};
-use std::cell::RefCell;
-use std::borrow::ToOwned;
 use std::collections::HashMap;
-use std::panic;
-use ethabi::{Hash, Bytes, RawLog, Token, EventParam, ParamType, Event, Address, Uint, Log, FixedBytes, decode};
-use ethabi::token::{LenientTokenizer, Tokenizer};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::storage_t::SEAL_LOG_SIZE;
-use std::string::String;
-use std::prelude::v1::Box;
-use secp256k1;
 use crate::epoch_keeper_t::ecall_get_epoch_workers_internal;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 use enigma_tools_t::common::EthereumAddress;
-use enigma_tools_t::km_primitives::{MessageType, StateKey, Message, ContractAddress};
+use enigma_tools_t::km_primitives::{PrincipalMessageType, StateKey, PrincipalMessage, ContractAddress};
 use enigma_tools_t::cryptography_t::Encryption;
 use ethereum_types::{H256};
 
@@ -31,9 +20,9 @@ lazy_static! { pub static ref STATE_KEY_STORE: SgxMutex< HashMap<ContractAddress
 pub(crate) fn ecall_get_enc_state_keys_internal(enc_msg: Vec<u8>, sig: [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     println!("The signature: {:?}", sig.to_vec());
 
-    let msg = Message::from_message(&enc_msg)?;
+    let msg = PrincipalMessage::from_message(&enc_msg)?;
     let req_addrs: Vec<ContractAddress> = match msg.data.clone() {
-        MessageType::Request(addrs) => addrs,
+        PrincipalMessageType::Request(addrs) => addrs,
         _ => {
             return Err(EnclaveError::MessagingError {
                 err: format!("Unable to deserialize message: {:?}", enc_msg),
@@ -72,11 +61,11 @@ pub(crate) fn ecall_get_enc_state_keys_internal(enc_msg: Vec<u8>, sig: [u8; 65])
         response_data.push(response_item);
     }
 
-    let response_msg_data = MessageType::Response(response_data);
+    let response_msg_data = PrincipalMessageType::Response(response_data);
     let id = msg.get_id();
     let pubkey = msg.get_pubkey();
 
-    let response_msg = Message::new_id(response_msg_data, id, pubkey);
+    let response_msg = PrincipalMessage::new_id(response_msg_data, id, pubkey);
     if !response_msg.is_response() {
         return Err(EnclaveError::KeyProvisionError {
             err: "Unable instantiate the response".to_string()

@@ -1,10 +1,9 @@
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use web3::types::{BlockHeader, H256, Log, U256, Bytes};
+use web3::types::{Bytes, H256, U256};
 
-use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors::EnclaveFailError;
-use enigma_tools_u::web3_utils::provider_types::{EpochSeed, BlockHeadersWrapper, BlockHeaderWrapper, encode, ReceiptHashesWrapper, ReceiptWrapper};
+use enigma_tools_u::web3_utils::provider_types::{BlockHeadersWrapper, encode, EpochSeed, ReceiptHashesWrapper, ReceiptWrapper};
 use enigma_types::EnclaveReturn;
 
 extern {
@@ -87,19 +86,14 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, receipt: ReceiptWrapper, receipt
 pub mod tests {
     #![allow(dead_code, unused_assignments, unused_variables)]
 
-    use std::prelude::v1::Vec;
-
-    use ethabi::{Address, Event, EventParam, ParamType, Uint};
-    use rustc_hex::FromHex;
+    use ethabi::Uint;
     use rustc_hex::ToHex;
-    use serde_json as ser;
     use sgx_urts::SgxEnclave;
-    use tiny_keccak::Keccak;
     use web3::types::{Block, Bytes, TransactionReceipt};
 
     use enigma_tools_u::common_u::Keccak256;
-    use enigma_tools_u::web3_utils::keeper_types_u::{BlockHeader, BlockHeaders, Decodable, decode, Receipt, ReceiptHashes};
-    use esgx;
+    use enigma_tools_u::web3_utils::keeper_types_u::{BlockHeader, BlockHeaders, decode, Receipt, ReceiptHashes};
+    use enigma_tools_u::web3_utils::provider_types::BlockHeaderWrapper;
     use esgx::general::init_enclave_wrapper;
 
     use super::*;

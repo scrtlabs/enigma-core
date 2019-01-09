@@ -26,11 +26,7 @@ extern crate ethabi;
 
 //etcommon
 extern crate rlp;
-extern crate trie;
-extern crate block_core;
-extern crate block;
 extern crate bigint;
-extern crate bloom;
 
 // enigma modules
 mod boot_network;

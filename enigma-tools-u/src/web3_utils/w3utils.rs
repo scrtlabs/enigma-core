@@ -8,7 +8,6 @@ use web3::contract::tokens::Tokenize;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
 use web3::transports::{Http, EventLoopHandle, Batch};
-use web3::BatchTransport;
 use web3::types::BlockNumber;
 use web3::types::FilterBuilder;
 use web3::types::{Address, Log, U256};
@@ -22,8 +21,6 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::sync::Arc;
-
-const DEFAULT_MAX_PARALLEL: usize = 64;
 
 pub struct DeployParams {
     pub deployer: Address,
@@ -73,7 +70,7 @@ pub fn connect(url: &str) -> Result<(EventLoopHandle, Web3<Http>), Error> {
     Ok((_eloop, w3))
 }
 
-pub fn connect_batch(http: Http) -> Web3<Batch<Http>>  {
+pub fn connect_batch(http: Http) -> Web3<Batch<Http>> {
     let w3 = web3::Web3::new(web3::transports::Batch::new(http));
     w3
 }

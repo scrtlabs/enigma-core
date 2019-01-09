@@ -39,6 +39,7 @@ impl fmt::Display for EnclaveReturn {
             EncryptionError => "EnclaveReturn: EncryptionError",
             InputError => "EnclaveReturn: InputError",
             SigningError => "EnclaveReturn: SigningError",
+            RecoveringError => "EnclaveReturn: RecoveringError",
             PermissionError => "EnclaveReturn: PermissionError",
             SgxError => "EnclaveReturn: SgxError",
             StateError => "EnclaveReturn: StateError",
@@ -46,6 +47,8 @@ impl fmt::Display for EnclaveReturn {
             OcallDBError => "EnclaveReturn: OcallDBError",
             Utf8Error => "EnclaveReturn: Utf8Error",
             MessagingError => "EnclaveReturn: MessagingError",
+            WorkerAuthError => "EnclaveReturn: WorkerAuthError",
+            KeyProvisionError => "EnclaveReturn: KeyProvisionError",
             Other => "EnclaveReturn: Other",
         };
         write!(f, "{}", p)

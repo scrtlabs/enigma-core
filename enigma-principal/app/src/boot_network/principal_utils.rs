@@ -10,12 +10,12 @@ use web3::contract::{CallFuture, Contract, Options};
 use web3::futures::Future;
 use web3::Transport;
 use web3::transports::Http;
-use web3::types::{Address, FilterBuilder, H256, U256};
+use web3::types::{Address, H256, U256};
 
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
+use enigma_tools_u::web3_utils::provider_types::EpochSeed;
 
 use crate::esgx::epoch_keeper_u;
-use enigma_tools_u::web3_utils::provider_types::EpochSeed;
 
 const ACTIVE_EPOCH_CODE: &str = "ACTIVE_EPOCH";
 

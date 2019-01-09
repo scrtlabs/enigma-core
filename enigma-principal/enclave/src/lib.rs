@@ -16,7 +16,6 @@ extern crate lazy_static;
 extern crate rustc_hex as hex;
 extern crate secp256k1;
 extern crate serde;
-#[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 extern crate sgx_rand;
@@ -29,29 +28,14 @@ extern crate sgx_tstd as std;
 extern crate sgx_tunittest;
 extern crate sgx_types;
 
-use ethabi::{Address, Bytes, Event, EventParam, Hash, Log, ParamType, RawLog, Token, Uint};
-use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
-use std::{mem, ptr, slice, str};
-use std::borrow::ToOwned;
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::prelude::v1::Box;
-use std::string::ToString;
-use std::sync::SgxMutex;
-use std::vec::Vec;
+use std::{slice};
 
-use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::utils_t::{EthereumAddress, FromHex, ToHex};
-use enigma_tools_t::common::utils_t::LockExpectMutex;
+use enigma_tools_t::common::utils_t::{EthereumAddress};
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-use enigma_tools_t::km_primitives::MsgID;
 use enigma_tools_t::quote_t;
-use enigma_tools_t::storage_t;
 use enigma_types::EnclaveReturn;
-use enigma_types::traits::SliceCPtr;
 
 use crate::epoch_keeper_t::{
     ecall_generate_epoch_seed_internal,

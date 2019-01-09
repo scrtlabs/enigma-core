@@ -1,6 +1,5 @@
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use web3::types::{BlockHeader, H256, Log};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors::EnclaveFailError;
@@ -56,8 +55,6 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Re
 #[cfg(test)]
 pub mod tests {
     #![allow(dead_code, unused_assignments, unused_variables)]
-
-    use std::prelude::v1::Vec;
     use sgx_urts::SgxEnclave;
 
     use esgx::epoch_keeper_u::generate_epoch_seed;

@@ -1,8 +1,6 @@
 pub use rlp::{Decodable, DecoderError, decode, UntrustedRlp};
-use ethabi::{Token, Bytes, RawLog, Event, EventParam, ParamType, Hash, Address};
+use ethabi::{ Event, EventParam, ParamType, Address};
 use ethereum_types::{H256, H160, U256, H64, U64};
-use ethabi::token::Tokenizer;
-use ethabi::token::LenientTokenizer;
 use std::vec::Vec;
 use std::string::ToString;
 use std::prelude::v1::Box;
