@@ -265,7 +265,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
         .remove(&user_key[..])
         .ok_or(EnclaveError::KeyError {key_type: "Missing DH Key".to_string(), key: "".to_string()})?;
 
-    let decrypted_args = decrypt_args(&callable_args_slice)?;
+    let decrypted_args = decrypt_args(&callable_args_slice, &inputs_key)?;
 
 //    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], true){
 //        Ok(v) => v,

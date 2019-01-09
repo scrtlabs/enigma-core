@@ -129,6 +129,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &[
 #[cfg(test)]
 pub mod tests {
     extern crate ring;
+    extern crate ethabi;
 
     use crate::esgx::general::init_enclave_wrapper;
     use std::fs::File;
@@ -139,10 +140,12 @@ pub mod tests {
     use crate::wasm_u::wasm;
     use std::str::from_utf8;
     use crate::km_u::tests::instantiate_encryption_key;
-    use crate::km_u::tests::exchange_keys;
+    use crate::km_u::tests::{exchange_keys, serial_and_encrypt_args};
     use super::ContractAddress;
     use enigma_tools_u::common_u::Sha256;
     use self::ring::rand::*;
+    use self::ethabi::{Token};
+    use wasm_u::wasm::rustc_hex::ToHex;
 
     pub fn generate_address() -> ContractAddress {
         let mut address = [0u8; 32];
@@ -178,12 +181,13 @@ pub mod tests {
         let address = generate_address();
         instantiate_encryption_key(&[address], enclave.geteid());
         let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address);
-        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
-        let encrypted_args : &[u8] = &[38, 69, 69, 163, 224, 68, 24, 62, 147, 1, 82, 167, 140, 186, 10, 139, 101, 150, 13, 23, 125, 201, 203, 83, 111, 166, 187, 6, 193, 251, 218, 180, 102, 106, 46, 227, 128, 132, 183, 241, 25, 162, 23, 4, 192, 231, 147, 7, 242, 85, 161, 62, 241, 193, 32, 170, 123, 51, 34, 222, 36, 58, 140, 1, 96, 218, 76, 52, 223, 220, 132, 149, 109, 223, 84, 126, 46, 222, 119, 245, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-        let result = wasm::execute(enclave.geteid(),&contract_code, "test(uint256,uint256)", encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
+        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
+        let args = [Token::Uint(17.into()), Token::Uint(22.into())];
+        let encrypted_args = serial_and_encrypt_args(&key, &args, None);
+        let result = wasm::execute(enclave.geteid(),&contract_code, "print_test(uint256,uint256)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
 
         enclave.destroy();
-        assert_eq!(from_utf8(&result.output).unwrap(), "\"22\"");
+        assert_eq!(from_utf8(&result.output).unwrap(), "22");
     }
 
     #[test]
@@ -199,27 +203,41 @@ pub mod tests {
         assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
     }
 
-//    #[test]
-//    fn test_address_simple() {
-//        let enclave = init_enclave();
-//        let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
-//        // args must be solidity abi serialized and encrypted: 0x5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f
-//        let arg : &[u8] = &[38, 69, 69, 163, 224, 68, 24, 62, 147, 1, 82, 167, 210, 98, 196, 109, 211, 173, 17, 125, 129, 42, 102, 47, 253, 82, 70, 120, 218, 116, 119, 36, 240, 59, 66, 156, 217, 122, 131, 200, 114, 72, 241, 86, 8, 101, 232, 52, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-//        let result = wasm::execute(enclave.geteid(), &contract_code, "get_address(address)", arg, 100_000).expect("Execution failed");
-//        enclave.destroy();
-//        assert_eq!(from_utf8(&result.output).unwrap(), "\"5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f\"");
-//    }
-//
-//    #[test]
-//    fn test_addresses_simple() {
-//        let enclave = init_enclave();
-//        let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest");
-//        // args must be solidity abi serialized and encrypted: 0x5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f, 0xde0b295669a9fd93d5f28d9ec85e40f4cb697bae
-//        let arg : &[u8] = &[38, 69, 69, 163, 224, 68, 24, 62, 147, 1, 82, 167, 210, 98, 196, 109, 211, 173, 17, 125, 129, 42, 102, 47, 253, 82, 70, 120, 218, 116, 119, 36, 102, 106, 46, 227, 128, 132, 183, 241, 25, 162, 23, 4, 30, 236, 186, 81, 155, 252, 92, 173, 36, 51, 173, 52, 179, 109, 98, 42, 239, 83, 247, 185, 157, 218, 32, 129, 14, 171, 201, 97, 183, 214, 96, 219, 155, 125, 63, 2, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-//        let result = wasm::execute(enclave.geteid(), &contract_code, "get_addresses(address,address)", arg, 100_000).expect("Execution failed");
-//        enclave.destroy();
-//        assert_eq!(from_utf8(&result.output).unwrap(), "\"de0b295669a9fd93d5f28d9ec85e40f4cb697bae\"");
-//    }
+    // address is defined in our protocol as ethereum's H256/bytes32
+    #[test]
+    fn test_address_simple() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let address = generate_address();
+        instantiate_encryption_key(&[address], enclave.geteid());
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address);
+
+        //defining the arguments, serializing them and encrypting them -
+        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
+        let addr: Token = Token::FixedBytes(generate_address().to_vec());
+        let encrypted_args = serial_and_encrypt_args(&key, &[addr.clone()], None);
+
+        let result = wasm::execute(enclave.geteid(), &contract_code, "get_address(bytes32)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
+        enclave.destroy();
+        assert_eq!(from_utf8(&result.output).unwrap(), format!("{:?}",addr.to_fixed_bytes().unwrap().to_hex()));
+    }
+
+    #[test]
+    fn test_addresses_simple() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let address = generate_address();
+        instantiate_encryption_key(&[address], enclave.geteid());
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address);
+
+        //defining the arguments, serializing them and encrypting them -
+        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
+        let addr1: Token = Token::FixedBytes(generate_address().to_vec());
+        let addr2: Token = Token::FixedBytes(generate_address().to_vec());
+        let encrypted_args = serial_and_encrypt_args(&key, &[addr1, addr2.clone()], None);
+
+        let result = wasm::execute(enclave.geteid(), &contract_code, "get_addresses(bytes32,bytes32)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
+        enclave.destroy();
+        assert_eq!(from_utf8(&result.output).unwrap(), format!("{:?}",addr2.to_fixed_bytes().unwrap().to_hex()));
+    }
 //
 //    #[test]
 //    fn test_add_erc20() {

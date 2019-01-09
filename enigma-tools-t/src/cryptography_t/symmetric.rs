@@ -98,13 +98,12 @@ pub mod tests {
         let result = decrypt(&encrypted_data.from_hex().unwrap(), &key).unwrap();
         assert_eq!(result, b"This Is Enigma".to_vec());
 
-        // for encryption purposes:
-        // use ethabi-cli to encode params then put the result in msg and get the encrypted arguments.
-        let key = get_key();
-        let iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-        let msg = "0000000000000000000000005ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f".from_hex().unwrap();
-        let enc = encrypt_with_nonce(&msg, &key, Some(iv)).unwrap();
-        println!("msg_1: {:?}", msg);
-        println!("enc_1: {:?}", enc);
+//        // for encryption purposes:
+//        // use ethabi-cli to encode params then put the result in msg and get the encrypted arguments.
+//        let key = get_key();
+//        let iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+//        let msg = "0000000000000000000000005ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f".from_hex().unwrap();
+//        let enc = encrypt_with_nonce(&msg, &key, Some(iv)).unwrap();
+
     }
 }

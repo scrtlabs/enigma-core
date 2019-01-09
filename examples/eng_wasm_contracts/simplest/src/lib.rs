@@ -15,8 +15,8 @@ use hex::ToHex;
 #[pub_interface]
 pub trait ContractInterface{
     fn write();
-    fn get_address(addr: Address);
-    fn get_addresses(from: Address, to: Address);
+    fn get_address(addr: H256);
+    fn get_addresses(addr1: H256, addr2: H256);
     fn print_test(x: U256, y: U256) ;
 }
 
@@ -37,7 +37,7 @@ impl ContractInterface for Contract {
     }
 
     #[no_mangle]
-    fn get_address(addr: Address) {
+    fn get_address(addr: H256) {
 
         write_state!("addr" => addr.to_hex());
         let read_val: String = read_state!("addr").unwrap();
@@ -46,15 +46,15 @@ impl ContractInterface for Contract {
     }
 
     #[no_mangle]
-    fn get_addresses(from: Address, to: Address) {
-        write_state!("from" => from.to_hex());
-        write_state!("to" => to.to_hex());
+    fn get_addresses(addr1: H256, addr2: H256) {
+        write_state!("addr1" => addr1.to_hex());
+        write_state!("addr2" => addr2.to_hex());
 
-        let read_from: String = read_state!("from").unwrap();
-        let read_to: String = read_state!("to").unwrap();
+        let read_addr1: String = read_state!("addr1").unwrap();
+        let read_addr2: String = read_state!("addr2").unwrap();
 
-        assert_eq!(read_from, from.to_hex());
-        assert_eq!(read_to, to.to_hex());
+        assert_eq!(read_addr1, addr1.to_hex());
+        assert_eq!(read_addr2, addr2.to_hex());
     }
 
     #[no_mangle]

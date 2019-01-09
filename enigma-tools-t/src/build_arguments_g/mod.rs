@@ -42,14 +42,13 @@ pub fn get_args(callable_args: &[u8], types: &[String], key: &[u8; 32]) -> Resul
 }
 
 // decrypt the arguments which all are sent encrypted and return the solidity abi serialized data
-pub fn decrypt_args(callable_args: &[u8]) -> Result<Vec<u8>, EnclaveError>{
+pub fn decrypt_args(callable_args: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EnclaveError>{
     // if args is empty we don't want to try decrypting the slice- it will lead to an error
     if callable_args.is_empty() {
         Ok(callable_args.to_vec())
     }
     else {
-        let key = get_key();
-        decrypt(callable_args, &key)
+        decrypt(callable_args, key)
     }
 }
 
