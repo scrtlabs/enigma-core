@@ -45,7 +45,7 @@ mod test {
         let enclave = init_enclave_wrapper().unwrap();
         // produce a quote
 
-        let tested_encoded_quote = match retry_quote(enclave.geteid(), &SPID, 8) {
+        let tested_encoded_quote = match retry_quote(enclave.geteid(), &SPID, 18) {
             Ok(encoded_quote) => encoded_quote,
             Err(e) => {
                 println!("[-] Produce quote Err {}, {}", e.as_fail(), e.backtrace());
@@ -64,7 +64,7 @@ mod test {
     #[test]
     fn test_produce_and_verify_qoute() {
         let enclave = init_enclave_wrapper().unwrap();
-        let quote = retry_quote(enclave.geteid(), &SPID, 8).unwrap();
+        let quote = retry_quote(enclave.geteid(), &SPID, 18).unwrap();
         let service = AttestationService::new(attestation_service::constants::ATTESTATION_SERVICE_URL);
         let as_response = service.get_report(&quote).unwrap();
 

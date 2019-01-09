@@ -71,7 +71,7 @@ pub(self) mod handling {
     use zmq::Message;
 
     pub fn get_registration_params(id: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
-        let quote = equote_tools::retry_quote(eid, &constants::SPID, 8)?;
+        let quote = equote_tools::retry_quote(eid, &constants::SPID, 18)?;
         let sigining_key = equote::get_register_signing_address(eid)?;
         let result = IpcRegistrationParams { sigining_key, quote };
 
