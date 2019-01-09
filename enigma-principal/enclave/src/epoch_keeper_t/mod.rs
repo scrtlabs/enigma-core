@@ -54,7 +54,7 @@ pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], nonce_
         Some(_) => guard.keys().max().unwrap() + 1,
         None => Uint::from(INIT_NONCE),
     };
-    println!("Got nonce {:?}, generating number", nonce);
+    println!("Generated a nonce by incrementing the previous by 1 {:?}", nonce);
     let nonce_bytes: [u8; 32] = nonce.into();
     nonce_out.copy_from_slice(&nonce_bytes[..]);
 
