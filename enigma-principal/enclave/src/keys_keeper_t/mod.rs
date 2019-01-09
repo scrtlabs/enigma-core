@@ -35,9 +35,10 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
     for raw_addr in req_addrs {
         let sc_addr: H256 = H256(raw_addr);
         // Run the worker selection algorithm for the current epoch
-        let epoch_worker = ecall_get_epoch_workers_internal(sc_addr, None)?[0];
-        println!("Found the epoch worker {:?} for contract {:?}", epoch_worker, sc_addr);
+        // TODO: The epoch mutex guard is not happy with locking from here, need to understand this better
         // TODO: Enable after further testing
+//        let epoch_worker = ecall_get_epoch_workers_internal(sc_addr, None)?[0];
+//        println!("Found the epoch worker {:?} for contract {:?}", epoch_worker, sc_addr);
 //        if recovered.address() != format!("{:?}", epoch_worker) {
 //            return Err(EnclaveError::KeyProvisionError {
 //                err: format!("Signer address of the KM message {} is not the selected worker {}.", recovered.address(), epoch_worker),
@@ -51,6 +52,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
         if guard.contains_key(&raw_addr) {
             let key_slice = guard.get(&raw_addr).unwrap();
             key.copy_from_slice(&key_slice[..]);
+            println!("Found state key for contract {:?}", sc_addr);
         } else {
             let mut rand_seed: [u8; 1072] = [0; 1072];
             // Generate a new key randomly
@@ -89,7 +91,9 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
             err: "Unable encrypt the response".to_string()
         });
     }
+    // TODO: The bytes don't seem to change between request.
     let response_bytes = response.to_message()?;
+    println!("The encrypted response bytes: {:?}", response_bytes);
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
     let sig = SIGNINING_KEY.sign(&response_bytes[..])?;
