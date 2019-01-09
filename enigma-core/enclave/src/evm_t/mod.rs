@@ -10,7 +10,7 @@ pub enum EvmResult {
 pub mod preprocessor{
     use std::vec::Vec;
     use sgx_trts::trts::rsgx_read_rand;
-    use common::errors_t::EnclaveError;
+    use enigma_tools_t::common::errors_t::EnclaveError;
     use std::string::ToString;
 
     // TODO: Implement Errors

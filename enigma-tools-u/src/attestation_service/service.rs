@@ -182,7 +182,7 @@ impl ASResult {
             _ => return Ok(false),
         };
         let pubkey = cert.public_key()?;
-        let sig = self.signature.from_hex()?;
+        let sig: Vec<u8> = self.signature.from_hex()?;
         let mut verifier = Verifier::new(MessageDigest::sha256(), &pubkey)?;
         verifier.update(&self.report_string.as_bytes())?;
         Ok(verifier.verify(&sig)?)

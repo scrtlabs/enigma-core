@@ -176,8 +176,7 @@ fn decode_rlp(rlp: &UntrustedRlp, result: &mut String, key: &[u8; 32], arg_type:
     }
 }
 
-pub fn decode_args(encoded: &[u8], types: &[String]) -> Result<Vec<String>, EnclaveError> {
-    let key = get_key();
+pub fn decode_args(encoded: &[u8], types: &[String], key: &[u8; 32]) -> Result<Vec<String>, EnclaveError> {
     let rlp = UntrustedRlp::new(encoded);
     let mut result: Vec<String> = vec![];
     let iter = rlp.iter();

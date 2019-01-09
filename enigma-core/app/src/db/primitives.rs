@@ -1,7 +1,8 @@
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 use failure::Error;
-use hex::{FromHex, ToHex};
+use hex::ToHex;
 use std::str;
+use enigma_tools_u::common_u::FromHex32;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct Array32u8(pub [u8; 32]);
@@ -72,9 +73,8 @@ impl SplitKey for DeltaKey {
             3 => Stype::ByteCode,
             _ => bail!("Failed parsing the Key, key does not contain a correct index"),
         };
-        let mut hash = [0u8; 32];
         // if the address is not a correct hex then it not a correct address.
-        hash.copy_from_slice(&_hash.from_hex()?[..]);
+        let hash = _hash.from_hex_32()?;
         Ok(DeltaKey { hash, key_type })
     }
 }
@@ -83,8 +83,7 @@ impl SplitKey for Array32u8 {
     fn as_split<T, F: FnMut(&str, &[u8]) -> T>(&self, mut f: F) -> T { f(&self.0.to_hex(), &[2]) }
 
     fn from_split(_hash: &str, _key_type: &[u8]) -> Result<Self, Error> {
-        let mut arr = [0u8; 32];
-        arr.copy_from_slice(&_hash.from_hex()?[..]);
+        let arr = _hash.from_hex_32()?;
         Ok(Array32u8(arr))
     }
 }

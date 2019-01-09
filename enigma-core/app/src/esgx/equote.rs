@@ -18,7 +18,6 @@ pub struct GetRegisterResult {
 }
 
 // wrapper function for getting the enclave public sign key (the one attached with produce_quote())
-// TODO:: replace the error type in the Result once established
 pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<String, Error> {
     let mut address: [u8; 42] = [0; 42];
     let status = unsafe { ecall_get_signing_address(eid, &mut address) };
@@ -55,7 +54,7 @@ mod test {
         let tested_encoded_quote = match retry_quote(enclave.geteid(), &spid, 8) {
             Ok(encoded_quote) => encoded_quote,
             Err(e) => {
-                println!("[-] Produce quote Err {}, {}", e.cause(), e.backtrace());
+                println!("[-] Produce quote Err {}, {}", e.as_fail(), e.backtrace());
                 assert_eq!(0, 1);
                 return;
             }

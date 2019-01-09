@@ -1,28 +1,29 @@
 use sgx_types::sgx_status_t;
 use std::string::ToString;
 use enigma_types::traits::SliceCPtr;
+use enigma_types::EnclaveReturn;
 use enigma_tools_t::common::errors_t::EnclaveError::{self, OcallError};
 use enigma_tools_t::km_primitives::ContractAddress;
 use crate::data::{EncryptedContractState, EncryptedPatch};
 use std::vec::Vec;
 
 extern "C" {
-    fn ocall_new_delta(retval: *mut i8, enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32], _delta_index: *const u32) -> sgx_status_t;
-    fn ocall_update_state(retval: *mut i8, id: &[u8; 32], enc_delta: *const u8, delta_len: usize) -> sgx_status_t;
-    fn ocall_get_deltas_sizes(retval: *mut i8, addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut usize, res_len: usize) -> sgx_status_t;
-    fn ocall_get_deltas(retval: *mut i8, addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> sgx_status_t;
-    fn ocall_get_state_size(retval: *mut i8, addr: &ContractAddress, state_len: *mut usize) -> sgx_status_t;
-    fn ocall_get_state(retval: *mut i8, addr: &ContractAddress, state_ptr: *mut u8, state_len: usize) -> sgx_status_t;
+    fn ocall_new_delta(retval: *mut EnclaveReturn, enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32], _delta_index: *const u32) -> sgx_status_t;
+    fn ocall_update_state(retval: *mut EnclaveReturn, id: &[u8; 32], enc_delta: *const u8, delta_len: usize) -> sgx_status_t;
+    fn ocall_get_deltas_sizes(retval: *mut EnclaveReturn, addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut usize, res_len: usize) -> sgx_status_t;
+    fn ocall_get_deltas(retval: *mut EnclaveReturn, addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> sgx_status_t;
+    fn ocall_get_state_size(retval: *mut EnclaveReturn, addr: &ContractAddress, state_len: *mut usize) -> sgx_status_t;
+    fn ocall_get_state(retval: *mut EnclaveReturn, addr: &ContractAddress, state_ptr: *mut u8, state_len: usize) -> sgx_status_t;
 }
 
 pub fn save_state(enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> {
-    let mut res_int: i8 = -1;
+    let mut retval = EnclaveReturn::default();
     let res_status: sgx_status_t = unsafe {
-        ocall_update_state(&mut res_int as *mut i8, &enc.contract_id, enc.json.as_c_ptr(), enc.json.len())
+        ocall_update_state(&mut retval, &enc.contract_id, enc.json.as_c_ptr(), enc.json.len())
     };
-    match res_int {
-        0 => (), // 0 is the OK result
-        _ => return Err( OcallError { command: "ocall_update_state".to_string(), err: format!("return result is: {}", &res_int ) } )
+    match retval {
+        EnclaveReturn::Success => (), // 0 is the OK result
+        _ => return Err( OcallError { command: "ocall_update_state".to_string(), err: format!("return result is: {}", &retval ) } )
     }
     match res_status {
         sgx_status_t::SGX_SUCCESS => Ok( () ),
@@ -32,16 +33,15 @@ pub fn save_state(enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> 
 
 
 pub fn save_delta(enc: &EncryptedPatch) -> Result<(), EnclaveError> {
-    let mut res_int: i8 = -1;
-    let res_status: sgx_status_t = unsafe {
-        ocall_new_delta(&mut res_int as *mut i8,  enc.data.as_c_ptr(), enc.data.len(), &enc.contract_id, &enc.index as *const u32)
+    let mut res = EnclaveReturn::default();
+    let res_status = unsafe {
+        ocall_new_delta(&mut res,  enc.data.as_c_ptr(), enc.data.len(), &enc.contract_id, &enc.index as *const u32)
     };
 
-    // TODO: Maybe use some sort of ErrorKind to differentiate between the errors outside
-    match res_int {
-        0 => (), // 0 is the OK result
-        17 => return Err( OcallError { command: "ocall_new_delta".to_string(), err: "key already exist".to_string() } ),
-        _ => return Err( OcallError { command: "ocall_new_delta".to_string(), err: format!("return result is: {}", &res_int ) } )
+    match res {
+        EnclaveReturn::Success => (), // 0 is the OK result
+        EnclaveReturn::OcallDBError => return Err( OcallError { command: "ocall_new_delta".to_string(), err: "key already exist".to_string() } ),
+        _ => return Err( OcallError { command: "ocall_new_delta".to_string(), err: format!("return result is: {}", &res ) } )
     }
 
     match res_status {
@@ -52,15 +52,15 @@ pub fn save_delta(enc: &EncryptedPatch) -> Result<(), EnclaveError> {
 
 
 pub fn get_state(addr: ContractAddress) -> Result<EncryptedContractState<u8>, EnclaveError> {
-    let mut retval = 0i8;
+    let mut retval = EnclaveReturn::default();
     let mut state_len = 0usize;
     let status = unsafe { ocall_get_state_size(&mut retval, &addr, &mut state_len) };
-    if retval != 0 || status != sgx_status_t::SGX_SUCCESS {
+    if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveError::OcallError{ command:"get_state_size".to_string(), err: format!("Error with SGX, retval: {}, status: {:?}", retval, status) });
     }
     let mut state = vec![0u8; state_len];
     let status = unsafe { ocall_get_state(&mut retval, &addr, state.as_mut_ptr(), state_len)  };
-    if retval != 0 || status != sgx_status_t::SGX_SUCCESS {
+    if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveError::OcallError{ command:"get_state".to_string(), err: format!("Error with SGX, retval: {}, status: {:?}", retval, status) });
     }
 
@@ -72,16 +72,16 @@ pub fn get_state(addr: ContractAddress) -> Result<EncryptedContractState<u8>, En
 pub fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> Result<Vec<EncryptedPatch>, EnclaveError> {
     let len = (end-start) as usize;
     let mut deltas_buff = vec![0usize; len];
-    let mut retval = 0i8;
+    let mut retval = EnclaveReturn::default();
     let status = unsafe { ocall_get_deltas_sizes(&mut retval, &addr, &start as *const u32, &end as *const u32,
                                                  deltas_buff.as_mut_ptr(), len) };
-    if retval != 0 || status != sgx_status_t::SGX_SUCCESS {
+    if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveError::OcallError{ command:"get_deltas".to_string(), err: format!("Error with SGX, retval: {}, status: {:?}", retval, status) });
     }
     let mut deltas: Vec<u8> = deltas_buff.iter().map(|len| vec![0u8; (*len) as usize]).flatten().collect();
     let status = unsafe { ocall_get_deltas(&mut retval, &addr, &start as *const u32, &end as *const u32,
                                            deltas.as_mut_ptr(), deltas.len()) };
-    if retval != 0 || status != sgx_status_t::SGX_SUCCESS {
+    if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveError::OcallError{ command:"get_deltas".to_string(), err: format!("Error with SGX, retval: {}, status: {:?}", retval, status) });
     }
 

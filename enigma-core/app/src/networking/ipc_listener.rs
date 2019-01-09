@@ -47,6 +47,7 @@ fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
             IpcRequest::GetContract{id, input} => handling::get_contract(id, input),
             IpcRequest::UpdateNewContract{id, address, bytecode} => handling::update_new_contract(id, address, bytecode),
             IpcRequest::UpdateDeltas{id, deltas} => handling::update_deltas(id, deltas),
+            IpcRequest::NewTaskEncryptionKey{id, pubkey} => handling::get_dh_user_key(id, pubkey, eid),
         };
 
         response.push_back(response_msg.unwrap_or_default());
@@ -68,6 +69,10 @@ pub(self) mod handling {
     use esgx::equote;
     use networking::constants;
     use sgx_types::sgx_enclave_id_t;
+    use crate::km_u;
+    use rmp_serde::Deserializer;
+    use serde::Deserialize;
+    use serde_json::Value;
 
     pub fn get_registration_params(id: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
         let quote = equote_tools::retry_quote(eid, &constants::SPID, 8)?;
@@ -200,6 +205,22 @@ pub(self) mod handling {
             }
         }
         Ok(IpcResponse::UpdateDeltas{ id, result: IpcUpdateDeltasResult { status: 0, errors } }.into())
+    }
+
+    pub fn get_dh_user_key(id: String, _user_pubkey: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+        let mut user_pubkey = [0u8; 64];
+        user_pubkey.clone_from_slice(&_user_pubkey.from_hex().unwrap());
+
+        let (msg, sig) = km_u::get_user_key(eid, &user_pubkey)?;
+
+        let mut des = Deserializer::new(&msg[..]);
+        let res: Value = Deserialize::deserialize(&mut des).unwrap();
+        let msg_id = serde_json::from_value::<[u8; 12]>(res["id"].clone())?;
+        let pubkey = serde_json::from_value::<Vec<u8>>(res["pubkey"].clone())?;
+
+        let result = IpcDHMessage { msg_id: msg_id.to_hex(), dh_key: pubkey.to_hex(), sig: sig.to_hex()};
+
+        Ok(IpcResponse::NewTaskEncryptionKey{ id, result }.into())
     }
 }
 
