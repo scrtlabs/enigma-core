@@ -129,14 +129,12 @@ pub unsafe extern "C" fn ecall_set_worker_params(receipt_rlp: *const u8, receipt
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ecall_get_enc_state_keys(enc_msg: *const u8, enc_msg_len: usize, sig: &[u8; 65],
-                                                  enc_result_out: *mut u8, enc_result_len_out: &mut usize,
+pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize, sig: &[u8; 65],
+                                                  enc_response_out: *mut u8, enc_response_len: &mut usize,
                                                   sig_out: &mut [u8; 65]) -> EnclaveReturn {
     println!("Fetching the state encryption keys");
-    let enc_msg_slice = slice::from_raw_parts(enc_msg, enc_msg_len);
-    let enc_msg_ser = enc_msg_slice.to_vec();
-    println!("The encoded message: {:?}", enc_msg_ser);
-    let enc_response = match ecall_get_enc_state_keys_internal(enc_msg_ser, sig.clone()) {
+    let msg_bytes = slice::from_raw_parts(msg, msg_len).to_vec();
+    let enc_response = match ecall_get_enc_state_keys_internal(msg_bytes, sig.clone()) {
         Ok(response) => response,
         Err(err) => {
             println!("got error: {:?}", err);

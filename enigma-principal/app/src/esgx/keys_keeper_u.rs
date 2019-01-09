@@ -8,7 +8,7 @@ use enigma_types::EnclaveReturn;
 
 extern {
     fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
-                                enc_msg: *const u8, enc_msg_len: usize,
+                                msg: *const u8, msg_len: usize,
                                 sig: &[u8; 65],
                                 enc_response_out: *mut u8, enc_response_len_out: &mut usize,
                                 sig_out: &mut [u8; 65]) -> sgx_status_t;
@@ -16,6 +16,13 @@ extern {
 
 const MAX_ENC_RESPONSE_LEN: usize = 100_000;
 
+/// Returns the signed encrypted keys.
+///
+/// # Examples
+/// ```
+/// let enclave = esgx::general::init_enclave().unwrap();
+/// let response: EpochSeed = get_enc_state_keys(enclave.geteid(), request).unwrap();
+/// ```
 pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Result<StateKeyResponse, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
@@ -23,13 +30,13 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Re
     let enc_response_slice = enc_response.as_mut_slice();
     let mut enc_response_len_out: usize = 0;
 
-    let enc_msg: Vec<u8> = request.request_message.into();
+    let msg_bytes: Vec<u8> = request.request_message.into();
     let status = unsafe {
         ecall_get_enc_state_keys(
             eid,
             &mut retval,
-            enc_msg.as_ptr() as *const u8,
-            enc_msg.len(),
+            msg_bytes.as_ptr() as *const u8,
+            msg_bytes.len(),
             &request.worker_sig.into(),
             enc_response_slice.as_mut_ptr() as *mut u8,
             &mut enc_response_len_out,
@@ -75,9 +82,8 @@ pub mod tests {
     #[test]
     fn test_get_state_key() {
         let enclave = init_enclave();
-        generate_epoch_seed(enclave.geteid());
-        generate_epoch_seed(enclave.geteid());
-        set_mock_worker_params(enclave.geteid());
+        let _epoch = generate_epoch_seed(enclave.geteid()).unwrap();
+        let _sig = set_mock_worker_params(enclave.geteid());
 
         // From the km_primitives uint tests
         let msg = StringWrapper("84a46461746181a75265717565737493dc0020cca7cc937b64ccb8cccacca5cc8f03721bccb6ccbacccf5c78cccb235fccebcce0cce70b1bcc84cccdcc99541461cca0cc8edc002016367accacccb67a4a017ccc8dcca8ccabcc95682ccccb390863780f7114ccddcca0cca0cce0ccc55644ccc7ccc4dc0020ccb1cce9cc9324505bccd32dcca0cce1ccf85dcccf5e19cca0cc9dccb0481ecc8a15ccf62c41cceb320304cca8cce927a269649c1363ccb3301c101f33cce1cc9a0524a67072656669789e456e69676d61204d657373616765a67075626b6579dc0040cce5ccbe28cc9dcc9a2eccbd08ccc0457a5f16ccdfcc9fccdc256c5d5f6c3514cccdcc95ccb47c11ccc4cccd3e31ccf0cce4ccefccc83ccc80cce8121c3939ccbb2561cc80ccec48ccbecca8ccc569ccd2cca3ccda6bcce415ccfa20cc9bcc98ccda".to_string());
@@ -87,7 +93,7 @@ pub mod tests {
 
         let request = StateKeyRequest { request_message: msg, worker_sig: sig };
         let response = get_enc_state_keys(enclave.geteid(), request).unwrap();
-//        println!("Got response: {:?}", response);
+        println!("Got response: {:?}", response);
         enclave.destroy();
     }
 }

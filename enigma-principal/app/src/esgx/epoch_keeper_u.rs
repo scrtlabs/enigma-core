@@ -128,7 +128,7 @@ pub mod tests {
         let receipt_hashes = ReceiptHashesWrapper::from_receipts(&vec![receipt.clone()]);
         let block_header = BlockHeaderWrapper(block.clone());
         let headers = BlockHeadersWrapper(vec![block_header]);
-        return set_worker_params(eid, receipt, receipt_hashes, headers).unwrap();
+        set_worker_params(eid, receipt, receipt_hashes, headers).unwrap()
     }
 
     #[test]

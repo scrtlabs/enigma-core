@@ -150,13 +150,13 @@ pub(crate) fn ecall_set_worker_params_internal(receipt_rlp: &[u8], receipt_hashe
     Ok(())
 }
 
-pub(crate) fn ecall_get_epoch_workers_internal(sc_addr: Address, block_number: Option<Uint>) -> Result<(Vec<Address>), EnclaveError> {
+pub(crate) fn ecall_get_epoch_workers_internal(sc_addr: Hash, block_number: Option<Uint>) -> Result<(Vec<Address>), EnclaveError> {
     let guard = EPOCH.lock_expect("Epoch");
     let epoch = match get_epoch(&guard, block_number)? {
         Some(epoch) => epoch,
         None => {
             return Err(EnclaveError::WorkerAuthError {
-                err: "Cannot verify receipt without a nonce in the Epoch mutex.".to_string(),
+                err: format!("No epoch found for block number (None == latest): {:?}", block_number),
             });
         }
     };

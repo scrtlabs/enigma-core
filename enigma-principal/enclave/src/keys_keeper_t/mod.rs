@@ -24,20 +24,19 @@ use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 use enigma_tools_t::common::EthereumAddress;
 use enigma_tools_t::km_primitives::{MessageType, StateKey, Message, ContractAddress};
 use enigma_tools_t::cryptography_t::Encryption;
+use ethereum_types::{H256};
 
 lazy_static! { pub static ref STATE_KEY_STORE: SgxMutex< HashMap<ContractAddress, StateKey >> = SgxMutex::new(HashMap::new()); }
 
 pub(crate) fn ecall_get_enc_state_keys_internal(enc_msg: Vec<u8>, sig: [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
-    println!("Decoding msg: {:?}", enc_msg);
     println!("The signature: {:?}", sig.to_vec());
 
     let msg = Message::from_message(&enc_msg)?;
-    println!("The deserialized message: {:?}", msg);
-    let req_addrs: Vec<ContractAddress> = match msg.clone().data {
+    let req_addrs: Vec<ContractAddress> = match msg.data.clone() {
         MessageType::Request(addrs) => addrs,
         _ => {
             return Err(EnclaveError::MessagingError {
-                err: "Could not deserialize the KM Message into a Request.".to_string(),
+                err: format!("Unable to deserialize message: {:?}", enc_msg),
             });
         }
     };
@@ -46,16 +45,16 @@ pub(crate) fn ecall_get_enc_state_keys_internal(enc_msg: Vec<u8>, sig: [u8; 65])
 
     let mut response_data: Vec<(ContractAddress, StateKey)> = Vec::new();
     for raw_addr in req_addrs {
-        let types = &vec![ParamType::Address];
-        let sc_addr = decode(types, &raw_addr).unwrap()[0].clone().to_address().unwrap();
+        let sc_addr: H256 = H256(raw_addr);
         let workers = ecall_get_epoch_workers_internal(sc_addr, None)?;
         let epoch_worker = workers[0];
         println!("Found the epoch worker {:?} for contract {:?}", epoch_worker, sc_addr);
-        if recovered.address() != format!("{:?}", epoch_worker) {
-            return Err(EnclaveError::KeyProvisionError {
-                err: format!("Signer address of the KM message {} is not the selected worker {}.", recovered.address(), epoch_worker),
-            });
-        }
+        // TODO: enable after further testing
+//        if recovered.address() != format!("{:?}", epoch_worker) {
+//            return Err(EnclaveError::KeyProvisionError {
+//                err: format!("Signer address of the KM message {} is not the selected worker {}.", recovered.address(), epoch_worker),
+//            });
+//        }
         let mut key: StateKey = [0u8; 32];
         let mut guard = STATE_KEY_STORE.lock_expect("State Key Store");
         if guard.contains_key(&raw_addr) {

@@ -60,7 +60,7 @@ impl Epoch {
         Ok(())
     }
 
-    pub fn get_selected_workers(self, sc_addr: Address) -> Result<Vec<Address>, EnclaveError> {
+    pub fn get_selected_workers(self, sc_addr: Hash) -> Result<Vec<Address>, EnclaveError> {
         // TODO: implement the worker selection algo
         let workers = self.worker_params.unwrap().workers.to_vec();
 

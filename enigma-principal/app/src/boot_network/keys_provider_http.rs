@@ -40,7 +40,7 @@ pub struct StateKeyRequest {
     pub worker_sig: StringWrapper,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Debug, Clone)]
 pub struct StateKeyResponse {
     pub encrypted_response_message: StringWrapper,
     pub sig: StringWrapper,

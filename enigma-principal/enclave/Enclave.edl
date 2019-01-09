@@ -25,9 +25,9 @@ enclave {
                                         [in, size=headers_rlp_len] const uint8_t* headers_rlp, size_t headers_rlp_len,
                                         [out, size=65] uint8_t* sig_out);
 
-        public EnclaveReturn ecall_get_enc_state_keys([in, size=enc_msg_len] const uint8_t* enc_msg, size_t enc_msg_len,
+        public EnclaveReturn ecall_get_enc_state_keys([in, size=msg_len] const uint8_t* msg, size_t msg_len,
                                         [in, size=65] uint8_t* sig,
-                                        [out, size=100000] uint8_t* enc_result_out, [out] uint64_t* enc_result_len_out,
+                                        [out, size=100000] uint8_t* enc_response_out, [out] uint64_t* enc_response_len_out,
                                         [out, size=65] uint8_t* sig_out);
     };
     untrusted {
