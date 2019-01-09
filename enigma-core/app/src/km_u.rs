@@ -93,6 +93,7 @@ pub fn get_user_key(eid: sgx_enclave_id_t, user_pubkey: &PubKey) -> Result<(Box<
 pub mod tests {
     extern crate secp256k1;
     extern crate ring;
+    extern crate ethabi;
 
     use crate::esgx::general::init_enclave_wrapper;
     use super::{ContractAddress, StateKey, ptt_req, ptt_res, ptt_build_state};
@@ -107,10 +108,12 @@ pub mod tests {
     use self::ring::{aead, rand::*};
     use sgx_types::sgx_enclave_id_t;
     use std::collections::HashSet;
+    use self::ethabi::{Token};
+    use wasm_u::wasm::tests::generate_address;
 
     const PUBKEY_DUMMY: [u8; 64] = [ 27, 132, 197, 86, 123, 18, 100, 64, 153, 93, 62, 213, 170, 186, 5, 101, 215, 30, 24, 52, 96, 72, 25, 255, 156, 23, 245, 233, 213, 221, 7, 143, 112, 190, 175, 143, 88, 139, 84, 21, 7, 254, 214, 166, 66, 197, 171, 66, 223, 223, 129, 32, 167, 246, 57, 222, 81, 34, 212, 122, 105, 168, 232, 209];
 
-    pub fn exchange_keys(id: sgx_enclave_id_t) -> (PubKey, Box<[u8]>, [u8; 65]) {
+    pub fn exchange_keys(id: sgx_enclave_id_t) -> (PubKey, Vec<u8>, Box<[u8]>, [u8; 65]) {
         let mut _priv = [0u8; 32];
         SystemRandom::new().fill(&mut _priv).unwrap();
         let privkey = SecretKey::parse(&_priv).unwrap();
@@ -118,13 +121,67 @@ pub mod tests {
         let mut pubkey = [0u8; 64];
         pubkey.clone_from_slice(&_pubkey.serialize()[1..]);
         let (data, sig) = super::get_user_key(id, &pubkey).unwrap();
-        (pubkey, data, sig)
+        let data_burrowed = data.clone();
+
+        let mut des = Deserializer::new(&data_burrowed[..]);
+        let res: Value = Deserialize::deserialize(&mut des).unwrap();
+        let _node_pubkey: Vec<u8> = serde_json::from_value(res["pubkey"].clone()).unwrap();
+
+        let mut _node_pub = [0u8; 65];
+        _node_pub[0] = 4;
+        _node_pub[1..].copy_from_slice(&_node_pubkey);
+        let node_pubkey = PublicKey::parse(&_node_pub).unwrap();
+
+        let shared = SharedSecret::new(&node_pubkey, &privkey).unwrap();
+        let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, shared.as_ref()).unwrap();
+
+        (pubkey, shared.as_ref().to_vec(), data, sig)
+    }
+
+    // serialize the arguments and encrypt them.
+    pub fn serial_and_encrypt_args(key: &[u8], args: &[Token], iv: Option<[u8; 12]>) -> Vec<u8> {
+        let mut response_args: Vec<u8> = ethabi::encode(args);
+
+        let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, key.clone()).unwrap();
+        let iv = iv.unwrap_or([1u8; 12]);
+        response_args.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
+        let s = aead::seal_in_place(&seal_key, &iv, &[], &mut response_args, aead::AES_256_GCM.tag_len()).unwrap();
+        assert_eq!(s, response_args.len());
+        response_args.extend(&iv);
+        response_args
+    }
+
+    #[test]
+    fn test_serial_and_encrypt_args() {
+        // get the aes key
+        let enclave = init_enclave_wrapper().unwrap();
+        let (_, key, _, _) = exchange_keys(enclave.geteid());
+
+        // arguments
+        let addr = Token::FixedBytes(generate_address().to_vec());
+        let num = Token::Uint(34.into());
+        let msg = Token::Bytes([3u8; 36].to_vec());
+
+        let args = vec![addr, num, msg];
+
+        let mut iv = [1u8; 12];
+        // encryption
+        let mut encrypted_args = serial_and_encrypt_args(&key.clone(), &args, Some(iv.clone()));
+
+        // decryption
+        let decrypt_key = aead::OpeningKey::new(&aead::AES_256_GCM, &key).unwrap();
+
+        // remove the IV from the encrypted cipher
+        for _i in (0..iv.len()).rev() { encrypted_args.pop().unwrap(); }
+        let mut accepted_args = aead::open_in_place(&decrypt_key, &iv, &[], 0, &mut encrypted_args).unwrap();
+
+        assert_eq!(ethabi::encode(&args), accepted_args);
     }
 
     #[test]
     fn test_get_user_key() {
         let enclave = init_enclave_wrapper().unwrap();
-        let (_, data, _sig) = exchange_keys(enclave.geteid());
+        let (_, _, data, _sig) = exchange_keys(enclave.geteid());
 
         let mut des = Deserializer::new(&data[..]);
         let res: Value = Deserialize::deserialize(&mut des).unwrap();
@@ -156,7 +213,7 @@ pub mod tests {
         let mut des = Deserializer::new(&req.0[..]);
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
-        let enc_response = make_encrpted_resposnse(req_val);
+        let enc_response = make_encrypted_resposnse(req_val);
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
@@ -165,7 +222,7 @@ pub mod tests {
 
     }
 
-    fn make_encrpted_resposnse(req: Value) -> Value {
+    fn make_encrypted_resposnse(req: Value) -> Value {
         // Making the response
         let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
         let _response_data: Vec<(ContractAddress, StateKey)>  = req_data.into_iter().map(|add| (add, add.sha256())).collect();
@@ -226,7 +283,7 @@ pub mod tests {
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
         // Generating the response
-        let enc_response = make_encrpted_resposnse(req_val);
+        let enc_response = make_encrypted_resposnse(req_val);
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();

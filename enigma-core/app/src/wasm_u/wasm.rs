@@ -144,7 +144,7 @@ pub mod tests {
     use enigma_tools_u::common_u::Sha256;
     use self::ring::rand::*;
 
-    fn generate_address() -> ContractAddress {
+    pub fn generate_address() -> ContractAddress {
         let mut address = [0u8; 32];
         SystemRandom::new().fill(&mut address).unwrap();
         address
@@ -168,7 +168,7 @@ pub mod tests {
         f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
 
-        let (pubkey, _, _) = exchange_keys(eid);
+        let (pubkey, _, _, _) = exchange_keys(eid);
         wasm::deploy(eid, &wasm_code, &[], address, &pubkey, 100_000).expect("Deploy Failed")
     }
 
@@ -178,9 +178,9 @@ pub mod tests {
         let address = generate_address();
         instantiate_encryption_key(&[address], enclave.geteid());
         let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address);
-        let (pubkey, _, _) = exchange_keys(enclave.geteid());
+        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
         let encrypted_args : &[u8] = &[38, 69, 69, 163, 224, 68, 24, 62, 147, 1, 82, 167, 140, 186, 10, 139, 101, 150, 13, 23, 125, 201, 203, 83, 111, 166, 187, 6, 193, 251, 218, 180, 102, 106, 46, 227, 128, 132, 183, 241, 25, 162, 23, 4, 192, 231, 147, 7, 242, 85, 161, 62, 241, 193, 32, 170, 123, 51, 34, 222, 36, 58, 140, 1, 96, 218, 76, 52, 223, 220, 132, 149, 109, 223, 84, 126, 46, 222, 119, 245, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-        let result = wasm::execute(enclave.geteid(),contract_code, "test(uint256,uint256)", encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(),&contract_code, "test(uint256,uint256)", encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
 
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), "\"22\"");
@@ -192,7 +192,7 @@ pub mod tests {
         let address = generate_address();
         instantiate_encryption_key(&[address], enclave.geteid());
         let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address);
-        let (pubkey, _, _) = exchange_keys(enclave.geteid());
+        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
         let args : &[u8] = &[];
         let result = wasm::execute(enclave.geteid(), &contract_code, "write()", args, &pubkey, &address, 100_000).expect("Execution failed");
         enclave.destroy();
@@ -251,7 +251,7 @@ pub mod tests {
         let address = generate_address();
         instantiate_encryption_key(&[address], enclave.geteid());
         let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/contract_with_eth_calls", address);
-        let (pubkey, _, _) = exchange_keys(enclave.geteid());
+        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
 
         let arg: &[u8] = &[];
         let result = wasm::execute(enclave.geteid(), &contract_code, "test()", arg, &pubkey, &address, 100_000).expect("Execution failed");
@@ -273,11 +273,11 @@ pub mod tests {
         let address = b"Enigma".sha256();
         instantiate_encryption_key(&[address], enclave.geteid());
 
-        let (pubkey, _, _) = exchange_keys(enclave.geteid());
+        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
         let (contract_code, _) =
             wasm::deploy(enclave.geteid(), &wasm_code, &[], b"enigma".sha256(), &pubkey, 100_000)
                 .expect("Deploy Failed");
-        let (pubkey, _, _) = exchange_keys(enclave.geteid());
+        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
         let result = wasm::execute(enclave.geteid(),&contract_code, "call", &[],  &pubkey, &address,100_000).expect("Execution failed");
         assert_eq!(from_utf8(&result.output).unwrap(), "157");
     }

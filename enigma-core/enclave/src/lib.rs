@@ -257,7 +257,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
     let callable = str::from_utf8(callable_slice)?;
 //    let s = str::from_utf8(callable_args_slice)?;
 //    let callable_args = hexutil::read_hex(s)?;
-    let state = execution::get_state();
+    let state = execution::get_state(*address)?;
 
     let (types, function_name) = get_types(callable)?;
 //    let types_vector = extract_types(&types.to_string());
@@ -265,7 +265,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
         .remove(&user_key[..])
         .ok_or(EnclaveError::KeyError {key_type: "Missing DH Key".to_string(), key: "".to_string()})?;
 
-    let args_vector = decrypt_args(&callable_args_slice)?;
+    let decrypted_args = decrypt_args(&callable_args_slice)?;
 
 //    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], true){
 //        Ok(v) => v,
@@ -274,7 +274,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
 //        },
 //    };
 
-    let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, args_vector)?;
+    let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, decrypted_args.clone())?;
 
     prepare_wasm_result(exec_res.state_delta.clone(),
                         &exec_res.result[..],
@@ -288,7 +288,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8],
                         ethereum_contract_addr)?;
 
     // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
-    let args_hash = cryptography_t::prepare_hash_multiple(&[callable_slice, &callable_args, address]).keccak256();
+    let args_hash = cryptography_t::prepare_hash_multiple(&[callable_slice, &decrypted_args, address]).keccak256();
     let output_hash = exec_res.result.keccak256();
     let exe_code_hash = bytecode_slice.keccak256();
     let mut delta_hash = [0].keccak256();

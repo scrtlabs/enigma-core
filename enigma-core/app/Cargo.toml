@@ -35,3 +35,4 @@ sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 [dev-dependencies]
 libsecp256k1 = "0.2.1"
 ring = "0.13.5"
+ethabi = "6.1.0"
