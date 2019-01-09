@@ -30,10 +30,12 @@ pub fn retry_quote(eid: sgx_enclave_id_t, spid: &str, times: usize) -> Result<St
                 continue;
             }
         };
+
         if !quote.chars().all(|cur_c| cur_c == 'A') {
             return Ok(quote);
+        } else {
+            sleep(time::Duration::new(5, 0));
         }
-        sleep(time::Duration::new(2, 0));
     }
     Err(errors::QuoteErr { message: quote }.into())
 }
