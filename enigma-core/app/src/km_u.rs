@@ -132,10 +132,9 @@ pub mod tests {
         _node_pub[1..].copy_from_slice(&_node_pubkey);
         let node_pubkey = PublicKey::parse(&_node_pub).unwrap();
 
-        let shared = SharedSecret::new(&node_pubkey, &privkey).unwrap();
-        let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, shared.as_ref()).unwrap();
+        let shared_bytes = SharedSecret::new(&node_pubkey, &privkey).unwrap().as_ref().to_vec();
 
-        (pubkey, shared.as_ref().to_vec(), data, sig)
+        (pubkey, shared_bytes, data, sig)
     }
 
     // serialize the arguments and encrypt them.

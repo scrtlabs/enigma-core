@@ -15,8 +15,8 @@ use hex::ToHex;
 #[pub_interface]
 pub trait ContractInterface{
     fn write();
-    fn get_address(addr: H256);
-    fn get_addresses(addr1: H256, addr2: H256);
+    fn check_address(addr: H256);
+    fn check_addresses(addr1: H256, addr2: H256);
     fn print_test(x: U256, y: U256) ;
 }
 
@@ -37,7 +37,7 @@ impl ContractInterface for Contract {
     }
 
     #[no_mangle]
-    fn get_address(addr: H256) {
+    fn check_address(addr: H256) {
 
         write_state!("addr" => addr.to_hex());
         let read_val: String = read_state!("addr").unwrap();
@@ -46,7 +46,7 @@ impl ContractInterface for Contract {
     }
 
     #[no_mangle]
-    fn get_addresses(addr1: H256, addr2: H256) {
+    fn check_addresses(addr1: H256, addr2: H256) {
         write_state!("addr1" => addr1.to_hex());
         write_state!("addr2" => addr2.to_hex());
 

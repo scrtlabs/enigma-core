@@ -216,7 +216,7 @@ pub mod tests {
         let addr: Token = Token::FixedBytes(generate_address().to_vec());
         let encrypted_args = serial_and_encrypt_args(&key, &[addr.clone()], None);
 
-        let result = wasm::execute(enclave.geteid(), &contract_code, "get_address(bytes32)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &contract_code, "check_address(bytes32)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), format!("{:?}",addr.to_fixed_bytes().unwrap().to_hex()));
     }
@@ -228,40 +228,82 @@ pub mod tests {
         instantiate_encryption_key(&[address], enclave.geteid());
         let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address);
 
-        //defining the arguments, serializing them and encrypting them -
+        // defining the arguments, serializing them and encrypting them
         let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
         let addr1: Token = Token::FixedBytes(generate_address().to_vec());
         let addr2: Token = Token::FixedBytes(generate_address().to_vec());
         let encrypted_args = serial_and_encrypt_args(&key, &[addr1, addr2.clone()], None);
 
-        let result = wasm::execute(enclave.geteid(), &contract_code, "get_addresses(bytes32,bytes32)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &contract_code, "check_addresses(bytes32,bytes32)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
         enclave.destroy();
         assert_eq!(from_utf8(&result.output).unwrap(), format!("{:?}",addr2.to_fixed_bytes().unwrap().to_hex()));
     }
-//
-//    #[test]
-//    fn test_add_erc20() {
-//        let enclave = init_enclave();
-//        let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20");
-//        // args must be solidity abi serialized and encrypted: 0x5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f,0x07
-//        let arg : &[u8] = &[38, 69, 69, 163, 224, 68, 24, 62, 147, 1, 82, 167, 210, 98, 196, 109, 211, 173, 17, 125, 129, 42, 102, 47, 253, 82, 70, 120, 218, 116, 119, 36, 102, 106, 46, 227, 128, 132, 183, 241, 25, 162, 23, 4, 192, 231, 147, 7, 242, 85, 161, 62, 241, 193, 32, 170, 123, 51, 34, 222, 36, 58, 140, 16, 132, 229, 33, 83, 242, 58, 112, 32, 106, 28, 159, 142, 169, 210, 251, 187, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-//        let result = wasm::execute(enclave.geteid(), &contract_code, "add_to_balance(address,uint256)", arg, 100_000).expect("Execution failed");
-//        enclave.destroy();
-//        assert_eq!(from_utf8(&result.output).unwrap(), "7");
-//    }
-//
-//    // todo: need to add an initial state in order to test the functionality of transfer
-////    #[test]
-////    fn test_transfer_erc20() {
-////        let enclave = init_enclave();
-////        let contract_code = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20");
-//////         args before encryption and solidity abi serialization: ["5ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f","de0b295669a9fd93d5f28d9ec85e40f4cb697bae",0x03]
-////        let rlp_args_transfer = &[38, 69, 69, 163, 224, 68, 24, 62, 147, 1, 82, 167, 210, 98, 196, 109, 211, 173, 17, 125, 129, 42, 102, 47, 253, 82, 70, 120, 218, 116, 119, 36, 102, 106, 46, 227, 128, 132, 183, 241, 25, 162, 23, 4, 30, 236, 186, 81, 155, 252, 92, 173, 36, 51, 173, 52, 179, 109, 98, 42, 239, 83, 247, 185, 177, 170, 21, 230, 102, 118, 94, 128, 129, 231, 172, 10, 30, 250, 148, 100, 106, 120, 76, 210, 247, 41, 176, 128, 89, 69, 95, 13, 135, 132, 164, 48, 197, 153, 96, 169, 17, 120, 160, 226, 23, 195, 27, 165, 169, 4, 69, 141, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-////        let res_addr_account = wasm::execute(enclave.geteid(), &contract_code, "transfer(string,string,uint256)", rlp_args_transfer, 100_000_000).expect("Execution failed");
-////        enclave.destroy();
-////
-////        assert_eq!(from_utf8(&res_addr_account.output).unwrap(), "3");
-////    }
+
+    #[test]
+    fn test_mint_erc20() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let address = generate_address();
+        instantiate_encryption_key(&[address], enclave.geteid());
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20", address);
+
+        // defining the arguments, serializing them and encrypting them
+        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
+        let addr: Token = Token::FixedBytes(generate_address().to_vec());
+        let amount: Token = Token::Uint(17.into());
+        let encrypted_args = serial_and_encrypt_args(&key, &[addr, amount.clone()], None);
+        let result = wasm::execute(enclave.geteid(), &contract_code, "mint(bytes32,uint256)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
+        enclave.destroy();
+        assert_eq!(from_utf8(&result.output).unwrap(), "17");
+    }
+
+    #[test]
+    fn test_transfer_erc20() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let address = generate_address();
+        instantiate_encryption_key(&[address], enclave.geteid());
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20", address);
+
+        // defining the arguments, serializing them and encrypting them
+        let (pubkey_m, key_m, _, _) = exchange_keys(enclave.geteid());
+        let addr: Token = Token::FixedBytes(generate_address().to_vec());
+        let mint_amount: Token = Token::Uint(17.into());
+        let mint_args = serial_and_encrypt_args(&key_m, &[addr.clone(), mint_amount.clone()], None);
+
+        let result_mint = wasm::execute(enclave.geteid(), &contract_code, "mint(bytes32,uint256)", &mint_args, &pubkey_m, &address, 100_000).expect("Execution failed");
+
+        let (pubkey_t, key_t, _, _) = exchange_keys(enclave.geteid());
+        let addr_to = Token::FixedBytes(generate_address().to_vec());
+        let transfer_amount: Token = Token::Uint(8.into());
+        let transfer_args = serial_and_encrypt_args(&key_t, &[addr, addr_to, transfer_amount.clone()], None);
+
+        let result_transfer = wasm::execute(enclave.geteid(), &contract_code, "transfer(bytes32,bytes32,uint256)", &transfer_args, &pubkey_t, &address, 100_000).expect("Execution failed");
+        enclave.destroy();
+        assert_eq!(from_utf8(&result_transfer.output).unwrap(), "8");
+    }
+
+    #[test]
+    fn test_balance_erc20() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let address = generate_address();
+        instantiate_encryption_key(&[address], enclave.geteid());
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20", address);
+
+        // defining the arguments, serializing them and encrypting them
+        let (pubkey_m, key_m, _, _) = exchange_keys(enclave.geteid());
+        let addr: Token = Token::FixedBytes(generate_address().to_vec());
+        let amount: Token = Token::Uint(13.into());
+        let mint_args = serial_and_encrypt_args(&key_m, &[addr.clone(), amount.clone()], None);
+
+        let result_mint = wasm::execute(enclave.geteid(), &contract_code, "mint(bytes32,uint256)", &mint_args, &pubkey_m, &address, 100_000).expect("Execution failed");
+
+        let (pubkey_t, key_t, _, _) = exchange_keys(enclave.geteid());
+        let balance_args = serial_and_encrypt_args(&key_t, &[addr], None);
+
+        let result_transfer = wasm::execute(enclave.geteid(), &contract_code, "balance_of(bytes32)", &balance_args, &pubkey_t, &address, 100_000).expect("Execution failed");
+        enclave.destroy();
+        assert_eq!(from_utf8(&result_transfer.output).unwrap(), "13");
+    }
+
 
     #[test]
     fn test_eth_bridge() {
