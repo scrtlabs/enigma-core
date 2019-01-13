@@ -134,8 +134,8 @@ fn generate_constructor(input: syn::Item) -> proc_macro2::TokenStream{
                         pub fn deploy() {
                             deploy_internal(&args());
                         }
-                        fn deploy_internal(args: &str){
-                            let mut stream = pwasm_abi::eth::Stream::new(args.as_bytes());
+                        fn deploy_internal(args: &[u8]){
+                            let mut stream = pwasm_abi::eth::Stream::new(args);
                             Contract::#constructor_name(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
                         }
                     }

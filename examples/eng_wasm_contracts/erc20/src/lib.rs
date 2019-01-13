@@ -57,5 +57,3 @@ impl Erc20Interface for Contract {
 //    fn approve(spender: Address, tokens: U256){}
 }
 
-#[no_mangle]
-pub fn deploy() {}
