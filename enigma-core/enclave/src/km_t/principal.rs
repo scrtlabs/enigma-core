@@ -149,7 +149,7 @@ pub mod tests {
 
     pub fn test_state_internal() {
         // Making the ground work
-        let address = vec![b"first".sha256(), b"second".sha256(), b"third".sha256()];
+        let address = vec![b"meee".sha256(), b"moo".sha256(), b"maa".sha256()];
         let state_keys = vec![b"first_key".sha256(), b"second_key".sha256(), b"third_key".sha256()];
         let states_and_deltas = get_states_deltas(&address);
         let enc_states: Vec<(EncryptedContractState<u8>, Vec<EncryptedPatch>)> = states_and_deltas
