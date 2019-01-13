@@ -44,7 +44,7 @@ impl<'a> Encryption<&'a [u8; 32], EnclaveError, EncryptedPatch, [u8; 12]> for St
     fn decrypt(enc: EncryptedPatch, key: &[u8; 32]) -> Result<Self, EnclaveError> {
         let dec = symmetric::decrypt(&enc.data, key)?;
         let mut des = Deserializer::new(&dec[..]);
-        let mut back: Self = Deserialize::deserialize(&mut des).unwrap();
+        let mut back: Self = Deserialize::deserialize(&mut des)?;
         back.contract_id = enc.contract_id;
         back.index = enc.index;
         Ok(back)

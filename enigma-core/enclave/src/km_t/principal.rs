@@ -111,7 +111,8 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
                 };
 
                 match state.apply_delta(&patch) {
-                    Err(_) => {
+                    Err(e) => {
+                        println!("Failed applying delta: {:?}", e);
                         failed_contracts.push(*addrs);
                         continue 'contract;
                     }
