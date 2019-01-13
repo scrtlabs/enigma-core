@@ -14,6 +14,7 @@ use sgx_types::*;
 extern "C" {
     fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
                     bytecode: *const u8, bytecode_len: usize,
+                    constructor: *const u8, constructor_len: usize,
                     args: *const u8, args_len: usize,
                     address: &ContractAddress, user_key: &PubKey,
                     gas_limit: *const u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> sgx_status_t;
@@ -32,7 +33,7 @@ extern "C" {
 }
 
 const MAX_EVM_RESULT: usize = 100_000;
-pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], args: &[u8],
+pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &str, args: &[u8],
               contract_address: ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<(Box<[u8]>, [u8;65]), Error> {
     let mut retval = EnclaveReturn::default();
     let mut output_ptr: u64 = 0;
@@ -43,6 +44,8 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], args: &[u8],
                      &mut retval,
                      bytecode.as_c_ptr(),
                      bytecode.len(),
+                     constructor.as_c_ptr() as *const u8,
+                     constructor.len(),
                      args.as_c_ptr(),
                      args.len(),
                      &contract_address,
@@ -153,8 +156,7 @@ pub mod tests {
         address
     }
 
-
-    fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str, address: ContractAddress) -> (Box<[u8]>, [u8;65]) {
+    fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str, address: ContractAddress, constructor: &str, args: &[u8]) -> (Box<[u8]>, [u8;65]) {
         let mut dir = PathBuf::new();
         dir.push(test_path);
         let mut output = Command::new("cargo")
@@ -172,7 +174,7 @@ pub mod tests {
         println!("Bytecode size: {}KB\n", wasm_code.len()/1024);
 
         let (pubkey, _, _, _) = exchange_keys(eid);
-        wasm::deploy(eid, &wasm_code, &[], address, &pubkey, 100_000).expect("Deploy Failed")
+        wasm::deploy(eid, &wasm_code, constructor, args, address, &pubkey, 100_000).expect("Deploy Failed")
     }
 
     #[test]
@@ -195,8 +197,11 @@ pub mod tests {
         let enclave = init_enclave_wrapper().unwrap();
         let address = generate_address();
         instantiate_encryption_key(&[address], enclave.geteid());
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address);
-        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
+        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
+        let test_constr_arg: Token = Token::Uint(17.into());
+        let encrypted_args = serial_and_encrypt_args(&key, &[test_constr_arg.clone()], None);
+
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address, "construct(uint)", encrypted_args);
         let args : &[u8] = &[];
         let result = wasm::execute(enclave.geteid(), &contract_code, "write()", args, &pubkey, &address, 100_000).expect("Execution failed");
         enclave.destroy();
@@ -286,7 +291,7 @@ pub mod tests {
         let enclave = init_enclave_wrapper().unwrap();
         let address = generate_address();
         instantiate_encryption_key(&[address], enclave.geteid());
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20", address);
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20", address, "construct()", &[]);
 
         // defining the arguments, serializing them and encrypting them
         let (pubkey_m, key_m, _, _) = exchange_keys(enclave.geteid());
@@ -310,7 +315,7 @@ pub mod tests {
         let enclave = init_enclave_wrapper().unwrap();
         let address = generate_address();
         instantiate_encryption_key(&[address], enclave.geteid());
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/contract_with_eth_calls", address);
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/contract_with_eth_calls", address, "construct()", &[]);
         let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
 
         let arg: &[u8] = &[];
@@ -335,7 +340,7 @@ pub mod tests {
 
         let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
         let (contract_code, _) =
-            wasm::deploy(enclave.geteid(), &wasm_code, &[], b"enigma".sha256(), &pubkey, 100_000)
+            wasm::deploy(enclave.geteid(), &wasm_code, "construct()", &[], b"enigma".sha256(), &pubkey, 100_000)
                 .expect("Deploy Failed");
         let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
         let result = wasm::execute(enclave.geteid(),&contract_code, "call", &[],  &pubkey, &address,100_000).expect("Execution failed");

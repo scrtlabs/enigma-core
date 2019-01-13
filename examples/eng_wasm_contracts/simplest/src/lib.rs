@@ -18,6 +18,7 @@ pub trait ContractInterface{
     fn check_address(addr: H256);
     fn check_addresses(addr1: H256, addr2: H256);
     fn print_test(x: U256, y: U256) ;
+    fn construct(param: U256);
 }
 
 pub struct Contract;
@@ -64,7 +65,9 @@ impl ContractInterface for Contract {
         let x: u64 = read_state!("x").unwrap();
         let y: u64 = read_state!("y").unwrap();
     }
-}
 
-#[no_mangle]
-pub fn deploy() {}
+    #[no_mangle]
+    fn construct(param: U256){
+        write_state!("1" => param.as_u64());
+    }
+}
