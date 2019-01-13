@@ -19,6 +19,7 @@ pub trait ContractInterface{
     fn write();
     fn print_test(x: U256, y: U256);
     fn test();
+    fn construct();
 }
 
 pub struct Contract;
@@ -49,13 +50,13 @@ impl ContractInterface for Contract {
         let c = EthContract::new("0x123f681646d4a755815f9cb19e1acc8565a0c2ac");
         c.getBryn(U256::from(1), Vec::new());
     }
-}
 
-#[no_mangle]
-pub fn deploy() {
-    let mut a = String::new();
-    a.push_str("69");
-    let key = "code";
-    eprint!("{}", a);
-    write_state!(key => &a);
+    #[no_mangle]
+    fn construct(){
+        let mut a = String::new();
+        a.push_str("69");
+        let key = "code";
+        eprint!("{}", a);
+        write_state!(key => &a);
+    }
 }

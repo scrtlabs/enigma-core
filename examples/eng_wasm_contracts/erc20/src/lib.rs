@@ -139,5 +139,3 @@ impl Erc20Interface for Contract {
     }
 }
 
-#[no_mangle]
-pub fn deploy() {}

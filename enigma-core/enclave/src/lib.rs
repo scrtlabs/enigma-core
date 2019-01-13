@@ -151,12 +151,14 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 /// * `output` - the output holder, which will hold the bytecode for deployment
 /// * `output_len` - the length of the output
 pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
+                                      constructor: *const u8, constructor_len: usize,
                                       args: *const u8, args_len: usize,
                                       address: &ContractAddress, user_key: &PubKey,
                                       gas_limit: *const u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> EnclaveReturn {
     let args = slice::from_raw_parts(args, args_len);
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
-    ecall_deploy_internal(bytecode_slice, args, address, user_key, *gas_limit, output_ptr, sig).into()
+    let constructor = slice::from_raw_parts(constructor, constructor_len);
+    ecall_deploy_internal(bytecode_slice, constructor, args, address, user_key, *gas_limit, output_ptr, sig).into()
 }
 
 
@@ -341,19 +343,23 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 }
 
 
-unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], args: &[u8],
+unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args: &[u8],
                                 address: &ContractAddress, user_key: &PubKey,
                                 gas_limit: u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> Result<(), EnclaveError> {
+
     let deploy_bytecode = build_constructor(bytecode_slice)?;
+    let constructor = str::from_utf8(constructor)?;
+    let (types, function_name) = get_types(constructor)?;
 
     let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(EnclaveError::KeyError {key_type: "Missing DH Key".to_string(), key: "".to_string()})?;
-    // TODO: decrypt and parse the args
+
+    let decrypted_args = decrypt_args(args, &inputs_key)?;
 
     let state = ContractState::new(*address);
 
-    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state)?;
+    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, decrypted_args.clone())?;
 
     // TODO: Can the user make an ethereum payload in the constructor?
     // TODO: Maybe it can be the same as `prepare_wasm_result`?
