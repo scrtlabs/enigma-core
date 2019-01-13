@@ -243,8 +243,6 @@ mod test {
         let errored = v["errored"].as_bool().unwrap();
         let _signature = v["signature"].as_str().unwrap();
         let result = v["result"].as_str().unwrap();
-        println!("{:?}", msg);
-        println!("{:?}", v);
 
         // 3. validate result
         assert_eq!(errored, false);

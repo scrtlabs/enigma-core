@@ -92,7 +92,7 @@ impl From<str::Utf8Error> for WasmError {
 impl Runtime {
 
     pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32], function_name: &String, args_types: String) -> Runtime {
-        let init_state = ContractState::new( contract_id.clone() );
+        let init_state = ContractState::new( contract_id.clone());
         let current_state = ContractState::new(contract_id);
         let result = RuntimeResult{ result: Vec::new(),
                                     state_delta: None,

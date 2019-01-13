@@ -212,7 +212,7 @@ pub mod tests {
         let mut des = Deserializer::new(&req.0[..]);
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
-        let enc_response = make_encrypted_resposnse(req_val);
+        let enc_response = make_encrypted_response(req_val);
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
@@ -221,7 +221,7 @@ pub mod tests {
 
     }
 
-    fn make_encrypted_resposnse(req: Value) -> Value {
+    fn make_encrypted_response(req: Value) -> Value {
         // Making the response
         let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
         let _response_data: Vec<(ContractAddress, StateKey)>  = req_data.into_iter().map(|add| (add, add.sha256())).collect();
@@ -282,7 +282,7 @@ pub mod tests {
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
         // Generating the response
-        let enc_response = make_encrypted_resposnse(req_val);
+        let enc_response = make_encrypted_response(req_val);
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
