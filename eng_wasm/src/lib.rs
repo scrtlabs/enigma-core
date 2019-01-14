@@ -37,6 +37,7 @@ pub mod external {
         pub fn write_payload(payload: *const u8, payload_len: u32);
         pub fn write_address(address: *const u8);
         pub fn gas(amount: u32);
+        pub fn ret(payload: *const u8, payload_len: u32);
     }
 }
 
