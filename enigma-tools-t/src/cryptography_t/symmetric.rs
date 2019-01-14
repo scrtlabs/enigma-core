@@ -11,7 +11,6 @@ static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 type Key = [u8; 32];
 type IV = [u8; 12];
 
-
 pub fn encrypt(message: &[u8], key: &Key) -> Result<Vec<u8>, EnclaveError> { encrypt_with_nonce(message, key, None) }
 
 pub fn encrypt_with_nonce(message: &[u8], key: &Key, _iv: Option<IV>) -> Result<Vec<u8>, EnclaveError> {
@@ -38,7 +37,7 @@ pub fn encrypt_with_nonce(message: &[u8], key: &Key, _iv: Option<IV>) -> Result<
         Ok(size) => size,
         Err(_) => return Err(EnclaveError::EncryptionError {}),
     };
-//    println!("**Returned size: {:?}, Real size: {:?}", &seal_size, in_out.len());
+    //    println!("**Returned size: {:?}, Real size: {:?}", &seal_size, in_out.len());
     let mut in_out = in_out[..seal_size].to_vec();
     in_out.append(&mut iv.to_vec());
     Ok(in_out)
@@ -70,6 +69,7 @@ pub mod tests {
     use common::utils_t::{FromHex, Sha256, ToHex};
     use cryptography_t::symmetric::*;
     use sgx_trts::trts::rsgx_read_rand;
+    use build_arguments_g::get_key;
 
     pub fn test_rand_encrypt_decrypt() {
         let mut rand_seed: [u8; 1072] = [0; 1072];
@@ -96,5 +96,13 @@ pub mod tests {
         let key = b"EnigmaMPC".sha256();
         let result = decrypt(&encrypted_data.from_hex().unwrap(), &key).unwrap();
         assert_eq!(result, b"This Is Enigma".to_vec());
+
+//        // for encryption purposes:
+//        // use ethabi-cli to encode params then put the result in msg and get the encrypted arguments.
+//        let key = get_key();
+//        let iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+//        let msg = "0000000000000000000000005ed8cee6b63b1c6afce3ad7c92f4fd7e1b8fad9f".from_hex().unwrap();
+//        let enc = encrypt_with_nonce(&msg, &key, Some(iv)).unwrap();
+
     }
 }

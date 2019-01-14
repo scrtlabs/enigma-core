@@ -1,5 +1,4 @@
-#![allow(dead_code,unused_assignments,unused_variables)]
-use failure::Error;
+#![allow(dead_code)]
 use sgx_types::*;
 use std::fmt;
 
@@ -41,12 +40,17 @@ pub struct AttestationServiceErr {
 }
 
 #[derive(Fail, Debug)]
+#[fail(display = "Error while parsing the p2p messages, command: {}, error: {}", cmd, msg)]
+pub struct P2PErr {
+    pub cmd: String,
+    pub msg: String,
+}
+
+#[derive(Fail, Debug)]
 #[fail(display = "Error while trying to {}, Because: {}", command, kind)]
 pub struct DBErr {
     pub command: String,
     pub kind: DBErrKind,
-    #[fail(cause)]
-    pub previous: Option<Error>,
 }
 
 #[derive(Debug)]

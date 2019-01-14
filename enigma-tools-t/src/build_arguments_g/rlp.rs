@@ -10,7 +10,6 @@ use std::str::from_utf8;
 use std::string::String;
 use std::string::ToString;
 use std::vec::Vec;
-use build_arguments_g::*;
 
 enum SolidityType {
     Uint,
@@ -44,7 +43,7 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityTy
         SolidityType::Uint => {
             let num_result: Result<u64, DecoderError> = rlp.as_val();
             result = match num_result {
-                Ok(v) => complete_to_u256(&v.to_string()),
+                Ok(v) => v.to_string(),
                 Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
             }
         }
@@ -120,7 +119,7 @@ fn decrypt_rlp(v: &[u8], key: &[u8; 32], arg_type: &SolidityType) -> Result<Stri
                         }
                         SolidityType::Uint => {
                             let num: U256 = v[..].into();
-                            decrypted_str = complete_to_u256(&num.to_string());
+                            decrypted_str = num.to_string();
                         }
                         SolidityType::Bool => {
                             let mut static_type_num = [0u8; 1];
@@ -176,8 +175,7 @@ fn decode_rlp(rlp: &UntrustedRlp, result: &mut String, key: &[u8; 32], arg_type:
     }
 }
 
-pub fn decode_args(encoded: &[u8], types: &[String]) -> Result<Vec<String>, EnclaveError> {
-    let key = get_key();
+pub fn decode_args(encoded: &[u8], types: &[String], key: &[u8; 32]) -> Result<Vec<String>, EnclaveError> {
     let rlp = UntrustedRlp::new(encoded);
     let mut result: Vec<String> = vec![];
     let iter = rlp.iter();

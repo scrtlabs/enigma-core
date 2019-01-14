@@ -1,11 +1,11 @@
+use crate::common_u::errors::{DBErr, DBErrKind};
+use crate::db::dal::{CRUDInterface, DB};
+use crate::db::primitives::{DeltaKey, SplitKey, Stype};
+use crate::km_u::ContractAddress;
 use failure::Error;
 use hex::{FromHex, ToHex};
 use rocksdb::DB as rocks_db;
 use rocksdb::{DBIterator, Direction, IteratorMode, ReadOptions, WriteBatch};
-use crate::km_u::ContractAddress;
-use crate::common_u::errors::{DBErr, DBErrKind};
-use crate::db::dal::{CRUDInterface, DB};
-use crate::db::primitives::{DeltaKey, SplitKey, Stype};
 
 const DELTA_PREFIX: &[u8] = &[1];
 
@@ -23,11 +23,17 @@ impl<T> ResultType<T> {
     pub fn unwrap(self) -> T {
         match self {
             ResultType::Partial(val) | ResultType::Full(val) => val,
-            ResultType::None => panic!("called `Option::unwrap()` on a `None` value"),
+            ResultType::None => panic!("called `ResultType::unwrap()` on a `None` value"),
+        }
+    }
+
+    pub fn is_none(&self) -> bool {
+        match *self {
+            ResultType::None => true,
+            _ => false,
         }
     }
 }
-
 
 pub trait P2PCalls<V> {
     /// returns the latest delta for the required address.
@@ -132,14 +138,13 @@ impl P2PCalls<Vec<u8>> for DB {
         // check and extract the CF from the DB
         // to_hex converts the [u8] to str
         let str_addr = address.to_hex();
-        let cf_key = self.database.cf_handle(&str_addr).ok_or(
-            DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+        let cf_key =
+            self.database.cf_handle(&str_addr).ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
 
         let iter = self.database.prefix_iterator_cf(cf_key, DELTA_PREFIX)?;
-        let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey, previous: None })?;
+        let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
         let k_key = K::from_split(&str_addr, &*last.0)?;
         Ok((k_key, (&*last.1).to_vec()))
-
     }
 
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> ResultVec<(K, Vec<u8>)> {
@@ -159,21 +164,24 @@ impl P2PCalls<Vec<u8>> for DB {
             // list_cf returns "Default" as the first CF,
             // so we remove it if we have elements other than that in the DB.
             l if l > 1 => cf_list.remove(0),
-            _ => return Err(DBErr { command: "get_all_addresses".to_string(), kind: DBErrKind::MissingKey, previous: None }.into()),
+            _ => return Err(DBErr { command: "get_all_addresses".to_string(), kind: DBErrKind::MissingKey }.into()),
         };
         // convert all addresses from strings to slices.
         // filter_map filters all None types from the iterator,
         // therefore we return Option type for each item in the closure
-        let addr_list = cf_list.iter().filter_map(|address_str| {
-            let mut address = [0u8; 32];
-            let slice_address = match address_str.from_hex() {
-                Ok(slice) => slice,
-               // if the address is not a correct hex then it is not a correct address.
-               Err(_) => return None,
-            };
-            address.copy_from_slice(&slice_address[..]);
-           Some(address)
-        }).collect::<Vec<_>>();
+        let addr_list = cf_list
+            .iter()
+            .filter_map(|address_str| {
+                let mut address = [0u8; 32];
+                let slice_address = match address_str.from_hex() {
+                    Ok(slice) => slice,
+                    // if the address is not a correct hex then it is not a correct address.
+                    Err(_) => return None,
+                };
+                address.copy_from_slice(&slice_address[..]);
+                Some(address)
+            })
+            .collect::<Vec<_>>();
 
         Ok(addr_list)
     }
@@ -197,7 +205,8 @@ impl P2PCalls<Vec<u8>> for DB {
         // convert the key to the rocksdb representation
         from.as_split(|from_hash, from_key| {
             // make sure the address exists as a CF in the DB
-            let cf_key = self.database.cf_handle(&from_hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, previous: None, })?;
+            let cf_key =
+                self.database.cf_handle(&from_hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
 
             // if exists, extract the second key for the range.
             to.as_split(|hash_to, to_key| {
@@ -209,25 +218,25 @@ impl P2PCalls<Vec<u8>> for DB {
                 // (all elements up to this key, not included!!)
                 read_opts.set_iterate_upper_bound(&to_key);
                 // build an iterator which will iterate from the first key
-                let db_iter = DBIterator::new_cf(&self.database,
-                                                       cf_key,
-                                                       &read_opts,
-                                                       IteratorMode::From(&from_key, Direction::Forward))?;
-                let key_val: Vec<(K, Vec<u8>)> = db_iter.map(|(key, val)| {
-                    // creating from the string of the address and the
-                    // key of each result in the iterator a K type.
-                    // from_split returns a result and therefore will return
-                    // an error in case that it wasn't able to create the key.
-                    (K::from_split(hash_to, &*key).unwrap(), (&*val).to_vec()) // TODO: Handle this error
-                }).collect();
+                let db_iter =
+                    DBIterator::new_cf(&self.database, cf_key, &read_opts, IteratorMode::From(&from_key, Direction::Forward))?;
+                let key_val: Vec<(K, Vec<u8>)> = db_iter
+                    .map(|(key, val)| {
+                        // creating from the string of the address and the
+                        // key of each result in the iterator a K type.
+                        // from_split returns a result and therefore will return
+                        // an error in case that it wasn't able to create the key.
+                        (K::from_split(hash_to, &*key).unwrap(), (&*val).to_vec()) // TODO: Handle this error
+                    })
+                    .collect();
                 // add the values received from this loop to the output vector.
 
-                if key_val.is_empty(){
+                if key_val.is_empty() {
                     return Ok(ResultType::None);
                 }
                 let mut full = false;
                 if let Some(last) = key_val.last() {
-                    full = last.0.as_split(|_, key1| from.as_split( |_, key2 | key1 == key2 ));
+                    full = last.0.as_split(|_, key1| from.as_split(|_, key2| key1 == key2));
                 }
                 if full {
                     Ok(ResultType::Full(key_val))
@@ -237,7 +246,6 @@ impl P2PCalls<Vec<u8>> for DB {
             })
         })
     }
-
 
     fn insert_tuples<K: SplitKey>(&mut self, key_vals: &[(K, Vec<u8>)]) -> Vec<Result<(), Error>> {
         let mut res = Vec::with_capacity(key_vals.len());
@@ -262,15 +270,14 @@ impl P2PCalls<Vec<u8>> for DB {
 
 #[cfg(test)]
 mod test {
-
     use crate::db::dal::{CRUDInterface, DB};
-    use crate::db::iterator::{ContractAddress, P2PCalls, ResultType};
+    use crate::db::iterator::{ContractAddress, P2PCalls};
     use crate::db::primitives::{DeltaKey, Stype};
 
     #[test]
     fn test_get_tip_multi_deltas_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash = [7u8; 32];
 
@@ -292,8 +299,8 @@ mod test {
 
     #[test]
     fn test_get_tip_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash = [7u8; 32];
         let key_type = Stype::Delta(23);
@@ -310,8 +317,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tip_no_data() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let db = DB::new(&tempdir, true).unwrap();
         let arr = [7u8; 32];
         let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&arr).unwrap();
     }
@@ -319,8 +326,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tip_data_no_delta() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
         let hash = [7u8; 32];
         let key_type = Stype::State;
         let dk = DeltaKey { hash, key_type };
@@ -331,8 +338,8 @@ mod test {
 
     #[test]
     fn test_get_tips_single_row_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash = [7u8; 32];
         let key_type = Stype::Delta(23);
@@ -348,8 +355,8 @@ mod test {
 
     #[test]
     fn test_get_tips_multi_row_per_add_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
         let hash = [7u8; 32];
 
         let key_type_a = Stype::Delta(1);
@@ -369,8 +376,8 @@ mod test {
 
     #[test]
     fn test_get_tips_multi_add_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -399,8 +406,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tips_no_addr() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -417,8 +424,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tips_no_deltas() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::State;
@@ -438,8 +445,8 @@ mod test {
 
     #[test]
     fn test_get_all_addresses_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::State;
@@ -468,8 +475,8 @@ mod test {
 
     #[test]
     fn test_get_all_addresses_invalid_cf() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::State;
@@ -503,8 +510,8 @@ mod test {
 
     #[test]
     fn test_get_all_tips() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -542,8 +549,8 @@ mod test {
 
     #[test]
     fn test_get_deltas() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash = [7u8; 32];
 
@@ -593,8 +600,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_deltas_different_hashes() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir.clone(), true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
 
         let hash_a = [9u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -613,15 +620,15 @@ mod test {
                 if format!("{:?}", e).contains("addresses of values are not equal") {
                     panic!(e);
                 }
-            },
+            }
             Ok(_) => (),
         }
     }
 
     #[test]
     fn test_insert_tuples() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-        let mut db = DB::new(tempdir, true).unwrap();
+        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
+        let mut db = DB::new(&tempdir, true).unwrap();
         let data = vec![
             (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(1) }, b"Enigma".to_vec()),
             (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(2) }, b"to".to_vec()),
@@ -629,7 +636,7 @@ mod test {
             (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(4) }, b"moon".to_vec()),
             (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(5) }, b"and".to_vec()),
             (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(6) }, b"back".to_vec()),
-    ];
+        ];
         let results = db.insert_tuples(&data);
         for res in results {
             res.unwrap();

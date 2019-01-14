@@ -22,13 +22,18 @@ enclave {
 	                                   [out, size=100000] uint8_t* output, [out] uint8_t signiture[65], [out] uint64_t* result_length);
 
 
-        public EnclaveReturn ecall_deploy([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len, [out] uint64_t* output_ptr);
+        public EnclaveReturn ecall_deploy([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
+                                          [in, size=construct_len] const uint8_t* construct, size_t construct_len,
+                                          [in, count=args_len] const uint8_t* args, size_t args_len,
+                                          [in] uint8_t address[32], [in] uint8_t user_key[64],
+                                          [in] const uint64_t* gas_limit, [out] uint64_t* output_ptr, [out] uint8_t sig[65]);
 
         public EnclaveReturn ecall_execute([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
                                           [in, size=callable_len] const uint8_t* callable, size_t callable_len,
                                           [in, size=callable_args_len] const uint8_t* callable_args, size_t callable_args_len,
-        	                              [out] uint64_t* output_ptr, [out] uint64_t* delta_data_ptr, [out] uint8_t delta_hash_out[32], [out] uint32_t* delta_index_out,
-        	                              [out] uint64_t* ethereum_payload_ptr, [out, size=20] uint8_t* ethereum_contract_addr);
+                                          [in] uint8_t pubkey[64], [in] uint8_t address[32],
+                                          [in] const uint64_t* gas_limit,
+        	                              [out] ExecuteResult* result);
 
         public void ecall_get_signing_address([out] uint8_t arr[42]);
 
@@ -38,24 +43,27 @@ enclave {
 
         public EnclaveReturn ecall_build_state([out] uint64_t* failed_ptr);
 
+        public EnclaveReturn ecall_get_user_key([out] uint8_t sig[65], [in] uint8_t pubkey[64], [out] uint64_t* serialized_ptr);
+
     };
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] size_t* result_length);
 
         // TODO: Add explicit size wherever is possible.
-        int8_t ocall_update_state( [in] uint8_t contract_id[32], [in, size=len] const uint8_t* enc_state, size_t len );
-        int8_t ocall_new_delta( [in, size=len] const uint8_t* enc_delta, size_t len, [in] uint8_t delta_hash[32], [in] uint32_t* delta_index);
+        EnclaveReturn ocall_update_state( [in] uint8_t contract_id[32], [in, size=len] const uint8_t* enc_state, size_t len );
+
+        EnclaveReturn ocall_new_delta( [in, size=len] const uint8_t* enc_delta, size_t len, [in] uint8_t delta_hash[32], [in] uint32_t* delta_index);
 
         uint64_t ocall_save_to_memory( [in, count=data_len] const uint8_t* data_ptr, size_t data_len);
 
-        int8_t ocall_get_deltas_sizes( [in] uint8_t addr[32], [in] const uint32_t* start, [in] const uint32_t* end,
+        EnclaveReturn ocall_get_deltas_sizes( [in] uint8_t addr[32], [in] const uint32_t* start, [in] const uint32_t* end,
                                        [out, count=res_len] size_t* res_ptr, size_t res_len);
 
-        int8_t ocall_get_deltas( [in] uint8_t addr[32], [in] const uint32_t* start, [in] const uint32_t* end,
+        EnclaveReturn ocall_get_deltas( [in] uint8_t addr[32], [in] const uint32_t* start, [in] const uint32_t* end,
                                  [out, count=res_len] uint8_t* res_ptr, size_t res_len);
 
-        int8_t ocall_get_state_size( [in] uint8_t addr[32], [out] size_t* state_size);
+        EnclaveReturn ocall_get_state_size( [in] uint8_t addr[32], [out] size_t* state_size);
 
-        int8_t ocall_get_state( [in] uint8_t addr[32], [out, count=state_len] uint8_t* state_pt, size_t state_len);
+        EnclaveReturn ocall_get_state( [in] uint8_t addr[32], [out, count=state_len] uint8_t* state_pt, size_t state_len);
     };
 };
