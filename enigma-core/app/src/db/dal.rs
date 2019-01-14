@@ -118,10 +118,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         key.as_split(|hash, index_key| {
             let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
 
-                self.database.get_cf(cf_key, &index_key)?.map_or_else(
-                    || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey }.into()),
-                    |data| Ok(data.to_vec())
-                )
+            self.database.get_cf(cf_key, &index_key)?.map_or_else(
+                || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey }.into()),
+                |data| Ok(data.to_vec()),
+            )
         })
     }
 
