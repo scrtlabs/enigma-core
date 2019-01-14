@@ -1,8 +1,8 @@
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
+use enigma_tools_u::common_u::FromHex32;
 use failure::Error;
 use hex::ToHex;
 use std::str;
-use enigma_tools_u::common_u::FromHex32;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct Array32u8(pub [u8; 32]);
@@ -38,7 +38,7 @@ pub trait SplitKey {
 
     // returns the split values back into the shape of the struct.
     fn from_split(_hash: &str, _key_type: &[u8]) -> Result<Self, Error>
-        where Self: Sized;
+    where Self: Sized;
 }
 
 impl Default for Stype {

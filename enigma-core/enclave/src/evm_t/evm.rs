@@ -36,24 +36,28 @@ pub fn call_sputnikvm(code: &[u8], data: Vec<u8>) -> (u8, Vec<u8>) {
     let gas_price = Gas::from_str("0x0").unwrap();
     let block_number = "0x0";
 
-    let block = HeaderParams { beneficiary: Address::default(),
-                               timestamp: 0,
-                               number: U256::from_str(block_number).unwrap(),
-                               difficulty: U256::zero(),
-                               gas_limit: Gas::zero(), };
+    let block = HeaderParams {
+        beneficiary: Address::default(),
+        timestamp: 0,
+        number: U256::from_str(block_number).unwrap(),
+        difficulty: U256::zero(),
+        gas_limit: Gas::zero(),
+    };
 
     let mut vm: Box<VM> = {
-        let context = Context { address,
-                                caller,
-                                gas_limit,
-                                gas_price,
-                                value,
-                                code: Rc::new(code.to_vec()),
-                                data: Rc::new(data),
-                                origin: caller,
-                                apprent_value: value,
-                                is_system: false,
-                                is_static: false, };
+        let context = Context {
+            address,
+            caller,
+            gas_limit,
+            gas_price,
+            value,
+            code: Rc::new(code.to_vec()),
+            data: Rc::new(data),
+            origin: caller,
+            apprent_value: value,
+            is_system: false,
+            is_static: false,
+        };
         Box::new(SeqContextVM::<MainnetFrontierPatch>::new(context, block))
     };
 

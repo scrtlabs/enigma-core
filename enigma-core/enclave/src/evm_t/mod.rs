@@ -7,11 +7,11 @@ pub enum EvmResult {
     FAULT,
 }
 
-pub mod preprocessor{
-    use std::vec::Vec;
-    use sgx_trts::trts::rsgx_read_rand;
+pub mod preprocessor {
     use enigma_tools_t::common::errors_t::EnclaveError;
+    use sgx_trts::trts::rsgx_read_rand;
     use std::string::ToString;
+    use std::vec::Vec;
 
     // TODO: Implement Errors
     pub fn run(pre_sig: &str) -> Result<Vec<u8>, EnclaveError> {

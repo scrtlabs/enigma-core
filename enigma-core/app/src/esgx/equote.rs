@@ -31,27 +31,21 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<String, Err
 
 #[cfg(test)]
 mod test {
+    use crate::esgx::general::init_enclave_wrapper;
+    use enigma_tools_u::attestation_service::{self, service::AttestationService};
     use enigma_tools_u::esgx::equote::retry_quote;
-    use esgx::general::init_enclave_wrapper;
+
+    // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
+    // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0
+    const SPID: &str = "1601F95C39B9EA307FEAABB901ADC3EE"; // Elichai's SPID
+
     #[test]
     fn test_produce_quote() {
         // initiate the enclave
-        let enclave = match init_enclave_wrapper() {
-            Ok(r) => {
-                println!("[+] Init Enclave Successful {}!", r.geteid());
-                r
-            }
-            Err(x) => {
-                println!("[-] Init Enclave Failed {}!", x.as_str());
-                assert_eq!(0, 1);
-                return;
-            }
-        };
+        let enclave = init_enclave_wrapper().unwrap();
         // produce a quote
-        // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
-        // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0
-        let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE"); // Elichai's SPID
-        let tested_encoded_quote = match retry_quote(enclave.geteid(), &spid, 8) {
+
+        let tested_encoded_quote = match retry_quote(enclave.geteid(), &SPID, 18) {
             Ok(encoded_quote) => encoded_quote,
             Err(e) => {
                 println!("[-] Produce quote Err {}, {}", e.as_fail(), e.backtrace());
@@ -65,5 +59,15 @@ mod test {
         enclave.destroy();
         assert!(tested_encoded_quote.len() > 0);
         //assert_eq!(real_encoded_quote, tested_encoded_quote);
+    }
+
+    #[test]
+    fn test_produce_and_verify_qoute() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let quote = retry_quote(enclave.geteid(), &SPID, 18).unwrap();
+        let service = AttestationService::new(attestation_service::constants::ATTESTATION_SERVICE_URL);
+        let as_response = service.get_report(&quote).unwrap();
+
+        assert!(as_response.result.verify_report().unwrap());
     }
 }

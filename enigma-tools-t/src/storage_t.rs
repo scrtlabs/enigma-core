@@ -24,11 +24,14 @@ impl SecretKeyStorage {
     pub fn seal_key(&self, sealed_log_out: &mut [u8; SEAL_LOG_SIZE]) {
         let additional: [u8; 0] = [0_u8; 0];
         let attribute_mask = sgx_attributes_t { flags: 0xffff_ffff_ffff_fff3, xfrm: 0 };
-        let sealed_data = SgxSealedData::<SecretKeyStorage>::seal_data_ex(0x0001, //key policy
-                                                                          attribute_mask,
-                                                                          0, //misc mask
-                                                                          &additional,
-                                                                          &self).unwrap();
+        let sealed_data = SgxSealedData::<SecretKeyStorage>::seal_data_ex(
+            0x0001, //key policy
+            attribute_mask,
+            0, //misc mask
+            &additional,
+            &self,
+        )
+        .unwrap();
         // to sealed_log ->
         //    let mut sealed_log_arr:[u8;2048] = [0;2048];
         let sealed_log = sealed_log_out.as_mut_ptr();
@@ -63,7 +66,7 @@ impl SecretKeyStorage {
 }
 
 fn to_sealed_log<T: Copy + ContiguousMemory>(sealed_data: &SgxSealedData<T>, sealed_log: *mut u8,
-                                             sealed_log_size: u32) -> Option<*mut sgx_sealed_data_t> {
+                                             sealed_log_size: u32, ) -> Option<*mut sgx_sealed_data_t> {
     unsafe { sealed_data.to_raw_sealed_data_t(sealed_log as *mut sgx_sealed_data_t, sealed_log_size) }
 }
 
