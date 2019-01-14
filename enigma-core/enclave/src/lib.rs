@@ -119,6 +119,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     let callable_slice = slice::from_raw_parts(callable, callable_len);
     let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
 
+    // in order to view the specific error print out the result of the function
     ecall_execute_internal(bytecode_slice,
                            callable_slice,
                            callable_args_slice,
@@ -141,12 +142,14 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 /// * `output` - the output holder, which will hold the bytecode for deployment
 /// * `output_len` - the length of the output
 pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
+                                      constructor: *const u8, constructor_len: usize,
                                       args: *const u8, args_len: usize,
                                       address: &ContractAddress, user_key: &PubKey,
                                       gas_limit: *const u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> EnclaveReturn {
     let args = slice::from_raw_parts(args, args_len);
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
-    ecall_deploy_internal(bytecode_slice, args, address, user_key, *gas_limit, output_ptr, sig).into()
+    let constructor = slice::from_raw_parts(constructor, constructor_len);
+    ecall_deploy_internal(bytecode_slice, constructor, args, address, user_key, *gas_limit, output_ptr, sig).into()
 }
 
 #[no_mangle]
@@ -234,27 +237,27 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8],
                                  address: &ContractAddress, gas_limit: u64,
                                  result: &mut ExecuteResult) -> Result<(), EnclaveError> {
     let callable = str::from_utf8(callable_slice)?;
-    let callable_args = hexutil::read_hex(str::from_utf8(callable_args_slice).unwrap()).unwrap();
+//    let s = str::from_utf8(callable_args_slice)?;
+//    let callable_args = hexutil::read_hex(s)?;
     let state = execution::get_state(*address)?;
 
     let (types, function_name) = get_types(callable)?;
-    let types_vector = extract_types(&types.to_string());
 
-    let inputs_key = km_t::users::DH_KEYS
-        .lock_expect("User DH Key")
+//    let types_vector = extract_types(&types.to_string());
+    let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(EnclaveError::KeyError { key_type: "Missing DH Key".to_string(), key: "".to_string() })?;
 
-    let args_vector = get_args(&callable_args, &types_vector, &inputs_key)?;
+    let decrypted_args = decrypt_args(&callable_args_slice, &inputs_key)?;
 
-    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], false) {
-        Ok(v) => v,
-        Err(e) => {
-            return Err(EnclaveError::ExecutionError { code: "interpretation of call parameters".to_string(), err: e.to_string() });
-        }
-    };
+//    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], false) {
+//        Ok(v) => v,
+//        Err(e) => {
+//            return Err(EnclaveError::ExecutionError { code: "interpretation of call parameters".to_string(), err: e.to_string() });
+//        }
+//    };
 
-    let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, params)?;
+    let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, decrypted_args.clone())?;
 
     prepare_wasm_result(exec_res.state_delta.clone(),
                         &exec_res.result[..],
@@ -263,7 +266,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8],
                         result)?;
 
     // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
-    let args_hash = cryptography_t::prepare_hash_multiple(&[callable_slice, &callable_args, address]).keccak256();
+    let args_hash = cryptography_t::prepare_hash_multiple(&[callable_slice, &decrypted_args, address]).keccak256();
     let output_hash = exec_res.result.keccak256();
     let exe_code_hash = bytecode_slice.keccak256();
     let mut delta_hash = [0].keccak256();
@@ -317,20 +320,24 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 }
 
 
-unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], args: &[u8],
+unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args: &[u8],
                                 address: &ContractAddress, user_key: &PubKey,
                                 gas_limit: u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> Result<(), EnclaveError> {
+
     let deploy_bytecode = build_constructor(bytecode_slice)?;
+    let constructor = str::from_utf8(constructor)?;
+    let (types, function_name) = get_types(constructor)?;
 
     let inputs_key = km_t::users::DH_KEYS
         .lock_expect("User DH Key")
         .remove(&user_key[..])
-        .ok_or(EnclaveError::KeyError { key_type: "Missing DH Key".to_string(), key: "".to_string() })?;
-    // TODO: decrypt and parse the args
+        .ok_or(EnclaveError::KeyError {key_type: "Missing DH Key".to_string(), key: "".to_string()})?;
+
+    let decrypted_args = decrypt_args(args, &inputs_key)?;
 
     let state = ContractState::new(*address);
 
-    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state)?;
+    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, decrypted_args.clone())?;
 
     // TODO: Can the user make an ethereum payload in the constructor?
     // TODO: Maybe it can be the same as `prepare_wasm_result`?

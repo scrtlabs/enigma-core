@@ -1,8 +1,8 @@
 pub mod rlp;
 use self::rlp::decode_args;
-use common::errors_t::EnclaveError;
-use common::utils_t::FromHex;
-use cryptography_t::asymmetric::KeyPair;
+use cryptography_t::{asymmetric::KeyPair, symmetric::decrypt};
+use crate::common::errors_t::EnclaveError;
+use crate::common::utils_t::FromHex;
 use std::string::String;
 use std::string::ToString;
 use std::vec::Vec;
@@ -39,7 +39,18 @@ pub fn get_args(callable_args: &[u8], types: &[String], key: &[u8; 32]) -> Resul
     decode_args(callable_args, types, key)
 }
 
-pub fn extract_types(types: &str) -> Vec<String> {
+// decrypt the arguments which all are sent encrypted and return the solidity abi serialized data
+pub fn decrypt_args(callable_args: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EnclaveError>{
+    // if args is empty we don't want to try decrypting the slice- it will lead to an error
+    if callable_args.is_empty() {
+        Ok(callable_args.to_vec())
+    }
+    else {
+        decrypt(callable_args, key)
+    }
+}
+
+pub fn extract_types(types: &str) -> Vec<String>{
     let mut types_vector: Vec<String> = vec![];
     let types_iterator = types.split(',');
     for each_type in types_iterator {

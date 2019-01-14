@@ -15,6 +15,8 @@ use std::string::ToString;
 use std::convert::*;
 use ethabi::{Contract, ParamType};
 
+const CONSTRUCTOR_NAME: &str = "construct";
+
 fn generate_eng_wasm_aux_functions() -> proc_macro2::TokenStream{
     quote!{
         #[no_mangle]
@@ -38,11 +40,11 @@ fn generate_eng_wasm_aux_functions() -> proc_macro2::TokenStream{
             }
         }
         #[no_mangle]
-        pub fn args() -> String {
+        pub fn args() -> Vec<u8> {
             let length_result = unsafe { external::fetch_args_length() };
 
             match length_result {
-                0 => "".to_string(),
+                0 => Vec::new(),
                 length => {
                     let mut data = Vec::with_capacity(length as usize);
                     for _ in 0..length{
@@ -52,7 +54,8 @@ fn generate_eng_wasm_aux_functions() -> proc_macro2::TokenStream{
                     unsafe {
                         external::fetch_args(data.as_mut_ptr());
                     }
-                    from_utf8(&data).unwrap().to_string()
+//                    from_utf8(&data).unwrap().to_string()
+                    data
                 }
             }
         }
@@ -60,56 +63,89 @@ fn generate_eng_wasm_aux_functions() -> proc_macro2::TokenStream{
     }
 }
 
-fn generate_dispatch(input: syn::Item) -> proc_macro2::TokenStream{
+fn get_contract_methods(input: syn::Item) -> Vec<syn::TraitItemMethod> {
     let v;
-    let functions= match input {
+    match input {
         syn::Item::Trait(input) => {
             v = input.items;
-            v.iter()
+            v.iter().filter_map(|item| {
+                match item {
+                    syn::TraitItem::Method(item) => Some(item.clone()),
+                    _ => None,
+                }
+            })
         },
         _ => panic!(),
-    };
+    }.collect()
+}
 
-    let it: Vec<proc_macro2::TokenStream> = functions.filter_map(|item| {
-        match item {
-                syn::TraitItem::Method(item) => {
-                    let func = item.sig.ident.clone();
-                    let arg_types: Vec<proc_macro2::TokenStream> = item.sig.decl.inputs.iter().filter_map(|arg| match arg {
-                        // Argument captured by a name
-                        syn::FnArg::Captured(arg_captured) => {
-                            let ty = &arg_captured.ty;
-                            Some(quote!{#ty})
-                        },
-                        // Argument without a name
-                        syn::FnArg::Ignored(type_only) => {
-                            Some(quote!{#type_only})
-                        },
-                        _ => None,
-                    }).collect();
+fn get_arg_types(method: &syn::TraitItemMethod) -> Vec<proc_macro2::TokenStream> {
+    method.sig.decl.inputs.iter().filter_map(|arg| match arg {
+        // Argument captured by a name
+        syn::FnArg::Captured(arg_captured) => {
+            let ty = &arg_captured.ty;
+            Some(quote! {#ty})
+        },
+        // Argument without a name
+        syn::FnArg::Ignored(type_only) => {
+            Some(quote! {#type_only})
+        },
+        _ => None,
+    }).collect()
+}
 
-                    let name = &func.to_string();
-                    //println!("METHOD {:#?} TYPES {:#?}", item, arg_types);
-                    Some(quote!{
-                        #name => {
-                            let mut stream = pwasm_abi::eth::Stream::new(args.as_bytes());
-
-                            Contract::#func(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
-
-                        }
-                    })
-                },
-                _ => None,
+fn generate_dispatch(input: syn::Item) -> proc_macro2::TokenStream{
+    let it: Vec<proc_macro2::TokenStream> = get_contract_methods(input).iter().filter_map(|item| {
+        let func = item.sig.ident.clone();
+        if func != CONSTRUCTOR_NAME {
+            let arg_types = get_arg_types(item);
+            let name = &func.to_string();
+            Some(quote! {
+                #name => {
+                    let mut stream = pwasm_abi::eth::Stream::new(args);
+                    Contract::#func(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
+                }
+            })
+        }
+        else{
+            None
         }
     }).collect();
 
-
     quote! {
-        pub fn dispatch(name: &str, args: &str){
+        pub fn dispatch(name: &str, args: &[u8]){
             match name{
             #(#it,)*
             _=>panic!(),
             }
         }
+    }
+}
+
+fn generate_constructor(input: syn::Item) -> proc_macro2::TokenStream{
+    let contract_methods = get_contract_methods(input);
+    let constructor = contract_methods.iter().find(|item| item.sig.ident.clone() == CONSTRUCTOR_NAME);
+    match constructor {
+        Some (v) => {
+                    let constructor_name = v.sig.ident.clone();
+                    let arg_types = get_arg_types(v);
+                    quote! {
+                        #[no_mangle]
+                        pub fn deploy() {
+                            deploy_internal(&args());
+                        }
+                        fn deploy_internal(args: &[u8]){
+                            let mut stream = pwasm_abi::eth::Stream::new(args);
+                            Contract::#constructor_name(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
+                        }
+                    }
+                },
+        None => {
+            quote! {
+                #[no_mangle]
+                pub fn deploy() {}
+            }
+        },
     }
 }
 
@@ -119,9 +155,11 @@ pub fn pub_interface(args: proc_macro::TokenStream, input: proc_macro::TokenStre
     let input_tokens = parse_macro_input!(input as syn::Item);
     let disp = generate_dispatch(input_tokens.clone());
     let eng_wasm_aux = generate_eng_wasm_aux_functions();
+    let constructor = generate_constructor(input_tokens.clone());
     let result = quote! {
         #eng_wasm_aux
         #input_tokens
+        #constructor
         #disp
 
         #[no_mangle]
@@ -140,7 +178,7 @@ trait Write{
 }
 
 impl Write for ParamType{
-    /// Returns string which is a formatted represenation of param.
+    /// Returns string which is a formatted representation of param.
     fn write(&self) -> String {
         match *self{
             ParamType::Address => "Address".to_owned(),
@@ -151,7 +189,7 @@ impl Write for ParamType{
                 _ => panic!("{}", self.error()),
             },
             ParamType::Uint(len) => match len{
-                32 | 64 => format!("i{}", len),
+                32 | 64 => format!("u{}", len),
                 256 => "U256".to_owned(),
                 _ => panic!("{}", self.error()),
             },

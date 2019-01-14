@@ -17,7 +17,7 @@ pub trait Encryption<T, E, R, N>
 }
 
 /// Takes a list of variables and concat them together with lengths in between.
-/// What this does is appends the length of the messages before each message and make one big slice from all of them.
+/// What this does is appends the length of the messages before each message and makes one big slice from all of them.
 /// e.g.: `S(H(len(a)+a, len(b)+b...))`
 /// # Examples
 /// ```

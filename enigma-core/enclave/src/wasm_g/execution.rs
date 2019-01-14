@@ -98,7 +98,7 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
     // Instantiate a module
     let instance = ModuleInstance::new(module, &imports).expect("failed to instantiate wasm module").assert_no_start();
 
-    let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, &function_name, types);
+    let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types);
 
     match instance.invoke_export("call", &[], &mut runtime) {
         Ok(_v) => {
@@ -118,9 +118,9 @@ pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
     execute(&module, gas_limit, state, function_name, types, params)
 }
 
-pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState) -> Result<RuntimeResult, EnclaveError> {
+pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, params: Vec<u8>) -> Result<RuntimeResult, EnclaveError>{
     let module = Module::from_buffer(&code)?;
-    execute(&module, gas_limit, state, "".to_string(), "".to_string(), Vec::new())
+    execute(&module, gas_limit, state, "".to_string(), "".to_string(), params)
 }
 
 pub fn get_state(addr: ContractAddress) -> Result<ContractState, EnclaveError> {

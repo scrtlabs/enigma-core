@@ -169,7 +169,7 @@ mod test {
             assert!(requester.connect(constants::CLIENT_CONNECTION_STR_TST).is_ok());
             // test commands
             test_get_register_cmd(&requester);
-            test_execevm_cmd(&requester);
+//            test_execevm_cmd(&requester);
             test_stop_cmd(&requester);
         }
         child_server.join().unwrap();

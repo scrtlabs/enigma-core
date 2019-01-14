@@ -1,7 +1,6 @@
 #![no_std]
 
 /// Enigma runtime implementation
-
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_types;
@@ -17,17 +16,15 @@ extern crate rmp_serde as rmps;
 extern crate serde;
 extern crate wasmi;
 
+use crate::data::{ContractState, DeltasInterface, IOInterface, StatePatch};
 use enigma_tools_t::common::errors_t::EnclaveError;
-use std::str;
-use std::string::String;
-use std::string::ToString;
-use std::vec::Vec;
-use wasmi::{Error, Externals, MemoryRef, RuntimeArgs, RuntimeValue, Trap, TrapKind};
+use std::{str, vec::Vec};
+use std::string::{String, ToString};
+use wasmi::{Externals, MemoryRef, RuntimeArgs, RuntimeValue, Trap, TrapKind};
 
 pub mod data;
 pub mod eng_resolver;
 pub mod ocalls_t;
-use data::{ContractState, DeltasInterface, IOInterface, StatePatch};
 
 #[derive(Debug, Clone)]
 pub struct RuntimeResult {
@@ -86,9 +83,9 @@ impl From<str::Utf8Error> for WasmError {
 }
 
 impl Runtime {
-    pub fn new(
-        gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32], function_name: &String, args_types: String,
-    ) -> Runtime {
+    pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32],
+               function_name: String, args_types: String) -> Runtime {
+
         let init_state = ContractState::new(contract_id);
         let current_state = ContractState::new(contract_id);
         let result = RuntimeResult {
@@ -98,14 +95,12 @@ impl Runtime {
             ethereum_payload: Vec::new(),
             ethereum_contract_addr: [0u8; 20],
         };
-        let function_name = function_name.to_string();
 
         Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, init_state, current_state }
     }
 
-    pub fn new_with_state(
-        gas_limit: u64, memory: MemoryRef, args: Vec<u8>, state: ContractState, function_name: &String, args_types: String,
-    ) -> Runtime {
+    pub fn new_with_state(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, state: ContractState,
+                          function_name: String, args_types: String ) -> Runtime {
         let init_state = state.clone();
         let current_state = state;
         let result = RuntimeResult {
@@ -115,7 +110,6 @@ impl Runtime {
             ethereum_payload: Vec::new(),
             ethereum_contract_addr: [0u8; 20],
         };
-        let function_name = function_name.to_string();
 
         Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, init_state, current_state }
     }
@@ -189,7 +183,8 @@ impl Runtime {
     ///
     /// Read `key` from the memory, then read from the state the value under the `key`
     /// and copy it to the memory at address 0.
-    pub fn read_state(&mut self, args: RuntimeArgs) -> Result<i32> {
+    pub fn read_state (&mut self, args: RuntimeArgs) -> Result<i32> {
+        // TODO: Handle the error here, should we return len=0?;
         let key = args.nth_checked(0);
         let key_len: u32 = args.nth_checked(1).unwrap();
         let mut buf = Vec::with_capacity(key_len as usize);
@@ -204,7 +199,7 @@ impl Runtime {
         let value_vec =
             serde_json::to_vec(&self.current_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
         self.memory.set(0, &value_vec).unwrap(); // TODO: Impl From so we could use `?`
-        Ok(value_vec.len() as i32)
+        Ok( value_vec.len() as i32 )
     }
 
     /// args:
@@ -214,8 +209,7 @@ impl Runtime {
     /// * `value_len` - the length of the value
     ///
     /// Read `key` and `value` from memory, and write (key, value) pair to the state
-    pub fn write_state(&mut self, args: RuntimeArgs) -> Result<()> {
-        println!("in write");
+    pub fn write_state (&mut self, args: RuntimeArgs) -> Result<()>{
         let key = args.nth_checked(0);
         let key_len: u32 = args.nth_checked(1).unwrap();
         let value: u32 = args.nth_checked(2).unwrap();
