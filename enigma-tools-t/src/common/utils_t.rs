@@ -16,9 +16,9 @@ use ring::digest;
 use std::error;
 use std::fmt;
 use std::string::String;
+use std::sync::{SgxMutex, SgxMutexGuard};
 use std::vec::Vec;
 use tiny_keccak::Keccak;
-use std::sync::{SgxMutex, SgxMutexGuard};
 
 // Hash a byte array into keccak256.
 pub trait Keccak256<T> {
@@ -38,9 +38,7 @@ pub trait LockExpectMutex<T> {
 }
 
 impl<T> LockExpectMutex<T> for SgxMutex<T> {
-    fn lock_expect(&self, name: &str) -> SgxMutexGuard<T> {
-        self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name))
-    }
+    fn lock_expect(&self, name: &str) -> SgxMutexGuard<T> { self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name)) }
 }
 
 impl EthereumAddress<String> for [u8; 64] {
@@ -70,6 +68,8 @@ impl Sha256<[u8; 32]> for [u8] {
         result
     }
 }
+
+// TODO: Remove this and use rtustc-hex instead.
 
 /// A trait for converting a value to hexadecimal encoding
 pub trait ToHex {
@@ -258,8 +258,8 @@ mod tests {
         let s = "イロハニホヘト チリヌルヲ ワカヨタレソ ツネナラム \
                  ウヰノオクヤマ ケフコエテ アサキユメミシ ヱヒモセスン";
         b.iter(|| {
-                   s.as_bytes().to_hex();
-               });
+            s.as_bytes().to_hex();
+        });
         b.bytes = s.len() as u64;
     }
 
@@ -269,8 +269,8 @@ mod tests {
                  ウヰノオクヤマ ケフコエテ アサキユメミシ ヱヒモセスン";
         let sb = s.as_bytes().to_hex();
         b.iter(|| {
-                   sb.from_hex().unwrap();
-               });
+            sb.from_hex().unwrap();
+        });
         b.bytes = sb.len() as u64;
     }
 }

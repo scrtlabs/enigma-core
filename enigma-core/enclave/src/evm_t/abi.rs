@@ -1,36 +1,40 @@
-use ethabi;
-use ethabi::param_type::{ParamType, Reader};
-use ethabi::signature::short_signature;
-use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
 use crate::evm_t::error::Error;
 use crate::evm_t::preprocessor;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::ToHex;
+use ethabi;
+use ethabi::param_type::{ParamType, Reader};
+use ethabi::signature::short_signature;
+use ethabi::token::{LenientTokenizer, StrictTokenizer, Token, Tokenizer};
 
+use enigma_tools_t::build_arguments_g::rlp::complete_to_u256;
+use enigma_tools_t::build_arguments_g::*;
 use std::str::from_utf8;
 use std::string::String;
 use std::string::ToString;
 use std::vec::Vec;
-use enigma_tools_t::build_arguments_g::*;
-use enigma_tools_t::build_arguments_g::rlp::complete_to_u256;
 
 fn parse_tokens(params: &[(ParamType, &str)], lenient: bool) -> Result<Vec<Token>, Error> {
-    params.iter()
-          .map(|&(ref param, value)| {
-                   if lenient { LenientTokenizer::tokenize(param, value)
-                   } else { StrictTokenizer::tokenize(param, value) }
-               })
-          .collect::<Result<_, _>>()
-          .map_err(From::from)
+    params
+        .iter()
+        .map(
+            |&(ref param, value)| {
+                if lenient {
+                    LenientTokenizer::tokenize(param, value)
+                } else {
+                    StrictTokenizer::tokenize(param, value)
+                }
+            },
+        )
+        .collect::<Result<_, _>>()
+        .map_err(From::from)
 }
 
 pub fn encode_params(types: &[String], values: &[String], lenient: bool) -> Result<Vec<u8>, Error> {
     if values.len() == 0 {
         return Ok(vec![]);
     }
-    let types: Vec<ParamType> = types.iter()
-        .map(|s| Reader::read(s))
-        .collect::<Result<_, _>>()?;
+    let types: Vec<ParamType> = types.iter().map(|s| Reader::read(s)).collect::<Result<_, _>>()?;
 
     let params: Vec<_> = types.into_iter().zip(values.iter().map(|v| v as &str)).collect();
 
@@ -54,11 +58,9 @@ fn get_preprocessor(preproc: &[u8]) -> Result<Vec<String>, EnclaveError> {
     Ok(preprocessors)
 }
 
-fn create_function_signature(types_vector: Vec<String>, function_name: String) -> Result<[u8;4],EnclaveError>{
+fn create_function_signature(types_vector: Vec<String>, function_name: String) -> Result<[u8; 4], EnclaveError> {
     let types: Vec<ParamType>;
-    match types_vector[..].iter()
-        .map(|s| Reader::read(s))
-        .collect::<Result<_, _>>(){
+    match types_vector[..].iter().map(|s| Reader::read(s)).collect::<Result<_, _>>() {
         Ok(v) => types = v,
         Err(e) => return Err(EnclaveError::InputError { message: e.to_string() }),
     };
@@ -89,17 +91,20 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8], 
         }
     }
     if types_vector.len() != args_vector.len() {
-        return Err(EnclaveError::InputError{message: "The number of function arguments does not match the number of actual parameters in ".to_string()+&function_name});
+        return Err(EnclaveError::InputError {
+            message: "The number of function arguments does not match the number of actual parameters in ".to_string()
+                + &function_name,
+        });
     }
     let params = match encode_params(&types_vector[..], &args_vector[..], false) {
         Ok(v) => v,
-        Err(e) => return Err(EnclaveError::InputError { message: format!("Error in encoding of funciton: {}, {}", function_name, &e) }),
+        Err(e) => {
+            return Err(EnclaveError::InputError { message: format!("Error in encoding of funciton: {}, {}", function_name, &e) })
+        }
     };
 
     let types: Vec<ParamType>;
-        match types_vector[..].iter()
-        .map(|s| Reader::read(s))
-        .collect::<Result<_, _>>(){
+    match types_vector[..].iter().map(|s| Reader::read(s)).collect::<Result<_, _>>() {
         Ok(v) => types = v,
         Err(e) => return Err(EnclaveError::InputError { message: e.to_string() }),
     };

@@ -1,16 +1,14 @@
-use std::sync::{Mutex, MutexGuard};
-use tiny_keccak::Keccak;
 use failure::Error;
 use hex::FromHex;
+use std::sync::{Mutex, MutexGuard};
+use tiny_keccak::Keccak;
 
 pub trait LockExpectMutex<T> {
     fn lock_expect(&self, name: &str) -> MutexGuard<T>;
 }
 
 impl<T> LockExpectMutex<T> for Mutex<T> {
-    fn lock_expect(&self, name: &str) -> MutexGuard<T> {
-        self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name))
-    }
+    fn lock_expect(&self, name: &str) -> MutexGuard<T> { self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name)) }
 }
 
 pub trait Sha256<T> {
@@ -34,7 +32,6 @@ impl FromHex32<Result<[u8; 32], Error>> for str {
         Ok(result)
     }
 }
-
 
 impl Keccak256<[u8; 32]> for [u8] {
     fn keccak256(&self) -> [u8; 32] {

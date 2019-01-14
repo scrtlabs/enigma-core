@@ -1,11 +1,11 @@
+use crate::common_u::errors::{DBErr, DBErrKind};
+use crate::db::dal::{CRUDInterface, DB};
+use crate::db::primitives::{DeltaKey, SplitKey, Stype};
+use crate::km_u::ContractAddress;
 use failure::Error;
 use hex::{FromHex, ToHex};
 use rocksdb::DB as rocks_db;
 use rocksdb::{DBIterator, Direction, IteratorMode, ReadOptions, WriteBatch};
-use crate::km_u::ContractAddress;
-use crate::common_u::errors::{DBErr, DBErrKind};
-use crate::db::dal::{CRUDInterface, DB};
-use crate::db::primitives::{DeltaKey, SplitKey, Stype};
 
 const DELTA_PREFIX: &[u8] = &[1];
 
@@ -34,7 +34,6 @@ impl<T> ResultType<T> {
         }
     }
 }
-
 
 pub trait P2PCalls<V> {
     /// returns the latest delta for the required address.
@@ -139,14 +138,13 @@ impl P2PCalls<Vec<u8>> for DB {
         // check and extract the CF from the DB
         // to_hex converts the [u8] to str
         let str_addr = address.to_hex();
-        let cf_key = self.database.cf_handle(&str_addr).ok_or(
-            DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
+        let cf_key =
+            self.database.cf_handle(&str_addr).ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
 
         let iter = self.database.prefix_iterator_cf(cf_key, DELTA_PREFIX)?;
         let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
         let k_key = K::from_split(&str_addr, &*last.0)?;
         Ok((k_key, (&*last.1).to_vec()))
-
     }
 
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> ResultVec<(K, Vec<u8>)> {
@@ -171,16 +169,19 @@ impl P2PCalls<Vec<u8>> for DB {
         // convert all addresses from strings to slices.
         // filter_map filters all None types from the iterator,
         // therefore we return Option type for each item in the closure
-        let addr_list = cf_list.iter().filter_map(|address_str| {
-            let mut address = [0u8; 32];
-            let slice_address = match address_str.from_hex() {
-                Ok(slice) => slice,
-               // if the address is not a correct hex then it is not a correct address.
-               Err(_) => return None,
-            };
-            address.copy_from_slice(&slice_address[..]);
-           Some(address)
-        }).collect::<Vec<_>>();
+        let addr_list = cf_list
+            .iter()
+            .filter_map(|address_str| {
+                let mut address = [0u8; 32];
+                let slice_address = match address_str.from_hex() {
+                    Ok(slice) => slice,
+                    // if the address is not a correct hex then it is not a correct address.
+                    Err(_) => return None,
+                };
+                address.copy_from_slice(&slice_address[..]);
+                Some(address)
+            })
+            .collect::<Vec<_>>();
 
         Ok(addr_list)
     }
@@ -204,7 +205,8 @@ impl P2PCalls<Vec<u8>> for DB {
         // convert the key to the rocksdb representation
         from.as_split(|from_hash, from_key| {
             // make sure the address exists as a CF in the DB
-            let cf_key = self.database.cf_handle(&from_hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey, })?;
+            let cf_key =
+                self.database.cf_handle(&from_hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
 
             // if exists, extract the second key for the range.
             to.as_split(|hash_to, to_key| {
@@ -216,25 +218,25 @@ impl P2PCalls<Vec<u8>> for DB {
                 // (all elements up to this key, not included!!)
                 read_opts.set_iterate_upper_bound(&to_key);
                 // build an iterator which will iterate from the first key
-                let db_iter = DBIterator::new_cf(&self.database,
-                                                       cf_key,
-                                                       &read_opts,
-                                                       IteratorMode::From(&from_key, Direction::Forward))?;
-                let key_val: Vec<(K, Vec<u8>)> = db_iter.map(|(key, val)| {
-                    // creating from the string of the address and the
-                    // key of each result in the iterator a K type.
-                    // from_split returns a result and therefore will return
-                    // an error in case that it wasn't able to create the key.
-                    (K::from_split(hash_to, &*key).unwrap(), (&*val).to_vec()) // TODO: Handle this error
-                }).collect();
+                let db_iter =
+                    DBIterator::new_cf(&self.database, cf_key, &read_opts, IteratorMode::From(&from_key, Direction::Forward))?;
+                let key_val: Vec<(K, Vec<u8>)> = db_iter
+                    .map(|(key, val)| {
+                        // creating from the string of the address and the
+                        // key of each result in the iterator a K type.
+                        // from_split returns a result and therefore will return
+                        // an error in case that it wasn't able to create the key.
+                        (K::from_split(hash_to, &*key).unwrap(), (&*val).to_vec()) // TODO: Handle this error
+                    })
+                    .collect();
                 // add the values received from this loop to the output vector.
 
-                if key_val.is_empty(){
+                if key_val.is_empty() {
                     return Ok(ResultType::None);
                 }
                 let mut full = false;
                 if let Some(last) = key_val.last() {
-                    full = last.0.as_split(|_, key1| from.as_split( |_, key2 | key1 == key2 ));
+                    full = last.0.as_split(|_, key1| from.as_split(|_, key2| key1 == key2));
                 }
                 if full {
                     Ok(ResultType::Full(key_val))
@@ -244,7 +246,6 @@ impl P2PCalls<Vec<u8>> for DB {
             })
         })
     }
-
 
     fn insert_tuples<K: SplitKey>(&mut self, key_vals: &[(K, Vec<u8>)]) -> Vec<Result<(), Error>> {
         let mut res = Vec::with_capacity(key_vals.len());
@@ -619,7 +620,7 @@ mod test {
                 if format!("{:?}", e).contains("addresses of values are not equal") {
                     panic!(e);
                 }
-            },
+            }
             Ok(_) => (),
         }
     }
@@ -635,7 +636,7 @@ mod test {
             (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(4) }, b"moon".to_vec()),
             (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(5) }, b"and".to_vec()),
             (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(6) }, b"back".to_vec()),
-    ];
+        ];
         let results = db.insert_tuples(&data);
         for res in results {
             res.unwrap();

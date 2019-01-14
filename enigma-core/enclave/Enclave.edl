@@ -33,9 +33,7 @@ enclave {
                                           [in, size=callable_args_len] const uint8_t* callable_args, size_t callable_args_len,
                                           [in] uint8_t pubkey[64], [in] uint8_t address[32],
                                           [in] const uint64_t* gas_limit,
-        	                              [out] uint64_t* output_ptr, [out] uint64_t* delta_data_ptr, [out] uint8_t delta_hash_out[32], [out] uint32_t* delta_index_out,
-        	                              [out] uint64_t* ethereum_payload_ptr, [out] uint8_t ethereum_contract_addr[20],
-        	                              [out] uint8_t sig[65]);
+        	                              [out] ExecuteResult* result);
 
         public void ecall_get_signing_address([out] uint8_t arr[42]);
 

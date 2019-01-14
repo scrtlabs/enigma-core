@@ -1,5 +1,6 @@
-use crate::common::{utils_t::{Keccak256, ToHex}, errors_t::EnclaveError};
-use secp256k1::{PublicKey, SecretKey, SharedSecret, self};
+use crate::common::{errors_t::EnclaveError,
+                    utils_t::{Keccak256, ToHex}};
+use secp256k1::{self, PublicKey, SecretKey, SharedSecret};
 use sgx_trts::trts::rsgx_read_rand;
 use std::string::ToString;
 
@@ -14,7 +15,9 @@ impl KeyPair {
         loop {
             let mut me: [u8; 32] = [0; 32];
             rsgx_read_rand(&mut me)?;
-            if let Ok(_priv) = SecretKey::parse(&me) { return Ok(KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) }) }
+            if let Ok(_priv) = SecretKey::parse(&me) {
+                return Ok(KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) });
+            }
         }
     }
 
@@ -41,8 +44,11 @@ impl KeyPair {
                 let mut result = [0u8; 32];
                 result.copy_from_slice(val.as_ref());
                 Ok(result)
-            },
-            Err(_) => Err(EnclaveError::DerivingKeyError { self_key: self.get_pubkey().to_hex(), other_key: pubkey.serialize()[1..65].to_hex(), }),
+            }
+            Err(_) => Err(EnclaveError::DerivingKeyError {
+                self_key: self.get_pubkey().to_hex(),
+                other_key: pubkey.serialize()[1..65].to_hex(),
+            }),
         }
     }
     pub fn get_privkey(&self) -> [u8; 32] { self.privkey.serialize() }
@@ -111,7 +117,10 @@ pub mod tests {
         let k1 = KeyPair::from_slice(&_priv).unwrap();
         let msg = b"EnigmaMPC";
         let sig = k1.sign(msg).unwrap();
-        assert_eq!(sig.to_vec(), [103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28].to_vec());
+        assert_eq!(
+            sig.to_vec(),
+            vec![103, 116, 208, 210, 194, 35, 190, 81, 174, 162, 1, 162, 96, 104, 170, 243, 216, 2, 241, 93, 149, 208, 46, 210, 136, 182, 93, 63, 178, 161, 75, 139, 3, 16, 162, 137, 184, 131, 214, 175, 49, 11, 54, 137, 232, 88, 234, 75, 2, 103, 33, 244, 158, 81, 162, 241, 31, 158, 136, 30, 38, 191, 124, 93, 28]
+        );
     }
 
     pub fn test_ecdh() {
@@ -122,7 +131,9 @@ pub mod tests {
         let shared1 = k1.get_aes_key(&k2.get_pubkey()).unwrap();
         let shared2 = k2.get_aes_key(&k1.get_pubkey()).unwrap();
         assert_eq!(shared1, shared2);
-        assert_eq!(shared1, [139, 184, 212, 39, 0, 146, 97, 243, 63, 65, 81, 130, 96, 208, 43, 150, 229, 90, 132, 202, 235, 168, 86, 59, 141, 19, 200, 38, 242, 55, 203, 15]);
-
+        assert_eq!(
+            shared1,
+            [139, 184, 212, 39, 0, 146, 97, 243, 63, 65, 81, 130, 96, 208, 43, 150, 229, 90, 132, 202, 235, 168, 86, 59, 141, 19, 200, 38, 242, 55, 203, 15]
+        );
     }
 }

@@ -1,15 +1,15 @@
-use crate::km_u::ContractAddress;
-use crate::db::{DeltaKey, Stype, DATABASE, P2PCalls, ResultType, ResultTypeVec, CRUDInterface};
+use byteorder::{BigEndian, WriteBytesExt};
+use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DATABASE};
 use crate::esgx::general;
+use crate::km_u::ContractAddress;
+use enigma_tools_u::common_u::{LockExpectMutex, Sha256};
 use enigma_types::traits::SliceCPtr;
 use enigma_types::EnclaveReturn;
-use enigma_tools_u::common_u::{LockExpectMutex, Sha256};
-use byteorder::{BigEndian, WriteBytesExt};
-use std::{slice,ptr, mem};
 use lru_cache::LruCache;
 use std::sync::Mutex;
+use std::{mem, ptr, slice};
 
-lazy_static! { pub static ref DELTAS_CACHE: Mutex< LruCache<[u8; 32], Vec<Vec<u8>> >> = Mutex::new(LruCache::new(10)); }
+lazy_static! { pub static ref DELTAS_CACHE: Mutex<LruCache<[u8; 32], Vec<Vec<u8>>>> = Mutex::new(LruCache::new(10)); }
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
@@ -57,7 +57,6 @@ pub unsafe extern "C" fn ocall_save_to_memory(data_ptr: *const u8, data_len: usi
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size: *mut usize) -> EnclaveReturn {
-
     let mut cache_id = addr.to_vec();
     let _state_key = DeltaKey::new(*addr, Stype::State);
     match DATABASE.lock_expect("Database").read(&_state_key) {
@@ -67,8 +66,8 @@ pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size
             cache_id.write_uint::<BigEndian>(state_len as u64, mem::size_of_val(&state_len)).unwrap();
             DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), vec![state]);
             EnclaveReturn::Success
-        },
-        Err(_) => EnclaveReturn::OcallDBError
+        }
+        Err(_) => EnclaveReturn::OcallDBError,
     }
 }
 
@@ -80,24 +79,24 @@ pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut
         Some(state) => {
             enigma_types::write_ptr(&state[0][..], state_ptr, state_size);
             EnclaveReturn::Success
-        },
+        }
         None => {
             let _state_key = DeltaKey::new(*addr, Stype::State);
             match DATABASE.lock_expect("Database").read(&_state_key) {
                 Ok(state) => {
                     enigma_types::write_ptr(&state, state_ptr, state_size);
                     EnclaveReturn::Success
-                },
+                }
                 Err(_) => EnclaveReturn::OcallDBError,
             }
         }
     }
 }
 
-
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut usize, res_len: usize) -> EnclaveReturn {
-    let len = (*end-*start) as usize;
+pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *const u32, end: *const u32,
+                                                res_ptr: *mut usize, res_len: usize) -> EnclaveReturn {
+    let len = (*end - *start) as usize;
     if len != res_len {
         return EnclaveReturn::OcallError;
     }
@@ -108,17 +107,15 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
     let mut deltas_vec = Vec::with_capacity(len);
     let mut sizes = Vec::with_capacity(len);
     match get_deltas(*addr, *start, *end) {
-       Ok(deltas_type) => {
-           match deltas_type {
-               ResultType::None => return EnclaveReturn::OcallDBError,
-               ResultType::Full(deltas) | ResultType::Partial(deltas) => {
-                   for delta in deltas {
-                       sizes.push(delta.1.len());
-                       deltas_vec.push(delta.1);
-                   }
-               },
-           }
-       }
+        Ok(deltas_type) => match deltas_type {
+            ResultType::None => return EnclaveReturn::OcallDBError,
+            ResultType::Full(deltas) | ResultType::Partial(deltas) => {
+                for delta in deltas {
+                    sizes.push(delta.1.len());
+                    deltas_vec.push(delta.1);
+                }
+            }
+        },
         Err(_) => return EnclaveReturn::OcallDBError,
     };
     DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), deltas_vec);
@@ -127,8 +124,8 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> EnclaveReturn {
-
+pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const u32, end: *const u32,
+                                          res_ptr: *mut u8, res_len: usize, ) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
     cache_id.write_u32::<BigEndian>(*start).unwrap();
     cache_id.write_u32::<BigEndian>(*end).unwrap();
@@ -140,20 +137,19 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
             enigma_types::write_ptr(&res[..], res_ptr, res_len);
             EnclaveReturn::Success
         }
-        None => { // If the data doesn't exist in the cache I need to pull it from the DB
+        None => {
+            // If the data doesn't exist in the cache I need to pull it from the DB
             match get_deltas(*addr, *start, *end) {
-                Ok(deltas_type) => {
-                    match deltas_type {
-                        ResultType::None => EnclaveReturn::OcallDBError,
-                        ResultType::Full(deltas) | ResultType::Partial(deltas) => {
-                            let res = deltas.iter().map(|(_, val)| val.clone()).flatten().collect::<Vec<u8>>();
-                            println!("res: {:?}", res);
-                            enigma_types::write_ptr(&res[..], res_ptr, res_len);
-                            EnclaveReturn::Success
-                        }
+                Ok(deltas_type) => match deltas_type {
+                    ResultType::None => EnclaveReturn::OcallDBError,
+                    ResultType::Full(deltas) | ResultType::Partial(deltas) => {
+                        let res = deltas.iter().map(|(_, val)| val.clone()).flatten().collect::<Vec<u8>>();
+                        println!("res: {:?}", res);
+                        enigma_types::write_ptr(&res[..], res_ptr, res_len);
+                        EnclaveReturn::Success
                     }
-                }
-                Err(_) => EnclaveReturn::OcallDBError
+                },
+                Err(_) => EnclaveReturn::OcallDBError,
             }
         }
     }
