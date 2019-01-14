@@ -307,6 +307,55 @@ pub mod tests {
     }
 
     #[test]
+    fn test_allow_and_transfer_erc20() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let address = generate_address();
+        instantiate_encryption_key(&[address], enclave.geteid());
+        let (pubkey_deploy, _, _, _) = exchange_keys(enclave.geteid());
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20", address, "construct()", &[], &pubkey_deploy);
+
+        // defining the arguments, serializing them and encrypting them
+        let (pubkey_m, key_m, _, _) = exchange_keys(enclave.geteid());
+        let owner: Token = Token::FixedBytes(generate_address().to_vec());
+        let mint_amount: Token = Token::Uint(40.into());
+        let mint_args = serial_and_encrypt_args(&key_m, &[owner.clone(), mint_amount.clone()], None);
+
+        let result_mint = wasm::execute(enclave.geteid(), &contract_code, "mint(bytes32,uint256)", &mint_args, &pubkey_m, &address, 100_000_000).expect("Execution failed");
+
+        let (pubkey_a, key_a, _, _) = exchange_keys(enclave.geteid());
+        let spender: Token = Token::FixedBytes(generate_address().to_vec());
+        let approved_amount: Token = Token::Uint(20.into());
+        let approve_args = serial_and_encrypt_args(&key_a, &[owner.clone(), spender.clone(), approved_amount.clone()], None);
+
+        let result_approve = wasm::execute(enclave.geteid(), &contract_code, "approve(bytes32,bytes32,uint256)", &approve_args, &pubkey_a, &address, 100_000_000).expect("Execution failed");
+
+        let (pubkey_t, key_t, _, _) = exchange_keys(enclave.geteid());
+        let addr_to: Token = Token::FixedBytes(generate_address().to_vec());
+        let transfer_amount: Token = Token::Uint(12.into());
+        let transfer_args = serial_and_encrypt_args(&key_t, &[owner.clone(), spender.clone(), addr_to.clone(), transfer_amount.clone()], None);
+
+        let result_transfer = wasm::execute(enclave.geteid(), &contract_code, "transfer_from(bytes32,bytes32,bytes32,uint256)", &transfer_args, &pubkey_t, &address, 100_000_000).expect("Execution failed");
+
+        let (pubkey_b, key_b, _, _) = exchange_keys(enclave.geteid());
+        let balance_args = serial_and_encrypt_args(&key_b, &[addr_to], None);
+
+        let result_balance = wasm::execute(enclave.geteid(), &contract_code, "balance_of(bytes32)", &balance_args, &pubkey_b, &address, 100_000_000).expect("Execution failed");
+        let res_balance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance.output).unwrap().pop().unwrap();
+
+
+        let (pubkey_al, key_al, _, _) = exchange_keys(enclave.geteid());
+        let allowance_args = serial_and_encrypt_args(&key_al, &[owner, spender], None);
+
+        let result_allowance = wasm::execute(enclave.geteid(), &contract_code, "allowance(bytes32,bytes32)", &allowance_args, &pubkey_al, &address, 100_000_000).expect("Execution failed");
+        let res_allowance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_allowance.output).unwrap().pop().unwrap();
+
+        enclave.destroy();
+        assert_eq!(res_balance, transfer_amount);
+        assert_eq!(res_allowance, Token::Uint(8.into()));
+
+    }
+
+    #[test]
     fn test_eth_bridge() {
         let enclave = init_enclave_wrapper().unwrap();
         let address = generate_address();
