@@ -26,9 +26,6 @@ static TOTAL_SUPPLY: &str = "total_supply";
 pub trait Erc20Interface{
     /// 'get_user' receives an address and returns it's User object,
     /// if it does not exist, it creates a new object.
-    fn get_user(user: H256) -> User;
-    /// 'call_ret' sends a U256 result to the external ret function.
-    fn call_ret(res: U256);
     /// 'mint' creates new tokens and sends to the specified address
     fn mint(addr: H256, tokens: U256);
     /// receive the total_supply
@@ -55,23 +52,17 @@ pub struct User {
 }
 
 pub struct Contract;
-impl Erc20Interface for Contract {
-
-    #[no_mangle]
-    fn get_user(user: H256) -> User {
-        match read_state!(&user.to_hex()) {
-            Some(user) => user,
-            // if does not exist, create a new user object
-            None => User{balance: 0, approved: HashMap::new()},
+impl Contract{
+        fn get_user(user: H256) -> User {
+            match read_state!(&user.to_hex()) {
+                Some(user) => user,
+                // if does not exist, create a new user object
+                None => User{balance: 0, approved: HashMap::new()},
+            }
         }
-    }
+}
 
-    #[no_mangle]
-    fn call_ret(res: U256) {
-        let mut byte_res = [0u8; 32];
-        res.to_big_endian(&mut byte_res);
-        unsafe {external::ret(byte_res.as_ptr(), byte_res.len() as u32)};
-    }
+impl Erc20Interface for Contract {
 
     #[no_mangle]
     fn mint(addr: H256, tokens: U256) {
@@ -88,31 +79,25 @@ impl Erc20Interface for Contract {
 
     #[no_mangle]
     fn total_supply() -> U256 {
-        let total: U256 = match read_state!(TOTAL_SUPPLY) {
+        match read_state!(TOTAL_SUPPLY) {
             Some(amount) => amount,
             None => 0,
-        }.into();
-        // todo: remove the call to ret once it is changed on eng_wasm
-        Self::call_ret(total);
-        total
+        }.into()
     }
 
     #[no_mangle]
     fn balance_of(token_owner: H256) -> U256 {
         let user: User = Self::get_user(token_owner);
-        Self::call_ret(user.balance.into());
         user.balance.into()
     }
 
     #[no_mangle]
     fn allowance(owner: H256, spender: H256) -> U256 {
         let user: User = Self::get_user(owner);
-        let approved_bal: U256 = match user.approved.get(&spender.to_hex()) {
+        match user.approved.get(&spender.to_hex()) {
             Some(amount) => *amount,
             None => 0,
-        }.into();
-        Self::call_ret(approved_bal);
-        approved_bal
+        }.into()
     }
 
     #[no_mangle]
