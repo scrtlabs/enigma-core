@@ -1,6 +1,6 @@
 {
-    "enigma_contract_path": "/root/src/enigma-contract-internal/build/contracts/Enigma.json",
-    "enigma_token_contract_path": "/root/src/enigma-contract-internal/build/contracts/EnigmaToken.json",
+    "enigma_contract_path": "../app/tests/principal_node/contracts/Enigma.json",
+    "enigma_token_contract_path": "../app/tests/principal_node/contracts/EnigmaToken.json",
     "account_address": "b4e4d9c2234d712d9bf6c9445f1cc402106bb02b",
     "url": "http://localhost:9545"
 }

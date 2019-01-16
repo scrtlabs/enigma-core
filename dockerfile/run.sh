@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 SRC=$(pwd)/../
-echo "Checking your SGX driver..."
+echo "Checking your local /dev/isgx driver..."
 ls /dev/isgx >/dev/null 2>1  && echo -e "SGX Driver installed\n" || echo -e "SGX Driver NOT installed\n"
 echo "Running the Docker container..."
 echo -e "Mapping local $SRC to container's /root/src/\n"
