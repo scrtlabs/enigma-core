@@ -56,7 +56,7 @@ fn main() {
             return;
         }
     };
-    let server = IpcListener::new(constants::CLIENT_CONNECTION_STR_TST);
+    let server = IpcListener::new(constants::CONNECTION_STR);
     server.run(move |multi| ipc_listener::handle_message(multi, enclave.geteid())).wait().unwrap();
 }
 

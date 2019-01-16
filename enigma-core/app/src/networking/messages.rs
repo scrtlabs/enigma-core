@@ -58,7 +58,8 @@ pub struct IpcDHMessage {
 pub struct IpcRegistrationParams {
     #[serde(rename = "signingKey")]
     pub sigining_key: String,
-    pub quote: String,
+    pub report: String,
+    pub signature: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -97,12 +98,15 @@ pub struct IpcGetDeltas {
 impl From<Message> for IpcRequest {
     fn from(msg: Message) -> Self {
         let msg_str = msg.as_str().unwrap();
-        serde_json::from_str(msg_str).expect(msg_str)
+        let req: IpcRequest = serde_json::from_str(msg_str).expect(msg_str);
+        println!("got: {:?}", req);
+        req
     }
 }
 
 impl Into<Message> for IpcResponse {
     fn into(self) -> Message {
+        println!("respond: {:?}", self);
         let msg = serde_json::to_vec(&self).unwrap();
         Message::from_slice(&msg)
     }

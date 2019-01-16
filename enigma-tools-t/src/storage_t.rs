@@ -25,7 +25,7 @@ impl SecretKeyStorage {
         let additional: [u8; 0] = [0_u8; 0];
         let attribute_mask = sgx_attributes_t { flags: 0xffff_ffff_ffff_fff3, xfrm: 0 };
         let sealed_data = SgxSealedData::<SecretKeyStorage>::seal_data_ex(
-            0x0001, //key policy
+            sgx_types::SGX_KEYPOLICY_MRENCLAVE, //key policy
             attribute_mask,
             0, //misc mask
             &additional,

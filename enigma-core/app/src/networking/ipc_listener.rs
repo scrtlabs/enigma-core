@@ -58,28 +58,40 @@ pub(self) mod handling {
     use crate::db::{CRUDInterface, DeltaKey, P2PCalls, Stype, DATABASE};
     use crate::km_u;
     use crate::networking::messages::*;
+    use crate::esgx::equote;
+    use crate::networking::constants::SPID;
     use enigma_tools_u::common_u::{FromHex32, LockExpectMutex};
     use enigma_tools_u::esgx::equote as equote_tools;
-    use esgx::equote;
+    use enigma_tools_u::attestation_service::{service::AttestationService, constants::ATTESTATION_SERVICE_URL};
     use failure::Error;
     use hex::{FromHex, ToHex};
-    use networking::constants;
     use rmp_serde::Deserializer;
     use serde::Deserialize;
     use serde_json::Value;
     use sgx_types::sgx_enclave_id_t;
+    use std::str;
     use zmq::Message;
 
     pub fn get_registration_params(id: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
-        let quote = equote_tools::retry_quote(eid, &constants::SPID, 18)?;
         let sigining_key = equote::get_register_signing_address(eid)?;
-        let result = IpcRegistrationParams { sigining_key, quote };
+
+        let enc_quote = equote_tools::retry_quote(eid, &SPID, 18)?;
+        let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
+        let response = service.get_report(&enc_quote)?;
+        let quote = response.get_quote()?;
+
+        let report_hex = response.result.report_string.as_bytes().to_hex();
+        let signature = response.result.signature;
+
+        assert_eq!(str::from_utf8(&quote.report_body.report_data)?.trim_right_matches("\x00"), sigining_key);
+
+        let result = IpcRegistrationParams { sigining_key, report: report_hex, signature };
 
         Ok(IpcResponse::GetRegistrationParams { id, result }.into())
     }
     /// Not implemented.
     pub fn identity_challange(id: String, nonce: String) -> Result<Message, Error> {
-        unimplemented!("identity_challange: {}, {}", id, nonce)
+        unimplemented!("identity_challenge: {}, {}", id, nonce)
     }
 
     pub fn get_tip(id: String, input: String) -> Result<Message, Error> {
@@ -278,7 +290,7 @@ mod test {
             res.unwrap();
         }
 
-        let conn = "tcp://*:5556";
+        let conn = "tcp://*:2456";
         let server = IpcListener::new(conn);
         server.run(|multi| handle_message(multi, enclave.geteid())).wait().unwrap();
     }
