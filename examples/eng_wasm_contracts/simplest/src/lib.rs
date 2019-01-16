@@ -17,9 +17,10 @@ pub trait ContractInterface{
     fn write();
     fn check_address(addr: H256);
     fn check_addresses(addr1: H256, addr2: H256);
-    fn print_test(x: U256, y: U256) ;
+    fn print_test(x: U256, y: U256);
+    fn choose_rand_color();
+    fn get_scrambled_vec();
     fn construct(param: U256);
-    fn choose_rand_color() -> String;
 }
 
 pub struct Contract;
@@ -59,15 +60,24 @@ impl ContractInterface for Contract {
         assert_eq!(read_addr2, addr2.to_hex());
     }
 
+    // tests the random service
     #[no_mangle]
-    fn choose_rand_color() -> String {
+    fn choose_rand_color() {
         let mut colors = Vec::new();
         colors.extend(["green", "yellow", "red", "blue", "white", "black", "orange", "purple"].iter().cloned());
         let random: u8 = Rand::gen();
 
         let rng_rand = (random as usize) % colors.len();
         write_state!("color" => colors[rng_rand]);
-        read_state!("color").unwrap()
+        let color : String = read_state!("color").unwrap();
+    }
+
+    // tests the shuffle service on a simple array
+    #[no_mangle]
+    fn get_scrambled_vec() {
+        let mut nums: [u8; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        Rand::shuffle(&mut nums);
+        unsafe {external::ret(nums.as_ptr(), nums.len() as u32)};
     }
 
     #[no_mangle]

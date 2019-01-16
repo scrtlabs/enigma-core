@@ -6,6 +6,8 @@
 extern crate serde_json;
 extern crate serde;
 #[macro_use]
+extern crate more_asserts;
+#[macro_use]
 mod internal_std;
 mod eng_wasm_errors;
 mod ethereum;
@@ -99,7 +101,15 @@ impl Rand {
 }
 
 pub trait RandTypes<T> {
+    /// generate a random number on the trusted side.
     fn gen() -> T;
+}
+
+pub trait Shuffle {
+    /// returns a random location in the array- used for shuffle.
+    fn gen_loc(len: usize) -> usize;
+    /// shuffles the elements in the given slice.
+    fn shuffle<T>(values: &mut [T]);
 }
 
 impl RandTypes<U256> for Rand {
@@ -142,6 +152,22 @@ impl RandTypes<u64> for Rand {
         Self::gen_slice(&mut r);
         let mut res = Cursor::new(r);
         res.read_u64::<BigEndian>().unwrap()
+    }
+}
+
+impl Shuffle for Rand {
+    fn gen_loc(len: usize) -> usize {
+        assert_gt!(len, 0);
+        let rand: u32 = Self::gen();
+        rand as usize % len
+    }
+
+    fn shuffle<T>(values: &mut [T]) {
+        let mut i = values.len();
+        while i >= 2 {
+            values.swap(0, Self::gen_loc(i));
+            i -= 1;
+        }
     }
 }
 
