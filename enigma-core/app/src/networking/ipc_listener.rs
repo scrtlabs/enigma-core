@@ -43,6 +43,7 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
             IpcRequest::UpdateNewContract { id, address, bytecode } => handling::update_new_contract(id, address, bytecode),
             IpcRequest::UpdateDeltas { id, deltas } => handling::update_deltas(id, deltas),
             IpcRequest::NewTaskEncryptionKey { id, user_pubkey } => handling::get_dh_user_key(id, user_pubkey, eid),
+            IpcRequest::DeploySecretContract { id, input } => handling::deploy_contract(id, input, eid),
         };
 
         response.push_back(response_msg.unwrap_or_default());
@@ -60,6 +61,7 @@ pub(self) mod handling {
     use crate::networking::messages::*;
     use crate::esgx::equote;
     use crate::networking::constants::SPID;
+    use crate::wasm_u::wasm;
     use enigma_tools_u::common_u::{FromHex32, LockExpectMutex};
     use enigma_tools_u::esgx::equote as equote_tools;
     use enigma_tools_u::attestation_service::{service::AttestationService, constants::ATTESTATION_SERVICE_URL};
@@ -85,7 +87,7 @@ pub(self) mod handling {
 
         assert_eq!(str::from_utf8(&quote.report_body.report_data)?.trim_right_matches("\x00"), sigining_key);
 
-        let result = IpcRegistrationParams { sigining_key, report: report_hex, signature };
+        let result = IpcResults::RegistrationParams { sigining_key, report: report_hex, signature };
 
         Ok(IpcResponse::GetRegistrationParams { id, result }.into())
     }
@@ -132,7 +134,7 @@ pub(self) mod handling {
                 unreachable!()
             }
         }
-        Ok(IpcResponse::GetAllTips { id, result: tips_results }.into())
+        Ok(IpcResponse::GetAllTips { id, result: IpcResults::Tips(tips_results) }.into())
     }
 
     pub fn get_all_addrs(id: String) -> Result<Message, Error> {
@@ -223,7 +225,8 @@ pub(self) mod handling {
                 }
             }
         }
-        Ok(IpcResponse::UpdateDeltas { id, result: IpcUpdateDeltasResult { status: 0, errors } }.into())
+        let result = IpcResults::UpdateDeltasResult { status: 0, errors };
+        Ok(IpcResponse::UpdateDeltas { id, result }.into())
     }
 
     pub fn get_dh_user_key(id: String, _user_pubkey: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
@@ -236,10 +239,37 @@ pub(self) mod handling {
         let res: Value = Deserialize::deserialize(&mut des).unwrap();
         let pubkey = serde_json::from_value::<Vec<u8>>(res["pubkey"].clone())?;
 
-        let result = IpcDHMessage {dh_key: pubkey.to_hex(), sig: sig.to_hex() };
+        let result = IpcResults::DHKey {dh_key: pubkey.to_hex(), sig: sig.to_hex() };
 
         Ok(IpcResponse::NewTaskEncryptionKey { id, result }.into())
     }
+
+    pub fn deploy_contract(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+        let bytecode = input.pre_code.expect("Bytecode Missing").from_hex()?;
+        let address = input.address.from_hex_32()?;
+        let enc_args = input.encrypted_args.from_hex()?;
+        let mut pubkey = [0u8; 64];
+        pubkey.clone_from_slice(&input.user_pubkey.from_hex()?);
+        let (exe_code, sig ) = wasm::deploy(
+            eid,
+            &bytecode,
+            &input.encrypted_fn,
+            &enc_args,
+            address,
+            &pubkey,
+            input.gas_limit)?;
+
+        let result = IpcResults::TaskResult {
+            exe_code: Some(exe_code.to_hex()),
+            pre_code_hash: Some(String::new()), // TODO: Should this come from the enclave? I think not, sha256/keccak256?
+            used_gas: 0, // TODO: Return used gas from enclave
+            output: String::new(), // TODO: Return output
+            delta: IpcDelta::default(),
+            signature: sig.to_hex(),
+        };
+        Ok( IpcResponse::DeploySecretContract { id, result }.into() )
+    }
+
 }
 
 #[cfg(test)]
