@@ -104,7 +104,7 @@ impl Sampler for PrincipalManager {
 
     fn get_contract_address(&self) -> Address { self.contract.address() }
 
-    fn get_quote(&self) -> Result<String, Error> { Ok(retry_quote(self.eid, &self.config.spid, 8)?) }
+    fn get_quote(&self) -> Result<String, Error> { Ok(retry_quote(self.eid, &self.config.spid, 18)?) }
 
     fn get_report(&self, quote: &str) -> Result<(Vec<u8>, service::ASResponse), Error> {
         let (rlp_encoded, as_response) = self.as_service.rlp_encode_registration_params(quote)?;

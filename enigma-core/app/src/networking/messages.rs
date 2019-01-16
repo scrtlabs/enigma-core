@@ -1,13 +1,13 @@
-use zmq::Message;
 use serde_json;
+use zmq::Message;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum IpcResponse {
-    GetRegistrationParams { id: String, result: IpcRegistrationParams},
-    IdentityChallenge { id: String, nonce: String, signature: IpcIdentityChallenge, },
-    GetTip { id: String , result: IpcDelta, },
-    GetTips {id: String, result: IpcResults },
+    GetRegistrationParams { id: String, result: IpcRegistrationParams },
+    IdentityChallenge { id: String, nonce: String, signature: IpcIdentityChallenge },
+    GetTip { id: String, result: IpcDelta },
+    GetTips { id: String, result: IpcResults },
     GetAllTips { id: String, result: Vec<IpcDelta> },
     GetAllAddrs { id: String, result: IpcResults },
     GetDelta { id: String, result: IpcResults },
@@ -15,7 +15,7 @@ pub enum IpcResponse {
     GetContract { id: String, result: IpcResults },
     UpdateNewContract { id: String, address: String, result: IpcResults },
     UpdateDeltas { id: String, result: IpcUpdateDeltasResult },
-    NewTaskEncryptionKey { id: String, result: IpcDHMessage }
+    NewTaskEncryptionKey { id: String, result: IpcDHMessage },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -29,14 +29,13 @@ pub enum IpcResults {
     Tips(Vec<IpcDelta>),
 }
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum IpcRequest {
     GetRegistrationParams { id: String },
     IdentityChallenge { id: String, nonce: String },
     GetTip { id: String, input: String },
-    GetTips {id: String, input: Vec<String> },
+    GetTips { id: String, input: Vec<String> },
     GetAllTips { id: String },
     GetAllAddrs { id: String },
     GetDelta { id: String, input: IpcDelta },
@@ -44,14 +43,11 @@ pub enum IpcRequest {
     GetContract { id: String, input: String },
     UpdateNewContract { id: String, address: String, bytecode: String },
     UpdateDeltas { id: String, deltas: Vec<IpcDelta> },
-    NewTaskEncryptionKey { id: String, pubkey: String },
+    NewTaskEncryptionKey { id: String, #[serde(rename = "userPubKey")] user_pubkey: String },
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcDHMessage {
-    #[serde(rename = "msgId")]
-    pub msg_id: String,
     #[serde(rename = "workerEncryptionKey")]
     pub dh_key: String,
     #[serde(rename = "workerSig")]
@@ -95,9 +91,8 @@ pub struct IpcDelta {
 pub struct IpcGetDeltas {
     pub address: String,
     pub from: u32,
-    pub to: u32
+    pub to: u32,
 }
-
 
 impl From<Message> for IpcRequest {
     fn from(msg: Message) -> Self {
@@ -127,5 +122,4 @@ impl<E: std::fmt::Debug> UnwrapDefault<Message> for Result<Message, E> {
             }
         }
     }
-
 }

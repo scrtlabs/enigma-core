@@ -1,11 +1,11 @@
 pub mod rlp;
-use cryptography_t::asymmetric::KeyPair;
-use common::errors_t::EnclaveError;
-use std::vec::Vec;
+use self::rlp::decode_args;
+use cryptography_t::{asymmetric::KeyPair, symmetric::decrypt};
+use crate::common::errors_t::EnclaveError;
+use crate::common::utils_t::FromHex;
 use std::string::String;
 use std::string::ToString;
-use self::rlp::decode_args;
-use common::utils_t::FromHex;
+use std::vec::Vec;
 
 pub fn get_key() -> [u8; 32] {
     let _my_priv_key = "2987699a6d3a5ebd07f4caf422fad2809dcce942cd9db266ed8e2be02cf95ee9".from_hex().unwrap();
@@ -18,32 +18,42 @@ pub fn get_key() -> [u8; 32] {
     my_keys.get_aes_key(&client_pub_key).unwrap()
 }
 
-
-pub fn get_types(function: &str) -> Result<(String, String), EnclaveError>{
+pub fn get_types(function: &str) -> Result<(String, String), EnclaveError> {
     let start_arg_index;
     let end_arg_index;
 
-    match  function.find('(') {
+    match function.find('(') {
         Some(x) => start_arg_index = x,
-        None  => return Err(EnclaveError::InputError{message: "'callable' signature is illegal".to_string()}),
+        None => return Err(EnclaveError::InputError { message: "'callable' signature is illegal".to_string() }),
     }
 
-    match  function.find(')') {
+    match function.find(')') {
         Some(x) => end_arg_index = x,
-        None  => return Err(EnclaveError::InputError{message: "'callable' signature is illegal".to_string()}),
+        None => return Err(EnclaveError::InputError { message: "'callable' signature is illegal".to_string() }),
     }
 
-    Ok(( function[start_arg_index+1..end_arg_index].to_string(), String::from(&function[..start_arg_index] )))
+    Ok((function[start_arg_index + 1..end_arg_index].to_string(), String::from(&function[..start_arg_index])))
 }
 
-pub fn get_args(callable_args: &[u8], types: &[String], key: &[u8; 32]) -> Result<Vec<String>, EnclaveError>{
+pub fn get_args(callable_args: &[u8], types: &[String], key: &[u8; 32]) -> Result<Vec<String>, EnclaveError> {
     decode_args(callable_args, types, key)
+}
+
+// decrypt the arguments which all are sent encrypted and return the solidity abi serialized data
+pub fn decrypt_args(callable_args: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EnclaveError>{
+    // if args is empty we don't want to try decrypting the slice- it will lead to an error
+    if callable_args.is_empty() {
+        Ok(callable_args.to_vec())
+    }
+    else {
+        decrypt(callable_args, key)
+    }
 }
 
 pub fn extract_types(types: &str) -> Vec<String>{
     let mut types_vector: Vec<String> = vec![];
     let types_iterator = types.split(',');
-    for each_type in types_iterator{
+    for each_type in types_iterator {
         types_vector.push(each_type.to_string());
     }
     types_vector

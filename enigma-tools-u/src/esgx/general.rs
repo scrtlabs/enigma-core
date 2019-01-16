@@ -33,8 +33,7 @@ pub fn init_enclave(token_path: &path::PathBuf, use_token: bool, enclave_locatio
     // Debug Support: set 2nd parameter to 1
     let debug = 1;
     let mut misc_attr = sgx_misc_attribute_t { secs_attr: sgx_attributes_t { flags: 0, xfrm: 0 }, misc_select: 0 };
-    let enclave =
-        SgxEnclave::create(enclave_location, debug, &mut launch_token, &mut launch_token_updated, &mut misc_attr)?;
+    let enclave = SgxEnclave::create(enclave_location, debug, &mut launch_token, &mut launch_token_updated, &mut misc_attr)?;
 
     if launch_token_updated != 0 {
         return Ok((enclave, Some(launch_token)));

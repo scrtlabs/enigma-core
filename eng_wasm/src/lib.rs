@@ -37,6 +37,7 @@ pub mod external {
         pub fn write_payload(payload: *const u8, payload_len: u32);
         pub fn write_address(address: *const u8);
         pub fn gas(amount: u32);
+        pub fn ret(payload: *const u8, payload_len: u32);
     }
 }
 
@@ -61,12 +62,15 @@ pub fn write<T>(key: &str, _value: T) where T: serde::Serialize {
 }
 
 /// Read from state
-pub fn read<T>(key: &str) -> T where for<'de> T: serde::Deserialize<'de> {
+pub fn read<T>(key: &str) -> Option<T> where for<'de> T: serde::Deserialize<'de> {
     let val_len = unsafe { external::read_state(key.as_ptr(), key.len() as u32) };
     let value_holder: Vec<u8> = iter::repeat(0).take(val_len as usize).collect();
     unsafe { external::from_memory(value_holder.as_ptr(), val_len) };
-    let value: Value = serde_json::from_slice(&value_holder).map_err(|_| print("failed unwrapping from_slice")).unwrap();
-    serde_json::from_value(value.clone()).map_err(|_| print("failed unwrapping from_value")).expect("failed")
+    let value: Value = serde_json::from_slice(&value_holder).map_err(|_| print("failed unwrapping from_slice in read_state")).expect("read_state failed");
+    if value.is_null() {
+        return None;
+    }
+    Some(serde_json::from_value(value.clone()).map_err(|_| print("failed unwrapping from_value in read_state")).expect("read_state failed"))
 }
 
 pub fn write_ethereum_payload(payload: Vec<u8>){

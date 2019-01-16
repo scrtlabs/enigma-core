@@ -3,8 +3,8 @@ use crate::cryptography_t::{symmetric, Encryption};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_trts::trts::rsgx_read_rand;
-use std::vec::Vec;
 use std::string::ToString;
+use std::vec::Vec;
 
 pub type StateKey = [u8; 32];
 pub type ContractAddress = [u8; 32];
@@ -30,23 +30,23 @@ pub struct PrincipalMessage {
 impl PrincipalMessage {
     const PREFIX: &'static [u8; 14] = b"Enigma Message";
 
-    pub fn new(data: PrincipalMessageType, pubkey: PubKey) -> Result<PrincipalMessage, EnclaveError> {
+    pub fn new(data: PrincipalMessageType, pubkey: PubKey) -> Result<Self, EnclaveError> {
         let mut id = [0u8; 12];
         rsgx_read_rand(&mut id)?;
         let pubkey = pubkey.to_vec();
         let prefix = *Self::PREFIX;
-        Ok(PrincipalMessage { data, pubkey, id, prefix })
+        Ok(Self { data, pubkey, id, prefix })
     }
 
-    pub fn new_id(data: PrincipalMessageType, id: [u8; 12], pubkey: PubKey) -> PrincipalMessage {
+    pub fn new_id(data: PrincipalMessageType, id: [u8; 12], pubkey: PubKey) -> Self {
         let pubkey = pubkey.to_vec();
         let prefix = *Self::PREFIX;
-        PrincipalMessage { data, pubkey, id, prefix }
+        Self { data, pubkey, id, prefix }
     }
 
     pub fn to_message(&self) -> Result<Vec<u8>, EnclaveError> {
         if self.is_response() {
-            return Err(EnclaveError::MessagingError { err: "can't serialize non encrypted response".to_string() })
+            return Err(EnclaveError::MessagingError { err: "can't serialize non encrypted response".to_string() });
         }
         let mut buf = Vec::new();
         let val = serde_json::to_value(self.clone()).unwrap(); // TODO: impl From for this error
@@ -54,10 +54,10 @@ impl PrincipalMessage {
         Ok(buf)
     }
 
-    pub fn from_message(msg: &[u8]) -> Result<PrincipalMessage, EnclaveError> {
+    pub fn from_message(msg: &[u8]) -> Result<Self, EnclaveError> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
-        let msg: PrincipalMessage = serde_json::from_value(res).unwrap();
+        let msg: Self = serde_json::from_value(res).unwrap();
         Ok(msg)
     }
 
@@ -69,11 +69,29 @@ impl PrincipalMessage {
 
     pub fn get_id(&self) -> MsgID { self.id }
 
-    pub fn is_request(&self) -> bool { if let PrincipalMessageType::Request(_) = self.data { true } else { false } }
+    pub fn is_request(&self) -> bool {
+        if let PrincipalMessageType::Request(_) = self.data {
+            true
+        } else {
+            false
+        }
+    }
 
-    pub fn is_response(&self) -> bool { if let PrincipalMessageType::Response(_) = self.data { true } else { false } }
+    pub fn is_response(&self) -> bool {
+        if let PrincipalMessageType::Response(_) = self.data {
+            true
+        } else {
+            false
+        }
+    }
 
-    pub fn is_encrypted_response(&self) -> bool { if let PrincipalMessageType::EncryptedResponse(_) = self.data { true } else { false } }
+    pub fn is_encrypted_response(&self) -> bool {
+        if let PrincipalMessageType::EncryptedResponse(_) = self.data {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl<'a> Encryption<&'a [u8; 32], EnclaveError, Self, [u8; 12]> for PrincipalMessage {
@@ -83,10 +101,7 @@ impl<'a> Encryption<&'a [u8; 32], EnclaveError, Self, [u8; 12]> for PrincipalMes
                 let mut buf = Vec::new();
                 response.serialize(&mut Serializer::new(&mut buf))?;
                 let enc = symmetric::encrypt_with_nonce(&buf, key, _iv)?;
-                Ok(Self { prefix: self.prefix,
-                          data: PrincipalMessageType::EncryptedResponse(enc),
-                          pubkey: self.pubkey,
-                          id: self.id, })
+                Ok(Self { prefix: self.prefix, data: PrincipalMessageType::EncryptedResponse(enc), pubkey: self.pubkey, id: self.id })
             }
             _ => Err(EnclaveError::EncryptionError {}),
         }
@@ -105,7 +120,6 @@ impl<'a> Encryption<&'a [u8; 32], EnclaveError, Self, [u8; 12]> for PrincipalMes
     }
 }
 
-
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct UserMessage {
     #[doc(hidden)]
@@ -113,14 +127,13 @@ pub struct UserMessage {
     pubkey: Vec<u8>,
 }
 
-
 impl UserMessage {
     const PREFIX: &'static [u8; 19] = b"Enigma User Message";
 
-    pub fn new(pubkey: PubKey) -> UserMessage {
+    pub fn new(pubkey: PubKey) -> Self {
         let pubkey = pubkey.to_vec();
         let prefix = *Self::PREFIX;
-        UserMessage {prefix, pubkey }
+        Self { prefix, pubkey }
     }
 
     pub fn to_message(&self) -> Result<Vec<u8>, EnclaveError> {
@@ -130,10 +143,10 @@ impl UserMessage {
         Ok(buf)
     }
 
-    pub fn from_message(msg: &[u8]) -> Result<PrincipalMessage, EnclaveError> {
+    pub fn from_message(msg: &[u8]) -> Result<Self, EnclaveError> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
-        let msg: PrincipalMessage = serde_json::from_value(res).unwrap();
+        let msg: Self = serde_json::from_value(res).unwrap();
         Ok(msg)
     }
 
@@ -144,7 +157,6 @@ impl UserMessage {
     }
 }
 
-
 pub mod tests {
     use super::{PrincipalMessage, PrincipalMessageType};
     use crate::common::Sha256;
@@ -152,7 +164,10 @@ pub mod tests {
 
     pub fn test_to_message() {
         let res = get_request();
-        assert_eq!(res.to_message().unwrap(), vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 149, 220, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 220, 0, 32, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 220, 0, 32, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 220, 0, 32, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 220, 0, 32, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            res.to_message().unwrap(),
+            vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 149, 220, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 220, 0, 32, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 220, 0, 32, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 220, 0, 32, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 220, 0, 32, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        );
     }
 
     pub fn test_from_message() {
@@ -198,11 +213,12 @@ pub mod tests {
     }
 
     fn get_response() -> PrincipalMessage {
-        let data = PrincipalMessageType::Response(vec![([0u8; 32], [1u8; 32]),
-                                                       ([1u8; 32], [2u8; 32]),
-                                                       ([2u8; 32], [3u8; 32]),
-                                                       ([3u8; 32], [4u8; 32]),
-                                                       ([4u8; 32], [5u8; 32]),
+        let data = PrincipalMessageType::Response(vec![
+            ([0u8; 32], [1u8; 32]),
+            ([1u8; 32], [2u8; 32]),
+            ([2u8; 32], [3u8; 32]),
+            ([3u8; 32], [4u8; 32]),
+            ([4u8; 32], [5u8; 32]),
         ]);
         let id = [75, 52, 85, 160, 254, 16, 9, 130, 50, 81, 252, 231];
 

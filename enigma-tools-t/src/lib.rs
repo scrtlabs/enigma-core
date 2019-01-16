@@ -12,33 +12,32 @@ extern crate failure;
 extern crate json_patch;
 #[macro_use]
 extern crate serde_derive;
-extern crate serde_json;
-extern crate serde;
+extern crate parity_wasm;
+extern crate pwasm_utils;
 extern crate rmp_serde;
+extern crate serde;
+extern crate serde_json;
 extern crate sgx_trts;
 extern crate sgx_tse;
 extern crate sgx_tseal;
 extern crate sgx_types;
-extern crate parity_wasm;
-extern crate pwasm_utils;
 
+extern crate bigint;
+extern crate byteorder;
 extern crate hexutil;
 extern crate ring;
-extern crate secp256k1;
-extern crate tiny_keccak;
-extern crate wasmi;
-extern crate bigint;
 extern crate rlp;
 extern crate ethabi;
 extern crate ethereum_types;
-
-extern crate byteorder;
+extern crate secp256k1;
+extern crate tiny_keccak;
+extern crate wasmi;
+pub mod build_arguments_g;
 pub mod common;
 pub mod cryptography_t;
 pub mod km_primitives;
 pub mod quote_t;
 pub mod storage_t;
-pub mod build_arguments_g;
 pub mod eth_tools_t;
 
 #[cfg(debug_assertions)]

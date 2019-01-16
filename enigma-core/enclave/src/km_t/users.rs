@@ -2,11 +2,11 @@ use crate::SIGNINING_KEY;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-use std::{vec::Vec, sync::SgxMutex};
-use enigma_tools_t::km_primitives::{UserMessage, PubKey};
+use enigma_tools_t::km_primitives::{PubKey, UserMessage};
 use std::collections::HashMap;
+use std::{sync::SgxMutex, vec::Vec};
 
-lazy_static! { pub static ref DH_KEYS: SgxMutex< HashMap<Vec<u8>, [u8; 32]> > = SgxMutex::new(HashMap::new()); }
+lazy_static! { pub static ref DH_KEYS: SgxMutex<HashMap<Vec<u8>, [u8; 32]>> = SgxMutex::new(HashMap::new()); }
 
 pub(crate) unsafe fn ecall_get_user_key_internal(sig: &mut [u8; 65], user_pubkey: &PubKey) -> Result<Vec<u8>, EnclaveError> {
     let keys = KeyPair::new()?;
