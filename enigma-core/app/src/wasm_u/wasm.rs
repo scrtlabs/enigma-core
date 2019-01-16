@@ -243,7 +243,12 @@ pub mod tests {
         let result = wasm::execute(enclave.geteid(), &contract_code, "choose_rand_color()", &[], &pubkey, &address, 100_000).expect("Execution failed");
         enclave.destroy();
         let colors = vec!["\"green\"", "\"yellow\"", "\"red\"", "\"blue", "\"white\"", "\"black\"", "\"orange\"", "\"purple\""];
-        assert_eq!(from_utf8(&result.output).unwrap(), colors.into_iter().find(|&x|{x==(from_utf8(&result.output).unwrap())}).unwrap());
+        let res_str = from_utf8(&result.output).unwrap();
+        let res = match colors.into_iter().find(|&x|{x==res_str}) {
+            Some(color) => color,
+            None => "test_failed"
+        };
+        assert_eq!(res_str, res);
     }
 
     #[test]
