@@ -106,7 +106,6 @@ pub mod tests {
     use serde::{Deserialize, Serialize};
     use serde_json::{self, Value};
     use sgx_types::sgx_enclave_id_t;
-    use std::collections::HashSet;
     use self::ethabi::{Token};
     use wasm_u::wasm::tests::generate_address;
 
@@ -136,21 +135,25 @@ pub mod tests {
         (pubkey, shared_bytes, data, sig)
     }
 
-    // serialize the arguments and encrypt them.
-    pub fn serial_and_encrypt_args(key: &[u8], args: &[Token], iv: Option<[u8; 12]>) -> Vec<u8> {
-        let mut response_args: Vec<u8> = ethabi::encode(args);
+    fn serial_and_encrypt(key: &aead::SealingKey, input: &[u8], iv: &[u8;12]) -> Vec<u8> {
+        let mut output: Vec<u8> = input.to_vec();
+        output.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
+        let output_len = aead::seal_in_place(key, iv, &[], &mut output, aead::AES_256_GCM.tag_len()).unwrap();
+        assert_eq!(output_len, output.len());
+        output.extend(iv);
+        output
+    }
 
+    // serialize the arguments and encrypt them; encrypt callable function signature
+    pub fn serial_and_encrypt_input(key: &[u8], callable: &str, args: &[Token], iv: Option<[u8; 12]>) -> (Vec<u8>, Vec<u8>) {
         let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, key.clone()).unwrap();
         let iv = iv.unwrap_or([1u8; 12]);
-        response_args.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
-        let s = aead::seal_in_place(&seal_key, &iv, &[], &mut response_args, aead::AES_256_GCM.tag_len()).unwrap();
-        assert_eq!(s, response_args.len());
-        response_args.extend(&iv);
-        response_args
+
+        (serial_and_encrypt(&seal_key, callable.as_bytes(), &iv), serial_and_encrypt(&seal_key, &ethabi::encode(args), &iv))
     }
 
     #[test]
-    fn test_serial_and_encrypt_args() {
+    fn test_serial_and_encrypt_input() {
         // get the aes key
         let enclave = init_enclave_wrapper().unwrap();
         let (_, key, _, _) = exchange_keys(enclave.geteid());
@@ -161,19 +164,26 @@ pub mod tests {
         let msg = Token::Bytes([3u8; 36].to_vec());
 
         let args = vec![addr, num, msg];
+        let callable = "some_function(uint)";
 
-        let mut iv = [1u8; 12];
+        let iv = [1u8; 12];
         // encryption
-        let mut encrypted_args = serial_and_encrypt_args(&key.clone(), &args, Some(iv.clone()));
+        let (mut encrypted_callable, mut encrypted_args) = serial_and_encrypt_input(&key.clone(), callable, &args, Some(iv.clone()));
 
         // decryption
         let decrypt_key = aead::OpeningKey::new(&aead::AES_256_GCM, &key).unwrap();
 
         // remove the IV from the encrypted cipher
-        for _i in (0..iv.len()).rev() { encrypted_args.pop().unwrap(); }
-        let mut accepted_args = aead::open_in_place(&decrypt_key, &iv, &[], 0, &mut encrypted_args).unwrap();
+        for _i in (0..iv.len()).rev() {
+            encrypted_args.pop().unwrap();
+            encrypted_callable.pop().unwrap();
+        }
+        let accepted_args = aead::open_in_place(&decrypt_key, &iv, &[], 0, &mut encrypted_args).unwrap();
+        let accepted_callable = aead::open_in_place(&decrypt_key, &iv, &[], 0, &mut encrypted_callable).unwrap();
 
         assert_eq!(ethabi::encode(&args), accepted_args);
+        assert_eq!(callable.as_bytes(), accepted_callable);
+
     }
 
     #[test]
