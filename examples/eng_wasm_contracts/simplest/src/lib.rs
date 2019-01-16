@@ -19,6 +19,7 @@ pub trait ContractInterface{
     fn check_addresses(addr1: H256, addr2: H256);
     fn print_test(x: U256, y: U256) ;
     fn construct(param: U256);
+    fn choose_rand_color() -> String;
 }
 
 pub struct Contract;
@@ -56,6 +57,17 @@ impl ContractInterface for Contract {
 
         assert_eq!(read_addr1, addr1.to_hex());
         assert_eq!(read_addr2, addr2.to_hex());
+    }
+
+    #[no_mangle]
+    fn choose_rand_color() -> String {
+        let mut colors = Vec::new();
+        colors.extend(["green", "yellow", "red", "blue", "white", "black", "orange", "purple"].iter().cloned());
+        let random: u8 = Rand::gen();
+
+        let rng_rand = (random as usize) % colors.len();
+        write_state!("color" => colors[rng_rand]);
+        read_state!("color").unwrap()
     }
 
     #[no_mangle]

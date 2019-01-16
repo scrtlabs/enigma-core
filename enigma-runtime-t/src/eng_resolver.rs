@@ -21,6 +21,7 @@ pub mod ids {
     pub const WRITE_PAYLOAD_FUNC: usize = 12;
     pub const WRITE_ADDRESS_FUNC: usize = 13;
     pub const GAS_FUNC: usize = 14;
+    pub const RAND_FUNC: usize = 15;
 }
 
 pub mod signatures {
@@ -56,6 +57,8 @@ pub mod signatures {
     pub const TYPES: StaticSignature = StaticSignature(&[I32], None);
 
     pub const GAS: StaticSignature = StaticSignature(&[I32], None);
+
+    pub const RAND: StaticSignature = StaticSignature(&[I32, I32], None);
 
     impl Into<wasmi::Signature> for StaticSignature {
         fn into(self) -> wasmi::Signature { wasmi::Signature::new(self.0, self.1) }
@@ -115,6 +118,7 @@ impl ModuleImportResolver for ImportResolver {
             "write_payload" => FuncInstance::alloc_host(signatures::WRITE_PAYLOAD.into(), ids::WRITE_PAYLOAD_FUNC),
             "write_address" => FuncInstance::alloc_host(signatures::WRITE_ADDRESS.into(), ids::WRITE_ADDRESS_FUNC),
             "gas" => FuncInstance::alloc_host(signatures::GAS.into(), ids::GAS_FUNC),
+            "rand" => FuncInstance::alloc_host(signatures::RAND.into(), ids::RAND_FUNC),
             _ => return Err(wasmi::Error::Instantiation(format!("Export {} not found", field_name))),
         };
 

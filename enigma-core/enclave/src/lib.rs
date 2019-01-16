@@ -120,13 +120,14 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
 
     // in order to view the specific error print out the result of the function
-    ecall_execute_internal(bytecode_slice,
+    let a = ecall_execute_internal(bytecode_slice,
                            callable_slice,
                            callable_args_slice,
                            &user_key,
                            &contract_address,
                            *gas_limit,
-                           result).into()
+                           result);
+    a.into()
 }
 
 #[no_mangle]

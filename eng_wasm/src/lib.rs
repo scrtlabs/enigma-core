@@ -21,6 +21,8 @@ pub use eng_wasm_errors::*;
 pub use serde_json::Value;
 pub use ethereum::short_signature;
 pub use pwasm_abi::types::*;
+use byteorder::{BigEndian, ReadBytesExt};
+use std::io::Cursor;
 
 pub mod external {
     extern "C" {
@@ -38,6 +40,7 @@ pub mod external {
         pub fn write_address(address: *const u8);
         pub fn gas(amount: u32);
         pub fn ret(payload: *const u8, payload_len: u32);
+        pub fn rand(payload: *const u8, payload_len: u32);
     }
 }
 
@@ -79,6 +82,67 @@ pub fn write_ethereum_payload(payload: Vec<u8>){
 
 pub fn write_ethereum_contract_addr(address: &[u8;20]){
     unsafe { external::write_address(address.as_ptr()) };
+}
+
+///// get a random vec of bytes in the specified length
+//pub fn rand(len: Option<u32>) -> Result<Vec<u8>, WasmError> {
+//    unsafe { external::rand(len.unwrap_or(16u32))}
+//}
+
+pub struct Rand;
+
+
+impl Rand {
+    pub fn gen_slice(slice: &mut [u8]) {
+        unsafe { external::rand(slice.as_ptr(), slice.len() as u32)};
+    }
+}
+
+pub trait RandTypes<T> {
+    fn gen() -> T;
+}
+
+impl RandTypes<U256> for Rand {
+    fn gen() -> U256 {
+        let mut r: [u8; 32] = [0u8; 32];
+        Self::gen_slice(&mut r);
+        U256::from_big_endian(&r)
+    }
+}
+
+impl RandTypes<u8> for Rand {
+    fn gen() -> u8 {
+        let mut r: [u8; 1] = [0u8; 1];
+        Self::gen_slice(&mut r);
+        r[0]
+    }
+}
+
+impl RandTypes<u16> for Rand {
+    fn gen() -> u16 {
+        let mut r: [u8; 2] = [0u8; 2];
+        Self::gen_slice(&mut r);
+        let mut res = Cursor::new(r);
+        res.read_u16::<BigEndian>().unwrap()
+    }
+}
+
+impl RandTypes<u32> for Rand {
+    fn gen() -> u32 {
+        let mut r: [u8; 4] = [0u8; 4];
+        Self::gen_slice(&mut r);
+        let mut res = Cursor::new(r);
+        res.read_u32::<BigEndian>().unwrap()
+    }
+}
+
+impl RandTypes<u64> for Rand {
+    fn gen() -> u64 {
+        let mut r: [u8; 8] = [0u8; 8];
+        Self::gen_slice(&mut r);
+        let mut res = Cursor::new(r);
+        res.read_u64::<BigEndian>().unwrap()
+    }
 }
 
 #[macro_export]
