@@ -1,5 +1,7 @@
 use serde_json;
 use zmq::Message;
+use crate::db::{Delta, Stype};
+use hex::ToHex;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
@@ -105,6 +107,20 @@ pub struct IpcGetDeltas {
     pub address: String,
     pub from: u32,
     pub to: u32,
+}
+
+
+impl From<Delta> for IpcDelta {
+    fn from(delta: Delta) -> Self {
+        let address = delta.key.hash.to_hex();
+        let mut key = 0;
+        if let Stype::Delta(_key) = delta.key.key_type {
+            key = _key;
+        } else { unreachable!() }
+        let value = delta.value.to_hex();
+
+        IpcDelta { address: Some(address), key, delta: Some(value)  }
+    }
 }
 
 impl From<Message> for IpcRequest {

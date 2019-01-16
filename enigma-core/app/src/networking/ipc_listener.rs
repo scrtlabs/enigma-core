@@ -44,6 +44,7 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
             IpcRequest::UpdateDeltas { id, deltas } => handling::update_deltas(id, deltas),
             IpcRequest::NewTaskEncryptionKey { id, user_pubkey } => handling::get_dh_user_key(id, user_pubkey, eid),
             IpcRequest::DeploySecretContract { id, input } => handling::deploy_contract(id, input, eid),
+            IpcRequest::ComputeTask { id, input } => handling::compute_task(id, input, eid),
         };
 
         response.push_back(response_msg.unwrap_or_default());
@@ -268,6 +269,39 @@ pub(self) mod handling {
             signature: sig.to_hex(),
         };
         Ok( IpcResponse::DeploySecretContract { id, result }.into() )
+    }
+
+    pub fn compute_task(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+
+        let enc_args = input.encrypted_args.from_hex()?;
+        let address = input.address.from_hex_32()?;
+        let mut pubkey = [0u8; 64];
+        pubkey.clone_from_slice(&input.user_pubkey.from_hex()?);
+
+        let exe_code = DATABASE.lock_expect("P2P ComputeTask").get_contract(address)?;
+
+
+        let wasm_result = wasm::execute(
+            eid,
+            &exe_code,
+            &input.encrypted_fn,
+            &enc_args,
+            &pubkey,
+            &address,
+            input.gas_limit)?;
+
+        let signature = wasm_result.signature.to_hex();
+
+        let result = IpcResults::TaskResult {
+            exe_code: None,
+            pre_code_hash: None,
+            used_gas: 0, // TODO: Return used gas from enclave
+            output: wasm_result.output.to_hex(),
+            delta: wasm_result.delta.into(),
+            signature,
+        };
+
+        Ok( IpcResponse::ComputeTask { id, result }.into() )
     }
 
 }
