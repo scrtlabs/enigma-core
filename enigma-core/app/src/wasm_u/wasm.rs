@@ -242,7 +242,7 @@ pub mod tests {
 
         let result = wasm::execute(enclave.geteid(), &contract_code, "choose_rand_color()", &[], &pubkey, &address, 100_000).expect("Execution failed");
         enclave.destroy();
-        let colors = vec!["\"green\"", "\"yellow\"", "\"red\"", "\"blue", "\"white\"", "\"black\"", "\"orange\"", "\"purple\""];
+        let colors = vec!["\"green\"", "\"yellow\"", "\"red\"", "\"blue\"", "\"white\"", "\"black\"", "\"orange\"", "\"purple\""];
         let res_str = from_utf8(&result.output).unwrap();
         let res = match colors.into_iter().find(|&x|{x==res_str}) {
             Some(color) => color,
@@ -266,7 +266,9 @@ pub mod tests {
         let result = wasm::execute(enclave.geteid(), &contract_code, "get_scrambled_vec()", &[], &pubkey, &address, 100_000_000).expect("Execution failed");
         enclave.destroy();
         let res = &result.output;
+        let zeros: [u8; 10] = [0u8; 10];
         assert_eq!(res.len(), 10);
+        assert_ne!(res, &(zeros.to_vec()));
     }
 
     #[test]
