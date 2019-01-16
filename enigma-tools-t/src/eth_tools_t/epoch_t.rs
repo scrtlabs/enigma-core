@@ -31,6 +31,7 @@ impl TryFrom<Log> for WorkerParams {
             Err(err) => return Err(EnclaveError::WorkerAuthError { err: format!("Unable to parse the log: {:?}", err) }),
         };
         // Ugly deserialization from ABI tokens
+        // TODO: not sure what the best pattern to handle errors here
         // TODO: do I really need to clone so much?
         let seed = log.params[0].value.clone().to_uint().unwrap();
         let block_number = log.params[1].value.clone().to_uint().unwrap();
