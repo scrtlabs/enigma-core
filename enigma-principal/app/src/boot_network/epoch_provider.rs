@@ -111,8 +111,6 @@ impl EpochProvider {
 #[cfg(test)]
 mod test {
     use std::env;
-
-
     use enigma_tools_u::web3_utils::keeper_types_u::{decode, Log, Receipt};
     use enigma_tools_u::web3_utils::provider_types::{encode, LogWrapper, ReceiptWrapper};
     use enigma_tools_u::web3_utils::w3utils;
@@ -128,6 +126,7 @@ mod test {
 
     //noinspection RsTypeCheck
     #[test]
+    #[ignore]
     fn test_mock_receipt() {
         let event = EventWrapper::workers_parameterized();
         let url = get_node_url();
@@ -135,7 +134,8 @@ mod test {
         let (_eloop, web3) = w3utils::connect(&url).unwrap();
         println!("Got web3");
 
-        let tx = serde_json::from_str::<H256>("\"0x33c3c14e3cd8764911d243e67c229adf7279b3e920a3dbb317ff989946ad47bb\"").unwrap();
+        // TODO: This won't work unless the tx exists, consider testing against a Ganache backup or recreating the pre-reqs here
+        let tx = serde_json::from_str::<H256>("\"0x86da7b4b19acb2676791d4473c1288a20d24ba6149bdf41a3629b2ff5bf7e2d8\"").unwrap();
         println!("Fetching Receipt for: {:?}", tx);
         let receipt = web3.eth().transaction_receipt(tx).wait().unwrap().unwrap();
 

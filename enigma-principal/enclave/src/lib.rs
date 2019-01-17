@@ -29,13 +29,13 @@ extern crate sgx_tunittest;
 extern crate sgx_types;
 
 use sgx_types::*;
-use std::{slice};
+use std::slice;
 
-use enigma_tools_t::common::utils_t::{EthereumAddress};
+use enigma_tools_t::common::utils_t::EthereumAddress;
 use enigma_tools_t::cryptography_t;
 use enigma_tools_t::cryptography_t::asymmetric;
 use enigma_tools_t::quote_t;
-use enigma_types::{EnclaveReturn,traits::SliceCPtr};
+use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 
 use crate::epoch_keeper_t::{
     ecall_generate_epoch_seed_internal,
@@ -139,13 +139,15 @@ pub mod tests {
 
     use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
+    use crate::epoch_keeper_t::tests::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
         rsgx_unit_tests!(
             test_full_sealing_storage,
             test_signing,
-            test_ecdh
+            test_ecdh,
+            test_get_epoch_workers_internal
         );
     }
 }

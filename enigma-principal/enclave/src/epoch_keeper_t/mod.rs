@@ -156,3 +156,31 @@ pub(crate) fn ecall_get_epoch_workers_internal(sc_addr: Hash, block_number: Opti
     let workers = epoch.get_selected_workers(sc_addr)?;
     Ok(workers)
 }
+
+pub mod tests {
+    use super::*;
+    use ethereum_types::{U256, H160};
+
+    //noinspection RsTypeCheck
+    pub fn test_get_epoch_workers_internal() {
+        println!("Testing worker selection for the epoch");
+        let seed = U256::from(100);
+        let params = WorkerParams {
+            block_number: U256::from(1),
+            workers: vec![H160::from(0), H160::from(1), H160::from(2), H160::from(3)],
+            balances: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
+            nonce: U256::from(0),
+            seed,
+        };
+        println!("The worker parameters: {:?}", params);
+        let epoch = Epoch {
+            seed,
+            worker_params: Some(params),
+            preverified_block_hash: H256::from(1),
+        };
+        println!("The epoch: {:?}", epoch);
+        let sc_addr = H256::from(1);
+        let workers = epoch.get_selected_workers(sc_addr).unwrap();
+        println!("The selected workers: {:?}", workers);
+    }
+}
