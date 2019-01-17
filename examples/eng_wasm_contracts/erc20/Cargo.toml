@@ -6,7 +6,6 @@ version = "0.1.0"
 eng_wasm = {path = "../../../eng_wasm"}
 eng_wasm_derive = {path = "../../../eng_wasm/derive"}
 rustc-hex = "1.0.0" # 2.0.1?
-more-asserts = "0.2.1"
 serde_derive = "1.0.84"
 serde = "1.0.84"
 
