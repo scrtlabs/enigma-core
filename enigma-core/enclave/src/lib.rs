@@ -237,25 +237,16 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8],
                                  address: &ContractAddress, gas_limit: u64,
                                  result: &mut ExecuteResult) -> Result<(), EnclaveError> {
     let callable = str::from_utf8(callable_slice)?;
-//    let s = str::from_utf8(callable_args_slice)?;
-//    let callable_args = hexutil::read_hex(s)?;
+
     let state = execution::get_state(*address)?;
 
     let (types, function_name) = get_types(callable)?;
 
-//    let types_vector = extract_types(&types.to_string());
     let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(EnclaveError::KeyError { key_type: "Missing DH Key".to_string(), key: "".to_string() })?;
 
     let decrypted_args = decrypt_args(&callable_args_slice, &inputs_key)?;
-
-//    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], false) {
-//        Ok(v) => v,
-//        Err(e) => {
-//            return Err(EnclaveError::ExecutionError { code: "interpretation of call parameters".to_string(), err: e.to_string() });
-//        }
-//    };
 
     let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, decrypted_args.clone())?;
 
@@ -263,6 +254,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8],
                         &exec_res.result[..],
                         &exec_res.ethereum_payload[..],
                         &exec_res.ethereum_contract_addr,
+                        exec_res.used_gas,
                         result)?;
 
     // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
@@ -365,13 +357,13 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args:
 }
 
 unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8],
-                              ethereum_payload: &[u8], ethereum_contract_addr: &[u8; 20],
+                              ethereum_payload: &[u8], ethereum_contract_addr: &[u8; 20], used_gas: u64,
                               result: &mut ExecuteResult ) -> Result<(), EnclaveError>
 {
     result.output = ocalls_t::save_to_untrusted_memory(&execute_result)? as *const u8;
     result.ethereum_payload_ptr = ocalls_t::save_to_untrusted_memory(ethereum_payload)? as *const u8;
     result.ethereum_address.clone_from_slice(ethereum_contract_addr);
-
+    result.used_gas = used_gas;
     match delta_option {
         Some(delta) => {
             let enc_delta = km_t::encrypt_delta(delta)?;
