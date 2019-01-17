@@ -229,6 +229,49 @@ pub mod tests {
     }
 
     #[test]
+    fn test_rand_u8() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let address = generate_address();
+        instantiate_encryption_key(&[address], enclave.geteid());
+        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
+        let test_constr_arg: Token = Token::Uint(100.into());
+        let encrypted_args = serial_and_encrypt_args(&key, &[test_constr_arg.clone()], None);
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address, "construct(uint)", &encrypted_args, &pubkey);
+        //defining the arguments, serializing them and encrypting them -
+        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
+
+        let result = wasm::execute(enclave.geteid(), &contract_code, "choose_rand_color()", &[], &pubkey, &address, 100_000).expect("Execution failed");
+        enclave.destroy();
+        let colors = vec!["\"green\"", "\"yellow\"", "\"red\"", "\"blue\"", "\"white\"", "\"black\"", "\"orange\"", "\"purple\""];
+        let res_str = from_utf8(&result.output).unwrap();
+        let res = match colors.into_iter().find(|&x|{x==res_str}) {
+            Some(color) => color,
+            None => "test_failed"
+        };
+        assert_eq!(res_str, res);
+    }
+
+    #[test]
+    fn test_shuffling() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let address = generate_address();
+        instantiate_encryption_key(&[address], enclave.geteid());
+        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
+        let test_constr_arg: Token = Token::Uint(100.into());
+        let encrypted_args = serial_and_encrypt_args(&key, &[test_constr_arg.clone()], None);
+        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address, "construct(uint)", &encrypted_args, &pubkey);
+        //defining the arguments, serializing them and encrypting them -
+        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
+
+        let result = wasm::execute(enclave.geteid(), &contract_code, "get_scrambled_vec()", &[], &pubkey, &address, 100_000_000).expect("Execution failed");
+        enclave.destroy();
+        let res = &result.output;
+        let zeros: [u8; 10] = [0u8; 10];
+        assert_eq!(res.len(), 10);
+        assert_ne!(res, &(zeros.to_vec()));
+    }
+
+    #[test]
     fn test_multiple_addresses() {
         let enclave = init_enclave_wrapper().unwrap();
         let address = generate_address();

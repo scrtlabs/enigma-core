@@ -9,6 +9,7 @@ extern crate serde;
 mod internal_std;
 mod eng_wasm_errors;
 mod ethereum;
+mod rand_wasm;
 pub extern crate pwasm_abi;
 #[macro_use] pub extern crate failure;
 extern crate syn;
@@ -18,9 +19,11 @@ extern crate byteorder;
 
 pub use internal_std::*;
 pub use eng_wasm_errors::*;
+pub use rand_wasm::*;
 pub use serde_json::Value;
 pub use ethereum::short_signature;
 pub use pwasm_abi::types::*;
+
 
 pub mod external {
     extern "C" {
@@ -38,6 +41,7 @@ pub mod external {
         pub fn write_address(address: *const u8);
         pub fn gas(amount: u32);
         pub fn ret(payload: *const u8, payload_len: u32);
+        pub fn rand(payload: *const u8, payload_len: u32);
     }
 }
 

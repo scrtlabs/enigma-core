@@ -4,6 +4,7 @@
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_types;
+extern crate sgx_trts;
 #[macro_use]
 extern crate serde_json;
 #[macro_use]
@@ -21,6 +22,7 @@ use enigma_tools_t::common::errors_t::EnclaveError;
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
 use wasmi::{Externals, MemoryRef, RuntimeArgs, RuntimeValue, Trap, TrapKind};
+use sgx_trts::trts::rsgx_read_rand;
 
 pub mod data;
 pub mod eng_resolver;
@@ -295,6 +297,26 @@ impl Runtime {
         Ok(())
     }
 
+    pub fn rand(&mut self, args: RuntimeArgs) -> Result<()> {
+        let ptr: u32 = args.nth_checked(0)?;
+        let len: u32 = args.nth_checked(1)?;
+
+        let mut buf = Vec::with_capacity(len as usize);
+        for _ in 0..len {
+            buf.push(0);
+        }
+
+        match rsgx_read_rand(&mut buf[..]) {
+            Ok(_) => {
+                match self.memory.set(ptr, &buf[..]) {
+                    Ok(_) => Ok(()),
+                    Err(e) => return Err(WasmError::Memory(format!("{}", e))),
+                }
+            },
+            Err(_) => Err(WasmError::Other),
+        }
+    }
+
     /// Destroy the runtime, returning currently recorded result of the execution
     pub fn into_result(mut self) -> Result<RuntimeResult> {
         self.result.state_delta = match ContractState::generate_delta(&self.init_state, &self.current_state) {
@@ -402,6 +424,11 @@ mod ext_impl {
 
                 eng_resolver::ids::GAS_FUNC => {
                     Runtime::gas(self, args)?;
+                    Ok(None)
+                }
+
+                eng_resolver::ids::RAND_FUNC => {
+                    Runtime::rand(self, args)?;
                     Ok(None)
                 }
 
