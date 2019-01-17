@@ -16,13 +16,6 @@ pub trait RandTypes<T> {
     fn gen() -> T;
 }
 
-pub trait Shuffle {
-    /// returns a random location in the array- used for shuffle.
-    fn gen_loc(len: usize) -> usize;
-    /// shuffles the elements in the given slice.
-    fn shuffle<T>(values: &mut [T]);
-}
-
 impl RandTypes<U256> for Rand {
     fn gen() -> U256 {
         let mut r: [u8; 32] = [0u8; 32];
