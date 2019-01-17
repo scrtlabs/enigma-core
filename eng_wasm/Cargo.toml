@@ -13,4 +13,3 @@ syn = { version = "0.15.12", features = ["full", "extra-traits"] }
 tiny-keccak = "1.4"
 ethabi = "6.1.0"
 byteorder = "1"
-more-asserts = "0.2.1"
