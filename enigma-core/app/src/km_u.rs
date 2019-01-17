@@ -174,10 +174,8 @@ pub mod tests {
         let decrypt_key = aead::OpeningKey::new(&aead::AES_256_GCM, &key).unwrap();
 
         // remove the IV from the encrypted cipher
-        for _i in (0..iv.len()).rev() {
-            encrypted_args.pop().unwrap();
-            encrypted_callable.pop().unwrap();
-        }
+        encrypted_args = encrypted_args[..encrypted_args.len()-iv.len()].to_vec();
+        encrypted_callable = encrypted_callable[..encrypted_callable.len() - iv.len()].to_vec();
         let accepted_args = aead::open_in_place(&decrypt_key, &iv, &[], 0, &mut encrypted_args).unwrap();
         let accepted_callable = aead::open_in_place(&decrypt_key, &iv, &[], 0, &mut encrypted_callable).unwrap();
 
