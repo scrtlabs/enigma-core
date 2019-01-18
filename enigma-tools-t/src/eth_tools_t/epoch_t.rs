@@ -23,13 +23,13 @@ impl IntoBigint<bigint::U256> for U256 { fn bigint(self) -> bigint::U256 { bigin
 impl IntoBigint<bigint::H256> for H256 { fn bigint(self) -> bigint::H256 { bigint::H256(self.0) } }
 
 #[derive(Debug, Clone)]
-struct WorkerId {
+struct WorkerSelectionToken {
     pub seed: U256,
     pub sc_addr: Hash,
     pub nonce: U256,
 }
 
-impl Encodable for WorkerId {
+impl Encodable for WorkerSelectionToken {
     fn rlp_append(&self, s: &mut RlpStream) {
         s.begin_list(3);
         s.append(&self.seed.bigint());
@@ -75,20 +75,18 @@ impl WorkerParams {
     /// Discover the selected workers from the worker parameters
     pub fn get_selected_workers(&self, sc_addr: H256, group_size: Option<U64>) -> Result<Vec<Address>, EnclaveError> {
         let workers = self.workers.to_vec();
-        let mut token_cpt: U256 = U256::from(0);
+        let mut balance_sum: U256 = U256::from(0);
         for balance in self.balances.clone() {
-            token_cpt = token_cpt + balance;
+            balance_sum = balance_sum + balance;
         }
+        // Using the same type as the Enigma contract
         let mut nonce = U256::from(0);
         let mut selected_workers: Vec<H160> = Vec::new();
         while {
-            let id = WorkerId {
-                seed: self.seed,
-                sc_addr: sc_addr,
-                nonce: nonce,
-            };
-            let hash = encode(&id).keccak256();
-            let mut rand_val: U256 = U256::from(hash) % token_cpt;
+            let token = WorkerSelectionToken { seed: self.seed, sc_addr, nonce };
+            // This is equivalent to encodePacked in Solidity
+            let hash = encode(&token).keccak256();
+            let mut rand_val: U256 = U256::from(hash) % balance_sum;
             println!("The initial random value: {:?}", rand_val);
             let mut selected_worker = self.workers[self.workers.len() - 1];
             for i in 0..self.workers.len() {

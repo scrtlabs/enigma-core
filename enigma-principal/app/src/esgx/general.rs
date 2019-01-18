@@ -11,6 +11,8 @@ use std::ptr;
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 pub static ENCLAVE_DIR: &'static str = ".enigma";
+pub static EPOCH_DIR: &'static str = "epoch";
+pub static STATE_KEYS_DIR: &'static str = "state-keys";
 
 #[no_mangle]
 pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
@@ -66,6 +68,22 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
         }
         Ok(_) => {
             println!("[+] Created new .enigma folder => {:?}", storage_path);
+        }
+    };
+    match fs::create_dir(&storage_path.join(EPOCH_DIR)) {
+        Err(why) => {
+            println!("[-] Create .enigma/epoch folder => {:?}", why.kind());
+        }
+        Ok(_) => {
+            println!("[+] Created new .enigma/epoch folder => {:?}", storage_path);
+        }
+    };
+    match fs::create_dir(&storage_path.join(STATE_KEYS_DIR)) {
+        Err(why) => {
+            println!("[-] Create .enigma/state-keys folder => {:?}", why.kind());
+        }
+        Ok(_) => {
+            println!("[+] Created new .enigma/state-keys folder => {:?}", storage_path);
         }
     };
     // Create the home/dir/.enigma folder for storage (Sealed, token , etc )

@@ -1,10 +1,13 @@
 use std::path;
 use sgx_types::sgx_status_t;
 use std::str;
+use enigma_types::EnclaveReturn;
 
 const PATH_MAX: usize = 4096; // linux/limits.h - this depends on the FS.
 
-extern { fn ocall_get_home(output: *mut u8, result_len: &mut usize) -> sgx_status_t; }
+extern "C"{
+    fn ocall_get_home(output: *mut u8, result_len: &mut usize) -> sgx_status_t;
+}
 
 
 pub fn get_home_path() -> path::PathBuf{

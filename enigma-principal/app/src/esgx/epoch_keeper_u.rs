@@ -115,6 +115,7 @@ pub mod tests {
         };
         enclave
     }
+
     pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t, receipt_ser: &str, block_ser: &str) -> ([u8; 65]) {
         let receipt_raw = serde_json::from_str::<TransactionReceipt>(EXAMPLE_RECEIPT).unwrap();
         let block = serde_json::from_str::<Block<H256>>(EXAMPLE_BLOCK).unwrap();
@@ -124,6 +125,7 @@ pub mod tests {
         let headers = BlockHeadersWrapper(vec![block_header]);
         set_worker_params(eid, receipt, receipt_hashes, headers).unwrap()
     }
+
     #[test]
     fn test_generate_epoch_seed() {
         let enclave = init_enclave();
@@ -132,6 +134,7 @@ pub mod tests {
         assert_eq!(epoch.nonce, Uint::from(0));
         enclave.destroy();
     }
+
     #[test]
     fn test_set_worker_params() {
         let enclave = init_enclave();
@@ -146,6 +149,7 @@ pub mod tests {
         assert_eq!(epoch_2.nonce, Uint::from(1));
         enclave.destroy();
     }
+
     #[test]
     //noinspection RsTypeCheck
     fn test_rlp_encode_decode_hash() {

@@ -22,6 +22,7 @@ use crate::SIGNINING_KEY;
 
 const INIT_NONCE: uint32_t = 0;
 const PREVERIFIED_BLOCK_HASH: &str = "ae67b813aa89d47d4ba4d34dcd8b77a57bd433338ac0980137f5a6ca81ff9566";
+const EPOCH_DIR: &str = "epoch";
 
 // The epoch seed contains the seeds + a nonce that must match the Ethereum tx
 // TODO: Seal / unseal
