@@ -24,7 +24,7 @@ impl<T> SealedDocumentStorage<T> where
     /// Safe seal
     /// param: the_data : clear text to be sealed
     /// param: sealed_log_out : the output of the sealed data
-    pub fn seal_document(&self, sealed_log_out: &mut [u8; SEAL_LOG_SIZE]) -> Result<(), EnclaveError> {
+    pub fn seal(&self, sealed_log_out: &mut [u8; SEAL_LOG_SIZE]) -> Result<(), EnclaveError> {
         let additional: [u8; 0] = [0_u8; 0];
         let attribute_mask = sgx_attributes_t { flags: 0xffff_ffff_ffff_fff3, xfrm: 0 };
         let sealed_data = SgxSealedData::<Self>::seal_data_ex(
@@ -34,8 +34,6 @@ impl<T> SealedDocumentStorage<T> where
             &additional,
             &self,
         )?;
-        // to sealed_log ->
-        //    let mut sealed_log_arr:[u8;2048] = [0;2048];
         let sealed_log = sealed_log_out.as_mut_ptr();
         let sealed_log_size: usize = SEAL_LOG_SIZE;
         to_sealed_log(&sealed_data, sealed_log, sealed_log_size as u32);
@@ -130,16 +128,16 @@ pub mod tests {
     /* Test functions */
     pub fn test_document_sealing_storage() {
         // generate mock data
-        let mut data: SealedDocumentStorage<[u8; 32]> = SealedDocumentStorage {
+        let mut doc: SealedDocumentStorage<[u8; 32]> = SealedDocumentStorage {
             version: 0x1234,
             data: [0; 32],
         };
         for i in 0..32 {
-            data.data[i] = b'i';
+            doc.data[i] = b'i';
         }
         // seal data
         let mut sealed_log_in: [u8; SEAL_LOG_SIZE] = [0; SEAL_LOG_SIZE];
-        data.seal_document(&mut sealed_log_in).expect("Unable to seal document");
+        doc.seal(&mut sealed_log_in).expect("Unable to seal document");
         // save sealed_log to file
         let p = PathBuf::from("seal_test.sealed");
         save_sealed_document(&p, &sealed_log_in).expect("Unable to save sealed document");
@@ -147,9 +145,9 @@ pub mod tests {
         let mut sealed_log_out: [u8; SEAL_LOG_SIZE] = [0; SEAL_LOG_SIZE];
         load_sealed_document(&p, &mut sealed_log_out).expect("Unable to load sealed document");
         // unseal data
-        let unsealed_data = SealedDocumentStorage::<[u8; 32]>::unseal(&mut sealed_log_out).expect("Unable to unseal document").unwrap();
-//        // compare data
-        assert_eq!(data.data, unsealed_data.data);
+        let unsealed_doc = SealedDocumentStorage::<[u8; 32]>::unseal(&mut sealed_log_out).expect("Unable to unseal document").unwrap();
+        // compare data
+        assert_eq!(doc.data, unsealed_doc.data);
         // delete the file
         let f = remove_file(&p);
         assert!(f.is_ok());
