@@ -33,38 +33,67 @@ fn get_state_keys_root_path() -> path::PathBuf {
 }
 
 fn get_document_path(sc_addr: &ContractAddress) -> path::PathBuf {
-    get_state_keys_root_path().join(format!("{}.{}", sc_addr.to_vec().to_hex(), "sealed"))
+    get_state_keys_root_path().join(format!("{}.{}", sc_addr.to_hex(), "sealed"))
 }
 
-//fn get_state_keys(guard: &SgxMutexGuard<HashMap<ContractAddress, StateKey, RandomState>>, sc_addrs: Vec<ContractAddress>) -> Result<HashMap<ContractAddress, StateKey>, EnclaveError> {
-//    let mut results: HashMap<ContractAddress, StateKey> = HashMap::new();
-//    for addr in sc_addrs {
-//        let key = match guard.get(&addr) {
-//            Some(key) => key,
-//            None => {
-//                let document_path = get_document_path(&addr);
-//                if is_document(document_path) {
-//                    let mut sealed_log_out: [u8; SEAL_LOG_SIZE] = [0; SEAL_LOG_SIZE];
-//                    load_sealed_document(document_path, &sealed_log_out);
-//                    let document::<[u8;32]> = SealedDocumentStorage::unseal_document(&mut sealed_log_out).unwrap();
-//                    let mut sc_addr: ContractAddress = [0; 32];
-//                    sc_addr.copy_from_slice(&sealed_log_out[..32]);
-//                    sc_addr;
-//                } else {
-//                    None
-//                }
-//            }
-//        };
-//    }
-//    // Get Home path via Ocall
-//    let mut path_buf = ocalls_t::get_home_path();
-//    // add the filename to the path: `keypair.sealed`
-//    path_buf.push("keypair.sealed");
-//    let sealed_path = path_buf.to_str().unwrap();
-//    Ok(results)
-//}
+/// Read state keys from the cache and sealed documents.
+/// Adds keys to the cache after unsealing.
+fn get_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, RandomState>>, sc_addrs: &Vec<ContractAddress>) -> Result<Vec<Option<StateKey>>, EnclaveError> {
+    let mut results: Vec<Option<StateKey>> = Vec::new();
+    for addr in sc_addrs {
+        let mut key: Option<StateKey> = match guard.get(addr) {
+            Some(key) => Some(key.clone()),
+            None => None,
+        };
+        if key.is_none() {
+            println!("State key not found in cache, fetching sealed document.");
+            let path = get_document_path(addr);
+            if is_document(&path) {
+                println!("Unsealing state key.");
+                let mut sealed_log_out = [0u8; SEAL_LOG_SIZE];
+                load_sealed_document(&path, &mut sealed_log_out)?;
+                let doc = SealedDocumentStorage::<StateKey>::unseal(&mut sealed_log_out)?;
+                match doc {
+                    Some(doc) => {
+                        guard.insert(addr.clone(), doc.data).ok_or(EnclaveError::KeyProvisionError {
+                            err: format!("Unable to store key in cache: {:?}", addr)
+                        });
+                        key = Some(doc.data);
+                    }
+                    None => ()
+                }
+            }
+        }
+        results.push(key);
+    }
+    Ok(results)
+}
 
-//fn save_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, RandomState>>, state_keys: HashMap<ContractAddress, StateKey>) -> Result<(), EnclaveError> {}
+/// Creates new state keys both in the cache and as sealed documents
+fn new_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, RandomState>>, sc_addrs: &Vec<ContractAddress>) -> Result<Vec<StateKey>, EnclaveError> {
+    let mut results: Vec<StateKey> = Vec::new();
+    for addr in sc_addrs {
+        let mut rand_seed: [u8; 1072] = [0; 1072];
+        // Generate a new key randomly
+        rsgx_read_rand(&mut rand_seed)?;
+        let mut doc: SealedDocumentStorage<StateKey> = SealedDocumentStorage {
+            version: 0x1234, //TODO: what's this?
+            data: [0; 32],
+        };
+        doc.data.copy_from_slice(&rand_seed[..32]);
+        let mut sealed_log_in = [0u8; SEAL_LOG_SIZE];
+        doc.seal(&mut sealed_log_in)?;
+        // Save sealed_log to file
+        let path = get_document_path(addr);
+        save_sealed_document(&path, &sealed_log_in)?;
+        // Add to cache
+        guard.insert(addr.clone(), doc.data).ok_or(EnclaveError::KeyProvisionError {
+            err: format!("Unable to store key in cache: {:?}", addr)
+        });
+        results.push(doc.data);
+    }
+    Ok(results)
+}
 
 pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     // TODO: Break up this function for better readability
@@ -80,42 +109,32 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
     let recovered = KeyPair::recover(&msg_bytes, &sig).unwrap();
     println!("Recovered signer address from the message signature: {:?}", recovered.address());
 
+    // TODO: Verify that the worker is selected for all addresses or throw
     let mut response_data: Vec<(ContractAddress, StateKey)> = Vec::new();
-    let mut state_keys: HashMap<ContractAddress, StateKey> = HashMap::new();
     let mut guard: SgxMutexGuard<HashMap<[u8; 32], [u8; 32], RandomState>> = STATE_KEY_STORE.lock_expect("State Key Store");
-    for raw_addr in req_addrs {
-        let sc_addr: H256 = H256(raw_addr);
-        // Run the worker selection algorithm for the current epoch
-        // TODO: The epoch mutex guard is not happy with locking from here, need to understand this better
-        // TODO: Enable after further testing
-//        let epoch_worker = ecall_get_epoch_workers_internal(sc_addr, None)?[0];
-//        println!("Found the epoch worker {:?} for contract {:?}", epoch_worker, sc_addr);
-//        if recovered.address() != format!("{:?}", epoch_worker) {
-//            return Err(EnclaveError::KeyProvisionError {
-//                err: format!("Signer address of the KM message {} is not the selected worker {}.", recovered.address(), epoch_worker),
-//            });
-//        }
-        // TODO: Clean up and move to separate function
-        // TODO: Seal state key mapping to disk
-        // Get the state key from the Mutex or create if it does not exist
-        let mut key: StateKey = [0u8; 32];
-        if guard.contains_key(&raw_addr) {
-            let key_slice = guard.get(&raw_addr).unwrap();
-            key.copy_from_slice(&key_slice[..]);
-            println!("Found state key for contract {:?}", sc_addr);
-        } else {
-            let mut rand_seed: [u8; 1072] = [0; 1072];
-            // Generate a new key randomly
-            rsgx_read_rand(&mut rand_seed)?;
-            key.copy_from_slice(&rand_seed[..32]);
-            guard.insert(raw_addr, key)
-                .ok_or(EnclaveError::KeyProvisionError {
-                    err: format!("Unable to store key for contract: {:?}", sc_addr)
-                });
-            println!("Stored state key for contract {:?}", sc_addr);
+    let mut keys = get_state_keys(&mut guard, &req_addrs)?;
+    let mut new_addrs: Vec<ContractAddress> = Vec::new();
+    for (i, key) in keys.iter().enumerate() {
+        if key.is_none() {
+            new_addrs.push(req_addrs[i]);
         }
-        let response_item: (ContractAddress, StateKey) = (raw_addr, key);
-        response_data.push(response_item);
+    }
+    if !new_addrs.is_empty() {
+        // Creates keys in cache and seal
+        new_state_keys(&mut guard, &new_addrs)?;
+    }
+    //Now we have keys for all addresses in cache
+    for addr in req_addrs {
+        match guard.get(&addr) {
+            Some(key) => {
+                response_data.push((addr, key.clone()));
+            }
+            None => {
+                return Err(EnclaveError::KeyProvisionError {
+                    err: format!("State key not found in cache: {:?}", addr.to_hex())
+                });
+            }
+        }
     }
 
     let response_msg_data = PrincipalMessageType::Response(response_data);

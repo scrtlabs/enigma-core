@@ -134,7 +134,14 @@ impl Epoch {
     }
 
     pub fn get_selected_workers(self, sc_addr: Hash) -> Result<Vec<Address>, EnclaveError> {
-        let workers = self.worker_params.unwrap().get_selected_workers(sc_addr, None)?;
+        let workers = match self.worker_params {
+            Some(params) => params.get_selected_workers(sc_addr, None)?,
+            None => {
+                return Err(EnclaveError::WorkerAuthError {
+                    err: format!("No worker parameters in epoch: {:?}", self),
+                });
+            }
+        };
         Ok(workers)
     }
 }

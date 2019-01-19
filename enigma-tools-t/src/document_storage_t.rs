@@ -97,7 +97,7 @@ pub fn save_sealed_document(path: &PathBuf, sealed_document: &[u8]) -> Result<()
 }
 
 /// Check if sealed document exists
-pub fn is_document(path: PathBuf) -> bool {
+pub fn is_document(path: &PathBuf) -> bool {
     match fs::metadata(path) {
         Ok(metadata) => metadata.is_file(),
         Err(err) => false,
