@@ -83,13 +83,16 @@ fn from_sealed_log<'a, T: Copy + ContiguousMemory>(sealed_log: *mut u8, sealed_l
 /// Save new sealed document
 pub fn save_sealed_document(path: &PathBuf, sealed_document: &[u8]) -> Result<(), EnclaveError> {
     // TODO: handle error
-    let opt = File::create(path);
-    if opt.is_ok() {
-        println!("Created sealed document file => {:?} ", path);
-        let mut file = opt.unwrap();
-        let result = file.write_all(&sealed_document);
-        if result.is_err() {
-            return Err(EnclaveError::OcallError { command: "save_sealed_document".to_string(), err: format!("{:?}", result.err().unwrap()) });
+    let mut file = match File::create(path) {
+        Ok(opt) => opt,
+        Err(err) => {
+            return Err(EnclaveError::OcallError { command: "save_sealed_document".to_string(), err: format!("{:?}", err) });
+        }
+    };
+    match file.write_all(&sealed_document) {
+        Ok(_) => println!("Sealed document: {:?} written successfully.", path),
+        Err(err) => {
+            return Err(EnclaveError::OcallError { command: "save_sealed_document".to_string(), err: format!("{:?}", err) });
         }
     }
     Ok(())
@@ -97,22 +100,26 @@ pub fn save_sealed_document(path: &PathBuf, sealed_document: &[u8]) -> Result<()
 
 /// Check if sealed document exists
 pub fn is_document(path: PathBuf) -> bool {
-    let metadata = fs::metadata(path).unwrap();
-    metadata.is_file()
+    match fs::metadata(path) {
+        Ok(metadata) => metadata.is_file(),
+        Err(err) => false,
+    }
 }
 
 /// Load bytes of a sealed document in the provided mutable byte array
 pub fn load_sealed_document(path: &PathBuf, sealed_document: &mut [u8]) -> Result<(), EnclaveError> {
-    // TODO: handle error
-    let opt = File::open(path);
-    if opt.is_ok() {
-        println!("Opened sealed document file => {:?} ", path);
-        let mut file = opt.unwrap();
-        let result = file.read(sealed_document);
-        if result.is_err() {
-            return Err(EnclaveError::OcallError { command: "load_sealed_document".to_string(), err: format!("{:?}", result.err().unwrap()) });
+    let mut file = match File::open(path) {
+        Ok(opt) => opt,
+        Err(err) => {
+            return Err(EnclaveError::OcallError { command: "load_sealed_document".to_string(), err: format!("{:?}", err) });
         }
-    }
+    };
+    match file.read(sealed_document) {
+        Ok(_) => println!("Sealed document: {:?} loaded successfully.", path),
+        Err(err) => {
+            return Err(EnclaveError::OcallError { command: "load_sealed_document".to_string(), err: format!("{:?}", err) });
+        }
+    };
     Ok(())
 }
 
