@@ -111,8 +111,8 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
 
     // TODO: Verify that the worker is selected for all addresses or throw
     let mut response_data: Vec<(ContractAddress, StateKey)> = Vec::new();
-    let mut guard: SgxMutexGuard<HashMap<[u8; 32], [u8; 32], RandomState>> = STATE_KEY_STORE.lock_expect("State Key Store");
-    let mut keys = get_state_keys(&mut guard, &req_addrs)?;
+    let mut guard = STATE_KEY_STORE.lock_expect("State Key Store");
+    let keys = get_state_keys(&mut guard, &req_addrs)?;
     let mut new_addrs: Vec<ContractAddress> = Vec::new();
     for (i, key) in keys.iter().enumerate() {
         if key.is_none() {
