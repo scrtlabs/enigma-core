@@ -23,6 +23,7 @@ serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2-v1.0.4" }
+hashmap_core = "=0.1.9"
 wasmi = { git = "https://github.com/enigmampc/wasmi", features = ["core"]}
 ring = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 
