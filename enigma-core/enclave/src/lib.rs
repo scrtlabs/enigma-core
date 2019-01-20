@@ -64,7 +64,7 @@ use wasm_utils::{build, SourceTarget};
 
 use sgx_types::*;
 use std::{mem, ptr, slice, str};
-use std::{string::ToString, vec::Vec};
+use std::{string::{String, ToString}, vec::Vec};
 
 lazy_static! { pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
@@ -116,13 +116,13 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                        user_key: &PubKey, contract_address: &ContractAddress,
                                        gas_limit: *const u64, result: &mut ExecuteResult) -> EnclaveReturn {
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
-    let callable_slice = slice::from_raw_parts(callable, callable_len);
-    let callable_args_slice = slice::from_raw_parts(callable_args, callable_args_len);
+    let callable = slice::from_raw_parts(callable, callable_len);
+    let callable_args = slice::from_raw_parts(callable_args, callable_args_len);
 
     // in order to view the specific error print out the result of the function
     ecall_execute_internal(bytecode_slice,
-                           callable_slice,
-                           callable_args_slice,
+                           callable,
+                           callable_args,
                            &user_key,
                            &contract_address,
                            *gas_limit,
@@ -145,11 +145,11 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
                                       constructor: *const u8, constructor_len: usize,
                                       args: *const u8, args_len: usize,
                                       address: &ContractAddress, user_key: &PubKey,
-                                      gas_limit: *const u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> EnclaveReturn {
+                                      gas_limit: *const u64, result: &mut ExecuteResult) -> EnclaveReturn {
     let args = slice::from_raw_parts(args, args_len);
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let constructor = slice::from_raw_parts(constructor, constructor_len);
-    ecall_deploy_internal(bytecode_slice, constructor, args, address, user_key, *gas_limit, output_ptr, sig).into()
+    ecall_deploy_internal(bytecode_slice, constructor, args, address, user_key, *gas_limit, result).into()
 }
 
 #[no_mangle]
@@ -231,31 +231,28 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
     }
 }
 
-
-unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8],
-                                 callable_args_slice: &[u8], user_key: &PubKey,
-                                 address: &ContractAddress, gas_limit: u64,
-                                 result: &mut ExecuteResult) -> Result<(), EnclaveError> {
-    let callable = str::from_utf8(callable_slice)?;
-//    let s = str::from_utf8(callable_args_slice)?;
-//    let callable_args = hexutil::read_hex(s)?;
-    let state = execution::get_state(*address)?;
-
-    let (types, function_name) = get_types(callable)?;
-
-//    let types_vector = extract_types(&types.to_string());
+fn decrypt_inputs(callable: &[u8], callable_args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String), EnclaveError>{
     let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(EnclaveError::KeyError { key_type: "Missing DH Key".to_string(), key: "".to_string() })?;
 
-    let decrypted_args = decrypt_args(&callable_args_slice, &inputs_key)?;
+    let decrypted_callable = decrypt_callable(callable, &inputs_key)?;
+    let decrypted_args = decrypt_args(&callable_args, &inputs_key)?;
+    let (types, function_name) = {
+        let decrypted_callable_str = str::from_utf8(&decrypted_callable)?;
+        get_types(&decrypted_callable_str)?
+    };
+    Ok((decrypted_args, decrypted_callable, types, function_name))
+}
 
-//    let params = match evm_t::abi::encode_params(&types_vector[..], &args_vector[..], false) {
-//        Ok(v) => v,
-//        Err(e) => {
-//            return Err(EnclaveError::ExecutionError { code: "interpretation of call parameters".to_string(), err: e.to_string() });
-//        }
-//    };
+
+unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable: &[u8],
+                                 callable_args: &[u8], user_key: &PubKey,
+                                 address: &ContractAddress, gas_limit: u64,
+                                 result: &mut ExecuteResult) -> Result<(), EnclaveError> {
+    let state = execution::get_state(*address)?;
+
+    let (decrypted_args, decrypted_callable, types, function_name) = decrypt_inputs(callable, callable_args, user_key)?;
 
     let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, decrypted_args.clone())?;
 
@@ -263,10 +260,11 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable_slice: &[u8],
                         &exec_res.result[..],
                         &exec_res.ethereum_payload[..],
                         &exec_res.ethereum_contract_addr,
+                        exec_res.used_gas,
                         result)?;
 
     // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
-    let args_hash = cryptography_t::prepare_hash_multiple(&[callable_slice, &decrypted_args, address]).keccak256();
+    let args_hash = cryptography_t::prepare_hash_multiple(&[&decrypted_callable, &decrypted_args, address]).keccak256();
     let output_hash = exec_res.result.keccak256();
     let exe_code_hash = bytecode_slice.keccak256();
     let mut delta_hash = [0].keccak256();
@@ -322,29 +320,29 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 
 unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args: &[u8],
                                 address: &ContractAddress, user_key: &PubKey,
-                                gas_limit: u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> Result<(), EnclaveError> {
+                                gas_limit: u64, result: &mut ExecuteResult) -> Result<(), EnclaveError> {
 
     let deploy_bytecode = build_constructor(bytecode_slice)?;
-    let constructor = str::from_utf8(constructor)?;
-    let (types, function_name) = get_types(constructor)?;
 
-    let inputs_key = km_t::users::DH_KEYS
-        .lock_expect("User DH Key")
-        .remove(&user_key[..])
-        .ok_or(EnclaveError::KeyError {key_type: "Missing DH Key".to_string(), key: "".to_string()})?;
-
-    let decrypted_args = decrypt_args(args, &inputs_key)?;
+    let (decrypted_args, _, types, _) = decrypt_inputs(constructor, args, user_key)?;
 
     let state = ContractState::new(*address);
 
     let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, decrypted_args.clone())?;
 
+    let delta = exec_res.state_delta;
+    let exe_code = &exec_res.result[..];
+
+    prepare_wasm_result(delta.clone(),
+                        exe_code,
+                        &exec_res.ethereum_payload[..],
+                        &exec_res.ethereum_contract_addr,
+                        exec_res.used_gas,
+                        result)?;
     // TODO: Can the user make an ethereum payload in the constructor?
     // TODO: Maybe it can be the same as `prepare_wasm_result`?
-    let delta = exec_res.state_delta.unwrap();
     // Saving the delta into the db
-    let enc_delta = km_t::encrypt_delta(delta)?;
-    enigma_runtime_t::ocalls_t::save_delta(&enc_delta)?;
+    let enc_delta = km_t::encrypt_delta(delta.unwrap())?;
 
     if let Some(state) = exec_res.updated_state {
         // Saving the updated state into the db
@@ -354,24 +352,24 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args:
         unreachable!()
     }
 
-    let exe_code = &exec_res.result[..];
-    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
+//    let exe_code = &exec_res.result[..];
+//    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
     // Signing: S(preCodeHash, argsHash, contractAddress, exeCodeHash, delta0Hash)
     let (pre_code_hash, args_hash, exe_code_hash, delta0_hash) =
         (bytecode_slice.keccak256(), args.keccak256(), exe_code.keccak256(), enc_delta.data.keccak256());
     let to_sign = &[&pre_code_hash[..], &args_hash, address, &exe_code_hash, &delta0_hash][..];
-    *sig = SIGNINING_KEY.sign_multiple(to_sign)?;
+    result.signature = SIGNINING_KEY.sign_multiple(to_sign)?;
     Ok(())
 }
 
 unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8],
-                              ethereum_payload: &[u8], ethereum_contract_addr: &[u8; 20],
+                              ethereum_payload: &[u8], ethereum_contract_addr: &[u8; 20], used_gas: u64,
                               result: &mut ExecuteResult ) -> Result<(), EnclaveError>
 {
     result.output = ocalls_t::save_to_untrusted_memory(&execute_result)? as *const u8;
     result.ethereum_payload_ptr = ocalls_t::save_to_untrusted_memory(ethereum_payload)? as *const u8;
     result.ethereum_address.clone_from_slice(ethereum_contract_addr);
-
+    result.used_gas = used_gas;
     match delta_option {
         Some(delta) => {
             let enc_delta = km_t::encrypt_delta(delta)?;

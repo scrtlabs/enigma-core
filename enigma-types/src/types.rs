@@ -31,6 +31,7 @@ pub struct ExecuteResult {
     pub ethereum_payload_ptr: *const u8,
     pub ethereum_address: [u8; 20],
     pub signature: [u8; 65],
+    pub used_gas: u64,
 }
 
 impl Default for ExecuteResult {
@@ -54,6 +55,7 @@ impl fmt::Debug for ExecuteResult {
         debug_trait_builder.field("ethereum_payload_ptr", &(self.ethereum_payload_ptr));
         debug_trait_builder.field("ethereum_address", &(self.ethereum_address));
         debug_trait_builder.field("signature", &(&self.signature[..]));
+        debug_trait_builder.field("used_gas", &(self.used_gas));
         debug_trait_builder.finish()
     }
 }

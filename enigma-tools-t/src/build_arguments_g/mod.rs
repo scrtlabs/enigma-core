@@ -50,6 +50,15 @@ pub fn decrypt_args(callable_args: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, Enc
     }
 }
 
+pub fn decrypt_callable(callable: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EnclaveError> {
+    if callable.is_empty(){
+        return Err(EnclaveError::InputError { message: "called function representation is empty".to_string()})
+    }
+    else {
+        decrypt(callable, key)
+    }
+}
+
 pub fn extract_types(types: &str) -> Vec<String>{
     let mut types_vector: Vec<String> = vec![];
     let types_iterator = types.split(',');

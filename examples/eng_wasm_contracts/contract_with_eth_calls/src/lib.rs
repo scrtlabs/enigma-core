@@ -23,7 +23,7 @@ pub trait ContractInterface{
 }
 
 pub struct Contract;
-use pwasm_abi::types::*;
+
 impl ContractInterface for Contract {
     /// Writes value to state and reads it.
     /// As a temporary solution the value is converted to a stream of bytes.

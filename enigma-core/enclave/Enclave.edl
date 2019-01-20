@@ -26,7 +26,7 @@ enclave {
                                           [in, size=construct_len] const uint8_t* construct, size_t construct_len,
                                           [in, count=args_len] const uint8_t* args, size_t args_len,
                                           [in] uint8_t address[32], [in] uint8_t user_key[64],
-                                          [in] const uint64_t* gas_limit, [out] uint64_t* output_ptr, [out] uint8_t sig[65]);
+                                          [in] const uint64_t* gas_limit, [out] ExecuteResult* result);
 
         public EnclaveReturn ecall_execute([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
                                           [in, size=callable_len] const uint8_t* callable, size_t callable_len,
