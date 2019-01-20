@@ -145,11 +145,11 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
                                       constructor: *const u8, constructor_len: usize,
                                       args: *const u8, args_len: usize,
                                       address: &ContractAddress, user_key: &PubKey,
-                                      gas_limit: *const u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> EnclaveReturn {
+                                      gas_limit: *const u64, result: &mut ExecuteResult) -> EnclaveReturn {
     let args = slice::from_raw_parts(args, args_len);
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let constructor = slice::from_raw_parts(constructor, constructor_len);
-    ecall_deploy_internal(bytecode_slice, constructor, args, address, user_key, *gas_limit, output_ptr, sig).into()
+    ecall_deploy_internal(bytecode_slice, constructor, args, address, user_key, *gas_limit, result).into()
 }
 
 #[no_mangle]
@@ -260,6 +260,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable: &[u8],
                         &exec_res.result[..],
                         &exec_res.ethereum_payload[..],
                         &exec_res.ethereum_contract_addr,
+                        exec_res.used_gas,
                         result)?;
 
     // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
@@ -319,7 +320,7 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 
 unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args: &[u8],
                                 address: &ContractAddress, user_key: &PubKey,
-                                gas_limit: u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> Result<(), EnclaveError> {
+                                gas_limit: u64, result: &mut ExecuteResult) -> Result<(), EnclaveError> {
 
     let deploy_bytecode = build_constructor(bytecode_slice)?;
 
@@ -329,12 +330,19 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args:
 
     let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, decrypted_args.clone())?;
 
+    let delta = exec_res.state_delta;
+    let exe_code = &exec_res.result[..];
+
+    prepare_wasm_result(delta.clone(),
+                        exe_code,
+                        &exec_res.ethereum_payload[..],
+                        &exec_res.ethereum_contract_addr,
+                        exec_res.used_gas,
+                        result)?;
     // TODO: Can the user make an ethereum payload in the constructor?
     // TODO: Maybe it can be the same as `prepare_wasm_result`?
-    let delta = exec_res.state_delta.unwrap();
     // Saving the delta into the db
-    let enc_delta = km_t::encrypt_delta(delta)?;
-    enigma_runtime_t::ocalls_t::save_delta(&enc_delta)?;
+    let enc_delta = km_t::encrypt_delta(delta.unwrap())?;
 
     if let Some(state) = exec_res.updated_state {
         // Saving the updated state into the db
@@ -344,24 +352,24 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args:
         unreachable!()
     }
 
-    let exe_code = &exec_res.result[..];
-    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
+//    let exe_code = &exec_res.result[..];
+//    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
     // Signing: S(preCodeHash, argsHash, contractAddress, exeCodeHash, delta0Hash)
     let (pre_code_hash, args_hash, exe_code_hash, delta0_hash) =
         (bytecode_slice.keccak256(), args.keccak256(), exe_code.keccak256(), enc_delta.data.keccak256());
     let to_sign = &[&pre_code_hash[..], &args_hash, address, &exe_code_hash, &delta0_hash][..];
-    *sig = SIGNINING_KEY.sign_multiple(to_sign)?;
+    result.signature = SIGNINING_KEY.sign_multiple(to_sign)?;
     Ok(())
 }
 
 unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8],
-                              ethereum_payload: &[u8], ethereum_contract_addr: &[u8; 20],
+                              ethereum_payload: &[u8], ethereum_contract_addr: &[u8; 20], used_gas: u64,
                               result: &mut ExecuteResult ) -> Result<(), EnclaveError>
 {
     result.output = ocalls_t::save_to_untrusted_memory(&execute_result)? as *const u8;
     result.ethereum_payload_ptr = ocalls_t::save_to_untrusted_memory(ethereum_payload)? as *const u8;
     result.ethereum_address.clone_from_slice(ethereum_contract_addr);
-
+    result.used_gas = used_gas;
     match delta_option {
         Some(delta) => {
             let enc_delta = km_t::encrypt_delta(delta)?;
