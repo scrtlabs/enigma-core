@@ -119,7 +119,7 @@ pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
 }
 
 pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, params: Vec<u8>) -> Result<RuntimeResult, EnclaveError>{
-    let module = Module::from_buffer(&code)?;
+    let module = create_module(code)?;
     execute(&module, gas_limit, state, "".to_string(), "".to_string(), params)
 }
 
