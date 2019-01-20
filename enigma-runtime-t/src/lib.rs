@@ -35,6 +35,7 @@ pub struct RuntimeResult {
     pub result: Vec<u8>,
     pub ethereum_payload: Vec<u8>,
     pub ethereum_contract_addr: [u8; 20],
+    pub used_gas: u64,
 }
 
 #[derive(Debug, Clone)]
@@ -96,6 +97,7 @@ impl Runtime {
             updated_state: None,
             ethereum_payload: Vec::new(),
             ethereum_contract_addr: [0u8; 20],
+            used_gas: 0,
         };
 
         Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, init_state, current_state }
@@ -111,6 +113,7 @@ impl Runtime {
             updated_state: None,
             ethereum_payload: Vec::new(),
             ethereum_contract_addr: [0u8; 20],
+            used_gas: 0,
         };
 
         Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, init_state, current_state }
@@ -323,7 +326,7 @@ impl Runtime {
             Ok(v) => Some(v),
             Err(e) => return Err(WasmError::Delta(format!("{}", e))),
         };
-
+        self.result.used_gas = self.gas_counter;
         self.result.updated_state = Some(self.current_state);
         Ok(self.result.clone())
     }

@@ -10,7 +10,7 @@ mod internal_std;
 mod eng_wasm_errors;
 mod ethereum;
 mod rand_wasm;
-pub extern crate pwasm_abi;
+pub extern crate eng_pwasm_abi;
 #[macro_use] pub extern crate failure;
 extern crate syn;
 extern crate tiny_keccak;
@@ -22,7 +22,7 @@ pub use eng_wasm_errors::*;
 pub use rand_wasm::*;
 pub use serde_json::Value;
 pub use ethereum::short_signature;
-pub use pwasm_abi::types::*;
+pub use eng_pwasm_abi::types::*;
 
 
 pub mod external {

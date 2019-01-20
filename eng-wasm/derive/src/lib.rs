@@ -111,16 +111,16 @@ fn generate_dispatch(input: syn::Item) -> proc_macro2::TokenStream{
             match return_params_number{
                 0 => Some(quote! {
                     #name => {
-                        let mut stream = pwasm_abi::eth::Stream::new(args);
+                        let mut stream = eng_pwasm_abi::eth::Stream::new(args);
                         Contract::#func(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
                     }
                 }),
                 _ => Some(quote! {
                     #name => {
-                        let mut stream = pwasm_abi::eth::Stream::new(args);
+                        let mut stream = eng_pwasm_abi::eth::Stream::new(args);
                         let result = Contract::#func(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
                         let mut result_bytes: Vec<u8> = Vec::with_capacity(#return_params_number_literal * 32);
-                        let mut sink = pwasm_abi::eth::Sink::new(#return_params_number_literal);
+                        let mut sink = eng_pwasm_abi::eth::Sink::new(#return_params_number_literal);
                         sink.push(result);
                         sink.drain_to(&mut result_bytes);
                         unsafe { eng_wasm::external::ret(result_bytes.as_ptr(), result_bytes.len() as u32) }
@@ -156,7 +156,7 @@ fn generate_constructor(input: syn::Item) -> proc_macro2::TokenStream{
                             deploy_internal(&args());
                         }
                         fn deploy_internal(args: &[u8]){
-                            let mut stream = pwasm_abi::eth::Stream::new(args);
+                            let mut stream = eng_pwasm_abi::eth::Stream::new(args);
                             Contract::#constructor_name(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
                         }
                     }
@@ -278,7 +278,7 @@ fn generate_eth_functions(contract: &Contract) -> Result<Box<Vec<proc_macro2::To
 				payload.push((#sig >> 8) as u8);
                 payload.push(#sig as u8);
 
-                let mut sink = pwasm_abi::eth::Sink::new(#args_number);
+                let mut sink = eng_pwasm_abi::eth::Sink::new(#args_number);
                 #(sink.push(#args_names_copy);)*
                 sink.drain_to(&mut payload);
                 write_ethereum_payload(payload);
