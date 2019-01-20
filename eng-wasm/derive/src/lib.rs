@@ -102,7 +102,7 @@ fn generate_dispatch(input: syn::Item) -> proc_macro2::TokenStream{
             let name = &func.to_string();
             Some(quote! {
                 #name => {
-                    let mut stream = pwasm_abi::eth::Stream::new(args);
+                    let mut stream = eng_pwasm_abi::eth::Stream::new(args);
                     Contract::#func(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
                 }
             })
@@ -135,7 +135,7 @@ fn generate_constructor(input: syn::Item) -> proc_macro2::TokenStream{
                             deploy_internal(&args());
                         }
                         fn deploy_internal(args: &[u8]){
-                            let mut stream = pwasm_abi::eth::Stream::new(args);
+                            let mut stream = eng_pwasm_abi::eth::Stream::new(args);
                             Contract::#constructor_name(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
                         }
                     }
@@ -257,7 +257,7 @@ fn generate_eth_functions(contract: &Contract) -> Result<Box<Vec<proc_macro2::To
 				payload.push((#sig >> 8) as u8);
                 payload.push(#sig as u8);
 
-                let mut sink = pwasm_abi::eth::Sink::new(#args_number);
+                let mut sink = eng_pwasm_abi::eth::Sink::new(#args_number);
                 #(sink.push(#args_names_copy);)*
                 sink.drain_to(&mut payload);
                 write_ethereum_payload(payload);
