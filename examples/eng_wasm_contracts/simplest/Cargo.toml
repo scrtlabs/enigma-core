@@ -3,8 +3,8 @@ name = "contract"
 version = "0.1.0"
 
 [dependencies]
-eng_wasm = {path = "../../../eng_wasm"}
-eng_wasm_derive = {path = "../../../eng_wasm/derive"}
+eng-wasm = {path = "../../../eng-wasm"}
+eng-wasm-derive = {path = "../../../eng-wasm/derive"}
 rustc-hex = "1.0.0" # 2.0.1?
 
 [lib]
