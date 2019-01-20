@@ -199,7 +199,7 @@ pub mod tests {
                               constructor: &str,
                               constructor_arguments: &[Token],
                               func: &str,
-                              func_args: &[Token]) -> (sgx_urts::SgxEnclave, Box<[u8]>, WasmResult) {
+                              func_args: &[Token]) -> (sgx_urts::SgxEnclave, Vec<u8>, WasmResult) {
         let enclave = init_enclave_wrapper().unwrap();
         instantiate_encryption_key(&[address], enclave.geteid());
 
@@ -209,9 +209,9 @@ pub mod tests {
         let deploy_res = compile_and_deploy_wasm_contract(enclave.geteid(), test_path, address, &encrypted_construct, &encrypted_args, &pubkey);
         let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
         let (encrypted_callable, encrypted_args) = serial_and_encrypt_input(&key, func, &func_args, None);
-        let result = wasm::execute(enclave.geteid(), &deploy_res.exe_code.unwrap(), &encrypted_callable, &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
+        let result = wasm::execute(enclave.geteid(), &deploy_res.exe_code.clone().unwrap(), &encrypted_callable, &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
 
-        (enclave, &deploy_res.exe_code.unwrap(), result)
+        (enclave, deploy_res.exe_code.unwrap(), result)
     }
 
     #[test]
@@ -379,8 +379,8 @@ pub mod tests {
         let (encrypted_callable, allowance_args) = serial_and_encrypt_input(&key_al, "allowance(bytes32,bytes32)", &[owner, spender], None);
         let result_allowance = wasm::execute(enclave.geteid(), &contract_code, &encrypted_callable, &allowance_args, &pubkey_al, &address, 100_000_000).expect("Execution failed");
 
-        let res_allowance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_allowance.output).unwrap().pop().unwrap();
-        let res_balance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance.output).unwrap().pop().unwrap();
+        let res_allowance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_allowance.output.unwrap()).unwrap().pop().unwrap();
+        let res_balance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance.output.unwrap()).unwrap().pop().unwrap();
 
         enclave.destroy();
         assert_eq!(res_balance, transfer_amount);
