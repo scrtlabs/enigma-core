@@ -63,7 +63,7 @@ pub(self) mod handling {
     use crate::esgx::equote;
     use crate::networking::constants::SPID;
     use crate::wasm_u::wasm;
-    use enigma_tools_u::common_u::{FromHex32, LockExpectMutex};
+    use enigma_tools_u::common_u::{FromHex32, LockExpectMutex, Keccak256};
     use enigma_tools_u::esgx::equote as equote_tools;
     use enigma_tools_u::attestation_service::{service::AttestationService, constants::ATTESTATION_SERVICE_URL};
     use failure::Error;
@@ -247,32 +247,35 @@ pub(self) mod handling {
 
     pub fn deploy_contract(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
         let bytecode = input.pre_code.expect("Bytecode Missing").from_hex()?;
-        let address = input.address.from_hex_32()?;
+        let contract_address = input.address.from_hex_32()?;
         let enc_args = input.encrypted_args.from_hex()?;
-        let mut pubkey = [0u8; 64];
-        pubkey.clone_from_slice(&input.user_pubkey.from_hex()?);
-        let (exe_code, sig ) = wasm::deploy(
+        let constructor = input.encrypted_fn.from_hex()?;
+        let mut user_pubkey = [0u8; 64];
+        user_pubkey.clone_from_slice(&input.user_pubkey.from_hex()?);
+        let result = wasm::deploy(
             eid,
             &bytecode,
-            &input.encrypted_fn,
+            &constructor,
             &enc_args,
-            address,
-            &pubkey,
+            contract_address,
+            &user_pubkey,
             input.gas_limit)?;
 
         let result = IpcResults::TaskResult {
-            exe_code: Some(exe_code.to_hex()),
-            pre_code_hash: Some(String::new()), // TODO: Should this come from the enclave? I think not, sha256/keccak256?
-            used_gas: 0, // TODO: Return used gas from enclave
-            output: String::new(), // TODO: Return output
-            delta: IpcDelta::default(),
-            signature: sig.to_hex(),
+            exe_code: Some(result.output.to_hex()),
+            pre_code_hash: Some(bytecode.keccak256().to_hex()),
+            used_gas: result.used_gas,
+            output: None, // TODO: Return output
+            delta: result.delta.into(),
+            signature: result.signature.to_hex(),
         };
         Ok( IpcResponse::DeploySecretContract { id, result }.into() )
+
     }
 
     pub fn compute_task(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
-
+        panic!("")
+        /*
         let enc_args = input.encrypted_args.from_hex()?;
         let address = input.address.from_hex_32()?;
         let mut pubkey = [0u8; 64];
@@ -302,6 +305,7 @@ pub(self) mod handling {
         };
 
         Ok( IpcResponse::ComputeTask { id, result }.into() )
+        */
     }
 
 }

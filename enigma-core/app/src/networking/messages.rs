@@ -41,7 +41,7 @@ pub enum IpcResults {
         pre_code_hash: Option<String>,
         #[serde(rename = "usedGas")]
         used_gas: u64,
-        output: String,
+        output: Option<String>,
         delta: IpcDelta,
         signature: String,
     }
@@ -113,7 +113,7 @@ pub struct IpcGetDeltas {
 impl From<Delta> for IpcDelta {
     fn from(delta: Delta) -> Self {
         let address = delta.key.hash.to_hex();
-        let mut key = 0;
+        let key;
         if let Stype::Delta(_key) = delta.key.key_type {
             key = _key;
         } else { unreachable!() }

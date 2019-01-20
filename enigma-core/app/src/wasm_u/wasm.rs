@@ -4,7 +4,6 @@ extern crate sgx_urts;
 extern crate rustc_hex;
 
 use crate::common_u::errors::EnclaveFailError;
-use crate::db::{DeltaKey, Stype};
 use crate::km_u::{ContractAddress, PubKey};
 use super::WasmResult;
 use std::convert::TryInto;
