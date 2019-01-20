@@ -1,3 +1,4 @@
+#![feature(box_patterns)]
 #![recursion_limit="128"]
 extern crate eng_wasm;
 extern crate proc_macro2;
@@ -54,7 +55,6 @@ fn generate_eng_wasm_aux_functions() -> proc_macro2::TokenStream{
                     unsafe {
                         external::fetch_args(data.as_mut_ptr());
                     }
-//                    from_utf8(&data).unwrap().to_string()
                     data
                 }
             }
@@ -96,16 +96,37 @@ fn get_arg_types(method: &syn::TraitItemMethod) -> Vec<proc_macro2::TokenStream>
 
 fn generate_dispatch(input: syn::Item) -> proc_macro2::TokenStream{
     let it: Vec<proc_macro2::TokenStream> = get_contract_methods(input).iter().filter_map(|item| {
+        let output = &item.sig.decl.output;
+        let return_params_number = match output{
+            syn::ReturnType::Type( _, box syn::Type::Path(n) ) => n.path.segments.len(),
+            _ => 0,
+        };
+        let return_params_number_literal = syn::Lit::Int(syn::LitInt::new(return_params_number as u64,
+                                                         syn::IntSuffix::Usize,
+                                                         proc_macro2::Span::call_site()));
         let func = item.sig.ident.clone();
         if func != CONSTRUCTOR_NAME {
             let arg_types = get_arg_types(item);
             let name = &func.to_string();
-            Some(quote! {
-                #name => {
-                    let mut stream = eng_pwasm_abi::eth::Stream::new(args);
-                    Contract::#func(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
-                }
-            })
+            match return_params_number{
+                0 => Some(quote! {
+                    #name => {
+                        let mut stream = eng_pwasm_abi::eth::Stream::new(args);
+                        Contract::#func(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
+                    }
+                }),
+                _ => Some(quote! {
+                    #name => {
+                        let mut stream = eng_pwasm_abi::eth::Stream::new(args);
+                        let result = Contract::#func(#(stream.pop::<#arg_types>().expect("argument decoding failed")),*);
+                        let mut result_bytes: Vec<u8> = Vec::with_capacity(#return_params_number_literal * 32);
+                        let mut sink = eng_pwasm_abi::eth::Sink::new(#return_params_number_literal);
+                        sink.push(result);
+                        sink.drain_to(&mut result_bytes);
+                        unsafe { eng_wasm::external::ret(result_bytes.as_ptr(), result_bytes.len() as u32) }
+                    }
+                }),
+            }
         }
         else{
             None
