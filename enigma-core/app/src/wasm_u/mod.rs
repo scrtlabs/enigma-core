@@ -24,16 +24,15 @@ impl Default for WasmResult {
 
 impl fmt::Debug for WasmResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let mut debug_trait_builder = f.debug_struct("WasmResult");
-        debug_trait_builder.field("bytecode", &self.bytecode);
-        debug_trait_builder.field("output", &self.output);
-//        debug_trait_builder.field("exe_code", &self.exe_code);
-        debug_trait_builder.field("delta", &self.delta);
-        debug_trait_builder.field("eth_payload", &self.eth_payload);
-        debug_trait_builder.field("eth_contract_addr", &self.eth_contract_addr);
-        debug_trait_builder.field("signature", &(&self.signature[..]));
-        debug_trait_builder.field("used_gas", &self.used_gas);
-        debug_trait_builder.finish()
+        let mut debug_builder = f.debug_struct("WasmResult");
+        debug_builder.field("bytecode", &self.bytecode);
+        debug_builder.field("output", &self.output);
+        debug_builder.field("delta", &self.delta);
+        debug_builder.field("eth_payload", &self.eth_payload);
+        debug_builder.field("eth_contract_addr", &self.eth_contract_addr);
+        debug_builder.field("signature", &(&self.signature[..]));
+        debug_builder.field("used_gas", &self.used_gas);
+        debug_builder.finish()
     }
 }
 
