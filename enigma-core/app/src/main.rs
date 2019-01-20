@@ -1,5 +1,6 @@
 #![feature(tool_lints)]
 #![warn(clippy::all)]
+#![feature(try_from)]
 
 extern crate base64;
 extern crate dirs;
