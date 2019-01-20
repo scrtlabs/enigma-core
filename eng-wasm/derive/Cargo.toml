@@ -2,6 +2,7 @@
 name = "eng-wasm-derive"
 version = "0.1.2"
 authors = ["moria <moria@enigma.co>"]
+license = "AGPL-3.0"
 description = "Enigma library for creating Secret Contracts"
 keywords = ["wasm", "webassembly", "blockchain", "sgx", "enigma"]
 categories = ["wasm"]
