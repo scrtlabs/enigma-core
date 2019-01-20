@@ -274,38 +274,34 @@ pub(self) mod handling {
     }
 
     pub fn compute_task(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
-        panic!("")
-        /*
         let enc_args = input.encrypted_args.from_hex()?;
         let address = input.address.from_hex_32()?;
-        let mut pubkey = [0u8; 64];
-        pubkey.clone_from_slice(&input.user_pubkey.from_hex()?);
+        let callable = input.encrypted_fn.from_hex()?;
+        let mut user_pubkey = [0u8; 64];
+        user_pubkey.clone_from_slice(&input.user_pubkey.from_hex()?);
 
-        let exe_code = DATABASE.lock_expect("P2P ComputeTask").get_contract(address)?;
+        let bytecode = DATABASE.lock_expect("P2P ComputeTask").get_contract(address)?;
 
 
-        let wasm_result = wasm::execute(
+        let result = wasm::execute(
             eid,
-            &exe_code,
-            &input.encrypted_fn,
+            &bytecode,
+            &callable,
             &enc_args,
-            &pubkey,
+            &user_pubkey,
             &address,
             input.gas_limit)?;
-
-        let signature = wasm_result.signature.to_hex();
 
         let result = IpcResults::TaskResult {
             exe_code: None,
             pre_code_hash: None,
-            used_gas: 0, // TODO: Return used gas from enclave
-            output: wasm_result.output.to_hex(),
-            delta: wasm_result.delta.into(),
-            signature,
+            used_gas: result.used_gas,
+            output: Some(result.output.to_hex()),
+            delta: result.delta.into(),
+            signature: result.signature.to_hex(),
         };
 
         Ok( IpcResponse::ComputeTask { id, result }.into() )
-        */
     }
 
 }
