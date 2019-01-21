@@ -13,13 +13,15 @@ use enigma_tools_t::common::utils_t::LockExpectMutex;
 use crate::epoch_keeper_t::ecall_get_epoch_workers_internal;
 use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
 use enigma_tools_t::common::{EthereumAddress, ToHex};
-use enigma_tools_t::km_primitives::{PrincipalMessageType, StateKey, PrincipalMessage, ContractAddress};
+use enigma_tools_t::km_primitives::{PrincipalMessageType, StateKey, PrincipalMessage, ContractAddress, PubKey};
 use enigma_tools_t::cryptography_t::Encryption;
 use ethereum_types::H256;
 use ocalls_t;
 use std::path;
 use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
 use sgx_types::marker::ContiguousMemory;
+use secp256k1::SecretKey;
+use secp256k1::PublicKey;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
@@ -95,7 +97,7 @@ fn new_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, R
     Ok(results)
 }
 
-pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
+pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65], sig_out: &mut [u8; 65], pubkey_out: &mut [u8; 64]) -> Result<Vec<u8>, EnclaveError> {
     // TODO: Break up this function for better readability
     let msg = PrincipalMessage::from_message(&msg_bytes)?;
     let req_addrs: Vec<ContractAddress> = match msg.data.clone() {
@@ -136,30 +138,27 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
             }
         }
     }
-
+    // Create the response message
     let response_msg_data = PrincipalMessageType::Response(response_data);
     let id = msg.get_id();
     let pubkey = msg.get_pubkey();
-
     let response_msg = PrincipalMessage::new_id(response_msg_data, id, pubkey);
     if !response_msg.is_response() {
         return Err(EnclaveError::KeyProvisionError {
             err: "Unable create response".to_string()
         });
     }
-    // TODO: Derive from a separate encryption key, not the signing key
-    let derived_key = SIGNINING_KEY.get_aes_key(&pubkey)?;
+    // Encrypt the response message
     let mut rand_num: [u8; 1072] = [0; 1072];
     rsgx_read_rand(&mut rand_num)?;
+    let mut privkey_slice = [0u8; 32];
+    privkey_slice.copy_from_slice(&rand_num[..32]);
+    let my_keypair = KeyPair::from_slice(&privkey_slice)?;
+    let derived_key = my_keypair.get_aes_key(&pubkey)?;
     // Generate the iv from the first 12 bytes of a new random number
     let mut iv: [u8; 12] = [0; 12];
     iv.clone_from_slice(&rand_num[32..44]);
     let response = response_msg.encrypt_with_nonce(&derived_key, Some(iv))?;
-    if !response.is_encrypted_response() {
-        return Err(EnclaveError::KeyProvisionError {
-            err: "Unable encrypt the response".to_string()
-        });
-    }
     // TODO: The bytes don't seem to change between request.
     let response_bytes = response.to_message()?;
     println!("The encrypted response bytes: {:?}", response_bytes);
@@ -167,6 +166,8 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
     // This is important because the response might be delivered by an intermediary
     let sig = SIGNINING_KEY.sign(&response_bytes[..])?;
     sig_out.copy_from_slice(&sig[..]);
+    // Drop the 4 before the public key
+    pubkey_out.copy_from_slice(&my_keypair.get_pubkey());
     Ok(response_bytes)
 }
 

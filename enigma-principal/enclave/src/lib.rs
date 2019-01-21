@@ -116,15 +116,16 @@ pub unsafe extern "C" fn ecall_set_worker_params(receipt_rlp: *const u8, receipt
 #[no_mangle]
 pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize, sig: &[u8; 65],
                                                   enc_response_out: *mut u8, enc_response_len: &mut usize,
+                                                  pubkey_out: &mut [u8; 64],
                                                   sig_out: &mut [u8; 65]) -> EnclaveReturn {
     let msg_bytes = slice::from_raw_parts(msg, msg_len).to_vec();
-    let enc_response = match ecall_get_enc_state_keys_internal(msg_bytes, sig.clone(), sig_out) {
+    let response = match ecall_get_enc_state_keys_internal(msg_bytes, sig.clone(), sig_out, pubkey_out) {
         Ok(response) => response,
         Err(err) => return err.into(),
     };
     // std magic
-    ptr::copy_nonoverlapping(enc_response.as_c_ptr(), enc_response_out, enc_response.len());
-    *enc_response_len = enc_response.len();
+    ptr::copy_nonoverlapping(response.as_c_ptr(), enc_response_out, response.len());
+    *enc_response_len = response.len();
     EnclaveReturn::Success
 }
 

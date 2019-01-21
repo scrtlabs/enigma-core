@@ -10,7 +10,7 @@ extern {
                                 msg: *const u8, msg_len: usize,
                                 sig: &[u8; 65],
                                 enc_response_out: *mut u8, enc_response_len_out: &mut usize,
-                                sig_out: &mut [u8; 65]) -> sgx_status_t;
+                                pubkey_out: &mut [u8; 64], sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
 
 const MAX_ENC_RESPONSE_LEN: usize = 100_000;
@@ -25,36 +25,40 @@ const MAX_ENC_RESPONSE_LEN: usize = 100_000;
 pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Result<StateKeyResponse, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
+    let mut pubkey_out: [u8; 64] = [0; 64];
     let mut enc_response = vec![0u8; MAX_ENC_RESPONSE_LEN];
     let enc_response_slice = enc_response.as_mut_slice();
     let mut enc_response_len_out: usize = 0;
 
-    let msg_bytes: Vec<u8> = request.request_message.into();
+    let msg_bytes: Vec<u8> = request.data.into();
     let status = unsafe {
         ecall_get_enc_state_keys(
             eid,
             &mut retval,
             msg_bytes.as_ptr() as *const u8,
             msg_bytes.len(),
-            &request.worker_sig.into(),
+            &request.sig.into(),
             enc_response_slice.as_mut_ptr() as *mut u8,
             &mut enc_response_len_out,
+            &mut pubkey_out,
             &mut sig_out,
         )
     };
-    if retval != EnclaveReturn::Success  || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError{err: retval, status}.into());
+    if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
+        return Err(EnclaveFailError { err: retval, status }.into());
     }
     let enc_response_out: Vec<u8> = enc_response_slice[0..enc_response_len_out].iter().cloned().collect();
     Ok(StateKeyResponse {
-        encrypted_response_message: StringWrapper::from(enc_response_out),
+        data: StringWrapper::from(enc_response_out),
         sig: StringWrapper::from(sig_out),
+        pubkey: StringWrapper::from(pubkey_out),
     })
 }
 
 #[cfg(test)]
 pub mod tests {
     #![allow(dead_code, unused_assignments, unused_variables)]
+
     use sgx_urts::SgxEnclave;
 
     use esgx::epoch_keeper_u::generate_epoch_seed;
@@ -93,7 +97,7 @@ pub mod tests {
         println!("The mock message: {:?}", msg);
         println!("The mock sig: {:?}", sig);
 
-        let request = StateKeyRequest { request_message: msg, worker_sig: sig };
+        let request = StateKeyRequest { data: msg, sig: sig };
         let response = get_enc_state_keys(enclave.geteid(), request).unwrap();
         println!("Got response: {:?}", response);
         enclave.destroy();
