@@ -1,7 +1,8 @@
 use serde_json;
 use zmq::Message;
-use crate::db::{Delta, Stype};
+use crate::db::{Delta, Stype, DeltaKey};
 use hex::ToHex;
+use failure::Error;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
@@ -29,7 +30,7 @@ pub enum IpcResults {
     Delta(String),
     Deltas(Vec<IpcDelta>),
     Bytecode(String),
-    Status(String),
+    Status(u8),
     Tips(Vec<IpcDelta>),
     UpdateDeltasResult { status: u8, errors: Vec<IpcDeltaResult> },
     DHKey { #[serde(rename = "workerEncryptionKey")] dh_key: String, #[serde(rename = "workerSig")] sig: String },
@@ -109,17 +110,24 @@ pub struct IpcGetDeltas {
     pub to: u32,
 }
 
+impl IpcDelta {
+    pub fn from_delta_key(k: DeltaKey, v: Vec<u8>) -> Result<Self, Error> {
+        if let Stype::Delta(indx) = k.key_type {
+            Ok( IpcDelta { address: Some(k.hash.to_hex()), key: indx, delta: Some(v.to_hex()) } )
+        } else {
+            bail!("This isn't a delta")
+        }
+    }
+}
+
 
 impl From<Delta> for IpcDelta {
     fn from(delta: Delta) -> Self {
         let address = delta.key.hash.to_hex();
-        let key;
-        if let Stype::Delta(_key) = delta.key.key_type {
-            key = _key;
-        } else { unreachable!() }
         let value = delta.value.to_hex();
+        let key = delta.key.key_type.unwrap_delta();
 
-        IpcDelta { address: Some(address), key, delta: Some(value)  }
+        IpcDelta { address: Some(address), key, delta: Some(value) }
     }
 }
 

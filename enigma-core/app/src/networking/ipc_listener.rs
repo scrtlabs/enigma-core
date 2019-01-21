@@ -101,12 +101,11 @@ pub(self) mod handling {
         let mut address = [0u8; 32];
         address.copy_from_slice(&input.from_hex_32()?);
         let (tip_key, tip_data) = DATABASE.lock_expect("P2P, GetTip").get_tip::<DeltaKey>(&address)?;
-        if let Stype::Delta(key) = tip_key.key_type {
-            let delta = IpcDelta { address: None, key, delta: Some(tip_data.to_hex()) };
-            Ok(IpcResponse::GetTip { id, result: delta }.into())
-        } else {
-            unreachable!()
-        }
+
+        let key = tip_key.key_type.unwrap_delta();
+        let delta = IpcDelta { address: None, key, delta: Some(tip_data.to_hex()) };
+        Ok(IpcResponse::GetTip { id, result: delta }.into())
+
     }
 
     pub fn get_tips(id: String, input: Vec<String>) -> Result<Message, Error> {
@@ -114,12 +113,8 @@ pub(self) mod handling {
         for data in input {
             let address = data.from_hex_32()?;
             let (tip_key, tip_data) = DATABASE.lock_expect("P2P, GetTips").get_tip::<DeltaKey>(&address)?;
-            if let Stype::Delta(indx) = tip_key.key_type {
-                let delta = IpcDelta { address: Some(address.to_hex()), key: indx, delta: Some(tip_data.to_hex()) };
-                tips_results.push(delta);
-            } else {
-                unreachable!()
-            }
+            let delta = IpcDelta::from_delta_key(tip_key, tip_data)?;
+            tips_results.push(delta);
         }
         Ok(IpcResponse::GetTips { id, result: IpcResults::Tips(tips_results) }.into())
     }
@@ -128,12 +123,8 @@ pub(self) mod handling {
         let tips = DATABASE.lock_expect("P2P GetAllTips").get_all_tips::<DeltaKey>().unwrap_or_default();
         let mut tips_results = Vec::with_capacity(tips.len());
         for (key, data) in tips {
-            if let Stype::Delta(indx) = key.key_type {
-                let delta = IpcDelta { address: Some(key.hash.to_hex()), key: indx, delta: Some(data.to_hex()) };
-                tips_results.push(delta);
-            } else {
-                unreachable!()
-            }
+            let delta = IpcDelta::from_delta_key(key, data)?;
+            tips_results.push(delta);
         }
         Ok(IpcResponse::GetAllTips { id, result: IpcResults::Tips(tips_results) }.into())
     }
@@ -165,13 +156,8 @@ pub(self) mod handling {
                 continue; // TODO: Check if this handling makes any sense.
             }
             for (key, data) in db_res.unwrap() {
-                let address = key.hash.to_hex();
-                if let Stype::Delta(indx) = key.key_type {
-                    let delta = IpcDelta { address: Some(address), key: indx, delta: Some(data.to_hex()) };
-                    results.push(delta);
-                } else {
-                    unreachable!()
-                }
+                let delta = IpcDelta::from_delta_key(key, data)?;
+                results.push(delta);
             }
         }
 
@@ -189,7 +175,7 @@ pub(self) mod handling {
         let bytecode = bytecode.from_hex()?;
         let delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
         DATABASE.lock_expect("P2P UpdateNewContract").force_update(&delta_key, &bytecode)?;
-        Ok(IpcResponse::UpdateNewContract { id, address, result: IpcResults::Status("0".to_string()) }.into())
+        Ok(IpcResponse::UpdateNewContract { id, address, result: IpcResults::Status(0) }.into())
     }
 
     pub fn update_deltas(id: String, deltas: Vec<IpcDelta>) -> Result<Message, Error> {
@@ -207,24 +193,14 @@ pub(self) mod handling {
         let mut errors = Vec::with_capacity(tuples.len());
 
         for ((deltakey, _), res) in tuples.into_iter().zip(results.into_iter()) {
-            match res {
-                Ok(()) => {
-                    if let Stype::Delta(indx) = deltakey.key_type {
-                        let delta = IpcDeltaResult { address: deltakey.hash.to_hex(), key: indx, status: 0 };
-                        errors.push(delta);
-                    } else {
-                        unreachable!()
-                    }
-                }
-                Err(_) => {
-                    if let Stype::Delta(indx) = deltakey.key_type {
-                        let delta = IpcDeltaResult { address: deltakey.hash.to_hex(), key: indx, status: 1 };
-                        errors.push(delta);
-                    } else {
-                        unreachable!()
-                    }
-                }
+            let mut status = 0;
+            if res.is_err() {
+                status = 1;
             }
+            let key = deltakey.key_type.unwrap_delta();
+            let address = deltakey.hash.to_hex();
+            let delta = IpcDeltaResult { address, key, status };
+            errors.push(delta);
         }
         let result = IpcResults::UpdateDeltasResult { status: 0, errors };
         Ok(IpcResponse::UpdateDeltas { id, result }.into())
