@@ -7,7 +7,7 @@ use failure::Error;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum IpcResponse {
-    GetRegistrationParams { id: String, result: IpcResults },
+    GetRegistrationParams { id: String, #[serde(flatten)] result: IpcResults },
     IdentityChallenge { id: String, nonce: String, signature: IpcIdentityChallenge },
     GetTip { id: String, result: IpcDelta },
     GetTips { id: String, result: IpcResults },
@@ -16,25 +16,31 @@ pub enum IpcResponse {
     GetDelta { id: String, result: IpcResults },
     GetDeltas { id: String, result: IpcResults },
     GetContract { id: String, result: IpcResults },
-    UpdateNewContract { id: String, address: String, result: IpcResults },
-    UpdateDeltas { id: String, result: IpcResults },
-    NewTaskEncryptionKey { id: String, result: IpcResults },
-    DeploySecretContract { id: String, result: IpcResults},
-    ComputeTask { id: String, result: IpcResults },
+    UpdateNewContract { id: String, address: String, #[serde(flatten)] result: IpcResults },
+    UpdateDeltas { id: String, #[serde(flatten)] result: IpcResults },
+    NewTaskEncryptionKey { id: String, #[serde(flatten)] result: IpcResults },
+    DeploySecretContract { id: String, #[serde(flatten)] result: IpcResults},
+    ComputeTask { id: String, #[serde(flatten)] result: IpcResults },
+    GetPTTRequest { id: String, #[serde(flatten)] result: IpcResults },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "lowercase", rename = "result")]
+#[serde(rename_all = "camelCase", rename = "result")]
 pub enum IpcResults {
+    Request { request: String, #[serde(rename = "workerSig")] sig: String },
     Addresses(Vec<String>),
     Delta(String),
     Deltas(Vec<IpcDelta>),
     Bytecode(String),
     Status(u8),
     Tips(Vec<IpcDelta>),
+    #[serde(rename = "result")]
     UpdateDeltasResult { status: u8, errors: Vec<IpcDeltaResult> },
+    #[serde(rename = "result")]
     DHKey { #[serde(rename = "workerEncryptionKey")] dh_key: String, #[serde(rename = "workerSig")] sig: String },
+    #[serde(rename = "result")]
     RegistrationParams { #[serde(rename = "signingKey")] sigining_key: String, report: String, signature: String },
+    #[serde(rename = "result")]
     TaskResult {
         #[serde(rename = "exeCode")]
         exe_code: Option<String>,
@@ -65,6 +71,7 @@ pub enum IpcRequest {
     NewTaskEncryptionKey { id: String, #[serde(rename = "userPubKey")] user_pubkey: String },
     DeploySecretContract { id: String, input: IpcTask},
     ComputeTask { id: String, input: IpcTask },
+    GetPTTRequest { id: String, addresses: Vec<String> },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -134,15 +141,15 @@ impl From<Delta> for IpcDelta {
 impl From<Message> for IpcRequest {
     fn from(msg: Message) -> Self {
         let msg_str = msg.as_str().unwrap();
+        println!("got: {:?}", msg_str);
         let req: IpcRequest = serde_json::from_str(msg_str).expect(msg_str);
-        println!("got: {:?}", req);
         req
     }
 }
 
 impl Into<Message> for IpcResponse {
     fn into(self) -> Message {
-        println!("respond: {:?}", self);
+        println!("respond: {:?}", serde_json::to_string(&self).unwrap());
         let msg = serde_json::to_vec(&self).unwrap();
         Message::from_slice(&msg)
     }

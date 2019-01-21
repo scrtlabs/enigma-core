@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::networking::messages::*;
 use futures::{Future, Stream};
 use sgx_types::sgx_enclave_id_t;
@@ -7,15 +6,15 @@ use tokio_zmq::prelude::*;
 use tokio_zmq::{Error, Multipart, Rep};
 
 pub struct IpcListener {
-    context: Arc<zmq::Context>,
+    _context: Arc<zmq::Context>,
     rep_future: Box<Future<Item = Rep, Error = Error>>,
 }
 
 impl IpcListener {
     pub fn new(conn_str: &str) -> Self {
-        let context = Arc::new(zmq::Context::new());
-        let rep_future = Rep::builder(context.clone()).bind(conn_str).build();
-        IpcListener { context, rep_future }
+        let _context = Arc::new(zmq::Context::new());
+        let rep_future = Rep::builder(_context.clone()).bind(conn_str).build();
+        IpcListener { _context, rep_future }
     }
 
     pub fn run<F>(self, f: F) -> impl Future<Item = (), Error = Error>
@@ -45,6 +44,7 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
             IpcRequest::NewTaskEncryptionKey { id, user_pubkey } => handling::get_dh_user_key(id, user_pubkey, eid),
             IpcRequest::DeploySecretContract { id, input } => handling::deploy_contract(id, input, eid),
             IpcRequest::ComputeTask { id, input } => handling::compute_task(id, input, eid),
+            IpcRequest::GetPTTRequest { id, addresses } => handling::get_ptt_req(id, addresses, eid),
         };
 
         response.push_back(response_msg.unwrap_or_default());
@@ -219,6 +219,17 @@ pub(self) mod handling {
         let result = IpcResults::DHKey {dh_key: pubkey.to_hex(), sig: sig.to_hex() };
 
         Ok(IpcResponse::NewTaskEncryptionKey { id, result }.into())
+    }
+
+    pub fn get_ptt_req(id: String, addresses: Vec<String>, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+        let mut addresses_arr = Vec::with_capacity(addresses.len());
+        for a in addresses {
+            addresses_arr.push(a.from_hex_32()?);
+        }
+        let (data, sig) = km_u::ptt_req(eid, &addresses_arr)?;
+        let result = IpcResults::Request { request: data.to_hex(), sig: sig.to_hex() };
+
+        Ok(IpcResponse::GetPTTRequest { id, result }.into())
     }
 
     pub fn deploy_contract(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
