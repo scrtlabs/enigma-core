@@ -29,7 +29,8 @@ impl IpcListener {
 pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
     let mut response = Multipart::new();
     for msg in request {
-        let response_msg = match msg.into() {
+        let msg: IpcRequest = msg.into();
+        let response_msg = match msg.clone() {
             IpcRequest::GetRegistrationParams { id } => handling::get_registration_params(id, eid),
             IpcRequest::IdentityChallenge { id, nonce } => handling::identity_challange(id, nonce),
             IpcRequest::GetTip { id, input } => handling::get_tip(id, input),
@@ -48,7 +49,7 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
             IpcRequest::PTTResponse { id, response } => handling::ptt_response(id, response, eid),
         };
 
-        response.push_back(response_msg.unwrap_or_default());
+        response.push_back(response_msg.unwrap_or_error(msg.unwrap_id()));
     }
     response
 }
@@ -75,7 +76,9 @@ pub(self) mod handling {
     use std::str;
     use zmq::Message;
 
-    pub fn get_registration_params(id: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    type MessageResult = Result<Message, Error>;
+
+    pub fn get_registration_params(id: String, eid: sgx_enclave_id_t) -> MessageResult {
         let sigining_key = equote::get_register_signing_address(eid)?;
 
         let enc_quote = equote_tools::retry_quote(eid, &SPID, 18)?;
@@ -93,11 +96,11 @@ pub(self) mod handling {
         Ok(IpcResponse::GetRegistrationParams { id, result }.into())
     }
     /// Not implemented.
-    pub fn identity_challange(id: String, nonce: String) -> Result<Message, Error> {
+    pub fn identity_challange(id: String, nonce: String) -> MessageResult {
         unimplemented!("identity_challenge: {}, {}", id, nonce)
     }
 
-    pub fn get_tip(id: String, input: String) -> Result<Message, Error> {
+    pub fn get_tip(id: String, input: String) -> MessageResult {
         let mut address = [0u8; 32];
         address.copy_from_slice(&input.from_hex_32()?);
         let (tip_key, tip_data) = DATABASE.lock_expect("P2P, GetTip").get_tip::<DeltaKey>(&address)?;
@@ -108,7 +111,7 @@ pub(self) mod handling {
 
     }
 
-    pub fn get_tips(id: String, input: Vec<String>) -> Result<Message, Error> {
+    pub fn get_tips(id: String, input: Vec<String>) -> MessageResult {
         let mut tips_results = Vec::with_capacity(input.len());
         for data in input {
             let address = data.from_hex_32()?;
@@ -119,7 +122,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetTips { id, result: IpcResults::Tips(tips_results) }.into())
     }
 
-    pub fn get_all_tips(id: String) -> Result<Message, Error> {
+    pub fn get_all_tips(id: String) -> MessageResult {
         let tips = DATABASE.lock_expect("P2P GetAllTips").get_all_tips::<DeltaKey>().unwrap_or_default();
         let mut tips_results = Vec::with_capacity(tips.len());
         for (key, data) in tips {
@@ -129,13 +132,13 @@ pub(self) mod handling {
         Ok(IpcResponse::GetAllTips { id, result: IpcResults::Tips(tips_results) }.into())
     }
 
-    pub fn get_all_addrs(id: String) -> Result<Message, Error> {
+    pub fn get_all_addrs(id: String) -> MessageResult {
         let addresses: Vec<String> =
             DATABASE.lock_expect("P2P GetAllAddrs").get_all_addresses().unwrap_or_default().iter().map(|addr| addr.to_hex()).collect();
         Ok(IpcResponse::GetAllAddrs { id, result: IpcResults::Addresses(addresses) }.into())
     }
 
-    pub fn get_delta(id: String, input: IpcDelta) -> Result<Message, Error> {
+    pub fn get_delta(id: String, input: IpcDelta) -> MessageResult {
         let address =
             input.address.ok_or(P2PErr { cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?.from_hex_32()?;
         let delta_key = DeltaKey::new(address, Stype::Delta(input.key));
@@ -143,7 +146,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetDelta { id, result: IpcResults::Delta(delta.to_hex()) }.into())
     }
 
-    pub fn get_deltas(id: String, input: Vec<IpcGetDeltas>) -> Result<Message, Error> {
+    pub fn get_deltas(id: String, input: Vec<IpcGetDeltas>) -> MessageResult {
         let mut results = Vec::with_capacity(input.len());
         for data in input {
             let address = data.address.from_hex_32()?;
@@ -164,13 +167,13 @@ pub(self) mod handling {
         Ok(IpcResponse::GetDeltas { id, result: IpcResults::Deltas(results) }.into())
     }
 
-    pub fn get_contract(id: String, input: String) -> Result<Message, Error> {
+    pub fn get_contract(id: String, input: String) -> MessageResult {
         let address = input.from_hex_32()?;
         let data = DATABASE.lock_expect("P2P GetContract").get_contract(address).unwrap_or_default();
         Ok(IpcResponse::GetContract { id, result: IpcResults::Bytecode(data.to_hex()) }.into())
     }
 
-    pub fn update_new_contract(id: String, address: String, bytecode: String) -> Result<Message, Error> {
+    pub fn update_new_contract(id: String, address: String, bytecode: String) -> MessageResult {
         let address_arr = address.from_hex_32()?;
         let bytecode = bytecode.from_hex()?;
         let delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
@@ -178,7 +181,7 @@ pub(self) mod handling {
         Ok(IpcResponse::UpdateNewContract { id, address, result: IpcResults::Status(0) }.into())
     }
 
-    pub fn update_deltas(id: String, deltas: Vec<IpcDelta>) -> Result<Message, Error> {
+    pub fn update_deltas(id: String, deltas: Vec<IpcDelta>) -> MessageResult {
         let mut tuples = Vec::with_capacity(deltas.len());
 
         for delta in deltas.into_iter() {
@@ -206,7 +209,7 @@ pub(self) mod handling {
         Ok(IpcResponse::UpdateDeltas { id, result }.into())
     }
 
-    pub fn get_dh_user_key(id: String, _user_pubkey: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    pub fn get_dh_user_key(id: String, _user_pubkey: String, eid: sgx_enclave_id_t) -> MessageResult {
         let mut user_pubkey = [0u8; 64];
         user_pubkey.clone_from_slice(&_user_pubkey.from_hex().unwrap());
 
@@ -221,7 +224,7 @@ pub(self) mod handling {
         Ok(IpcResponse::NewTaskEncryptionKey { id, result }.into())
     }
 
-    pub fn get_ptt_req(id: String, addresses: Vec<String>, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    pub fn get_ptt_req(id: String, addresses: Vec<String>, eid: sgx_enclave_id_t) -> MessageResult {
         let mut addresses_arr = Vec::with_capacity(addresses.len());
         for a in addresses {
             addresses_arr.push(a.from_hex_32()?);
@@ -232,7 +235,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetPTTRequest { id, result }.into())
     }
 
-    pub fn ptt_response(id: String, response: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    pub fn ptt_response(id: String, response: String, eid: sgx_enclave_id_t) -> MessageResult {
         let msg = response.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
         let res = km_u::ptt_build_state(eid)?;
@@ -244,7 +247,7 @@ pub(self) mod handling {
         Ok(IpcResponse::PTTResponse { id, result}.into())
     }
 
-    pub fn deploy_contract(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    pub fn deploy_contract(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> MessageResult {
         let bytecode = input.pre_code.expect("Bytecode Missing").from_hex()?;
         let contract_address = input.address.from_hex_32()?;
         let enc_args = input.encrypted_args.from_hex()?;
@@ -272,7 +275,7 @@ pub(self) mod handling {
 
     }
 
-    pub fn compute_task(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    pub fn compute_task(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> MessageResult {
         let enc_args = input.encrypted_args.from_hex()?;
         let address = input.address.from_hex_32()?;
         let callable = input.encrypted_fn.from_hex()?;

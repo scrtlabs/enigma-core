@@ -23,6 +23,7 @@ pub enum IpcResponse {
     ComputeTask { id: String, #[serde(flatten)] result: IpcResults },
     GetPTTRequest { id: String, #[serde(flatten)] result: IpcResults },
     PTTResponse { id: String, result: Vec<IpcStatusResult> },
+    Error { id: String, error: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -130,6 +131,30 @@ impl IpcDelta {
 }
 
 
+impl IpcRequest {
+    pub fn unwrap_id(self) -> String {
+        match self {
+            IpcRequest::GetRegistrationParams { id, .. } => id,
+            IpcRequest::IdentityChallenge { id, .. } => id,
+            IpcRequest::GetTip { id, .. } => id,
+            IpcRequest::GetTips { id, .. } => id,
+            IpcRequest::GetAllTips { id } => id,
+            IpcRequest::GetAllAddrs { id } => id,
+            IpcRequest::GetDelta { id, .. } => id,
+            IpcRequest::GetDeltas { id, .. } => id,
+            IpcRequest::GetContract { id, .. } => id,
+            IpcRequest::UpdateNewContract { id, .. } => id,
+            IpcRequest::UpdateDeltas { id, .. } => id,
+            IpcRequest::NewTaskEncryptionKey { id, .. } => id,
+            IpcRequest::DeploySecretContract { id, ..} => id,
+            IpcRequest::ComputeTask { id, .. } => id,
+            IpcRequest::GetPTTRequest { id, .. } => id,
+            IpcRequest::PTTResponse { id, .. } => id,
+        }
+    }
+}
+
+
 impl From<Delta> for IpcDelta {
     fn from(delta: Delta) -> Self {
         let address = delta.key.hash.to_hex();
@@ -157,17 +182,17 @@ impl Into<Message> for IpcResponse {
     }
 }
 
-pub(crate) trait UnwrapDefault<T> {
-    fn unwrap_or_default(self) -> T;
+pub(crate) trait UnwrapError<T, D> {
+    fn unwrap_or_error(self, _: D) -> T;
 }
 
-impl<E: std::fmt::Debug> UnwrapDefault<Message> for Result<Message, E> {
-    fn unwrap_or_default(self) -> Message {
+impl<E: std::fmt::Debug> UnwrapError<Message, String> for Result<Message, E> {
+    fn unwrap_or_error(self, id: String) -> Message {
         match self {
             Ok(m) => m,
             Err(e) => {
                 error!("Unwrapped p2p Message failed: {:?}", e);
-                Message::new()
+                IpcResponse::Error { id, error: format!("{:?}", e) }.into()
             }
         }
     }
