@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate rustc_hex;
@@ -49,7 +48,7 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args:
                      &mut result)
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        Err(EnclaveFailError { err: retval, status }.into());
+        Err(EnclaveFailError { err: retval, status }.into())
     } else {
         result.try_into()
     }
@@ -77,7 +76,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &
     };
 
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        Err(EnclaveFailError { err: retval, status }.into());
+        Err(EnclaveFailError { err: retval, status }.into())
     } else {
         result.try_into()
     }
