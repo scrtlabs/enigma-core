@@ -45,6 +45,7 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
             IpcRequest::DeploySecretContract { id, input } => handling::deploy_contract(id, input, eid),
             IpcRequest::ComputeTask { id, input } => handling::compute_task(id, input, eid),
             IpcRequest::GetPTTRequest { id, addresses } => handling::get_ptt_req(id, addresses, eid),
+            IpcRequest::PTTResponse { id, response } => handling::ptt_response(id, response, eid),
         };
 
         response.push_back(response_msg.unwrap_or_default());
@@ -54,7 +55,6 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
 
 // TODO: Make sure that every ? that doesn't require responding with a empty Message is replaced with an appropriate handling
 pub(self) mod handling {
-    #![allow(dead_code)]
     #![allow(clippy::needless_pass_by_value)]
     use crate::common_u::errors::P2PErr;
     use crate::db::{CRUDInterface, DeltaKey, P2PCalls, Stype, DATABASE};
@@ -195,11 +195,11 @@ pub(self) mod handling {
         for ((deltakey, _), res) in tuples.into_iter().zip(results.into_iter()) {
             let mut status = 0;
             if res.is_err() {
-                status = 1;
+                status = -1;
             }
-            let key = deltakey.key_type.unwrap_delta();
+            let key = Some(deltakey.key_type.unwrap_delta());
             let address = deltakey.hash.to_hex();
-            let delta = IpcDeltaResult { address, key, status };
+            let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
         }
         let result = IpcResults::UpdateDeltasResult { status: 0, errors };
@@ -230,6 +230,18 @@ pub(self) mod handling {
         let result = IpcResults::Request { request: data.to_hex(), sig: sig.to_hex() };
 
         Ok(IpcResponse::GetPTTRequest { id, result }.into())
+    }
+
+    pub fn ptt_response(id: String, response: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+        let msg = response.from_hex()?;
+        km_u::ptt_res(eid, &msg)?;
+        let res = km_u::ptt_build_state(eid)?;
+        let result: Vec<_> = res
+            .into_iter()
+            .map(|a| IpcStatusResult{ address: a.to_hex(), status: -1, key: None })
+            .collect();
+
+        Ok(IpcResponse::PTTResponse { id, result}.into())
     }
 
     pub fn deploy_contract(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {

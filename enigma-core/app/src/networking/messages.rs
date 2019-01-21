@@ -22,6 +22,7 @@ pub enum IpcResponse {
     DeploySecretContract { id: String, #[serde(flatten)] result: IpcResults},
     ComputeTask { id: String, #[serde(flatten)] result: IpcResults },
     GetPTTRequest { id: String, #[serde(flatten)] result: IpcResults },
+    PTTResponse { id: String, result: Vec<IpcStatusResult> },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -32,10 +33,10 @@ pub enum IpcResults {
     Delta(String),
     Deltas(Vec<IpcDelta>),
     Bytecode(String),
-    Status(u8),
+    Status(i8),
     Tips(Vec<IpcDelta>),
     #[serde(rename = "result")]
-    UpdateDeltasResult { status: u8, errors: Vec<IpcDeltaResult> },
+    UpdateDeltasResult { status: i8, errors: Vec<IpcStatusResult> },
     #[serde(rename = "result")]
     DHKey { #[serde(rename = "workerEncryptionKey")] dh_key: String, #[serde(rename = "workerSig")] sig: String },
     #[serde(rename = "result")]
@@ -72,6 +73,7 @@ pub enum IpcRequest {
     DeploySecretContract { id: String, input: IpcTask},
     ComputeTask { id: String, input: IpcTask },
     GetPTTRequest { id: String, addresses: Vec<String> },
+    PTTResponse { id: String,  response: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -97,10 +99,10 @@ pub struct IpcIdentityChallenge {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IpcDeltaResult {
+pub struct IpcStatusResult {
     pub address: String,
-    pub key: u32,
-    pub status: u8,
+    pub key: Option<u32>,
+    pub status: i8,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
