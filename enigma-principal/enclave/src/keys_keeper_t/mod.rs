@@ -56,7 +56,7 @@ fn get_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, R
                 match doc {
                     Some(doc) => {
                         guard.insert(addr.clone(), doc.data).ok_or(EnclaveError::KeyProvisionError {
-                            err: format!("Unable to store key in cache: {:?}", addr)
+                            err: format!("Unable to store key in cache: {:?}", addr.to_hex())
                         });
                         key = Some(doc.data);
                     }
@@ -88,7 +88,7 @@ fn new_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, R
         save_sealed_document(&path, &sealed_log_in)?;
         // Add to cache
         guard.insert(addr.clone(), doc.data).ok_or(EnclaveError::KeyProvisionError {
-            err: format!("Unable to store key in cache: {:?}", addr)
+            err: format!("Unable to store key in cache: {:?}", addr.to_hex())
         });
         results.push(doc.data);
     }
@@ -106,7 +106,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
             });
         }
     };
-    let recovered = KeyPair::recover(&msg_bytes, &sig).unwrap();
+    let recovered = KeyPair::recover(&msg_bytes, &sig)?;
     println!("Recovered signer address from the message signature: {:?}", recovered.address());
 
     // TODO: Verify that the worker is selected for all addresses or throw
@@ -168,4 +168,40 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
     let sig = SIGNINING_KEY.sign(&response_bytes[..])?;
     sig_out.copy_from_slice(&sig[..]);
     Ok(response_bytes)
+}
+
+pub mod tests {
+    use super::*;
+    use enigma_tools_t::common::FromHex;
+
+    //noinspection RsTypeCheck
+    pub fn test_state_keys_storage() {
+        let data = vec![
+            "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08".from_hex().unwrap(),
+            "60303AE22B998861BCE3B28F33EEC1BE758A213C86C93C076DBE9F558C11C752".from_hex().unwrap(),
+        ];
+        let mut sc_addrs: Vec<ContractAddress> = Vec::new();
+        for (i, addr) in data.iter().enumerate() {
+            let mut a = [0u8; 32];
+            a.copy_from_slice(addr);
+            sc_addrs.push(a);
+        }
+        let mut guard = STATE_KEY_STORE.lock_expect("State Key Store");
+        let new_keys = new_state_keys(&mut guard, &sc_addrs).expect("Unable to store state keys");
+
+        let cached_keys = get_state_keys(&mut guard, &sc_addrs).expect("Unable to get state keys from cache")
+            .iter()
+            .map(|k| k.unwrap())
+            .collect::<Vec<StateKey>>();
+        assert_eq!(new_keys, cached_keys);
+
+        // Clearing the cache to test retrieval of sealed keys form disk
+        guard.clear();
+
+        let stored_keys = get_state_keys(&mut guard, &sc_addrs).expect("Unable to get state keys from sealed files")
+            .iter()
+            .map(|k| k.unwrap())
+            .collect::<Vec<StateKey>>();
+        assert_eq!(new_keys, stored_keys);
+    }
 }

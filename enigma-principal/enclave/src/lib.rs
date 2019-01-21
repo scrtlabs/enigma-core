@@ -141,6 +141,7 @@ pub mod tests {
     use enigma_tools_t::storage_t::tests::*;
     use enigma_tools_t::document_storage_t::tests::*;
     use crate::epoch_keeper_t::tests::*;
+    use crate::keys_keeper_t::tests::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
@@ -149,7 +150,8 @@ pub mod tests {
             test_document_sealing_storage,
             test_signing,
             test_ecdh,
-            test_get_epoch_workers_internal
+            test_get_epoch_workers_internal,
+            test_state_keys_storage
         );
     }
 }
