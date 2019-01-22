@@ -101,28 +101,32 @@ pub unsafe extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize, cal
 }
 
 #[no_mangle]
+/// Ecall for invocation of the external function `callable` of deployed contract with code `bytecode`.
 /// arguments:
-/// * `bytecode` - deployed Wasm bytecode
+/// * `bytecode` - WASM bytecode of the deployed contract
 /// * `bytecode_len` - the length of the `bytecode`.
-/// * `callable` - the name of the function to call
-/// * `callable_len` - the length of the callable function name
-/// * `output` - the output holder, which will hold the result of the invocation of the `callable`
-/// * `output_len` - the length of the output
-/// Ecall for invocation of the external function `callable` of deployed contract `bytecode`.
+/// * `callable` - the encrypted signature of the contract function to call
+/// * `callable_len` - the length of the `callable`
+/// * `args` - the encrypted arguments for the function
+/// * `args_len` - the length of the `args`
+/// * `user_key` - the DH key of the user to decrypt `callable` and `args`
+/// * `contract_address` - the address of the deployed contract with code `bytecode`
+/// * `gas_limit` - the gas limit for the function execution
+/// * `result` - the result of the function invocation
 // TODO: add arguments of callable.
 pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                        callable: *const u8, callable_len: usize,
-                                       callable_args: *const u8, callable_args_len: usize,
+                                       args: *const u8, args_len: usize,
                                        user_key: &PubKey, contract_address: &ContractAddress,
                                        gas_limit: *const u64, result: &mut ExecuteResult) -> EnclaveReturn {
-    let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
+    let bytecode = slice::from_raw_parts(bytecode, bytecode_len);
     let callable = slice::from_raw_parts(callable, callable_len);
-    let callable_args = slice::from_raw_parts(callable_args, callable_args_len);
+    let args = slice::from_raw_parts(args, args_len);
 
     // in order to view the specific error print out the result of the function
-    ecall_execute_internal(bytecode_slice,
+    ecall_execute_internal(bytecode,
                            callable,
-                           callable_args,
+                           args,
                            &user_key,
                            &contract_address,
                            *gas_limit,
@@ -130,26 +134,27 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 }
 
 #[no_mangle]
-/// Ecall for deploying contract
+/// Ecall for deploying contract.
 /// arguments:
-/// * `bytecode` - Wasm bytecode built in unguarded part by wasm.rs from the original contract.
-///    `bytecode` contains one function `call`, which invokes `deploy` from the original Wasm
-///    contract and returns bytecode for deployment.
-/// * `bytecode_len` - the length of the `bytecode`.
-/// * `args` - arguments(might be encrypted) for the constructor, supplied by the user
+/// * `bytecode` - WASM pre-deployed bytecode.
+/// * `bytecode_len` - the length of `bytecode`.
+/// * `constructor` - the encrypted constructor signature
+/// * `constructor_len` - the length of `constructor`
+/// * `args` - the encrypted arguments for the constructor
 /// * `args_len` - the length of `args`
-/// * `user_key` - the DH key of the user
-/// * `output` - the output holder, which will hold the bytecode for deployment
-/// * `output_len` - the length of the output
+/// * `address` - the address of the contract to be deployed
+/// * `user_key` - the DH key of the user to decrypt `constructor` and `args`
+/// * `gas_limit` - the gas limit for the constructor execution
+/// * `result` - the result of the deployment
 pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
                                       constructor: *const u8, constructor_len: usize,
                                       args: *const u8, args_len: usize,
                                       address: &ContractAddress, user_key: &PubKey,
                                       gas_limit: *const u64, result: &mut ExecuteResult) -> EnclaveReturn {
     let args = slice::from_raw_parts(args, args_len);
-    let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
+    let bytecode = slice::from_raw_parts(bytecode, bytecode_len);
     let constructor = slice::from_raw_parts(constructor, constructor_len);
-    ecall_deploy_internal(bytecode_slice, constructor, args, address, user_key, *gas_limit, result).into()
+    ecall_deploy_internal(bytecode, constructor, args, address, user_key, *gas_limit, result).into()
 }
 
 #[no_mangle]
@@ -231,13 +236,13 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
     }
 }
 
-fn decrypt_inputs(callable: &[u8], callable_args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String), EnclaveError>{
+fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String), EnclaveError>{
     let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(EnclaveError::KeyError { key_type: "Missing DH Key".to_string(), key: "".to_string() })?;
 
     let decrypted_callable = decrypt_callable(callable, &inputs_key)?;
-    let decrypted_args = decrypt_args(&callable_args, &inputs_key)?;
+    let decrypted_args = decrypt_args(&args, &inputs_key)?;
     let (types, function_name) = {
         let decrypted_callable_str = str::from_utf8(&decrypted_callable)?;
         get_types(&decrypted_callable_str)?
@@ -246,15 +251,15 @@ fn decrypt_inputs(callable: &[u8], callable_args: &[u8], user_key: &PubKey) -> R
 }
 
 
-unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable: &[u8],
-                                 callable_args: &[u8], user_key: &PubKey,
+unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
+                                 args: &[u8], user_key: &PubKey,
                                  address: &ContractAddress, gas_limit: u64,
                                  result: &mut ExecuteResult) -> Result<(), EnclaveError> {
     let state = execution::get_state(*address)?;
 
-    let (decrypted_args, decrypted_callable, types, function_name) = decrypt_inputs(callable, callable_args, user_key)?;
+    let (decrypted_args, decrypted_callable, types, function_name) = decrypt_inputs(callable, args, user_key)?;
 
-    let exec_res = execution::execute_call(&bytecode_slice, gas_limit, state, function_name, types, decrypted_args.clone())?;
+    let exec_res = execution::execute_call(&bytecode, gas_limit, state, function_name, types, decrypted_args.clone())?;
 
     prepare_wasm_result(exec_res.state_delta.clone(),
                         &exec_res.result[..],
@@ -266,7 +271,7 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable: &[u8],
     // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
     let args_hash = cryptography_t::prepare_hash_multiple(&[&decrypted_callable, &decrypted_args, address]).keccak256();
     let output_hash = exec_res.result.keccak256();
-    let exe_code_hash = bytecode_slice.keccak256();
+    let exe_code_hash = bytecode.keccak256();
     let mut delta_hash = [0].keccak256();
     if let (Some(state), Some(delta)) = (exec_res.updated_state, exec_res.state_delta) {
         let enc_state = km_t::encrypt_state(state)?;
@@ -284,6 +289,8 @@ unsafe fn ecall_execute_internal(bytecode_slice: &[u8], callable: &[u8],
 
 /// Builds Wasm code for contract deployment from the Wasm contract.
 /// Gets byte vector with Wasm code.
+/// Created code contains one function `call`, which invokes `deploy`.
+/// `deploy` invokes the contract constructor from `wasm_code` and returns the bytecode to be deployed
 /// Writes created code to a file constructor.wasm in a current directory.
 /// This code is based on https://github.com/paritytech/wasm-utils/blob/master/cli/build/main.rs#L68
 /// The parameters' values to build function are default parameters as they appear in the original code.
@@ -318,11 +325,11 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 }
 
 
-unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args: &[u8],
+unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8],
                                 address: &ContractAddress, user_key: &PubKey,
                                 gas_limit: u64, result: &mut ExecuteResult) -> Result<(), EnclaveError> {
 
-    let deploy_bytecode = build_constructor(bytecode_slice)?;
+    let deploy_bytecode = build_constructor(bytecode)?;
 
     let (decrypted_args, _, types, _) = decrypt_inputs(constructor, args, user_key)?;
 
@@ -356,7 +363,7 @@ unsafe fn ecall_deploy_internal(bytecode_slice: &[u8], constructor: &[u8], args:
 //    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
     // Signing: S(preCodeHash, argsHash, contractAddress, exeCodeHash, delta0Hash)
     let (pre_code_hash, args_hash, exe_code_hash, delta0_hash) =
-        (bytecode_slice.keccak256(), args.keccak256(), exe_code.keccak256(), enc_delta.data.keccak256());
+        (bytecode.keccak256(), args.keccak256(), exe_code.keccak256(), enc_delta.data.keccak256());
     let to_sign = &[&pre_code_hash[..], &args_hash, address, &exe_code_hash, &delta0_hash][..];
     result.signature = SIGNINING_KEY.sign_multiple(to_sign)?;
     Ok(())
