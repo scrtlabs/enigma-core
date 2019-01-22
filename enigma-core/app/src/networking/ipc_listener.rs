@@ -263,11 +263,10 @@ pub(self) mod handling {
             &user_pubkey,
             input.gas_limit)?;
 
-        let result = IpcResults::TaskResult {
-            exe_code: Some(result.output.to_hex()),
-            pre_code_hash: Some(bytecode.keccak256().to_hex()),
+        let result = IpcResults::DeployResult {
+            pre_code_hash: bytecode.keccak256().to_hex(),
             used_gas: result.used_gas,
-            output: None, // TODO: Return output
+            output: result.output.to_hex(), // TODO: Return output
             delta: result.delta.into(),
             signature: result.signature.to_hex(),
         };
@@ -294,11 +293,9 @@ pub(self) mod handling {
             &address,
             input.gas_limit)?;
 
-        let result = IpcResults::TaskResult {
-            exe_code: None,
-            pre_code_hash: None,
+        let result = IpcResults::ComputeResult {
             used_gas: result.used_gas,
-            output: Some(result.output.to_hex()),
+            output: result.output.to_hex(),
             delta: result.delta.into(),
             signature: result.signature.to_hex(),
         };

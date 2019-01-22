@@ -43,14 +43,20 @@ pub enum IpcResults {
     #[serde(rename = "result")]
     RegistrationParams { #[serde(rename = "signingKey")] sigining_key: String, report: String, signature: String },
     #[serde(rename = "result")]
-    TaskResult {
-        #[serde(rename = "exeCode")]
-        exe_code: Option<String>,
-        #[serde(rename = "preCodeHash")]
-        pre_code_hash: Option<String>,
+    ComputeResult {
         #[serde(rename = "usedGas")]
         used_gas: u64,
-        output: Option<String>,
+        output: String,
+        delta: IpcDelta,
+        signature: String,
+    },
+    #[serde(rename = "result")]
+    DeployResult {
+        #[serde(rename = "preCodeHash")]
+        pre_code_hash: String,
+        #[serde(rename = "usedGas")]
+        used_gas: u64,
+        output: String,
         delta: IpcDelta,
         signature: String,
     }
