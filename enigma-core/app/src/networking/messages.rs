@@ -1,21 +1,26 @@
 use serde_json;
 use zmq::Message;
+use crate::db::{Delta, Stype, DeltaKey};
+use hex::ToHex;
+use failure::Error;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum IpcResponse {
-    GetRegistrationParams { id: String, result: IpcRegistrationParams },
+    GetRegistrationParams { id: String, result: IpcResults },
     IdentityChallenge { id: String, nonce: String, signature: IpcIdentityChallenge },
     GetTip { id: String, result: IpcDelta },
     GetTips { id: String, result: IpcResults },
-    GetAllTips { id: String, result: Vec<IpcDelta> },
+    GetAllTips { id: String, result: IpcResults },
     GetAllAddrs { id: String, result: IpcResults },
     GetDelta { id: String, result: IpcResults },
     GetDeltas { id: String, result: IpcResults },
     GetContract { id: String, result: IpcResults },
     UpdateNewContract { id: String, address: String, result: IpcResults },
-    UpdateDeltas { id: String, result: IpcUpdateDeltasResult },
-    NewTaskEncryptionKey { id: String, result: IpcDHMessage },
+    UpdateDeltas { id: String, result: IpcResults },
+    NewTaskEncryptionKey { id: String, result: IpcResults },
+    DeploySecretContract { id: String, result: IpcResults},
+    ComputeTask { id: String, result: IpcResults },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -25,8 +30,22 @@ pub enum IpcResults {
     Delta(String),
     Deltas(Vec<IpcDelta>),
     Bytecode(String),
-    Status(String),
+    Status(u8),
     Tips(Vec<IpcDelta>),
+    UpdateDeltasResult { status: u8, errors: Vec<IpcDeltaResult> },
+    DHKey { #[serde(rename = "workerEncryptionKey")] dh_key: String, #[serde(rename = "workerSig")] sig: String },
+    RegistrationParams { #[serde(rename = "signingKey")] sigining_key: String, report: String, signature: String },
+    TaskResult {
+        #[serde(rename = "exeCode")]
+        exe_code: Option<String>,
+        #[serde(rename = "preCodeHash")]
+        pre_code_hash: Option<String>,
+        #[serde(rename = "usedGas")]
+        used_gas: u64,
+        output: Option<String>,
+        delta: IpcDelta,
+        signature: String,
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -44,34 +63,30 @@ pub enum IpcRequest {
     UpdateNewContract { id: String, address: String, bytecode: String },
     UpdateDeltas { id: String, deltas: Vec<IpcDelta> },
     NewTaskEncryptionKey { id: String, #[serde(rename = "userPubKey")] user_pubkey: String },
+    DeploySecretContract { id: String, input: IpcTask},
+    ComputeTask { id: String, input: IpcTask },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IpcDHMessage {
-    #[serde(rename = "workerEncryptionKey")]
-    pub dh_key: String,
-    #[serde(rename = "workerSig")]
-    pub sig: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IpcRegistrationParams {
-    #[serde(rename = "signingKey")]
-    pub sigining_key: String,
-    pub report: String,
-    pub signature: String,
+pub struct IpcTask {
+    #[serde(rename = "preCode")]
+    pub pre_code: Option<String>,
+    #[serde(rename = "encryptedArgs")]
+    pub encrypted_args: String,
+    #[serde(rename = "encryptedFn")]
+    pub encrypted_fn: String,
+    #[serde(rename = "userPubKey")]
+    pub user_pubkey: String,
+    #[serde(rename = "GasLimit")]
+    pub gas_limit: u64,
+    #[serde(rename = "contractAddress")]
+    pub address: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcIdentityChallenge {
     pub nonce: String,
     pub signature: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IpcUpdateDeltasResult {
-    pub status: u8,
-    pub errors: Vec<IpcDeltaResult>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -93,6 +108,27 @@ pub struct IpcGetDeltas {
     pub address: String,
     pub from: u32,
     pub to: u32,
+}
+
+impl IpcDelta {
+    pub fn from_delta_key(k: DeltaKey, v: Vec<u8>) -> Result<Self, Error> {
+        if let Stype::Delta(indx) = k.key_type {
+            Ok( IpcDelta { address: Some(k.hash.to_hex()), key: indx, delta: Some(v.to_hex()) } )
+        } else {
+            bail!("This isn't a delta")
+        }
+    }
+}
+
+
+impl From<Delta> for IpcDelta {
+    fn from(delta: Delta) -> Self {
+        let address = delta.key.hash.to_hex();
+        let value = delta.value.to_hex();
+        let key = delta.key.key_type.unwrap_delta();
+
+        IpcDelta { address: Some(address), key, delta: Some(value) }
+    }
 }
 
 impl From<Message> for IpcRequest {

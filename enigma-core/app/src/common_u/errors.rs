@@ -81,7 +81,3 @@ pub struct EnclaveFailError {
     pub err: enigma_types::EnclaveReturn,
     pub status: sgx_status_t,
 }
-
-//impl From<enigma_types::EnclaveReturn> for EnclaveFailError {
-//    fn from(error: enigma_types::EnclaveReturn) -> Self { Self { err: error } }
-//}

@@ -27,6 +27,17 @@ pub enum Stype {
     State,
     ByteCode,
 }
+
+impl Stype {
+    pub fn unwrap_delta(self) -> u32 {
+        match self {
+            Stype::Delta(val) => val,
+            _ => panic!("called `Stype::unwrap()` on a non `Delta` value"),
+        }
+    }
+}
+
+
 pub trait SplitKey {
     // as_split should get self and divide it up into two components
     // as a tuple (&str, &[u8]) and send it into a function,
