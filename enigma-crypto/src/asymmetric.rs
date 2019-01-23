@@ -2,7 +2,7 @@ use crate::error::CryptoError;
 use secp256k1::{self, PublicKey, SecretKey, SharedSecret};
 use crate::localstd::string::ToString;
 use crate::localstd::format;
-use crate::{rand, hashing::{self, Keccak256}};
+use crate::{rand, hash::{self, Keccak256}};
 use rustc_hex::ToHex;
 
 #[derive(Debug)]
@@ -102,7 +102,7 @@ impl KeyPair {
     /// let sig = keys.sign_multiple(&[msg, msg2]).unwrap();
     /// ```
     pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], CryptoError> {
-        let ready = hashing::prepare_hash_multiple(messages);
+        let ready = hash::prepare_hash_multiple(messages);
         self.sign(&ready)
     }
 }

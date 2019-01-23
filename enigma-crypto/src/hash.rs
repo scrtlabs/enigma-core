@@ -1,4 +1,3 @@
-
 use ring::digest;
 use crate::localstd::{string::String, vec::Vec, mem};
 use tiny_keccak::Keccak;
@@ -10,10 +9,10 @@ use rustc_hex::ToHex;
 /// e.g.: `S(H(len(a)+a, len(b)+b...))`
 /// # Examples
 /// ```
-/// use enigma_crypto::hashing;
+/// use enigma_crypto::hash;
 /// let msg = b"sign";
 /// let msg2 = b"this";
-/// let ready = hashing::prepare_hash_multiple(&[msg, msg2]);
+/// let ready = hash::prepare_hash_multiple(&[msg, msg2]);
 /// ```
 pub fn prepare_hash_multiple(messages: &[&[u8]]) -> Vec<u8> {
     let mut res = Vec::with_capacity(messages.len() * mem::size_of::<usize>());

@@ -63,7 +63,7 @@ pub fn decrypt(cipheriv: &[u8], key: &Key) -> Result<Vec<u8>, CryptoError> {
 pub mod tests {
     use crate::rand;
     use rustc_hex::{ToHex, FromHex};
-    use crate::hashing::Sha256;
+    use crate::hash::Sha256;
     use super::{decrypt, encrypt_with_nonce};
 
     #[test]

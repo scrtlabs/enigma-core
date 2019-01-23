@@ -3,7 +3,7 @@
 //
 pub mod asymmetric;
 pub mod symmetric;
-pub mod hashing;
+pub mod hash;
 pub mod error;
 pub mod rand;
 
