@@ -102,7 +102,7 @@ impl KeyPair {
     /// let sig = keys.sign_multiple(&[msg, msg2]).unwrap();
     /// ```
     pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], CryptoError> {
-        let ready = hashing::prepare_hash_multiple(messages)?;
+        let ready = hashing::prepare_hash_multiple(messages);
         self.sign(&ready)
     }
 }

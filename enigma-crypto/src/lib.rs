@@ -1,4 +1,4 @@
-
+#![feature(int_to_from_bytes)]
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 //
 pub mod asymmetric;
@@ -6,12 +6,6 @@ pub mod symmetric;
 pub mod hashing;
 pub mod error;
 pub mod rand;
-
-#[cfg(feature = "std")]
-use byteorder_std as byteorder;
-
-#[cfg(feature = "sgx")]
-use byteorder_sgx as byteorder;
 
 #[cfg(feature = "sgx")]
 use sgx_tstd as localstd;

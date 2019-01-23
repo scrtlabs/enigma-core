@@ -1,8 +1,6 @@
 
 use ring::digest;
 use crate::localstd::{string::String, vec::Vec, mem};
-use crate::byteorder::{BigEndian, WriteBytesExt};
-use crate::CryptoError;
 use tiny_keccak::Keccak;
 use rustc_hex::ToHex;
 
@@ -17,19 +15,14 @@ use rustc_hex::ToHex;
 /// let msg2 = b"this";
 /// let ready = hashing::prepare_hash_multiple(&[msg, msg2]);
 /// ```
-pub fn prepare_hash_multiple(messages: &[&[u8]]) -> Result<Vec<u8>, CryptoError> {
-    let res: Result<Vec<_>, CryptoError> = messages
-        .into_iter()
-        .map(|s| {
-            let len = s.len();
-            let size = mem::size_of_val(&len);
-            let mut tmp = Vec::with_capacity(len + size);
-            tmp.write_uint::<BigEndian>(len as u64, size)?;
-            tmp.extend_from_slice(s);
-            Ok(tmp)
-        })
-        .collect();
-    Ok(res?.into_iter().flatten().collect())
+pub fn prepare_hash_multiple(messages: &[&[u8]]) -> Vec<u8> {
+    let mut res = Vec::with_capacity(messages.len() * mem::size_of::<usize>());
+    for msg in messages {
+        let len = msg.len().to_be_bytes();
+        res.extend_from_slice(&len);
+        res.extend_from_slice(&msg);
+    }
+    res
 }
 
 
