@@ -38,6 +38,7 @@ mod evm_u;
 mod km_u;
 mod networking;
 mod wasm_u;
+mod ipc_test;
 
 use futures::Future;
 
