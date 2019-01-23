@@ -39,7 +39,7 @@ impl fmt::Debug for WasmResult {
 impl TryFrom<ExecuteResult> for WasmResult {
     type Error = Error;
     fn try_from(exec: ExecuteResult) -> Result<Self, Self::Error> {
-        if exec.output.is_null() || exec.ethereum_payload_ptr.is_null() {
+        if exec.output.is_null() || exec.ethereum_payload_ptr.is_null() || exec.delta_ptr.is_null(){
             bail!("One of the pointers in ExecuteResult is null: {:?}", exec);
         }
 
@@ -56,16 +56,13 @@ impl TryFrom<ExecuteResult> for WasmResult {
         result.eth_payload = *payload;
 
         // TODO: Is it possible to have no delta or not?. please decide this. @elichai @moria
-        if !exec.delta_ptr.is_null() && exec.delta_hash != [0u8; 32] {
-            let box_ptr = exec.delta_ptr as *mut Box<[u8]>;
-            let delta_data = unsafe { Box::from_raw(box_ptr) };
+        // TODO: @elichai, if you are OK with this solution, we decided.
+        let box_ptr = exec.delta_ptr as *mut Box<[u8]>;
+        let delta_data = unsafe { Box::from_raw(box_ptr) };
 
-            result.delta.value = delta_data.to_vec();
-            result.delta.key = DeltaKey::new(exec.delta_hash, Stype::Delta(exec.delta_index));
+        result.delta.value = delta_data.to_vec();
+        result.delta.key = DeltaKey::new(exec.delta_hash, Stype::Delta(exec.delta_index));
 
-        } else {
-            bail!("Weird delta results")
-        }
         Ok(result)
     }
 }
