@@ -2,7 +2,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 //
 //pub mod asymmetric;
-//pub mod symmetric;
+pub mod symmetric;
 pub mod hashing;
 pub mod error;
 pub mod rand;
@@ -13,10 +13,11 @@ use byteorder_std as byteorder;
 #[cfg(feature = "sgx")]
 use byteorder_sgx as byteorder;
 
-//use std::io::{ErrorKind, Read};
-//use std::untrusted::fs::{remove_file, File};
-use std::{string::ToString, vec::Vec};
-//use storage_t;
+#[cfg(feature = "sgx")]
+use sgx_tstd as std;
+
+#[cfg(feature = "std")]
+use std;
 pub use crate::error::CryptoError;
 pub use crate::rand::random;
 
