@@ -55,7 +55,7 @@ use crate::evm_t::{abi::{create_callback, prepare_evm_input},
                    evm::call_sputnikvm};
 use crate::km_t::{ecall_build_state_internal, ecall_get_user_key_internal, ecall_ptt_req_internal, ecall_ptt_res_internal};
 use crate::wasm_g::execution;
-use enigma_runtime_t::data::{ContractState, StatePatch};
+use enigma_runtime_t::data::{ContractState, StatePatch, EncryptedPatch};
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError};
 use enigma_tools_t::common::{errors_t::EnclaveError, LockExpectMutex, EthereumAddress};
@@ -252,6 +252,14 @@ fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Ve
     Ok((decrypted_args, decrypted_callable, types, function_name))
 }
 
+fn encrypt_delta(delta: &Option<StatePatch>) -> Result<(Option<EncryptedPatch>, Hash256), EnclaveError> {
+    if let Some(delta) = delta {
+        let enc_delta = km_t::encrypt_delta(delta.clone())?;
+        enigma_runtime_t::ocalls_t::save_delta(&enc_delta)?;
+        return Ok((Some(enc_delta.clone()), enc_delta.data.keccak256()))
+    }
+    Ok((None, Default::default()))
+}
 
 unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
                                  args: &[u8], user_key: &PubKey,
@@ -263,7 +271,9 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
 
     let exec_res = execution::execute_call(&bytecode, gas_limit, state, function_name, types, decrypted_args.clone())?;
 
-    prepare_wasm_result(exec_res.state_delta.clone(),
+    let (delta, delta_hash) = encrypt_delta(&exec_res.state_delta)?;
+
+    prepare_wasm_result(delta.clone(),
                         &exec_res.result[..],
                         &exec_res.ethereum_payload[..],
                         &exec_res.ethereum_contract_addr,
@@ -274,15 +284,11 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
     let args_hash = enigma_crypto::hash::prepare_hash_multiple(&[&decrypted_callable, &decrypted_args, &*address]).keccak256();
     let output_hash = exec_res.result.keccak256();
     let exe_code_hash = bytecode.keccak256();
-    let mut delta_hash = [0].keccak256();
-    if let (Some(state), Some(delta)) = (exec_res.updated_state, exec_res.state_delta) {
+    if let Some(state) = exec_res.updated_state {
         let enc_state = km_t::encrypt_state(state)?;
-        let enc_delta = km_t::encrypt_delta(delta)?;
         enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
-        enigma_runtime_t::ocalls_t::save_delta(&enc_delta)?;
-
-        delta_hash = enc_delta.data.keccak256();
     }
+
     // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
     let to_sign = &[&exe_code_hash[..], &*args_hash, &*delta_hash, &*output_hash];
     result.signature = SIGNINING_KEY.sign_multiple(to_sign)?;
@@ -335,12 +341,13 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
 
     let (decrypted_args, _, _types, _) = decrypt_inputs(constructor, args, user_key)?;
 
-    let state = ContractState::new(address);
+    let state = ContractState::new(*address);
 
     let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, decrypted_args.clone())?;
 
-    let delta = exec_res.state_delta;
     let exe_code = &exec_res.result[..];
+
+    let (delta, delta_hash) = encrypt_delta(&exec_res.state_delta)?;
 
     prepare_wasm_result(delta.clone(),
                         exe_code,
@@ -351,11 +358,10 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
     // TODO: Can the user make an ethereum payload in the constructor?
     // TODO: Maybe it can be the same as `prepare_wasm_result`?
     // Saving the delta into the db
-    let enc_delta = km_t::encrypt_delta(delta.unwrap())?;
 
     if let Some(state) = exec_res.updated_state {
-        // Saving the updated state into the db
         let enc_state = km_t::encrypt_state(state)?;
+        // Saving the updated state into the db
         enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
     } else {
         unreachable!()
@@ -364,14 +370,14 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
 //    let exe_code = &exec_res.result[..];
 //    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
     // Signing: S(preCodeHash, argsHash, contractAddress, exeCodeHash, delta0Hash)
-    let (pre_code_hash, args_hash, exe_code_hash, delta0_hash) =
-        (bytecode.keccak256(), args.keccak256(), exe_code.keccak256(), enc_delta.data.keccak256());
-    let to_sign = &[&pre_code_hash[..], &*args_hash, &*address, &*exe_code_hash, &*delta0_hash][..];
+    let (pre_code_hash, args_hash, exe_code_hash) =
+        (bytecode.keccak256(), args.keccak256(), exe_code.keccak256());
+    let to_sign = &[&pre_code_hash[..], &*args_hash, &*address, &*exe_code_hash, &*delta_hash][..];
     result.signature = SIGNINING_KEY.sign_multiple(to_sign)?;
     Ok(())
 }
 
-unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: &[u8],
+unsafe fn prepare_wasm_result(delta_option: Option<EncryptedPatch>, execute_result: &[u8],
                               ethereum_payload: &[u8], ethereum_contract_addr: &[u8; 20], used_gas: u64,
                               result: &mut ExecuteResult ) -> Result<(), EnclaveError>
 {
@@ -380,15 +386,14 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: 
     result.ethereum_address.clone_from_slice(ethereum_contract_addr);
     result.used_gas = used_gas;
     match delta_option {
-        Some(delta) => {
-            let enc_delta = km_t::encrypt_delta(delta)?;
+        Some(enc_delta) => {
             result.delta_ptr = ocalls_t::save_to_untrusted_memory(&enc_delta.data)? as *const u8;
             result.delta_hash = enc_delta.contract_id;
             result.delta_index = enc_delta.index;
         }
         None => {
-            result.delta_ptr = ptr::null();
-            result.delta_hash = ContractAddress::default();
+            result.delta_ptr = ocalls_t::save_to_untrusted_memory(&[])? as *const u8;
+            result.delta_hash = Default::default();
             result.delta_index = 0;
         }
     }
