@@ -12,26 +12,11 @@
 
 pub use self::FromHexError::*;
 
-use ring::digest;
 use std::error;
 use std::fmt;
 use std::string::String;
 use std::sync::{SgxMutex, SgxMutexGuard};
 use std::vec::Vec;
-use tiny_keccak::Keccak;
-
-// Hash a byte array into keccak256.
-pub trait Keccak256<T> {
-    fn keccak256(&self) -> T where T: Sized;
-}
-
-pub trait Sha256<T> {
-    fn sha256(&self) -> T where T: Sized;
-}
-
-pub trait EthereumAddress<T> {
-    fn address(&self) -> T where T: Sized;
-}
 
 pub trait LockExpectMutex<T> {
     fn lock_expect(&self, name: &str) -> SgxMutexGuard<T>;
@@ -39,34 +24,6 @@ pub trait LockExpectMutex<T> {
 
 impl<T> LockExpectMutex<T> for SgxMutex<T> {
     fn lock_expect(&self, name: &str) -> SgxMutexGuard<T> { self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name)) }
-}
-
-impl EthereumAddress<String> for [u8; 64] {
-    // TODO: Maybe add a checksum address
-    fn address(&self) -> String {
-        let mut result: String = String::from("0x");
-        result.push_str(&self.keccak256()[12..32].to_hex());
-        result
-    }
-}
-
-impl Keccak256<[u8; 32]> for [u8] {
-    fn keccak256(&self) -> [u8; 32] {
-        let mut keccak = Keccak::new_keccak256();
-        let mut result = [0u8; 32];
-        keccak.update(self);
-        keccak.finalize(&mut result);
-        result
-    }
-}
-
-impl Sha256<[u8; 32]> for [u8] {
-    fn sha256(&self) -> [u8; 32] {
-        let mut result = [0u8; 32];
-        let hash = digest::digest(&digest::SHA256, self);
-        result.copy_from_slice(hash.as_ref());
-        result
-    }
 }
 
 // TODO: Remove this and use rtustc-hex instead.

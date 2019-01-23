@@ -1,5 +1,6 @@
 use crate::common::errors_t::EnclaveError;
-use crate::cryptography_t::{symmetric, Encryption};
+use enigma_crypto::{symmetric, Encryption};
+use enigma_crypto::CryptoError;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_trts::trts::rsgx_read_rand;
@@ -94,28 +95,28 @@ impl PrincipalMessage {
     }
 }
 
-impl<'a> Encryption<&'a [u8; 32], EnclaveError, Self, [u8; 12]> for PrincipalMessage {
-    fn encrypt_with_nonce(self, key: &[u8; 32], _iv: Option<[u8; 12]>) -> Result<Self, EnclaveError> {
+impl<'a> Encryption<&'a [u8; 32], CryptoError, Self, [u8; 12]> for PrincipalMessage {
+    fn encrypt_with_nonce(self, key: &[u8; 32], _iv: Option<[u8; 12]>) -> Result<Self, CryptoError> {
         match self.data {
             PrincipalMessageType::Response(response) => {
                 let mut buf = Vec::new();
-                response.serialize(&mut Serializer::new(&mut buf))?;
+                response.serialize(&mut Serializer::new(&mut buf)).map_err(|_| CryptoError::EncryptionError)?;
                 let enc = symmetric::encrypt_with_nonce(&buf, key, _iv)?;
                 Ok(Self { prefix: self.prefix, data: PrincipalMessageType::EncryptedResponse(enc), pubkey: self.pubkey, id: self.id })
             }
-            _ => Err(EnclaveError::EncryptionError {}),
+            _ => Err(CryptoError::EncryptionError ),
         }
     }
 
-    fn decrypt(enc: Self, key: &[u8; 32]) -> Result<Self, EnclaveError> {
+    fn decrypt(enc: Self, key: &[u8; 32]) -> Result<Self, CryptoError> {
         match &enc.data {
             PrincipalMessageType::EncryptedResponse(response) => {
                 let dec = symmetric::decrypt(&response, key)?;
                 let mut des = Deserializer::new(&dec[..]);
-                let data = PrincipalMessageType::Response(Deserialize::deserialize(&mut des)?);
+                let data = PrincipalMessageType::Response(Deserialize::deserialize(&mut des).map_err(|_| CryptoError::DecryptionError)?);
                 Ok(Self { prefix: enc.prefix, data, pubkey: enc.pubkey, id: enc.id })
             }
-            _ => Err(EnclaveError::EncryptionError {}),
+            _ => Err(CryptoError::EncryptionError),
         }
     }
 }
@@ -159,8 +160,8 @@ impl UserMessage {
 
 pub mod tests {
     use super::{PrincipalMessage, PrincipalMessageType};
-    use crate::common::Sha256;
-    use crate::cryptography_t::Encryption;
+    use enigma_crypto::hash::Sha256;
+    use enigma_crypto::Encryption;
 
     pub fn test_to_message() {
         let res = get_request();
