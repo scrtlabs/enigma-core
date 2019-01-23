@@ -1,6 +1,6 @@
 use failure::Fail;
 use crate::localstd::string::String;
-
+use crate::localstd::io;
 #[derive(Debug, Fail)]
 pub enum CryptoError {
     #[fail(display = "Failed to derive a key with ECDH: self: {}, other: {}", self_key, other_key)]
@@ -23,4 +23,13 @@ pub enum CryptoError {
 
     #[fail(display = "Failed Generating a: {}", err)]
     RandomError { err: String },
+
+    #[fail(display = "IO Failure: {:?}", err)]
+    IoError { err: io::Error },
+}
+
+impl From<io::Error> for CryptoError {
+    fn from(err: io::Error) -> Self {
+        CryptoError::IoError { err }
+    }
 }
