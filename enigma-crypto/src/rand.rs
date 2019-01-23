@@ -1,5 +1,5 @@
 use crate::CryptoError;
-use crate::std::format;
+use crate::localstd::format;
 
 #[cfg(all(feature = "std", not(feature = "sgx")))]
 pub fn random(rand: &mut [u8]) -> Result<(), CryptoError> {

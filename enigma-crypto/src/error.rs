@@ -1,13 +1,13 @@
 use failure::Fail;
-use crate::std::string::String;
+use crate::localstd::string::String;
 
 #[derive(Debug, Fail)]
 pub enum CryptoError {
     #[fail(display = "Failed to derive a key with ECDH: self: {}, other: {}", self_key, other_key)]
     DerivingKeyError { self_key: String, other_key: String },
 
-    #[fail(display = "The {} Isn't valid", key_type)]
-    KeyError { key_type: String },
+    #[fail(display = "The {} Isn't valid, err: {}", key_type, err)]
+    KeyError { key_type: String, err: String },
 
     #[fail(display = "Failed Decrypting")]
     DecryptionError,
