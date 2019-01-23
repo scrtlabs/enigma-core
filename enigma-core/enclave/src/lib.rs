@@ -5,6 +5,7 @@
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 #![feature(tool_lints)]
+#![feature(int_to_from_bytes)]
 #![warn(clippy::all)]
 #![allow(clippy::cast_ptr_alignment)] // TODO: Try to remove it when fixing the sealing
 
@@ -367,10 +368,12 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
 
 //    let exe_code = &exec_res.result[..];
 //    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
-    // Signing: S(preCodeHash, argsHash, contractAddress, exeCodeHash, delta0Hash)
-    let (pre_code_hash, args_hash, exe_code_hash) =
-        (bytecode.keccak256(), args.keccak256(), exe_code.keccak256());
-    let to_sign = &[&pre_code_hash[..], &args_hash, address, &exe_code_hash, &delta_hash][..];
+
+    // Signing: S(inputsHash, exeCodeHash, delta0Hash, usedGas)
+    let (pre_code_hash,  exe_code_hash) = (bytecode.keccak256(), exe_code.keccak256());
+    let inputs_hash = cryptography_t::prepare_hash_multiple(&[constructor, args, &pre_code_hash[..], user_key][..]).keccak256();
+    let used_gas = result.used_gas.to_ne_bytes();
+    let to_sign = &[&inputs_hash[..], &exe_code_hash[..], &delta_hash[..], &used_gas[..]][..];
     result.signature = SIGNINING_KEY.sign_multiple(to_sign)?;
     Ok(())
 }
