@@ -5,6 +5,7 @@
 //pub mod symmetric;
 pub mod hashing;
 pub mod error;
+pub mod rand;
 
 #[cfg(feature = "std")]
 use byteorder_std as byteorder;
@@ -14,8 +15,10 @@ use byteorder_sgx as byteorder;
 
 //use std::io::{ErrorKind, Read};
 //use std::untrusted::fs::{remove_file, File};
-use std::{mem, string::ToString, vec::Vec};
+use std::{string::ToString, vec::Vec};
 //use storage_t;
+pub use crate::error::CryptoError;
+pub use crate::rand::random;
 
 
 
@@ -25,3 +28,5 @@ pub trait Encryption<T, E, R, N>
     fn encrypt_with_nonce(self, key: T, _iv: Option<N>) -> Result<R, E>;
     fn decrypt(enc: R, key: T) -> Result<Self, E>;
 }
+
+

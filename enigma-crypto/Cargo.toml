@@ -14,14 +14,15 @@ ring = { git = "https://github.com/elichai/ring.git", rev = "sgx-manual", defaul
 libsecp256k1 = "0.2"
 failure = { version = "0.1", default-features = false, features = ["derive"] }
 
-byteorder_std = { package = 'byteorder', version = "1.3", optional = true }
+
+rand_std = { package = "rand", version = "0.6.4", optional = true }
+byteorder_std = { package = "byteorder", version = "1.3", optional = true }
+
 byteorder_sgx = { package = 'byteorder', git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
-
-
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
 sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
 
 [features]
 default = ["std"]
-std = ["ring/default", "byteorder_std"]
+std = ["ring/default", "byteorder_std", "rand_std"]
 sgx = ["ring/sgx", "sgx_trts", "sgx_tstd", "byteorder_sgx"]
