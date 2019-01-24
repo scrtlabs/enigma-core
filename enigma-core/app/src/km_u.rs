@@ -111,13 +111,18 @@ pub mod tests {
 
     const PUBKEY_DUMMY: [u8; 64] = [ 27, 132, 197, 86, 123, 18, 100, 64, 153, 93, 62, 213, 170, 186, 5, 101, 215, 30, 24, 52, 96, 72, 25, 255, 156, 23, 245, 233, 213, 221, 7, 143, 112, 190, 175, 143, 88, 139, 84, 21, 7, 254, 214, 166, 66, 197, 171, 66, 223, 223, 129, 32, 167, 246, 57, 222, 81, 34, 212, 122, 105, 168, 232, 209];
 
-    pub fn exchange_keys(id: sgx_enclave_id_t) -> (PubKey, Vec<u8>, Box<[u8]>, [u8; 65]) {
+    pub fn generate_key_pair() -> (SecretKey, PubKey) {
         let mut _priv = [0u8; 32];
         SystemRandom::new().fill(&mut _priv).unwrap();
         let privkey = SecretKey::parse(&_priv).unwrap();
         let _pubkey = PublicKey::from_secret_key(&privkey);
         let mut pubkey = [0u8; 64];
         pubkey.clone_from_slice(&_pubkey.serialize()[1..]);
+        (privkey, pubkey)
+    }
+
+    pub fn exchange_keys(id: sgx_enclave_id_t) -> (PubKey, Vec<u8>, Box<[u8]>, [u8; 65]) {
+        let (privkey, pubkey) = generate_key_pair();
         let (data, sig) = super::get_user_key(id, &pubkey).unwrap();
         let data_burrowed = data.clone();
 
