@@ -124,7 +124,7 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
                 // If the data couldn't get unsealed remove the file.
                 None => {
                     println!("Failed reading file, Removing");
-                    remove_file(sealed_path).unwrap() // TODO: Replace this
+                    remove_file(sealed_path)
                 }
             };
         }
@@ -145,6 +145,7 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
 
     Ok(keypair)
 }
+
 
 
 
