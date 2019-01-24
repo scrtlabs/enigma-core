@@ -91,7 +91,7 @@ pub(self) mod handling {
 
         assert_eq!(str::from_utf8(&quote.report_body.report_data)?.trim_right_matches('\x00'), sigining_key);
 
-        let result = IpcResults::RegistrationParams { sigining_key, report: report_hex, signature };
+        let result = IpcResults::RegistrationParams { signing_key: sigining_key, report: report_hex, signature };
 
         Ok(IpcResponse::GetRegistrationParams { result })
     }
@@ -198,7 +198,7 @@ pub(self) mod handling {
         for ((deltakey, _), res) in tuples.into_iter().zip(results.into_iter()) {
             let mut status = 0;
             if res.is_err() {
-                status = -1;
+                status = FAILED;
             }
             let key = Some(deltakey.key_type.unwrap_delta());
             let address = deltakey.hash.to_hex();
@@ -241,7 +241,7 @@ pub(self) mod handling {
         let res = km_u::ptt_build_state(eid)?;
         let result: Vec<_> = res
             .into_iter()
-            .map(|a| IpcStatusResult{ address: a.to_hex(), status: -1, key: None })
+            .map(|a| IpcStatusResult{ address: a.to_hex(), status: FAILED, key: None })
             .collect();
 
         Ok(IpcResponse::PTTResponse {result})

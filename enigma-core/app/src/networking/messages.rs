@@ -4,6 +4,9 @@ use crate::db::{Delta, Stype, DeltaKey};
 use hex::ToHex;
 use failure::Error;
 
+type Status = i8;
+pub const FAILED: Status = -1;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcMessage {
     pub id: String,
@@ -47,14 +50,14 @@ pub enum IpcResults {
     Delta(String),
     Deltas(Vec<IpcDelta>),
     Bytecode(String),
-    Status(i8),
+    Status(Status),
     Tips(Vec<IpcDelta>),
     #[serde(rename = "result")]
-    UpdateDeltasResult { status: i8, errors: Vec<IpcStatusResult> },
+    UpdateDeltasResult { status: Status, errors: Vec<IpcStatusResult> },
     #[serde(rename = "result")]
     DHKey { #[serde(rename = "workerEncryptionKey")] dh_key: String, #[serde(rename = "workerSig")] sig: String },
     #[serde(rename = "result")]
-    RegistrationParams { #[serde(rename = "signingKey")] sigining_key: String, report: String, signature: String },
+    RegistrationParams { #[serde(rename = "signingKey")] signing_key: String, report: String, signature: String },
     #[serde(rename = "result")]
     ComputeResult {
         #[serde(rename = "usedGas")]
@@ -122,7 +125,7 @@ pub struct IpcIdentityChallenge {
 pub struct IpcStatusResult {
     pub address: String,
     pub key: Option<u32>,
-    pub status: i8,
+    pub status: Status,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
