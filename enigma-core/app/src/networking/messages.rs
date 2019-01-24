@@ -77,7 +77,7 @@ pub struct IpcTask {
     pub encrypted_fn: String,
     #[serde(rename = "userPubKey")]
     pub user_pubkey: String,
-    #[serde(rename = "GasLimit")]
+    #[serde(rename = "gasLimit")]
     pub gas_limit: u64,
     #[serde(rename = "contractAddress")]
     pub address: String,
