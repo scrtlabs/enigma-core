@@ -5,25 +5,38 @@ use hex::ToHex;
 use failure::Error;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct IpcMessage {
+    pub id: String,
+    #[serde(flatten)]
+    pub kind: IpcMessageKind
+}
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(untagged)]
+pub enum IpcMessageKind {
+    IpcResponse(IpcResponse),
+    IpcRequest(IpcRequest),
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum IpcResponse {
-    GetRegistrationParams { id: String, #[serde(flatten)] result: IpcResults },
-    IdentityChallenge { id: String, nonce: String, signature: IpcIdentityChallenge },
-    GetTip { id: String, result: IpcDelta },
-    GetTips { id: String, result: IpcResults },
-    GetAllTips { id: String, result: IpcResults },
-    GetAllAddrs { id: String, result: IpcResults },
-    GetDelta { id: String, result: IpcResults },
-    GetDeltas { id: String, result: IpcResults },
-    GetContract { id: String, result: IpcResults },
-    UpdateNewContract { id: String, address: String, #[serde(flatten)] result: IpcResults },
-    UpdateDeltas { id: String, #[serde(flatten)] result: IpcResults },
-    NewTaskEncryptionKey { id: String, #[serde(flatten)] result: IpcResults },
-    DeploySecretContract { id: String, #[serde(flatten)] result: IpcResults},
-    ComputeTask { id: String, #[serde(flatten)] result: IpcResults },
-    GetPTTRequest { id: String, #[serde(flatten)] result: IpcResults },
-    PTTResponse { id: String, result: Vec<IpcStatusResult> },
-    Error { id: String, error: String },
+    GetRegistrationParams { #[serde(flatten)] result: IpcResults },
+    IdentityChallenge { nonce: String, signature: IpcIdentityChallenge },
+    GetTip { result: IpcDelta },
+    GetTips { result: IpcResults },
+    GetAllTips { result: IpcResults },
+    GetAllAddrs { result: IpcResults },
+    GetDelta { result: IpcResults },
+    GetDeltas { result: IpcResults },
+    GetContract { result: IpcResults },
+    UpdateNewContract { address: String, #[serde(flatten)] result: IpcResults },
+    UpdateDeltas { #[serde(flatten)] result: IpcResults },
+    NewTaskEncryptionKey { #[serde(flatten)] result: IpcResults },
+    DeploySecretContract { #[serde(flatten)] result: IpcResults},
+    ComputeTask { #[serde(flatten)] result: IpcResults },
+    GetPTTRequest { #[serde(flatten)] result: IpcResults },
+    PTTResponse { result: Vec<IpcStatusResult> },
+    Error { error: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -65,22 +78,22 @@ pub enum IpcResults {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum IpcRequest {
-    GetRegistrationParams { id: String },
-    IdentityChallenge { id: String, nonce: String },
-    GetTip { id: String, input: String },
-    GetTips { id: String, input: Vec<String> },
-    GetAllTips { id: String },
-    GetAllAddrs { id: String },
-    GetDelta { id: String, input: IpcDelta },
-    GetDeltas { id: String, input: Vec<IpcGetDeltas> },
-    GetContract { id: String, input: String },
-    UpdateNewContract { id: String, address: String, bytecode: String },
-    UpdateDeltas { id: String, deltas: Vec<IpcDelta> },
-    NewTaskEncryptionKey { id: String, #[serde(rename = "userPubKey")] user_pubkey: String },
-    DeploySecretContract { id: String, input: IpcTask},
-    ComputeTask { id: String, input: IpcTask },
-    GetPTTRequest { id: String, addresses: Vec<String> },
-    PTTResponse { id: String,  response: String },
+    GetRegistrationParams,
+    IdentityChallenge { nonce: String },
+    GetTip { input: String },
+    GetTips { input: Vec<String> },
+    GetAllTips,
+    GetAllAddrs,
+    GetDelta { input: IpcDelta },
+    GetDeltas { input: Vec<IpcGetDeltas> },
+    GetContract { input: String },
+    UpdateNewContract { address: String, bytecode: String },
+    UpdateDeltas { deltas: Vec<IpcDelta> },
+    NewTaskEncryptionKey { #[serde(rename = "userPubKey")] user_pubkey: String },
+    DeploySecretContract { input: IpcTask},
+    ComputeTask { input: IpcTask },
+    GetPTTRequest { addresses: Vec<String> },
+    PTTResponse {  response: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -126,6 +139,20 @@ pub struct IpcGetDeltas {
     pub to: u32,
 }
 
+impl IpcMessage {
+    pub fn from_response(res: IpcResponse, id: String) -> Self {
+        let kind = IpcMessageKind::IpcResponse(res);
+        Self { id, kind }
+    }
+
+    pub fn from_request(req: IpcRequest, id: String) -> Self {
+        let kind = IpcMessageKind::IpcRequest(req);
+        Self { id, kind }
+    }
+}
+
+
+
 impl IpcDelta {
     pub fn from_delta_key(k: DeltaKey, v: Vec<u8>) -> Result<Self, Error> {
         if let Stype::Delta(indx) = k.key_type {
@@ -137,25 +164,18 @@ impl IpcDelta {
 }
 
 
-impl IpcRequest {
-    pub fn unwrap_id(self) -> String {
-        match self {
-            IpcRequest::GetRegistrationParams { id, .. } => id,
-            IpcRequest::IdentityChallenge { id, .. } => id,
-            IpcRequest::GetTip { id, .. } => id,
-            IpcRequest::GetTips { id, .. } => id,
-            IpcRequest::GetAllTips { id } => id,
-            IpcRequest::GetAllAddrs { id } => id,
-            IpcRequest::GetDelta { id, .. } => id,
-            IpcRequest::GetDeltas { id, .. } => id,
-            IpcRequest::GetContract { id, .. } => id,
-            IpcRequest::UpdateNewContract { id, .. } => id,
-            IpcRequest::UpdateDeltas { id, .. } => id,
-            IpcRequest::NewTaskEncryptionKey { id, .. } => id,
-            IpcRequest::DeploySecretContract { id, ..} => id,
-            IpcRequest::ComputeTask { id, .. } => id,
-            IpcRequest::GetPTTRequest { id, .. } => id,
-            IpcRequest::PTTResponse { id, .. } => id,
+impl IpcMessage {
+    pub fn unwrap_request(self) -> IpcRequest {
+        match self.kind {
+            IpcMessageKind::IpcRequest(val) => val,
+            IpcMessageKind::IpcResponse(_) => panic!("called `IpcMessage::unwrap_request()` on a `IpcResponse` value"),
+        }
+    }
+
+    pub fn unwrap_response(self) -> IpcResponse {
+        match self.kind {
+            IpcMessageKind::IpcResponse(val) => val,
+            IpcMessageKind::IpcRequest(_) => panic!("called `IpcMessage::unwrap_response()` on a `IpcRequest` value"),
         }
     }
 }
@@ -171,16 +191,16 @@ impl From<Delta> for IpcDelta {
     }
 }
 
-impl From<Message> for IpcRequest {
+impl From<Message> for IpcMessage {
     fn from(msg: Message) -> Self {
         let msg_str = msg.as_str().unwrap();
         println!("got: {:?}", msg_str);
-        let req: IpcRequest = serde_json::from_str(msg_str).expect(msg_str);
+        let req: Self = serde_json::from_str(msg_str).expect(msg_str);
         req
     }
 }
 
-impl Into<Message> for IpcResponse {
+impl Into<Message> for IpcMessage {
     fn into(self) -> Message {
         println!("respond: {:?}", serde_json::to_string(&self).unwrap());
         let msg = serde_json::to_vec(&self).unwrap();
@@ -192,13 +212,13 @@ pub(crate) trait UnwrapError<T, D> {
     fn unwrap_or_error(self, _: D) -> T;
 }
 
-impl<E: std::fmt::Debug> UnwrapError<Message, String> for Result<Message, E> {
-    fn unwrap_or_error(self, id: String) -> Message {
+impl<E: std::fmt::Debug> UnwrapError<IpcResponse, String> for Result<IpcResponse, E> {
+    fn unwrap_or_error(self, id: String) -> IpcResponse {
         match self {
             Ok(m) => m,
             Err(e) => {
                 error!("Unwrapped p2p Message failed: {:?}", e);
-                IpcResponse::Error { id, error: format!("{:?}", e) }.into()
+                IpcResponse::Error {error: format!("{:?}", e)}
             }
         }
     }
