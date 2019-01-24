@@ -121,6 +121,15 @@ pub mod tests {
         (privkey, pubkey)
     }
 
+    pub fn get_shared_key(_node_pubkey: &[u8], privkey_user: SecretKey) -> Vec<u8> {
+        let mut _node_pub = [0u8; 65];
+        _node_pub[0] = 4;
+        _node_pub[1..].copy_from_slice(_node_pubkey);
+        let node_pubkey = PublicKey::parse(&_node_pub).unwrap();
+
+        SharedSecret::new(&node_pubkey, &privkey_user).unwrap().as_ref().to_vec()
+    }
+
     pub fn exchange_keys(id: sgx_enclave_id_t) -> (PubKey, Vec<u8>, Box<[u8]>, [u8; 65]) {
         let (privkey, pubkey) = generate_key_pair();
         let (data, sig) = super::get_user_key(id, &pubkey).unwrap();
@@ -129,13 +138,7 @@ pub mod tests {
         let mut des = Deserializer::new(&data_burrowed[..]);
         let res: Value = Deserialize::deserialize(&mut des).unwrap();
         let _node_pubkey: Vec<u8> = serde_json::from_value(res["pubkey"].clone()).unwrap();
-
-        let mut _node_pub = [0u8; 65];
-        _node_pub[0] = 4;
-        _node_pub[1..].copy_from_slice(&_node_pubkey);
-        let node_pubkey = PublicKey::parse(&_node_pub).unwrap();
-
-        let shared_bytes = SharedSecret::new(&node_pubkey, &privkey).unwrap().as_ref().to_vec();
+        let shared_bytes = get_shared_key(&_node_pubkey, privkey);
 
         (pubkey, shared_bytes, data, sig)
     }

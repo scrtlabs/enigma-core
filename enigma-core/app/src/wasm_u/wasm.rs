@@ -108,9 +108,9 @@ pub mod tests {
         address
     }
 
-    fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str, address: ContractAddress, constructor: &[u8], args: &[u8],  user_pubkey: &PubKey) -> WasmResult {
+    pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
         let mut dir = PathBuf::new();
-        dir.push(test_path);
+        dir.push(contract_path);
         let mut output = Command::new("cargo")
             .current_dir(&dir)
             .args(&["build", "--release"])
@@ -123,8 +123,12 @@ pub mod tests {
         let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir));
         let mut wasm_code = Vec::new();
         f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
-        println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
+        wasm_code
+    }
 
+    fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str, address: ContractAddress, constructor: &[u8], args: &[u8],  user_pubkey: &PubKey) -> WasmResult {
+        let wasm_code = get_bytecode_from_path(test_path);
+        println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
 
         wasm::deploy(eid, &wasm_code, constructor, args, address, &user_pubkey, 100_000).expect("Deploy Failed")
     }
