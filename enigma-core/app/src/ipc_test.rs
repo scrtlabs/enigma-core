@@ -1,4 +1,6 @@
-use main;
+use crate::networking::*;
+use crate::*;
+//use crate::main::*;
 
 #[cfg(test)]
 pub mod tests {
@@ -6,7 +8,6 @@ pub mod tests {
     extern crate regex;
     extern crate secp256k1;
     extern crate ethabi;
-
     use super::*;
     use serde_json;
     use serde_json::Value;
@@ -19,9 +20,11 @@ pub mod tests {
     use self::ethabi::{Token};
 
 
-    fn run_core() {
-        thread::spawn(|| {
-            main();
+    fn run_core(port: &'static str) {
+        thread::spawn(move || {
+            let enclave = esgx::general::init_enclave_wrapper().unwrap();
+            let server = IpcListener::new(&format!("tcp://*:{}" ,port));
+            server.run(move |multi| ipc_listener::handle_message(multi, enclave.geteid())).wait().unwrap();
         });
     }
 
@@ -30,12 +33,12 @@ pub mod tests {
         re.is_match(msg)
     }
 
-    fn send_receive_ipc(msg: &str) -> Value {
-        run_core();
+    fn send_receive_ipc(msg: &str, port: &'static str) -> Value {
+        run_core(port);
 
         let context = zmq::Context::new();
         let requester = context.socket(zmq::REQ).unwrap();
-        assert!(requester.connect("tcp://localhost:5552").is_ok());
+        assert!(requester.connect(&format!("tcp://localhost:{}", port)).is_ok());
 
         requester.send(msg, 0).unwrap();
 
@@ -69,13 +72,12 @@ pub mod tests {
         msg["id"] = json!(id);
         msg["type"] = json!(type_req);
 
-        let v: Value = send_receive_ipc(&msg.to_string());
+        let v: Value = send_receive_ipc(&msg.to_string(), "5555");
 
         let id_accepted = v["id"].as_str().unwrap();
-        // todo: remove registrationparams once elichai removes it from the response.
-        let result_key = v["result"].as_object().unwrap()["registrationparams"].as_object().unwrap()["signingKey"].as_str().unwrap();
-        let result_rep = v["result"].as_object().unwrap()["registrationparams"].as_object().unwrap()["report"].as_str().unwrap();
-        let result_sig = v["result"].as_object().unwrap()["registrationparams"].as_object().unwrap()["signature"].as_str().unwrap();
+        let result_key = v["result"].as_object().unwrap()["signingKey"].as_str().unwrap();
+        let result_rep = v["result"].as_object().unwrap()["report"].as_str().unwrap();
+        let result_sig = v["result"].as_object().unwrap()["signature"].as_str().unwrap();
         let type_res = v["type"].as_str().unwrap();
 
         assert_eq!(id_accepted, id);
@@ -163,7 +165,7 @@ pub mod tests {
         msg["type"] = json!(type_req);
         msg["userPubKey"] = json!(user_pub_key.to_hex());
 
-        send_receive_ipc(&msg.to_string())
+        send_receive_ipc(&msg.to_string(), "5556")
     }
 
     #[test]
@@ -174,8 +176,8 @@ pub mod tests {
 
         let v: Value = get_encryption_key(id, type_req, user_pubkey);
         let id_accepted = v["id"].as_str().unwrap();
-        let result_key = v["result"].as_object().unwrap()["dhkey"].as_object().unwrap()["workerEncryptionKey"].as_str().unwrap();
-        let result_sig = v["result"].as_object().unwrap()["dhkey"].as_object().unwrap()["workerSig"].as_str().unwrap();
+        let result_key = v["result"].as_object().unwrap()["workerEncryptionKey"].as_str().unwrap();
+        let result_sig = v["result"].as_object().unwrap()["workerSig"].as_str().unwrap();
         let type_res = v["type"].as_str().unwrap();
 
         assert_eq!(id_accepted, id);
@@ -226,7 +228,7 @@ pub mod tests {
         let (user_privkey, user_pubkey) = generate_key_pair();
 
         let v: Value = get_encryption_key("7698", "NewTaskEncryptionKey", user_pubkey);
-        let result_key = v["result"].as_object().unwrap()["dhkey"].as_object().unwrap()["workerEncryptionKey"].as_str().unwrap();
+        let result_key = v["result"].as_object().unwrap()["workerEncryptionKey"].as_str().unwrap();
         let key_slice = result_key.from_hex().unwrap();
         let shared_key = get_shared_key(&key_slice, user_privkey);
 
@@ -239,7 +241,7 @@ pub mod tests {
                         "encryptedFn": encrypted_fn.to_hex(), "userPubKey": user_pubkey.to_hex(),
                         "gasLimit": gas_limit, "contractAddress": address.to_hex()}
                         });
-        let v: Value = send_receive_ipc(&msg.to_string());
+        let v: Value = send_receive_ipc(&msg.to_string(), "5557");
         println!("\n\nvalue: {:?}", v);
         let id_accepted = v["id"].as_str().unwrap();
         let result_output = v["result"].as_object().unwrap()["output"].as_str().unwrap();
