@@ -323,8 +323,10 @@ impl Runtime {
     /// Destroy the runtime, returning currently recorded result of the execution
     pub fn into_result(mut self) -> Result<RuntimeResult> {
         self.result.state_delta = {
-            if &self.init_state != &self.current_state {
-                match ContractState::generate_delta(&self.init_state, &self.current_state) {
+            // The delta is always generated after a deployment.
+            // The delta is generated after an execution only if there is a state change.
+            if (&self.init_state != &self.current_state) || (self.init_state.delta_index == 0) {
+                match ContractState::generate_delta(&self.init_state, &mut self.current_state) {
                     Ok(v) => Some(v),
                     Err(e) => return Err(WasmError::Delta(format!("{}", e))),
                 }
