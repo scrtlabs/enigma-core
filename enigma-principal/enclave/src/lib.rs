@@ -22,15 +22,15 @@ extern crate sgx_rand;
 extern crate lazy_static;
 
 extern crate enigma_tools_t;
+extern crate enigma_crypto;
 
 mod ocalls_t;
 
 use sgx_types::{sgx_status_t, sgx_target_info_t, sgx_report_t};
 use sgx_trts::trts::rsgx_read_rand;
 
-use enigma_tools_t::cryptography_t;
-use enigma_tools_t::cryptography_t::asymmetric;
-use enigma_tools_t::common::utils_t::{ToHex, FromHex, EthereumAddress};
+use enigma_crypto::{asymmetric, hash::EthereumAddress};
+use enigma_tools_t::common::utils_t::{ToHex, FromHex};
 use enigma_tools_t::storage_t;
 use enigma_tools_t::quote_t;
 
@@ -51,7 +51,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     let sealed_path = path_buf.to_str().unwrap();
 
         // TODO: Decide what to do if failed to obtain keys.
-    match cryptography_t::get_sealed_keys(&sealed_path) {
+    match storage_t::get_sealed_keys(&sealed_path) {
         Ok(key) => return key,
         Err(err) => panic!("Failed obtaining keys: {:?}", err)
     };
@@ -97,15 +97,12 @@ pub mod tests {
     use sgx_tunittest::*;
     use std::vec::Vec;
     use std::string::String;
-    use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
         rsgx_unit_tests!(
-        test_full_sealing_storage,
-        test_signing,
-        test_ecdh
+        test_full_sealing_storage
         );
     }
 }
