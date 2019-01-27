@@ -3,7 +3,7 @@ use crate::localstd::{vec::Vec, mem};
 use tiny_keccak::Keccak;
 use core::ops::{Deref, DerefMut};
 
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct Hash256([u8; 32]);
 
 

@@ -150,7 +150,7 @@ pub mod tests {
     pub fn test_state_internal() {
         // Making the ground work
         let address = vec![b"meee".sha256(), b"moo".sha256(), b"maa".sha256()];
-        let state_keys = vec![b"first_key".sha256(), b"second_key".sha256(), b"third_key".sha256()];
+        let state_keys = vec![*b"first_key".sha256(), *b"second_key".sha256(), *b"third_key".sha256()];
         let states_and_deltas = get_states_deltas(&address);
         let enc_states: Vec<(EncryptedContractState<u8>, Vec<EncryptedPatch>)> = states_and_deltas
             .into_iter()
@@ -198,15 +198,12 @@ pub mod tests {
             ContractState {
                 contract_id: address[0],
                 json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
-                delta_hash: [0u8; 32],
-                delta_index: 0,
+                .. Default::default()
             },
             ContractState {
                 contract_id: address[1],
-                json: serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#)
-                    .unwrap(),
-                delta_hash: [0u8; 32],
-                delta_index: 0,
+                json: serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#).unwrap(),
+                .. Default::default()
             },
         ];
 
