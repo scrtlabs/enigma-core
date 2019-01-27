@@ -28,13 +28,18 @@ pub mod data;
 pub mod eng_resolver;
 pub mod ocalls_t;
 
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct EthereumData{
+    pub ethereum_payload: Vec<u8>,
+    pub ethereum_contract_addr: [u8; 20],
+}
+
 #[derive(Debug, Clone)]
 pub struct RuntimeResult {
     pub state_delta: Option<StatePatch>,
     pub updated_state: Option<ContractState>,
     pub result: Vec<u8>,
-    pub ethereum_payload: Vec<u8>,
-    pub ethereum_contract_addr: [u8; 20],
+    pub ethereum_bridge: EthereumData,
     pub used_gas: u64,
 }
 
@@ -85,6 +90,22 @@ impl From<str::Utf8Error> for WasmError {
     fn from(err: str::Utf8Error) -> Self { WasmError::Other }
 }
 
+impl EthereumData {
+    fn is_empty(&self) -> bool {
+        self == &Default::default()
+    }
+
+    pub fn self_push<'a> (&'a self, slice: &[&'a [u8]]) -> Vec<&[u8]>{
+        let mut result = slice.to_vec();
+        if self.is_empty(){
+            result.push(&self.ethereum_payload);
+            result.push(&self.ethereum_contract_addr);
+            return result
+        }
+        slice.to_vec()
+    }
+}
+
 impl Runtime {
     pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32],
                function_name: String, args_types: String) -> Runtime {
@@ -95,8 +116,7 @@ impl Runtime {
             result: Vec::new(),
             state_delta: None,
             updated_state: None,
-            ethereum_payload: Vec::new(),
-            ethereum_contract_addr: [0u8; 20],
+            ethereum_bridge: Default::default(),
             used_gas: 0,
         };
 
@@ -111,8 +131,7 @@ impl Runtime {
             result: Vec::new(),
             state_delta: None,
             updated_state: None,
-            ethereum_payload: Vec::new(),
-            ethereum_contract_addr: [0u8; 20],
+            ethereum_bridge: Default::default(),
             used_gas: 0,
         };
 
@@ -256,12 +275,12 @@ impl Runtime {
         let payload = args.nth_checked(0)?;
         let payload_len: u32 = args.nth_checked(1)?;
 
-        self.result.ethereum_payload = Vec::with_capacity(payload_len as usize);
+        self.result.ethereum_bridge.ethereum_payload = Vec::with_capacity(payload_len as usize);
         for _ in 0..payload_len {
-            self.result.ethereum_payload.push(0);
+            self.result.ethereum_bridge.ethereum_payload.push(0);
         }
 
-        match self.memory.get_into(payload, &mut self.result.ethereum_payload[..]) {
+        match self.memory.get_into(payload, &mut self.result.ethereum_bridge.ethereum_payload[..]) {
             Ok(v) => v,
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
         }
@@ -276,7 +295,7 @@ impl Runtime {
     pub fn write_address(&mut self, args: RuntimeArgs) -> Result<()> {
         let address = args.nth_checked(0)?;
 
-        match self.memory.get_into(address, &mut self.result.ethereum_contract_addr[..]) {
+        match self.memory.get_into(address, &mut self.result.ethereum_bridge.ethereum_contract_addr[..]) {
             Ok(v) => v,
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
         }
