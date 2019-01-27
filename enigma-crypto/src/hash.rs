@@ -73,8 +73,6 @@ pub fn prepare_hash_multiple(messages: &[&[u8]]) -> Vec<u8> {
     res
 }
 
-
-
 // Hash a byte array into keccak256.
 pub trait Keccak256<T> {
     fn keccak256(&self) -> T where T: Sized;
@@ -100,5 +98,50 @@ impl Sha256<Hash256> for [u8] {
         let hash = digest::digest(&digest::SHA256, self);
         result.copy_from_slice(hash.as_ref());
         result
+    }
+}
+
+
+use crate::serde::de::{SeqAccess, Error};
+use core::fmt::{self, Formatter};
+use crate::serde::{Serialize, Deserialize, Serializer, Deserializer, de::Visitor};
+
+impl Serialize for Hash256 {
+    fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error> where S: Serializer {
+        Serializer::serialize_newtype_struct(ser, "Hash256", &self.0)
+    }
+}
+
+struct Hash256Visitor;
+
+impl<'de> Visitor<'de> for Hash256Visitor {
+    type Value = Hash256;
+    fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
+        fmt.write_str("tuple struct Hash256")
+    }
+
+    fn visit_newtype_struct<E>(self, err: E) -> Result<Self::Value, E::Error> where E: Deserializer<'de>, {
+
+        match <[u8; 32] as Deserialize>::deserialize(err) {
+            Ok(field) => Ok(Hash256(field)),
+            Err(err) => Err(err),
+        }
+    }
+
+    fn visit_seq<A>(self, mut seq: A ) -> Result<Self::Value, A::Error> where A: SeqAccess<'de> {
+        match seq.next_element::<[u8; 32]>() {
+            Ok(v) => match v {
+                Some(field) => Ok(Hash256(field)),
+                None => Err(Error::invalid_length(0, &"tuple struct Hash256 with 1 element" )),
+            },
+            Err(err) => Err(err)
+        }
+    }
+}
+
+
+impl<'de> Deserialize<'de> for Hash256 {
+    fn deserialize<D>(des: D) -> Result<Self, D::Error> where D: Deserializer<'de>, {
+        des.deserialize_newtype_struct("Hash256", Hash256Visitor)
     }
 }

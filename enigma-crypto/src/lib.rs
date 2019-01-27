@@ -1,6 +1,6 @@
 #![feature(int_to_from_bytes)]
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
-//
+
 pub mod asymmetric;
 pub mod symmetric;
 pub mod hash;
@@ -8,10 +8,17 @@ pub mod error;
 pub mod rand;
 
 #[cfg(feature = "sgx")]
-use sgx_tstd as localstd;
+use {
+    sgx_tstd as localstd,
+    serde_sgx as serde,
+};
+
 
 #[cfg(all(feature = "std"))]
-use std as localstd;
+use {
+    std as localstd,
+    serde_std as serde,
+};
 
 pub use crate::error::CryptoError;
 pub use crate::rand::random;
