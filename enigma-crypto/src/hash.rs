@@ -1,7 +1,56 @@
 use ring::digest;
-use crate::localstd::{string::String, vec::Vec, mem};
+use crate::localstd::{vec::Vec, mem};
 use tiny_keccak::Keccak;
-use rustc_hex::ToHex;
+use core::ops::{Deref, DerefMut};
+
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
+pub struct Hash256([u8; 32]);
+
+
+impl Hash256 {
+    pub fn copy_from_slice(&mut self, src: &[u8]) {
+        self.0.copy_from_slice(src)
+    }
+}
+
+
+impl From<[u8; 32]> for Hash256 {
+    fn from(arr: [u8; 32]) -> Self {
+        Hash256(arr)
+    }
+}
+
+impl Into<[u8; 32]> for Hash256 {
+    fn into(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+impl Deref for Hash256 {
+    type Target = [u8; 32];
+
+    fn deref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl DerefMut for Hash256 {
+    fn deref_mut(&mut self) -> &mut [u8; 32] {
+        &mut self.0
+    }
+}
+
+impl AsRef<[u8]> for Hash256 {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+impl AsMut<[u8]> for Hash256 {
+    fn as_mut(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+}
 
 
 /// Takes a list of variables and concat them together with lengths in between.
@@ -35,19 +84,19 @@ pub trait Sha256<T> {
     fn sha256(&self) -> T where T: Sized;
 }
 
-impl Keccak256<[u8; 32]> for [u8] {
-    fn keccak256(&self) -> [u8; 32] {
+impl Keccak256<Hash256> for [u8] {
+    fn keccak256(&self) -> Hash256 {
         let mut keccak = Keccak::new_keccak256();
-        let mut result = [0u8; 32];
+        let mut result = Hash256::default();
         keccak.update(self);
-        keccak.finalize(&mut result);
+        keccak.finalize(result.as_mut());
         result
     }
 }
 
-impl Sha256<[u8; 32]> for [u8] {
-    fn sha256(&self) -> [u8; 32] {
-        let mut result = [0u8; 32];
+impl Sha256<Hash256> for [u8] {
+    fn sha256(&self) -> Hash256 {
+        let mut result = Hash256::default();
         let hash = digest::digest(&digest::SHA256, self);
         result.copy_from_slice(hash.as_ref());
         result
