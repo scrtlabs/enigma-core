@@ -29,9 +29,9 @@ impl IpcListener {
 pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
     let mut responses = Multipart::new();
     for msg in request {
-        let msg: IpcMessage = msg.into();
+        let msg: IpcMessageRequest = msg.into();
         let id = msg.id.clone();
-        let response_msg = match msg.unwrap_request() {
+        let response_msg = match msg.request {
             IpcRequest::GetRegistrationParams => handling::get_registration_params(eid),
             IpcRequest::IdentityChallenge { nonce } => handling::identity_challange(&nonce),
             IpcRequest::GetTip { input } => handling::get_tip(&input),
@@ -49,7 +49,7 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
             IpcRequest::GetPTTRequest { addresses } => handling::get_ptt_req(&addresses, eid),
             IpcRequest::PTTResponse { response } => handling::ptt_response(&response, eid),
         };
-        let msg = IpcMessage::from_response(response_msg.unwrap_or_error(id.clone()), id);
+        let msg = IpcMessageResponse::from_response(response_msg.unwrap_or_error(id.clone()), id);
         responses.push_back(msg.into());
     }
     responses
