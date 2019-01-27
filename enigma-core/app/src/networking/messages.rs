@@ -46,6 +46,7 @@ pub enum IpcResponse {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase", rename = "result")]
 pub enum IpcResults {
+    #[serde(rename = "result")]
     Request { request: String, #[serde(rename = "workerSig")] sig: String },
     Addresses(Vec<String>),
     Delta(String),
