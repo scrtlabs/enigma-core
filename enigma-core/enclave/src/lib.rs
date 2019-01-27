@@ -253,13 +253,23 @@ fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Ve
     Ok((decrypted_args, decrypted_callable, types, function_name))
 }
 
-fn encrypt_delta(delta: &Option<StatePatch>) -> Result<(Option<EncryptedPatch>, Hash256), EnclaveError> {
+fn encrypt_and_save_delta(delta: &Option<StatePatch>) -> Result<(Option<EncryptedPatch>, Hash256), EnclaveError> {
     if let Some(delta) = delta {
         let enc_delta = km_t::encrypt_delta(delta.clone())?;
         enigma_runtime_t::ocalls_t::save_delta(&enc_delta)?;
         return Ok((Some(enc_delta.clone()), enc_delta.data.keccak256()))
     }
     Ok((None, Default::default()))
+}
+
+fn encrypt_and_save_state(state: &Option<ContractState>) -> Result<(), EnclaveError>{
+    if let Some(state) = state {
+        let enc_state = km_t::encrypt_state(state.clone())?;
+        enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
+        Ok(())
+    } else {
+        unreachable!()
+    }
 }
 
 unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
@@ -272,7 +282,7 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
 
     let exec_res = execution::execute_call(&bytecode, gas_limit, state, function_name, types, decrypted_args.clone())?;
 
-    let (delta, delta_hash) = encrypt_delta(&exec_res.state_delta)?;
+    let (delta, delta_hash) = encrypt_and_save_delta(&exec_res.state_delta)?;
 
     prepare_wasm_result(delta.clone(),
                         &exec_res.result[..],
@@ -281,18 +291,17 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
                         exec_res.used_gas,
                         result)?;
 
-    // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
-    let args_hash = enigma_crypto::hash::prepare_hash_multiple(&[&decrypted_callable, &decrypted_args, &*address]).keccak256();
-    let output_hash = exec_res.result.keccak256();
-    let exe_code_hash = bytecode.keccak256();
-    if let Some(state) = exec_res.updated_state {
-        let enc_state = km_t::encrypt_state(state)?;
-        enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
+    let mut prev_delta_hash: Hash256 = Default::default();
+    if let Some(delta) = delta{
+        let prev_delta = enigma_runtime_t::ocalls_t::get_deltas(address, delta.index - 1, delta.index)?;
+        prev_delta_hash = prev_delta[0].data.keccak256();
+        encrypt_and_save_state(&exec_res.updated_state);
     }
 
-    // Signing: S(exeCodeHash, argsHash, deltaXHash, outputHash)
-    let to_sign = &[&exe_code_hash[..], &*args_hash, &*delta_hash, &*output_hash];
-    result.signature = SIGNINING_KEY.sign_multiple(to_sign)?;
+    // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash)
+    let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[callable, args, &*address, user_key]).keccak256();
+    let (exe_code_hash, output_hash) = (bytecode.keccak256(), exec_res.result.keccak256());
+    result.signature = SIGNINING_KEY.sign_multiple(&[&*exe_code_hash, &*inputs_hash, &*prev_delta_hash, &*delta_hash, &*output_hash])?;
     Ok(())
 }
 
@@ -348,7 +357,7 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
 
     let exe_code = &exec_res.result[..];
 
-    let (delta, delta_hash) = encrypt_delta(&exec_res.state_delta)?;
+    let (delta, delta_hash) = encrypt_and_save_delta(&exec_res.state_delta)?;
 
     prepare_wasm_result(delta.clone(),
                         exe_code,
@@ -358,15 +367,8 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
                         result)?;
     // TODO: Can the user make an ethereum payload in the constructor?
     // TODO: Maybe it can be the same as `prepare_wasm_result`?
-    // Saving the delta into the db
 
-    if let Some(state) = exec_res.updated_state {
-        let enc_state = km_t::encrypt_state(state)?;
-        // Saving the updated state into the db
-        enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
-    } else {
-        unreachable!()
-    }
+    encrypt_and_save_state(&exec_res.updated_state);
 
 //    let exe_code = &exec_res.result[..];
 //    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
