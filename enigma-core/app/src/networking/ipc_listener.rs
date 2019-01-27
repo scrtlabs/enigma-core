@@ -1,4 +1,3 @@
-#![allow(dead_code)]
 use crate::networking::messages::*;
 use futures::{Future, Stream};
 use sgx_types::sgx_enclave_id_t;
@@ -7,15 +6,15 @@ use tokio_zmq::prelude::*;
 use tokio_zmq::{Error, Multipart, Rep};
 
 pub struct IpcListener {
-    context: Arc<zmq::Context>,
+    _context: Arc<zmq::Context>,
     rep_future: Box<Future<Item = Rep, Error = Error>>,
 }
 
 impl IpcListener {
     pub fn new(conn_str: &str) -> Self {
-        let context = Arc::new(zmq::Context::new());
-        let rep_future = Rep::builder(context.clone()).bind(conn_str).build();
-        IpcListener { context, rep_future }
+        let _context = Arc::new(zmq::Context::new());
+        let rep_future = Rep::builder(_context.clone()).bind(conn_str).build();
+        IpcListener { _context, rep_future }
     }
 
     pub fn run<F>(self, f: F) -> impl Future<Item = (), Error = Error>
@@ -28,33 +27,36 @@ impl IpcListener {
 }
 
 pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
-    let mut response = Multipart::new();
+    let mut responses = Multipart::new();
     for msg in request {
-        let response_msg = match msg.into() {
-            IpcRequest::GetRegistrationParams { id } => handling::get_registration_params(id, eid),
-            IpcRequest::IdentityChallenge { id, nonce } => handling::identity_challange(id, nonce),
-            IpcRequest::GetTip { id, input } => handling::get_tip(id, input),
-            IpcRequest::GetTips { id, input } => handling::get_tips(id, input),
-            IpcRequest::GetAllTips { id } => handling::get_all_tips(id),
-            IpcRequest::GetAllAddrs { id } => handling::get_all_addrs(id),
-            IpcRequest::GetDelta { id, input } => handling::get_delta(id, input),
-            IpcRequest::GetDeltas { id, input } => handling::get_deltas(id, input),
-            IpcRequest::GetContract { id, input } => handling::get_contract(id, input),
-            IpcRequest::UpdateNewContract { id, address, bytecode } => handling::update_new_contract(id, address, bytecode),
-            IpcRequest::UpdateDeltas { id, deltas } => handling::update_deltas(id, deltas),
-            IpcRequest::NewTaskEncryptionKey { id, user_pubkey } => handling::get_dh_user_key(id, user_pubkey, eid),
-            IpcRequest::DeploySecretContract { id, input } => handling::deploy_contract(id, input, eid),
-            IpcRequest::ComputeTask { id, input } => handling::compute_task(id, input, eid),
+        let msg: IpcMessage = msg.into();
+        let id = msg.id.clone();
+        let response_msg = match msg.unwrap_request() {
+            IpcRequest::GetRegistrationParams => handling::get_registration_params(eid),
+            IpcRequest::IdentityChallenge { nonce } => handling::identity_challange(&nonce),
+            IpcRequest::GetTip { input } => handling::get_tip(&input),
+            IpcRequest::GetTips { input } => handling::get_tips(&input),
+            IpcRequest::GetAllTips => handling::get_all_tips(),
+            IpcRequest::GetAllAddrs => handling::get_all_addrs(),
+            IpcRequest::GetDelta { input } => handling::get_delta(input),
+            IpcRequest::GetDeltas { input } => handling::get_deltas(&input),
+            IpcRequest::GetContract { input } => handling::get_contract(&input),
+            IpcRequest::UpdateNewContract { address, bytecode } => handling::update_new_contract(address, &bytecode),
+            IpcRequest::UpdateDeltas { deltas } => handling::update_deltas(deltas),
+            IpcRequest::NewTaskEncryptionKey { user_pubkey } => handling::get_dh_user_key(&user_pubkey, eid),
+            IpcRequest::DeploySecretContract { input } => handling::deploy_contract(input, eid),
+            IpcRequest::ComputeTask { input } => handling::compute_task(input, eid),
+            IpcRequest::GetPTTRequest { addresses } => handling::get_ptt_req(&addresses, eid),
+            IpcRequest::PTTResponse { response } => handling::ptt_response(&response, eid),
         };
-
-        response.push_back(response_msg.unwrap_or_default());
+        let msg = IpcMessage::from_response(response_msg.unwrap_or_error(id.clone()), id);
+        responses.push_back(msg.into());
     }
-    response
+    responses
 }
 
 // TODO: Make sure that every ? that doesn't require responding with a empty Message is replaced with an appropriate handling
 pub(self) mod handling {
-    #![allow(dead_code)]
     #![allow(clippy::needless_pass_by_value)]
     use crate::common_u::errors::P2PErr;
     use crate::db::{CRUDInterface, DeltaKey, P2PCalls, Stype, DATABASE};
@@ -73,9 +75,10 @@ pub(self) mod handling {
     use serde_json::Value;
     use sgx_types::sgx_enclave_id_t;
     use std::str;
-    use zmq::Message;
 
-    pub fn get_registration_params(id: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    type ResponseResult = Result<IpcResponse, Error>;
+
+    pub fn get_registration_params(eid: sgx_enclave_id_t) -> ResponseResult {
         let sigining_key = equote::get_register_signing_address(eid)?;
 
         let enc_quote = equote_tools::retry_quote(eid, &SPID, 18)?;
@@ -88,27 +91,27 @@ pub(self) mod handling {
 
         assert_eq!(str::from_utf8(&quote.report_body.report_data)?.trim_right_matches('\x00'), sigining_key);
 
-        let result = IpcResults::RegistrationParams { sigining_key, report: report_hex, signature };
+        let result = IpcResults::RegistrationParams { signing_key: sigining_key, report: report_hex, signature };
 
-        Ok(IpcResponse::GetRegistrationParams { id, result }.into())
+        Ok(IpcResponse::GetRegistrationParams { result })
     }
     /// Not implemented.
-    pub fn identity_challange(id: String, nonce: String) -> Result<Message, Error> {
-        unimplemented!("identity_challenge: {}, {}", id, nonce)
+    pub fn identity_challange(nonce: &str) -> ResponseResult {
+        unimplemented!("identity_challenge: {}", nonce)
     }
 
-    pub fn get_tip(id: String, input: String) -> Result<Message, Error> {
+    pub fn get_tip(input: &str) -> ResponseResult {
         let mut address = [0u8; 32];
         address.copy_from_slice(&input.from_hex_32()?);
         let (tip_key, tip_data) = DATABASE.lock_expect("P2P, GetTip").get_tip::<DeltaKey>(&address)?;
 
         let key = tip_key.key_type.unwrap_delta();
         let delta = IpcDelta { address: None, key, delta: Some(tip_data.to_hex()) };
-        Ok(IpcResponse::GetTip { id, result: delta }.into())
+        Ok(IpcResponse::GetTip { result: delta })
 
     }
 
-    pub fn get_tips(id: String, input: Vec<String>) -> Result<Message, Error> {
+    pub fn get_tips(input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
         for data in input {
             let address = data.from_hex_32()?;
@@ -116,34 +119,34 @@ pub(self) mod handling {
             let delta = IpcDelta::from_delta_key(tip_key, tip_data)?;
             tips_results.push(delta);
         }
-        Ok(IpcResponse::GetTips { id, result: IpcResults::Tips(tips_results) }.into())
+        Ok(IpcResponse::GetTips { result: IpcResults::Tips(tips_results) })
     }
 
-    pub fn get_all_tips(id: String) -> Result<Message, Error> {
+    pub fn get_all_tips() -> ResponseResult {
         let tips = DATABASE.lock_expect("P2P GetAllTips").get_all_tips::<DeltaKey>().unwrap_or_default();
         let mut tips_results = Vec::with_capacity(tips.len());
         for (key, data) in tips {
             let delta = IpcDelta::from_delta_key(key, data)?;
             tips_results.push(delta);
         }
-        Ok(IpcResponse::GetAllTips { id, result: IpcResults::Tips(tips_results) }.into())
+        Ok(IpcResponse::GetAllTips { result: IpcResults::Tips(tips_results) })
     }
 
-    pub fn get_all_addrs(id: String) -> Result<Message, Error> {
+    pub fn get_all_addrs() -> ResponseResult {
         let addresses: Vec<String> =
             DATABASE.lock_expect("P2P GetAllAddrs").get_all_addresses().unwrap_or_default().iter().map(|addr| addr.to_hex()).collect();
-        Ok(IpcResponse::GetAllAddrs { id, result: IpcResults::Addresses(addresses) }.into())
+        Ok(IpcResponse::GetAllAddrs { result: IpcResults::Addresses(addresses) })
     }
 
-    pub fn get_delta(id: String, input: IpcDelta) -> Result<Message, Error> {
+    pub fn get_delta(input: IpcDelta) -> ResponseResult {
         let address =
             input.address.ok_or(P2PErr { cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?.from_hex_32()?;
         let delta_key = DeltaKey::new(address, Stype::Delta(input.key));
         let delta = DATABASE.lock_expect("P2P GetDelta").get_delta(delta_key)?;
-        Ok(IpcResponse::GetDelta { id, result: IpcResults::Delta(delta.to_hex()) }.into())
+        Ok(IpcResponse::GetDelta { result: IpcResults::Delta(delta.to_hex()) })
     }
 
-    pub fn get_deltas(id: String, input: Vec<IpcGetDeltas>) -> Result<Message, Error> {
+    pub fn get_deltas(input: &[IpcGetDeltas]) -> ResponseResult {
         let mut results = Vec::with_capacity(input.len());
         for data in input {
             let address = data.address.from_hex_32()?;
@@ -161,24 +164,24 @@ pub(self) mod handling {
             }
         }
 
-        Ok(IpcResponse::GetDeltas { id, result: IpcResults::Deltas(results) }.into())
+        Ok(IpcResponse::GetDeltas { result: IpcResults::Deltas(results) })
     }
 
-    pub fn get_contract(id: String, input: String) -> Result<Message, Error> {
+    pub fn get_contract(input: &str) -> ResponseResult {
         let address = input.from_hex_32()?;
         let data = DATABASE.lock_expect("P2P GetContract").get_contract(address).unwrap_or_default();
-        Ok(IpcResponse::GetContract { id, result: IpcResults::Bytecode(data.to_hex()) }.into())
+        Ok(IpcResponse::GetContract { result: IpcResults::Bytecode(data.to_hex()) })
     }
 
-    pub fn update_new_contract(id: String, address: String, bytecode: String) -> Result<Message, Error> {
+    pub fn update_new_contract(address: String, bytecode: &str) -> ResponseResult {
         let address_arr = address.from_hex_32()?;
         let bytecode = bytecode.from_hex()?;
         let delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
         DATABASE.lock_expect("P2P UpdateNewContract").force_update(&delta_key, &bytecode)?;
-        Ok(IpcResponse::UpdateNewContract { id, address, result: IpcResults::Status(0) }.into())
+        Ok(IpcResponse::UpdateNewContract { address, result: IpcResults::Status(0) })
     }
 
-    pub fn update_deltas(id: String, deltas: Vec<IpcDelta>) -> Result<Message, Error> {
+    pub fn update_deltas(deltas: Vec<IpcDelta>) -> ResponseResult {
         let mut tuples = Vec::with_capacity(deltas.len());
 
         for delta in deltas.into_iter() {
@@ -195,18 +198,18 @@ pub(self) mod handling {
         for ((deltakey, _), res) in tuples.into_iter().zip(results.into_iter()) {
             let mut status = 0;
             if res.is_err() {
-                status = 1;
+                status = FAILED;
             }
-            let key = deltakey.key_type.unwrap_delta();
+            let key = Some(deltakey.key_type.unwrap_delta());
             let address = deltakey.hash.to_hex();
-            let delta = IpcDeltaResult { address, key, status };
+            let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
         }
         let result = IpcResults::UpdateDeltasResult { status: 0, errors };
-        Ok(IpcResponse::UpdateDeltas { id, result }.into())
+        Ok(IpcResponse::UpdateDeltas {result})
     }
 
-    pub fn get_dh_user_key(id: String, _user_pubkey: String, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    pub fn get_dh_user_key(_user_pubkey: &str, eid: sgx_enclave_id_t) -> ResponseResult {
         let mut user_pubkey = [0u8; 64];
         user_pubkey.clone_from_slice(&_user_pubkey.from_hex().unwrap());
 
@@ -218,10 +221,33 @@ pub(self) mod handling {
 
         let result = IpcResults::DHKey {dh_key: pubkey.to_hex(), sig: sig.to_hex() };
 
-        Ok(IpcResponse::NewTaskEncryptionKey { id, result }.into())
+        Ok(IpcResponse::NewTaskEncryptionKey {result})
     }
 
-    pub fn deploy_contract(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    pub fn get_ptt_req(addresses: &[String], eid: sgx_enclave_id_t) -> ResponseResult {
+        let mut addresses_arr = Vec::with_capacity(addresses.len());
+        for a in addresses {
+            addresses_arr.push(a.from_hex_32()?);
+        }
+        let (data, sig) = km_u::ptt_req(eid, &addresses_arr)?;
+        let result = IpcResults::Request { request: data.to_hex(), sig: sig.to_hex() };
+
+        Ok(IpcResponse::GetPTTRequest {result})
+    }
+
+    pub fn ptt_response(response: &str, eid: sgx_enclave_id_t) -> ResponseResult {
+        let msg = response.from_hex()?;
+        km_u::ptt_res(eid, &msg)?;
+        let res = km_u::ptt_build_state(eid)?;
+        let result: Vec<_> = res
+            .into_iter()
+            .map(|a| IpcStatusResult{ address: a.to_hex(), status: FAILED, key: None })
+            .collect();
+
+        Ok(IpcResponse::PTTResponse {result})
+    }
+
+    pub fn deploy_contract(input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let bytecode = input.pre_code.expect("Bytecode Missing").from_hex()?;
         let contract_address = input.address.from_hex_32()?;
         let enc_args = input.encrypted_args.from_hex()?;
@@ -237,19 +263,18 @@ pub(self) mod handling {
             &user_pubkey,
             input.gas_limit)?;
 
-        let result = IpcResults::TaskResult {
-            exe_code: Some(result.output.to_hex()),
-            pre_code_hash: Some(bytecode.keccak256().to_hex()),
+        let result = IpcResults::DeployResult {
+            pre_code_hash: bytecode.keccak256().to_hex(),
             used_gas: result.used_gas,
-            output: None, // TODO: Return output
+            output: result.output.to_hex(), // TODO: Return output
             delta: result.delta.into(),
             signature: result.signature.to_hex(),
         };
-        Ok( IpcResponse::DeploySecretContract { id, result }.into() )
+        Ok( IpcResponse::DeploySecretContract { result } )
 
     }
 
-    pub fn compute_task(id: String, input: IpcTask, eid: sgx_enclave_id_t) -> Result<Message, Error> {
+    pub fn compute_task(input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let enc_args = input.encrypted_args.from_hex()?;
         let address = input.address.from_hex_32()?;
         let callable = input.encrypted_fn.from_hex()?;
@@ -268,16 +293,14 @@ pub(self) mod handling {
             &address,
             input.gas_limit)?;
 
-        let result = IpcResults::TaskResult {
-            exe_code: None,
-            pre_code_hash: None,
+        let result = IpcResults::ComputeResult {
             used_gas: result.used_gas,
-            output: Some(result.output.to_hex()),
+            output: result.output.to_hex(),
             delta: result.delta.into(),
             signature: result.signature.to_hex(),
         };
 
-        Ok( IpcResponse::ComputeTask { id, result }.into() )
+        Ok( IpcResponse::ComputeTask { result } )
     }
 
 }
