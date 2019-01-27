@@ -29,8 +29,8 @@ mod ocalls_t;
 use sgx_types::{sgx_status_t, sgx_target_info_t, sgx_report_t};
 use sgx_trts::trts::rsgx_read_rand;
 
-use enigma_crypto::{asymmetric, hash::EthereumAddress};
-use enigma_tools_t::common::utils_t::{ToHex, FromHex};
+use enigma_crypto::asymmetric;
+use enigma_tools_t::common::utils_t::{ToHex, FromHex, EthereumAddress};
 use enigma_tools_t::storage_t;
 use enigma_tools_t::quote_t;
 

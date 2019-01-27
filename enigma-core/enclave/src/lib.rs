@@ -57,9 +57,9 @@ use crate::km_t::{ecall_build_state_internal, ecall_get_user_key_internal, ecall
                   ContractAddress};
 use crate::wasm_g::execution;
 use enigma_runtime_t::data::{ContractState, StatePatch};
-use enigma_crypto::hash::{EthereumAddress, Keccak256};
+use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError};
-use enigma_tools_t::common::{errors_t::EnclaveError, LockExpectMutex};
+use enigma_tools_t::common::{errors_t::EnclaveError, LockExpectMutex, EthereumAddress};
 use enigma_tools_t::{build_arguments_g::*, km_primitives::PubKey, quote_t, storage_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult};
 use wasm_utils::{build, SourceTarget};
