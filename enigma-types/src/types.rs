@@ -1,5 +1,12 @@
 use core::{fmt, mem, ptr, default::Default};
 
+
+pub use crate::hash::Hash256;
+pub type StateKey = [u8; 32];
+pub type ContractAddress = Hash256;
+pub type MsgID = [u8; 12];
+pub type PubKey = [u8; 64];
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnclaveReturn {

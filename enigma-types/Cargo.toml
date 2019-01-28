@@ -1,3 +1,5 @@
+cargo-features = ["rename-dependency"]
+
 [package]
 name = "enigma-types"
 version = "0.1.0"
@@ -6,7 +8,17 @@ edition = "2018"
 categories = ["no-std"]
 
 [dependencies]
+# This is Really *NOT* Ideal. currently it just uses Baidu's serde fork but with `no-std`.
+# This is needed because if I use the official one the Serialize trait doesn't work in sgx because it's a different trait from a different crate.
+serde_sgx = { package = "serde", git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", features = ["derive"], optional = true }
+serde_std = { package = "serde", version = "1.0", default-features = false, features = ["derive"] }
 
 [build-dependencies]
 cbindgen = "0.6.7"
 
+
+[features]
+default = ["std"]
+std = ["serde_std/std"]
+alloc = ["serde_std/alloc"]
+sgx = ["serde_sgx"]
