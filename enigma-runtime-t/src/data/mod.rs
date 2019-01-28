@@ -20,8 +20,7 @@ pub mod tests {
     use crate::data::*;
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
-    use enigma_types::Hash256;
-    use enigma_tools_t::km_primitives::ContractAddress;
+    use enigma_types::{ContractAddress, Hash256};
     use json_patch;
     use serde_json::{self, Map, Value};
     use std::string::String;

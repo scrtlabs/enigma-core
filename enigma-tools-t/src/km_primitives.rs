@@ -1,16 +1,13 @@
 use crate::common::errors_t::EnclaveError;
 use enigma_crypto::{symmetric, Encryption, CryptoError};
-use enigma_types::Hash256;
+use enigma_types::{ContractAddress, StateKey, PubKey};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_trts::trts::rsgx_read_rand;
 use std::string::ToString;
 use std::vec::Vec;
 
-pub type StateKey = [u8; 32];
-pub type ContractAddress = Hash256;
 pub type MsgID = [u8; 12];
-pub type PubKey = [u8; 64];
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum PrincipalMessageType {

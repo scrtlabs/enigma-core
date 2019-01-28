@@ -1,9 +1,10 @@
-use crate::km_t::{self, ContractAddress};
+use crate::km_t;
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeResult};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_crypto::{CryptoError, Encryption};
+use enigma_types::ContractAddress;
 use parity_wasm::elements::{self, Deserialize};
 use parity_wasm::io::Cursor;
 use std::boxed::Box;

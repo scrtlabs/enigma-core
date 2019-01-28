@@ -6,8 +6,9 @@ use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_crypto::asymmetric::KeyPair;
 use enigma_crypto::{Encryption, CryptoError};
-use enigma_tools_t::km_primitives::{ContractAddress, MsgID, StateKey};
+use enigma_tools_t::km_primitives::MsgID;
 use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
+use enigma_types::{ContractAddress, StateKey};
 use std::collections::HashMap;
 use std::string::ToString;
 use std::sync::SgxMutex;
@@ -145,7 +146,8 @@ pub mod tests {
     use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch};
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::asymmetric::KeyPair;
-    use enigma_tools_t::km_primitives::{ContractAddress, PrincipalMessage, PrincipalMessageType};
+    use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
+    use enigma_types::ContractAddress;
 
     pub fn test_state_internal() {
         // Making the ground work

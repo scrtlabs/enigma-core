@@ -53,15 +53,14 @@ mod wasm_g;
 
 use crate::evm_t::{abi::{create_callback, prepare_evm_input},
                    evm::call_sputnikvm};
-use crate::km_t::{ecall_build_state_internal, ecall_get_user_key_internal, ecall_ptt_req_internal, ecall_ptt_res_internal,
-                  ContractAddress};
+use crate::km_t::{ecall_build_state_internal, ecall_get_user_key_internal, ecall_ptt_req_internal, ecall_ptt_res_internal};
 use crate::wasm_g::execution;
 use enigma_runtime_t::data::{ContractState, StatePatch};
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError};
 use enigma_tools_t::common::{errors_t::EnclaveError, LockExpectMutex, EthereumAddress};
-use enigma_tools_t::{build_arguments_g::*, km_primitives::PubKey, quote_t, storage_t};
-use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256};
+use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
+use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey};
 use wasm_utils::{build, SourceTarget};
 
 use sgx_types::*;

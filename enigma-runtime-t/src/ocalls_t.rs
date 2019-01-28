@@ -1,8 +1,6 @@
 use crate::data::{EncryptedContractState, EncryptedPatch};
 use enigma_tools_t::common::errors_t::EnclaveError::{self, OcallError};
-use enigma_tools_t::km_primitives::ContractAddress;
-use enigma_types::traits::SliceCPtr;
-use enigma_types::EnclaveReturn;
+use enigma_types::{ContractAddress, EnclaveReturn, traits::SliceCPtr};
 use sgx_types::sgx_status_t;
 use std::string::ToString;
 use std::vec::Vec;
@@ -109,7 +107,7 @@ pub fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> Result<Vec<Enc
 pub mod tests {
     use super::{get_deltas, get_state, save_delta, save_state, EncryptedContractState, EncryptedPatch};
     use crate::data::ContractState;
-    use enigma_tools_t::km_primitives::ContractAddress;
+    use enigma_types::ContractAddress;
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
     use serde_json::Value;

@@ -20,7 +20,7 @@ extern crate wasmi;
 
 use crate::data::{ContractState, DeltasInterface, IOInterface, StatePatch};
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::km_primitives::ContractAddress;
+use enigma_types::ContractAddress;
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
 use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
