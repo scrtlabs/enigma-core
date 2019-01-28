@@ -114,7 +114,7 @@ pub unsafe extern "C" fn ecall_evm(bytecode: *const u8, bytecode_len: usize, cal
 pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                                        callable: *const u8, callable_len: usize,
                                        callable_args: *const u8, callable_args_len: usize,
-                                       user_key: &[u8; 64], contract_address: &[u8; 32],
+                                       user_key: &[u8; 64], contract_address: &ContractAddress,
                                        gas_limit: *const u64, result: &mut ExecuteResult) -> EnclaveReturn {
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
     let callable = slice::from_raw_parts(callable, callable_len);
@@ -145,7 +145,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
                                       constructor: *const u8, constructor_len: usize,
                                       args: *const u8, args_len: usize,
-                                      address: &[u8; 32], user_key: &[u8; 64],
+                                      address: &ContractAddress, user_key: &PubKey,
                                       gas_limit: *const u64, result: &mut ExecuteResult) -> EnclaveReturn {
     let args = slice::from_raw_parts(args, args_len);
     let bytecode_slice = slice::from_raw_parts(bytecode, bytecode_len);
@@ -154,8 +154,8 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ecall_ptt_req(address: *const [u8; 32], len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
-    let address_list = slice::from_raw_parts(address, len/mem::size_of::<[u8; 32]>());
+pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
+    let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
     let address_list: Vec<Hash256> = address_list.into_iter().map(|a| (*a).into()).collect();
     let msg = match ecall_ptt_req_internal(&address_list, sig) {
         Ok(msg) => msg,
@@ -376,12 +376,12 @@ unsafe fn prepare_wasm_result(delta_option: Option<StatePatch>, execute_result: 
         Some(delta) => {
             let enc_delta = km_t::encrypt_delta(delta)?;
             result.delta_ptr = ocalls_t::save_to_untrusted_memory(&enc_delta.data)? as *const u8;
-            result.delta_hash = *enc_delta.contract_id;
+            result.delta_hash = enc_delta.contract_id;
             result.delta_index = enc_delta.index;
         }
         None => {
             result.delta_ptr = ptr::null();
-            result.delta_hash = [0u8; 32];
+            result.delta_hash = ContractAddress::default();
             result.delta_index = 0;
         }
     }

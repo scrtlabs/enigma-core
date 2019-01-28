@@ -2,14 +2,11 @@
 
 use crate::common_u::errors::EnclaveFailError;
 use enigma_types::traits::SliceCPtr;
-use enigma_types::EnclaveReturn;
+use enigma_types::{EnclaveReturn, ContractAddress, PubKey};
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use std::mem;
 
-pub type ContractAddress = [u8; 32];
-pub type StateKey = [u8; 32];
-pub type PubKey = [u8; 64];
 
 extern "C" {
     fn ecall_ptt_req(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, addresses: *const ContractAddress, len: usize,
@@ -35,7 +32,7 @@ pub fn ptt_build_state(eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Er
     let part: Vec<ContractAddress> = part
         .chunks(32)
         .map(|s| {
-            let mut arr = [0u8; 32];
+            let mut arr = ContractAddress::default();
             arr.copy_from_slice(s);
             arr
         })
@@ -99,11 +96,12 @@ pub mod tests {
     use self::ring::{aead, rand::*};
     use self::secp256k1::{Message, PublicKey, RecoveryId, SecretKey, SharedSecret, Signature};
     use super::PubKey;
-    use super::{ptt_build_state, ptt_req, ptt_res, ContractAddress, StateKey};
+    use super::{ptt_build_state, ptt_req, ptt_res};
     use crate::db::Stype::{Delta, State};
     use crate::db::{CRUDInterface, DeltaKey, DATABASE};
     use crate::esgx::general::init_enclave_wrapper;
     use enigma_tools_u::common_u::{Keccak256, Sha256};
+    use enigma_types::{ContractAddress, StateKey};
     use rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
     use serde_json::{self, Value};
@@ -209,7 +207,7 @@ pub mod tests {
     #[test]
     fn test_ptt_req() {
         let enclave = init_enclave_wrapper().unwrap();
-        let addresses: [ContractAddress; 3] = [[1u8; 32], [2u8; 32], [3u8; 32]];
+        let addresses: [ContractAddress; 3] = [[1u8; 32].into(), [2u8; 32].into(), [3u8; 32].into()];
         let (msg, sig) = ptt_req(enclave.geteid(), &addresses).unwrap();
         assert_ne!(msg.len(), 0);
         assert_ne!(sig.to_vec(), vec![0u8; 64]);
@@ -232,7 +230,7 @@ pub mod tests {
     fn make_encrypted_response(req: Value) -> Value {
         // Making the response
         let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
-        let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|add| (add, add)).collect();
+        let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|add| (add, *add)).collect();
 
         let mut response_data = Vec::new();
         _response_data.serialize(&mut Serializer::new(&mut response_data)).unwrap();
@@ -306,31 +304,31 @@ pub mod tests {
 //        assert!(address_result.iter().all(|x| address_set.contains(x)));
     }
 
-    fn fill_the_db() -> Vec<[u8; 32]> {
-        let address = vec![b"first".sha256(), b"second".sha256(), b"third".sha256()];
+    fn fill_the_db() -> Vec<ContractAddress> {
+        let address: Vec<ContractAddress> = vec![b"first".sha256().into(), b"second".sha256().into(), b"third".sha256().into()];
         let mut stuff = vec![
-            (DeltaKey { hash: address[2], key_type: State }, vec![8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]),
+            (DeltaKey { contract_id: address[2], key_type: State }, vec![8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]),
         ];
 
         let iv = [1u8; 12];
 
         for (i, (mut state, deltas)) in unencrypted_data().into_iter().enumerate() {
             println!("i: {}", i);
-            let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, &address[i]).unwrap();
+            let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, &*address[i]).unwrap();
 
             state.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
             let s = aead::seal_in_place(&seal_key, &iv, &[], &mut state, aead::AES_256_GCM.tag_len()).unwrap();
             let mut state = state[..s].to_vec();
             state.append(&mut iv.to_vec());
 
-            stuff.push((DeltaKey { hash: address[i], key_type: State}, state));
+            stuff.push((DeltaKey { contract_id: address[i], key_type: State}, state));
             for (j, mut delta) in deltas.into_iter().enumerate() {
                 delta.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
                 let s = aead::seal_in_place(&seal_key, &iv,     &[], &mut delta, aead::AES_256_GCM.tag_len()).unwrap();
                 let mut delta = delta[..s].to_vec();
                 delta.append(&mut iv.to_vec());
 
-                stuff.push((DeltaKey {hash: address[i], key_type: Delta(j as u32)}, delta));
+                stuff.push((DeltaKey { contract_id: address[i], key_type: Delta(j as u32)}, delta));
             }
         }
         for (key, data) in stuff {

@@ -32,7 +32,7 @@ pub enum EnclaveReturn {
 pub struct ExecuteResult {
     pub output: *const u8,
     pub delta_ptr: *const u8,
-    pub delta_hash: [u8; 32],
+    pub delta_hash: Hash256,
     pub delta_index: u32,
     pub ethereum_payload_ptr: *const u8,
     pub ethereum_address: [u8; 20],

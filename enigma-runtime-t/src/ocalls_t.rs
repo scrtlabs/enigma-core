@@ -6,12 +6,12 @@ use std::string::ToString;
 use std::vec::Vec;
 
 extern "C" {
-    fn ocall_new_delta(retval: *mut EnclaveReturn, enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32], _delta_index: *const u32) -> sgx_status_t;
-    fn ocall_update_state(retval: *mut EnclaveReturn, id: &[u8; 32], enc_delta: *const u8, delta_len: usize) -> sgx_status_t;
-    fn ocall_get_deltas_sizes(retval: *mut EnclaveReturn, addr: &[u8; 32], start: *const u32, end: *const u32, res_ptr: *mut usize, res_len: usize) -> sgx_status_t;
-    fn ocall_get_deltas(retval: *mut EnclaveReturn, addr: &[u8; 32], start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> sgx_status_t;
-    fn ocall_get_state_size(retval: *mut EnclaveReturn, addr: &[u8; 32], state_len: *mut usize) -> sgx_status_t;
-    fn ocall_get_state(retval: *mut EnclaveReturn, addr: &[u8; 32], state_ptr: *mut u8, state_len: usize) -> sgx_status_t;
+    fn ocall_new_delta(retval: *mut EnclaveReturn, enc_delta: *const u8, delta_len: usize, contract_id: &ContractAddress, _delta_index: *const u32) -> sgx_status_t;
+    fn ocall_update_state(retval: *mut EnclaveReturn, id: &ContractAddress, enc_delta: *const u8, delta_len: usize) -> sgx_status_t;
+    fn ocall_get_deltas_sizes(retval: *mut EnclaveReturn, addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut usize, res_len: usize) -> sgx_status_t;
+    fn ocall_get_deltas(retval: *mut EnclaveReturn, addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> sgx_status_t;
+    fn ocall_get_state_size(retval: *mut EnclaveReturn, addr: &ContractAddress, state_len: *mut usize) -> sgx_status_t;
+    fn ocall_get_state(retval: *mut EnclaveReturn, addr: &ContractAddress, state_ptr: *mut u8, state_len: usize) -> sgx_status_t;
 }
 
 pub fn save_state(enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> {

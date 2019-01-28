@@ -1,7 +1,7 @@
 use core::ops::{Deref, DerefMut};
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct Hash256([u8; 32]);
 
 

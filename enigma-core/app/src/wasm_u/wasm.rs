@@ -3,7 +3,7 @@ extern crate sgx_urts;
 extern crate rustc_hex;
 
 use crate::common_u::errors::EnclaveFailError;
-use crate::km_u::{ContractAddress, PubKey};
+use enigma_types::{ContractAddress, PubKey};
 use super::WasmResult;
 use std::convert::TryInto;
 use enigma_types::traits::SliceCPtr;
@@ -93,7 +93,7 @@ pub mod tests {
     use crate::wasm_u::wasm;
     use self::ring::rand::*;
     use self::ethabi::{Token};
-    use super::{ContractAddress, PubKey};
+    use enigma_types::{ContractAddress, PubKey};
     use sgx_types::*;
     use std::fs::File;
     use std::io::Read;
@@ -103,8 +103,8 @@ pub mod tests {
     use wasm_u::{WasmResult, wasm::{rustc_hex::ToHex}};
 
     pub fn generate_address() -> ContractAddress {
-        let mut address = [0u8; 32];
-        SystemRandom::new().fill(&mut address).unwrap();
+        let mut address = ContractAddress::default();
+        SystemRandom::new().fill(address.as_mut()).unwrap();
         address
     }
 
