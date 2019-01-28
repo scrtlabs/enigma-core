@@ -263,14 +263,10 @@ fn encrypt_and_save_delta(delta: &Option<StatePatch>) -> Result<(Option<Encrypte
     Ok((None, Default::default()))
 }
 
-fn encrypt_and_save_state(state: &Option<ContractState>) -> Result<(), EnclaveError>{
-    if let Some(state) = state {
-        let enc_state = km_t::encrypt_state(state.clone())?;
-        enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
-        Ok(())
-    } else {
-        unreachable!()
-    }
+fn encrypt_and_save_state(state: &ContractState) -> Result<(), EnclaveError>{
+    let enc_state = km_t::encrypt_state(state.clone())?;
+    enigma_runtime_t::ocalls_t::save_state(&enc_state)?;
+    Ok(())
 }
 
 unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
