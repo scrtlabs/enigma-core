@@ -180,7 +180,6 @@ impl From<Delta> for IpcDelta {
 impl From<Message> for IpcMessageRequest {
     fn from(msg: Message) -> Self {
         let msg_str = msg.as_str().unwrap();
-        println!("got: {:?}", msg_str);
         let req: Self = serde_json::from_str(msg_str).expect(msg_str);
         req
     }
@@ -188,7 +187,6 @@ impl From<Message> for IpcMessageRequest {
 
 impl Into<Message> for IpcMessageResponse {
     fn into(self) -> Message {
-        println!("respond: {:?}", serde_json::to_string(&self).unwrap());
         let msg = serde_json::to_vec(&self).unwrap();
         Message::from_slice(&msg)
     }
