@@ -1,7 +1,8 @@
 use byteorder::{BigEndian, WriteBytesExt};
 use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DATABASE};
 use crate::esgx::general;
-use enigma_tools_u::common_u::{LockExpectMutex, Sha256};
+use enigma_tools_u::common_u::LockExpectMutex;
+use enigma_crypto::hash::Sha256;
 use enigma_types::{Hash256, ContractAddress, EnclaveReturn, traits::SliceCPtr};
 use lru_cache::LruCache;
 use std::sync::Mutex;

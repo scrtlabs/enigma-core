@@ -1,5 +1,6 @@
 #![crate_type = "lib"]
 
+extern crate enigma_crypto;
 #[macro_use]
 extern crate failure;
 extern crate reqwest;

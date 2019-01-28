@@ -65,7 +65,8 @@ pub(self) mod handling {
     use crate::esgx::equote;
     use crate::networking::constants::SPID;
     use crate::wasm_u::wasm;
-    use enigma_tools_u::common_u::{FromHex32, LockExpectMutex, Keccak256};
+    use enigma_tools_u::common_u::{FromHex32, LockExpectMutex};
+    use enigma_crypto::hash::Keccak256;
     use enigma_tools_u::esgx::equote as equote_tools;
     use enigma_tools_u::attestation_service::{service::AttestationService, constants::ATTESTATION_SERVICE_URL};
     use enigma_types::ContractAddress;

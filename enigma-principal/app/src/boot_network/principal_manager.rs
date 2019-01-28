@@ -150,7 +150,7 @@ pub fn run_miner(account: Address, w3: Arc<Web3<Http>>, interval: u64) -> thread
 mod test {
     use super::*;
     use boot_network::deploy_scripts;
-    use enigma_tools_u::common_u::Keccak256;
+    use enigma_crypto::hash::Keccak256;
     use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
     use enigma_tools_u::web3_utils::w3utils;
     use esgx::general::init_enclave_wrapper;
