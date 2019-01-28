@@ -50,22 +50,6 @@ pub mod tests {
         serde_json::from_str(msg.as_str().unwrap()).unwrap()
     }
 
-    /// send as a request the following json:
-    /// {
-    ///    id : <unique_request_id>,
-    ///    type : GetRegistrationParams
-    /// }
-    /// and expect to receive a response as the following:
-    ///
-    ///  {
-    ///    id : <unique_request_id>,
-    ///    type : GetRegistrationParams,
-    ///    result : {
-    ///              signingKey : hex,
-    ///              report: hex,
-    ///              signature: hex,
-    ///    }
-    ///  }
     #[test]
     fn test_registration_params() {
         let port = "5555";
@@ -91,78 +75,6 @@ pub mod tests {
         assert!(is_hex(result_rep));
         assert!(is_hex(result_sig));
     }
-
-    /////////////////// GetTip ///////////////////
-    /// Request:
-    ///
-    /// {
-    ///    id : <unique_request_id>,
-    ///    type : GetTip,
-    ///    input : [Secret Contract Address]
-    /// }
-    ///
-    /// Response:
-    ///
-    /// {
-    ///   id : <unique_request_id>,
-    ///   type : GetTip,
-    ///   result : {
-    ///       key :   [],
-    ///       delta : []
-    ///   }
-    /// }
-    //    #[test]
-    //    fn test_get_tip() {
-    //        let id = "123";
-    //        let type_req = "GetTip";
-    //        let input_req = "0x483ae7e7afb799d0f";
-    //    }
-
-    ////////////// UpdateNewContract ///////////////////
-    ///        Request:
-    ///
-    ///        {
-    ///            id : <unique_request_id>,
-    ///            type : UpdateNewContract,
-    ///            address : ...,
-    ///            bytecode : [Secret Contract Address]
-    ///        }
-    ///
-    ///        Response:
-    ///
-    ///        {
-    ///            id : <unique_request_id>,
-    ///            type : UpdateNewContract,
-    ///            address : ...,
-    ///            result : {
-    ///                status : 0 or err code
-    ///            }
-    ///        }
-    //    #[test]
-    //    fn test_update_new_contract() {
-    //        let id = "123";
-    //        let type_req = "UpdateNewContract";
-    //    }
-
-    ////////////// NewTaskEncryptionKey ///////////////
-    ///    Request:
-    ///
-    ///    {
-    ///        id : <unique_request_id>,
-    ///        type : NewTaskEncryptionKey,
-    ///        userPubKey: 'the-user-dh-pubkey'
-    ///    }
-    ///
-    ///    Response:
-    ///
-    ///    {
-    ///        id: <unique_request_id>,
-    ///        type: NewTaskEncryptionKey,
-    ///        result : {
-    ///           workerEncryptionKey : 'some-encryption-key',
-    ///            workerSig : 'sign(response params)'
-    ///        }
-    ///    }
 
     fn get_encryption_key(port: &'static str, id: &str, type_req: &str, user_pub_key: [u8; 64]) -> Value {
         let mut msg = json!({"id" : "", "type" : "", "userPubKey": ""});
@@ -193,34 +105,6 @@ pub mod tests {
         assert!(is_hex(result_sig));
     }
 
-
-
-    ////////////////// GetPTTRequest ////////////////////
-    ///  Request:
-    ///
-    /// {
-    ///    id : <unique_request_id>,
-    ///    type : GetPTTRequest,
-    ///    addresses: [addrress]
-    /// }
-    /// Response:
-    ///
-    /// {
-    ///    id : <unique_request_id>,
-    ///    type : GetPTTRequest,
-    ///    result: {
-    ///        request: 'the-message-packed-request',
-    ///        workerSig: 'the-worker-sig'
-    ///    }
-    /// }
-    /// The request is a signed messagepack that looks like this:
-    ///
-    /// {
-    ///    prefix: b"Enigma Message",
-    ///    data: [addresses],
-    ///    pubkey: 'DH pubkey',
-    ///    id: '12-bytes-msgID',
-    /// }
     #[derive(Debug)]
     pub struct MessagePack {
         prefix: String,
@@ -284,33 +168,6 @@ pub mod tests {
         assert!(is_hex(result_sig));
     }
 
-    ////////////// PTTResponse /////////////////////////
-    ///    Request:
-    ///
-    ///    {
-    ///     id : <unique_request_id>,
-    ///     type : PTTResponse,
-    ///     response: 'the-encrypted-response'
-    ///    }
-    ///
-    ///     The response is a signed messagepack that looks like this:
-    ///    {
-    ///     prefix: b"Enigma Message",
-    ///     data: enc([(address, stateKey)]),
-    ///     pubkey: 'DH pubkey',
-    ///     id: '12-bytes-msgID',
-    ///    }
-    ///
-    /// Response:
-    ///
-    ///    {
-    ///     id : <unique_request_id>,
-    ///     type : GetPTTRequest,
-    ///     result: {
-    ///         errors: [{address, status}]
-    ///     }
-    ///    }
-
     fn create_principal_response(val: Value) -> Vec<u8> {
         let unpacked_msg: Value = get_packed_msg(val);
         let enc_response: Value = make_encrypted_response(unpacked_msg);
@@ -320,20 +177,26 @@ pub mod tests {
         serialized_enc_response
     }
 
+    fn run_ptt_round(port: &'static str, addrs: Vec<String>, id_res: &str, type_res: &str) -> Value {
+        let id_req = "536";
+        let type_req = "GetPTTRequest";
+
+        let req_val: Value = get_ptt_req(port, id_req, type_req,addrs.clone());
+
+
+        let enc_response = create_principal_response(req_val);
+        let mut msg = json!({"id": id_res, "type": type_res, "response": enc_response.to_hex()});
+        send_receive_ipc(&msg.to_string(), port)
+    }
+
     #[test]
     fn test_ptt_response() {
         let port = "5559";
-        let id_req = "536";
-        let type_req = "GetPTTRequest";
-        let addresses: Vec<String> = vec![generate_address().to_hex(), generate_address().to_hex()];
-
         run_core(port);
-        let req_val: Value = get_ptt_req(port, id_req, type_req,addresses.clone());
         let id_res = "537";
         let type_res = "PTTResponse";
-        let enc_response = create_principal_response(req_val);
-        let mut msg = json!({"id": id_res, "type": type_res, "response": enc_response.to_hex()});
-        let res_val: Value = send_receive_ipc(&msg.to_string(), port);
+        let addresses: Vec<String> = vec![generate_address().to_hex(), generate_address().to_hex()];
+        let res_val: Value = run_ptt_round(port, addresses, id_res, type_res);
         let id_accepted = res_val["id"].as_str().unwrap();
         let result: Vec<u8> = serde_json::from_value(res_val["result"].clone()).unwrap();
         let type_accepted = res_val["type"].as_str().unwrap();
@@ -343,69 +206,47 @@ pub mod tests {
         assert_eq!(result.len(), 0);
     }
 
-
-    ////////////// DeploySecretContract /////////////////
-    ///    Request:
-    ///
-    ///    {
-    ///        id: <unique_request_id>,
-    ///        type: DeploySecretContract,
-    ///        input: {
-    ///            preCode: 'the-bytecode',
-    ///            encryptedArgs: 'hex of the encrypted args',
-    ///            encryptedFn: 'hex of the encrypted function signature',
-    ///            userPubKey: 'the-user-dh-pubkey',
-    ///            gasLimit: 'the-user-selected-gaslimit',
-    ///            contractAddress: 'the-address-of-the-contract'
-    ///        }
-    ///    }
-    ///
-    ///    Response:
-    ///
-    ///    {
-    ///        id: <unique_request_id>,
-    ///        type: DeploySecretContract,
-    ///        result : {
-    ///            output: 'the-deployed-bytecode', // AKA preCode
-    ///            preCodeHash: 'hash-of-the-precode-bytecode',
-    ///            delta: {0, delta},
-    ///            usedGas: 'amount-of-gas-used',
-    ///            ethereumPayload: 'hex of payload',
-    ///            ethereumAddress: 'address of the payload',
-    ///            signature: 'enclave-signature',
-    ///        }
-    ///    }
-    #[test]
-    #[ignore]
-    fn test_deploy_secret_contract() {
-        let id = "7699";
-        let port =  "5557";
-        let type_req = "DeploySecretContract";
-        let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/simplest");
-        let (user_privkey, user_pubkey) = generate_key_pair();
-
-        run_core(port);
-        let v: Value = get_encryption_key(port, "7698", "NewTaskEncryptionKey", user_pubkey);
+    fn create_shared_from_enckey(v: Value, user_priv: SecretKey) -> Vec<u8> {
         let result_key = v["result"].as_object().unwrap()["workerEncryptionKey"].as_str().unwrap();
         let key_slice = result_key.from_hex().unwrap();
-        let shared_key = get_shared_key(&key_slice, user_privkey);
+        get_shared_key(&key_slice, user_priv)
+    }
+    #[test]
+    fn test_deploy_secret_contract() {
+        let port =  "5557";
+        run_core(port);
 
-        let (encrypted_fn, encrypted_args) = serial_and_encrypt_input(&shared_key, "construct(uint)", &[Token::Uint(17.into())], None);
+        let (user_privkey, user_pubkey) = generate_key_pair();
+        let id_enc = "7698";
+        let type_enc =  "NewTaskEncryptionKey";
+        let enc_res: Value = get_encryption_key(port, id_enc, type_enc, user_pubkey);
+
+        let id_dep = "7699";
+        let type_dep = "DeploySecretContract";
+        let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/simplest");
+        let shared_key: Vec<u8> = create_shared_from_enckey(enc_res, user_privkey);
+        // args
+        let fn_deploy = "construct(uint)";
+        let args_deploy = [Token::Uint(17.into())];
+        let (encrypted_fn, encrypted_args) = serial_and_encrypt_input(&shared_key, fn_deploy, &args_deploy, None);
         let gas_limit = 100_000_000;
         let address = generate_address();
 
-        let msg = json!({"id" : id, "type" : type_req, "input":
+        let id_ptt = "876";
+        let type_ptt = "PTTResponse";
+        let _ = run_ptt_round(port, vec![address.to_hex()], id_ptt, type_ptt);
+
+        let msg = json!({"id" : id_dep, "type" : type_dep, "input":
                         {"preCode": &pre_code.to_hex(), "encryptedArgs": encrypted_args.to_hex(),
                         "encryptedFn": encrypted_fn.to_hex(), "userPubKey": user_pubkey.to_hex(),
                         "gasLimit": gas_limit, "contractAddress": address.to_hex()}
                         });
         let v: Value = send_receive_ipc(&msg.to_string(), port);
-
         let id_accepted = v["id"].as_str().unwrap();
         let result_output = v["result"].as_object().unwrap()["output"].as_str().unwrap();
         let result_pre_hash = v["result"].as_object().unwrap()["preCodeHash"].as_str().unwrap();
-        let result_output = v["result"].as_object().unwrap()["delta"].as_str().unwrap();
-        let result_pre_hash = v["result"].as_object().unwrap()["usedGas"].as_str().unwrap();
+        let result_output = v["result"].as_object().unwrap()["delta"].as_object().unwrap();
+        let result_used_gas: u64 = serde_json::from_value(v["result"]["usedGas"].clone()).unwrap();
         let type_res = v["type"].as_str().unwrap();
 
 //        assert_eq!(id_accepted, id);
