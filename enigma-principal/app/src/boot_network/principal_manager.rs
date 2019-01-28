@@ -228,7 +228,7 @@ mod test {
 //                    println!("FOUND 2 LOGS!!!! {:?}", logs);
                     for  log in logs.iter() {
                         let expected_topic = event_name.as_bytes().keccak256();
-                        assert!(log.topics[0].contains(&H256::from_slice(&expected_topic)));
+                        assert!(log.topics[0].contains(&H256::from_slice(&*expected_topic)));
                     }
                     break;
                 }
