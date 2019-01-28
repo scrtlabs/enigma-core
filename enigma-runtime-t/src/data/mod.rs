@@ -18,8 +18,9 @@ pub trait DeltasInterface<E, T> {
 
 pub mod tests {
     use crate::data::*;
-    use enigma_crypto::hash::{Sha256, Hash256};
+    use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
+    use enigma_types::Hash256;
     use enigma_tools_t::km_primitives::ContractAddress;
     use json_patch;
     use serde_json::{self, Map, Value};

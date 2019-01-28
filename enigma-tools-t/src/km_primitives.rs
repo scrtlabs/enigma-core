@@ -1,6 +1,6 @@
 use crate::common::errors_t::EnclaveError;
-use enigma_crypto::{symmetric, Encryption};
-use enigma_crypto::{CryptoError, hash::Hash256};
+use enigma_crypto::{symmetric, Encryption, CryptoError};
+use enigma_types::Hash256;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_trts::trts::rsgx_read_rand;

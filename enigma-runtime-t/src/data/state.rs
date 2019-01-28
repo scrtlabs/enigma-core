@@ -1,7 +1,8 @@
 use crate::data::{DeltasInterface, IOInterface, StatePatch};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::km_primitives::ContractAddress;
-use enigma_crypto::{symmetric, Encryption, hash::Hash256};
+use enigma_crypto::{symmetric, Encryption};
+use enigma_types::Hash256;
 use json_patch;
 use rmps::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};

@@ -493,6 +493,7 @@ name = "enigma-types"
 version = "0.1.0"
 dependencies = [
  "cbindgen 0.6.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

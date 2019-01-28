@@ -10,14 +10,12 @@ pub mod rand;
 #[cfg(feature = "sgx")]
 use {
     sgx_tstd as localstd,
-    serde_sgx as serde,
 };
 
 
 #[cfg(all(feature = "std"))]
 use {
     std as localstd,
-    serde_std as serde,
 };
 
 pub use crate::error::CryptoError;

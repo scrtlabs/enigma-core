@@ -1,7 +1,6 @@
 use ring::digest;
 use crate::localstd::{vec::Vec, mem};
 use tiny_keccak::Keccak;
-use core::ops::{Deref, DerefMut};
 use enigma_types::Hash256;
 
 

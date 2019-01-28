@@ -16,15 +16,12 @@ libsecp256k1 = "0.2"
 failure = { version = "0.1", default-features = false, features = ["derive"] }
 
 rand_std = { package = "rand", version = "0.6.4", optional = true }
-serde_std = { package = "serde", version = "1.0", features = ["derive"], optional = true }
-
 
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
 sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
-serde_sgx = { package = "serde", git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", features = ["derive"], optional = true }
 
 
 [features]
 default = ["std"]
-std = ["ring/default", "rand_std", "serde_std"]
-sgx = ["ring/sgx", "sgx_trts", "sgx_tstd", "serde_sgx"]
+std = ["ring/default", "rand_std"]
+sgx = ["ring/sgx", "sgx_trts", "sgx_tstd"]
