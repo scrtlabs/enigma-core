@@ -237,7 +237,7 @@ pub mod tests {
         ptt_res(eid, &serialized_enc_response).unwrap();
     }
 
-    fn make_encrypted_response(req: Value) -> Value {
+    pub fn make_encrypted_response(req: Value) -> Value {
         // Making the response
         let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
         let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|add| (add, add)).collect();

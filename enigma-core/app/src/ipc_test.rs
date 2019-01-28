@@ -19,7 +19,7 @@ pub mod tests {
     use std::thread;
     use self::regex::Regex;
     use hex::{ToHex, FromHex};
-    use crate::km_u::tests::{generate_key_pair, serial_and_encrypt_input, get_shared_key};
+    use crate::km_u::tests::{generate_key_pair, serial_and_encrypt_input, get_shared_key, make_encrypted_response};
     use wasm_u::wasm::tests::{get_bytecode_from_path, generate_address};
     use self::secp256k1::{SecretKey, SharedSecret};
     use self::ethabi::{Token};
@@ -221,7 +221,7 @@ pub mod tests {
     ///    pubkey: 'DH pubkey',
     ///    id: '12-bytes-msgID',
     /// }
-
+    #[derive(Debug)]
     pub struct MessagePack {
         prefix: String,
         data: Vec<String>,
@@ -254,12 +254,12 @@ pub mod tests {
         send_receive_ipc(&msg.to_string(), port)
     }
 
-    fn get_packed_msg(msg: &str) -> MessagePack {
+    fn get_packed_msg(val: Value) -> Value {
+        let msg = val["result"].as_object().unwrap()["request"].as_str().unwrap();
         let msg_bytes = msg.from_hex().unwrap();
         let mut de = Deserializer::new(&msg_bytes[..]);
-        let msg_res: Value = Deserialize::deserialize(&mut Deserializer::new(&msg_bytes[..])).unwrap();
-        println!("\n\nmsg: {:?}" ,msg_res);
-        MessagePack::from_value(msg_res)
+        Deserialize::deserialize(&mut Deserializer::new(&msg_bytes[..])).unwrap()
+
     }
 
     #[test]
@@ -275,13 +275,72 @@ pub mod tests {
         let result_msg = v["result"].as_object().unwrap()["request"].as_str().unwrap();
         let result_sig = v["result"].as_object().unwrap()["workerSig"].as_str().unwrap();
         let type_res = v["type"].as_str().unwrap();
-        let msg_pack: MessagePack = get_packed_msg(result_msg);
+        let msg_pack: MessagePack = MessagePack::from_value(get_packed_msg(v.clone()));
 
         assert_eq!(id_accepted, id);
         assert_eq!(type_res, type_req);
         assert_eq!(addresses.len(), msg_pack.data.len());
         assert_eq!(msg_pack.pub_key.len(), 64);
         assert!(is_hex(result_sig));
+    }
+
+    ////////////// PTTResponse /////////////////////////
+    ///    Request:
+    ///
+    ///    {
+    ///     id : <unique_request_id>,
+    ///     type : PTTResponse,
+    ///     response: 'the-encrypted-response'
+    ///    }
+    ///
+    ///     The response is a signed messagepack that looks like this:
+    ///    {
+    ///     prefix: b"Enigma Message",
+    ///     data: enc([(address, stateKey)]),
+    ///     pubkey: 'DH pubkey',
+    ///     id: '12-bytes-msgID',
+    ///    }
+    ///
+    /// Response:
+    ///
+    ///    {
+    ///     id : <unique_request_id>,
+    ///     type : GetPTTRequest,
+    ///     result: {
+    ///         errors: [{address, status}]
+    ///     }
+    ///    }
+
+    fn create_principal_response(val: Value) -> Vec<u8> {
+        let unpacked_msg: Value = get_packed_msg(val);
+        let enc_response: Value = make_encrypted_response(unpacked_msg);
+
+        let mut serialized_enc_response = Vec::new();
+        enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
+        serialized_enc_response
+    }
+
+    #[test]
+    fn test_ptt_response() {
+        let port = "5559";
+        let id_req = "536";
+        let type_req = "GetPTTRequest";
+        let addresses: Vec<String> = vec![generate_address().to_hex(), generate_address().to_hex()];
+
+        run_core(port);
+        let req_val: Value = get_ptt_req(port, id_req, type_req,addresses.clone());
+        let id_res = "537";
+        let type_res = "PTTResponse";
+        let enc_response = create_principal_response(req_val);
+        let mut msg = json!({"id": id_res, "type": type_res, "response": enc_response.to_hex()});
+        let res_val: Value = send_receive_ipc(&msg.to_string(), port);
+        let id_accepted = res_val["id"].as_str().unwrap();
+        let result: Vec<u8> = serde_json::from_value(res_val["result"].clone()).unwrap();
+        let type_accepted = res_val["type"].as_str().unwrap();
+
+        assert_eq!(type_res, type_accepted);
+        assert_eq!(id_res, id_accepted);
+        assert_eq!(result.len(), 0);
     }
 
 
@@ -341,7 +400,7 @@ pub mod tests {
                         "gasLimit": gas_limit, "contractAddress": address.to_hex()}
                         });
         let v: Value = send_receive_ipc(&msg.to_string(), port);
-        println!("\n\nvalue: {:?}", v);
+
         let id_accepted = v["id"].as_str().unwrap();
         let result_output = v["result"].as_object().unwrap()["output"].as_str().unwrap();
         let result_pre_hash = v["result"].as_object().unwrap()["preCodeHash"].as_str().unwrap();
