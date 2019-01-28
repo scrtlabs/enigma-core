@@ -3,23 +3,15 @@ use enigma_types::{EnclaveReturn, ResultToEnclaveReturn};
 use json_patch;
 use pwasm_utils as wasm_utils;
 use sgx_types::sgx_status_t;
+use enigma_crypto::CryptoError;
 use std::str;
 use std::string::{String, ToString};
 use wasmi::{self, TrapKind};
 
 #[derive(Debug, Fail)]
 pub enum EnclaveError {
-    #[fail(display = "Failed to derive a key with ECDH: self: {}, other: {}", self_key, other_key)]
-    DerivingKeyError { self_key: String, other_key: String },
-
-    #[fail(display = "The {} Isn't valid: {}", key_type, key)]
-    KeyError { key_type: String, key: String },
-
-    #[fail(display = "Failed Decrypting: {}", encrypted_parm)]
-    DecryptionError { encrypted_parm: String },
-
-    #[fail(display = "Failed Encrypting")]
-    EncryptionError {},
+    #[fail(display = "Cryptography Error: {:?}", err)]
+    CryptoError { err: CryptoError },
 
     #[fail(display = "Preprocessor Error: {}", message)]
     PreprocessorError { message: String },
@@ -27,14 +19,8 @@ pub enum EnclaveError {
     #[fail(display = "Input Error: {}", message)]
     InputError { message: String },
 
-    #[fail(display = "Signing the message failed: {}", msg)]
-    SigningError { msg: String },
-
     #[fail(display = "There's no sufficient permissions to read this file: {}", file)]
     PermissionError { file: String },
-
-    #[fail(display = "Failed Generating a: {}, {}", generate, err)]
-    GenerationError { generate: String, err: String },
 
     #[fail(display = "An SGX Error has occurred: {}, Description: {}", err, description)]
     SgxError { err: String, description: String },
@@ -56,6 +42,12 @@ pub enum EnclaveError {
 
     #[fail(display = "There's an error with the messaging: {}", err)]
     MessagingError { err: String },
+}
+
+impl From<CryptoError> for EnclaveError {
+    fn from(err: CryptoError) -> EnclaveError {
+        EnclaveError::CryptoError { err }
+    }
 }
 
 impl From<sgx_status_t> for EnclaveError {
@@ -107,14 +99,13 @@ impl From<hexutil::ParseHexError> for EnclaveError {
     fn from(err: hexutil::ParseHexError) -> Self { EnclaveError::InputError { message: format!("{:?}", err) } }
 }
 
-use self::EnclaveError::*;
+
 impl Into<EnclaveReturn> for EnclaveError {
     fn into(self) -> EnclaveReturn {
+        use self::EnclaveError::*;
+        use self::CryptoError::*;
         match self {
-            DerivingKeyError { .. } | KeyError { .. } | GenerationError { .. } => EnclaveReturn::KeysError,
-            DecryptionError { .. } | EncryptionError { .. } => EnclaveReturn::EncryptionError,
             InputError { .. } | PreprocessorError { .. } => EnclaveReturn::InputError,
-            SigningError { .. } => EnclaveReturn::SigningError,
             PermissionError { .. } => EnclaveReturn::PermissionError,
             SgxError { .. } => EnclaveReturn::SgxError,
             ExecutionError { .. } => EnclaveReturn::WasmError,
@@ -123,6 +114,12 @@ impl Into<EnclaveReturn> for EnclaveError {
             Utf8Error { .. } => EnclaveReturn::Utf8Error,
             EvmError { .. } => EnclaveReturn::EVMError,
             MessagingError { .. } => EnclaveReturn::MessagingError,
+            CryptoError{err} => match err {
+                IoError { .. } => EnclaveReturn::Other,
+                RandomError { .. } => EnclaveReturn::SgxError,
+                DerivingKeyError { .. } | KeyError { .. }  => EnclaveReturn::KeysError,
+                DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption => EnclaveReturn::EncryptionError,
+            }
         }
     }
 }
@@ -138,7 +135,7 @@ impl From<parity_wasm::elements::Error> for EnclaveError {
 }
 
 impl From<parity_wasm::elements::Module> for EnclaveError {
-    fn from(err: parity_wasm::elements::Module) -> EnclaveError {
+    fn from(_err: parity_wasm::elements::Module) -> EnclaveError {
         EnclaveError::ExecutionError { code: "inject gas counter".to_string(), err: "".to_string() }
     }
 }

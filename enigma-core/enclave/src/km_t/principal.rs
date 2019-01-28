@@ -4,8 +4,8 @@ use enigma_runtime_t::data::{ContractState, DeltasInterface, StatePatch};
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-use enigma_tools_t::cryptography_t::Encryption;
+use enigma_crypto::asymmetric::KeyPair;
+use enigma_crypto::{Encryption, CryptoError};
 use enigma_tools_t::km_primitives::{ContractAddress, MsgID, StateKey};
 use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
 use std::collections::HashMap;
@@ -35,7 +35,7 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     let id = res.get_id();
     let msg;
     {
-        let keys = guard.get(&id).ok_or(EnclaveError::KeyError { key_type: "dh keys".to_string(), key: "".to_string() })?;
+        let keys = guard.get(&id).ok_or(CryptoError::KeyError { key_type: "dh keys".to_string(), err: "Missing".to_string() })?;
         let aes = keys.get_aes_key(&res.get_pubkey())?;
         msg = PrincipalMessage::decrypt(res, &aes)?;
     }
@@ -143,8 +143,8 @@ pub mod tests {
     use super::*;
     use enigma_runtime_t::data::IOInterface;
     use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch};
-    use enigma_tools_t::common::Sha256;
-    use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
+    use enigma_crypto::hash::Sha256;
+    use enigma_crypto::asymmetric::KeyPair;
     use enigma_tools_t::km_primitives::{ContractAddress, PrincipalMessage, PrincipalMessageType};
 
     pub fn test_state_internal() {

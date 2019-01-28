@@ -1,7 +1,7 @@
 use bigint::U256;
 use common::errors_t::EnclaveError;
 use common::utils_t::ToHex;
-use cryptography_t::symmetric::decrypt;
+use enigma_crypto::symmetric::decrypt;
 use hexutil::read_hex;
 use rlp::DecoderError;
 use rlp::UntrustedRlp;
@@ -136,7 +136,7 @@ fn decrypt_rlp(v: &[u8], key: &[u8; 32], arg_type: &SolidityType) -> Result<Stri
                     };
                     Ok(decrypted_str)
                 }
-                Err(e) => Err(e),
+                Err(e) => Err(e.into()),
             }
         }
     }

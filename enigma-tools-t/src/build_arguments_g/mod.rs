@@ -1,6 +1,6 @@
 pub mod rlp;
 use self::rlp::decode_args;
-use cryptography_t::{asymmetric::KeyPair, symmetric::decrypt};
+use enigma_crypto::{asymmetric::KeyPair, symmetric::decrypt};
 use crate::common::errors_t::EnclaveError;
 use crate::common::utils_t::FromHex;
 use std::string::String;
@@ -46,16 +46,15 @@ pub fn decrypt_args(callable_args: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, Enc
         Ok(callable_args.to_vec())
     }
     else {
-        decrypt(callable_args, key)
+        Ok(decrypt(callable_args, key)?)
     }
 }
 
 pub fn decrypt_callable(callable: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EnclaveError> {
     if callable.is_empty(){
-        return Err(EnclaveError::InputError { message: "called function representation is empty".to_string()})
-    }
-    else {
-        decrypt(callable, key)
+        Err(EnclaveError::InputError { message: "called function representation is empty".to_string()})
+    } else {
+        Ok(decrypt(callable, key)?)
     }
 }
 

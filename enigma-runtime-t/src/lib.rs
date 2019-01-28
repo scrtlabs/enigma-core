@@ -10,6 +10,7 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 extern crate enigma_tools_t;
+extern crate enigma_crypto;
 extern crate enigma_types;
 extern crate hexutil;
 extern crate json_patch;

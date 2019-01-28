@@ -2,10 +2,12 @@ use sgx_tseal::SgxSealedData;
 use sgx_types::marker::ContiguousMemory;
 #[cfg(not(target_env = "sgx"))]
 use sgx_types::{sgx_attributes_t, sgx_sealed_data_t, sgx_status_t};
-use std::io::{Read, Write};
+use std::io::{Read, Write, self};
 use std::string::*;
 use std::untrusted::fs::remove_file;
 use std::untrusted::fs::File;
+use enigma_crypto::asymmetric;
+use crate::common::errors_t::EnclaveError;
 
 pub const SEALING_KEY_SIZE: usize = 32;
 pub const SEAL_LOG_SIZE: usize = 2048;
@@ -102,6 +104,50 @@ pub fn load_sealed_key(path: &str, sealed_key: &mut [u8]) {
         }
     }
 }
+
+// TODO:: handle failure and return a result including the empty match
+pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, EnclaveError> {
+    // Open the file
+    match File::open(sealed_path) {
+        Ok(mut file) => {
+            let mut sealed: [u8; SEAL_LOG_SIZE] = [0; SEAL_LOG_SIZE];
+            match file.read(&mut sealed) {
+                Ok(_v) => {}
+                Err(_e) => {}
+            }
+            match SecretKeyStorage::unseal_key(&mut sealed) {
+                // If the data is unsealed correctly return this KeyPair.
+                Some(unsealed_data) => {
+                    println!("Succeeded reading key from file");
+                    return Ok(asymmetric::KeyPair::from_slice(&unsealed_data.data)?);
+                }
+                // If the data couldn't get unsealed remove the file.
+                None => {
+                    println!("Failed reading file, Removing");
+                    remove_file(sealed_path)
+                }
+            };
+        }
+        Err(err) => {
+            if err.kind() == io::ErrorKind::PermissionDenied {
+                return Err(EnclaveError::PermissionError { file: sealed_path.to_string() });
+            }
+        }
+    }
+
+    // Generate a new Keypair and seal it.
+    let keypair = asymmetric::KeyPair::new()?;
+    let data = SecretKeyStorage { version: 0x1, data: keypair.get_privkey() };
+    let mut output: [u8; SEAL_LOG_SIZE] = [0; SEAL_LOG_SIZE];
+    data.seal_key(&mut output);
+    save_sealed_key(&sealed_path, &output);
+    println!("Generated a new key");
+
+    Ok(keypair)
+}
+
+
+
 
 pub mod tests {
     use storage_t::*;

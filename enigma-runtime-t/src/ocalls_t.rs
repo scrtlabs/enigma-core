@@ -109,8 +109,8 @@ pub fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> Result<Vec<Enc
 pub mod tests {
     use super::{get_deltas, get_state, save_delta, save_state, EncryptedContractState, EncryptedPatch};
     use crate::data::ContractState;
-    use enigma_tools_t::common::Sha256;
-    use enigma_tools_t::cryptography_t::Encryption;
+    use enigma_crypto::hash::Sha256;
+    use enigma_crypto::Encryption;
     use serde_json::Value;
     use std::vec::Vec;
 

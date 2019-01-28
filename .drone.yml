@@ -28,7 +28,6 @@ pipeline:
       - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
       - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
-
   tools_u:
     group: tests
     image: enigmampc/enigma-core:0.0.4
@@ -41,6 +40,16 @@ pipeline:
       - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
       - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
+  enigma_crypto:
+    group: tests
+    image: enigmampc/enigma-core:0.0.4
+    commands:
+      - . /root/.cargo/env
+      - cd enigma-crypto
+      - RUSTFLAGS=-Awarnings cargo test
+    volumes:
+      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
+      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
 services:
   ganache:

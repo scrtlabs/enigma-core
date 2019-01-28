@@ -5,6 +5,7 @@ authors = ["Elichai Turkel <elichai@enigma.co>"]
 
 [dependencies]
 enigma-types = { path = "../enigma-types" }
+enigma-crypto = { path = "../enigma-crypto", default-features = false, features = ["sgx"] }
 enigma-tools-t = { path = "../enigma-tools-t" }
 
 etcommon-hexutil = { version = "0.2", default-features = false }
