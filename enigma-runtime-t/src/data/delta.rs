@@ -1,6 +1,6 @@
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::Sha256;
-use enigma_tools_t::cryptography_t::{symmetric, Encryption};
+use enigma_crypto::hash::Sha256;
+use enigma_crypto::{symmetric, Encryption};
 use json_patch;
 use rmps::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};

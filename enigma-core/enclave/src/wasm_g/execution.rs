@@ -3,7 +3,7 @@ use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeResult};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::cryptography_t::Encryption;
+use enigma_crypto::{CryptoError, Encryption};
 use parity_wasm::elements::{self, Deserialize};
 use parity_wasm::io::Cursor;
 use std::boxed::Box;
@@ -125,7 +125,7 @@ pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, pa
 
 pub fn get_state(addr: ContractAddress) -> Result<ContractState, EnclaveError> {
     let guard = km_t::STATE_KEYS.lock_expect("State Keys");
-    let key = guard.get(&addr).ok_or(EnclaveError::KeyError { key_type: "Missing State Key".to_string(), key: "".to_string() })?;
+    let key = guard.get(&addr).ok_or(CryptoError::KeyError { key_type: "State Key".to_string(), err: "Missing".to_string() })?;
 
     let enc_state = runtime_ocalls_t::get_state(addr)?;
     let state = ContractState::decrypt(enc_state, key)?;
@@ -136,7 +136,7 @@ pub fn get_state(addr: ContractAddress) -> Result<ContractState, EnclaveError> {
 pub mod tests {
 
     use enigma_runtime_t::data::{ContractState, DeltasInterface};
-    use enigma_tools_t::common::utils_t::Sha256;
+    use enigma_crypto::hash::Sha256;
     use std::string::ToString;
     use std::vec::Vec;
 

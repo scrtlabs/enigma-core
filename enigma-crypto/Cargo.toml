@@ -1,0 +1,25 @@
+cargo-features = ["rename-dependency"]
+
+[package]
+name = "enigma-crypto"
+version = "0.1.0"
+authors = ["Elichai Turkel <elichai@enigma.co>"]
+edition = "2018"
+description = "A Cryptography library used for easy usage in the Enigma Protocol."
+
+[dependencies]
+rustc-hex = { version = "2.0.1", default-features = false }
+tiny-keccak = "1.4"
+ring = { git = "https://github.com/elichai/ring.git", rev = "sgx-manual", default-features = false }
+libsecp256k1 = "0.2"
+failure = { version = "0.1", default-features = false, features = ["derive"] }
+
+rand_std = { package = "rand", version = "0.6.4", optional = true }
+
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
+
+[features]
+default = ["std"]
+std = ["ring/default", "rand_std"]
+sgx = ["ring/sgx", "sgx_trts", "sgx_tstd"]
