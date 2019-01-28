@@ -27,6 +27,10 @@ impl ContractState {
     pub fn new(contract_id: [u8; 32]) -> ContractState {
         ContractState { contract_id, ..Default::default() }
     }
+
+    pub fn is_initial(&self) -> bool{
+        self.delta_index == 0
+    }
 }
 
 impl IOInterface<EnclaveError, u8> for ContractState {
