@@ -49,7 +49,7 @@ pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
             IpcRequest::GetPTTRequest { addresses } => handling::get_ptt_req(&addresses, eid),
             IpcRequest::PTTResponse { response } => handling::ptt_response(&response, eid),
         };
-        let msg = IpcMessage::from_response(response_msg.unwrap_or_error(id.clone()), id);
+        let msg = IpcMessage::from_response(response_msg.unwrap_or_error(), id);
         responses.push_back(msg.into());
     }
     responses
@@ -246,6 +246,7 @@ pub(self) mod handling {
             .map(|a| IpcStatusResult{ address: a.to_hex(), status: FAILED, key: None })
             .collect();
 
+        let result = IpcResults::Errors(result);
         Ok(IpcResponse::PTTResponse {result})
     }
 
