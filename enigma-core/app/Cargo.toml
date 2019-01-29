@@ -28,6 +28,7 @@ lazy_static = "1.2.0"
 byteorder = "1.2.7"
 lru-cache = "0.1.1"
 log = "0.4.6"
+structopt = "0.2"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

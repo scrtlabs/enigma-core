@@ -31,6 +31,7 @@ extern crate serde;
 extern crate tempdir;
 #[macro_use]
 extern crate log;
+extern crate structopt;
 
 mod common_u;
 mod db;
@@ -39,15 +40,20 @@ mod evm_u;
 mod km_u;
 mod networking;
 mod wasm_u;
+mod cli;
 
 use futures::Future;
 
 pub use crate::esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
                                 ocall_new_delta, ocall_save_to_memory, ocall_update_state};
 
-use networking::{constants, ipc_listener, IpcListener};
+use networking::{ipc_listener, IpcListener};
+use crate::cli::Opt;
+use structopt::StructOpt;
 
 fn main() {
+    let opt = Opt::from_args();
+    println!("{:?}", opt);
     let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
@@ -58,8 +64,8 @@ fn main() {
             return;
         }
     };
-    let server = IpcListener::new(constants::CONNECTION_STR);
-    server.run(move |multi| ipc_listener::handle_message(multi, enclave.geteid())).wait().unwrap();
+    let server = IpcListener::new(&format!("tcp://localhost:{}", opt.port));
+    server.run(move |multi| ipc_listener::handle_message(multi, &opt.spid, enclave.geteid())).wait().unwrap();
 }
 
 #[cfg(test)]

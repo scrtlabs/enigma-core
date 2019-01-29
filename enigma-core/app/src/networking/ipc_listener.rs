@@ -26,13 +26,13 @@ impl IpcListener {
     }
 }
 
-pub fn handle_message(request: Multipart, eid: sgx_enclave_id_t) -> Multipart {
+pub fn handle_message(request: Multipart, spid: &str, eid: sgx_enclave_id_t) -> Multipart {
     let mut responses = Multipart::new();
     for msg in request {
         let msg: IpcMessage = msg.into();
         let id = msg.id.clone();
         let response_msg = match msg.unwrap_request() {
-            IpcRequest::GetRegistrationParams => handling::get_registration_params(eid),
+            IpcRequest::GetRegistrationParams => handling::get_registration_params(eid, spid),
             IpcRequest::IdentityChallenge { nonce } => handling::identity_challange(&nonce),
             IpcRequest::GetTip { input } => handling::get_tip(&input),
             IpcRequest::GetTips { input } => handling::get_tips(&input),
@@ -63,7 +63,6 @@ pub(self) mod handling {
     use crate::km_u;
     use crate::networking::messages::*;
     use crate::esgx::equote;
-    use crate::networking::constants::SPID;
     use crate::wasm_u::wasm;
     use enigma_tools_u::common_u::LockExpectMutex;
     use enigma_crypto::hash::Keccak256;
@@ -80,10 +79,10 @@ pub(self) mod handling {
 
     type ResponseResult = Result<IpcResponse, Error>;
 
-    pub fn get_registration_params(eid: sgx_enclave_id_t) -> ResponseResult {
+    pub fn get_registration_params(eid: sgx_enclave_id_t, spid: &str) -> ResponseResult {
         let sigining_key = equote::get_register_signing_address(eid)?;
 
-        let enc_quote = equote_tools::retry_quote(eid, &SPID, 18)?;
+        let enc_quote = equote_tools::retry_quote(eid, spid, 18)?;
         let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
         let response = service.get_report(&enc_quote)?;
         let quote = response.get_quote()?;
@@ -319,6 +318,7 @@ mod test {
     use serde_json::Value;
     use enigma_types::ContractAddress;
 
+    pub const SPID: &str = "1601F95C39B9EA307FEAABB901ADC3EE";
     #[ignore]
     #[test]
     fn test_the_listener() {
@@ -362,7 +362,7 @@ mod test {
 
         let conn = "tcp://*:2456";
         let server = IpcListener::new(conn);
-        server.run(|multi| handle_message(multi, enclave.geteid())).wait().unwrap();
+        server.run(|multi| handle_message(multi,  SPID,enclave.geteid())).wait().unwrap();
     }
 
 }
