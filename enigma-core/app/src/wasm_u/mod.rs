@@ -46,6 +46,7 @@ impl TryFrom<ExecuteResult> for WasmResult {
         let mut result: WasmResult = Default::default();
         result.signature = exec.signature;
         result.eth_contract_addr = exec.ethereum_address;
+        result.used_gas = exec.used_gas;
 
         let box_ptr = exec.output as *mut Box<[u8]>;
         let output = unsafe { Box::from_raw(box_ptr) };
