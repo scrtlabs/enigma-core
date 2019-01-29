@@ -19,6 +19,7 @@ pub trait ContractInterface{
     fn check_addresses(addr1: H256, addr2: H256);
     fn choose_rand_color();
     fn get_scrambled_vec();
+    fn addition(x: U256, y: U256) -> U256;
     fn print_test(x: U256, y: U256);
     fn construct(param: U256);
 }
@@ -98,6 +99,13 @@ impl ContractInterface for Contract {
         let mut nums: [u8; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         Self::shuffle(&mut nums);
         unsafe {external::ret(nums.as_ptr(), nums.len() as u32)};
+    }
+
+    #[no_mangle]
+    fn addition(x: U256, y: U256) -> U256 {
+        let sum: u64 = x.as_u64() + y.as_u64();
+        write_state!("curr_sum" => sum);
+        sum.into()
     }
 
     #[no_mangle]
