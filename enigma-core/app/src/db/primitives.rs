@@ -1,8 +1,7 @@
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
-use enigma_tools_u::common_u::FromHex32;
 use enigma_types::ContractAddress;
 use failure::Error;
-use hex::ToHex;
+use hex::{FromHex, ToHex};
 use std::str;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
@@ -86,7 +85,7 @@ impl SplitKey for DeltaKey {
             _ => bail!("Failed parsing the Key, key does not contain a correct index"),
         };
         // if the address is not a correct hex then it not a correct address.
-        let hash: ContractAddress = _hash.from_hex_32()?.into();
+        let hash = ContractAddress::from_hex(&_hash)?;
         Ok(DeltaKey { contract_id: hash, key_type })
     }
 }
@@ -95,8 +94,11 @@ impl SplitKey for Array32u8 {
     fn as_split<T, F: FnMut(&str, &[u8]) -> T>(&self, mut f: F) -> T { f(&self.0.to_hex(), &[2]) }
 
     fn from_split(_hash: &str, _key_type: &[u8]) -> Result<Self, Error> {
-        let arr = _hash.from_hex_32()?;
-        Ok(Array32u8(arr))
+        let hex: Vec<u8> = _hash.from_hex()?;
+        if hex.len() != 32 { bail!("Wrong length"); }
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hex);
+        Ok(Array32u8(result))
     }
 }
 

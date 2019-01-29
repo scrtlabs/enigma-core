@@ -1,5 +1,6 @@
 use core::ops::{Deref, DerefMut};
-
+use rustc_hex::{FromHex, FromHexError};
+use arrayvec::ArrayVec;
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct Hash256([u8; 32]);
@@ -8,6 +9,16 @@ pub struct Hash256([u8; 32]);
 impl Hash256 {
     pub fn copy_from_slice(&mut self, src: &[u8]) {
         self.0.copy_from_slice(src)
+    }
+
+    pub fn from_hex(hex: &str) -> Result<Self, FromHexError> {
+        if hex.len() != 64 {
+            return Err(FromHexError::InvalidHexLength);
+        }
+        let hex_vec: ArrayVec<[u8; 32]> = hex.from_hex()?;
+        let mut result = Self::default();
+        result.copy_from_slice(&hex_vec);
+        Ok(result)
     }
 }
 
@@ -91,5 +102,22 @@ impl<'de> Visitor<'de> for Hash256Visitor {
 impl<'de> Deserialize<'de> for Hash256 {
     fn deserialize<D>(des: D) -> Result<Self, D::Error> where D: Deserializer<'de>, {
         des.deserialize_newtype_struct("Hash256", Hash256Visitor)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::Hash256;
+    #[test]
+    fn test_hex_succeed() {
+        let a = "0101010101010101010101010101010101010101010101010101010101010101";
+        Hash256::from_hex(&a).unwrap();
+    }
+
+    #[should_panic]
+    #[test]
+    fn test_hex_long() {
+        let a = "02020202020202020202020202020202020202020202020202020202020202020202024444020202020202";
+        Hash256::from_hex(&a).unwrap();
     }
 }
