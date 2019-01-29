@@ -256,7 +256,7 @@ pub(self) mod handling {
         let enc_args = input.encrypted_args.from_hex()?;
         let constructor = input.encrypted_fn.from_hex()?;
         let mut user_pubkey = [0u8; 64];
-        user_pubkey.clone_from_slice(&input.user_pubkey.from_hex()?);
+        user_pubkey.clone_from_slice(&input.user_dhkey.from_hex()?);
         let result = wasm::deploy(
             eid,
             &bytecode,
@@ -282,7 +282,7 @@ pub(self) mod handling {
         let address: ContractAddress = input.address.from_hex_32()?.into();
         let callable = input.encrypted_fn.from_hex()?;
         let mut user_pubkey = [0u8; 64];
-        user_pubkey.clone_from_slice(&input.user_pubkey.from_hex()?);
+        user_pubkey.clone_from_slice(&input.user_dhkey.from_hex()?);
 
         let bytecode = DATABASE.lock_expect("P2P ComputeTask").get_contract(address)?;
 
