@@ -266,6 +266,10 @@ pub(self) mod handling {
             &user_pubkey,
             input.gas_limit)?;
 
+        // Save the ExeCode into the DB.
+        let key = DeltaKey::new(contract_address.into(), Stype::ByteCode);
+        DATABASE.lock_expect("deploy_contract").create(&key, &result.output)?;
+        // Return Result.
         let result = IpcResults::DeployResult {
             pre_code_hash: bytecode.keccak256().to_hex(),
             used_gas: result.used_gas,
