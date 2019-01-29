@@ -223,11 +223,7 @@ pub mod tests {
                         })
     }
 
-    #[test]
-    fn test_deploy_secret_contract() {
-        let port =  "5557";
-        run_core(port);
-
+    fn full_deployment_process(port: &'static str, id_dep: &str) -> (Value, [u8; 32]) {
         // address generation and ptt
         let address = generate_address();
         let id_ptt = "876";
@@ -237,7 +233,6 @@ pub mod tests {
         // WUKE- get the arguments encryption key
         let (shared_key, user_pubkey) = produce_shared_key(port);
 
-        let id_dep = "7699";
         let type_dep = "DeploySecretContract";
         let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/simplest");
         let fn_deploy = "construct(uint)";
@@ -248,15 +243,74 @@ pub mod tests {
         let msg = set_deploy_msg(id_dep, type_dep, &pre_code.to_hex(), &encrypted_args.to_hex(),
                                  &encrypted_fn.to_hex(), &user_pubkey.to_hex(), gas_limit, &address.to_hex());
         let v: Value = conn_and_call_ipc(&msg.to_string(), port);
-        let accepted_id = v["id"].as_str().unwrap();
-        let result_output = v["result"].as_object().unwrap()["output"].as_str().unwrap();
-        let result_pre_hash = v["result"].as_object().unwrap()["preCodeHash"].as_str().unwrap();
-        let accepted_delta = v["result"].as_object().unwrap()["delta"].as_object().unwrap();
-        let accepted_used_gas: u64 = serde_json::from_value(v["result"]["usedGas"].clone()).unwrap();
-        let type_res = v["type"].as_str().unwrap();
+
+        (v, address)
+    }
+
+    #[test]
+    fn test_deploy_secret_contract() {
+        let port =  "5557";
+        run_core(port);
+        let id_dep = "5784";
+
+        let (res, _): (Value, _) = full_deployment_process(port, id_dep);
+
+        let accepted_id = res["id"].as_str().unwrap();
+        let accepted_used_gas: u64 = serde_json::from_value(res["result"]["usedGas"].clone()).unwrap();
+        let type_res = res["type"].as_str().unwrap();
 
         assert_eq!(id_dep, accepted_id);
-        assert_eq!(type_dep, type_res);
+        assert_eq!("DeploySecretContract", type_res);
         assert!(accepted_used_gas > 0);
+    }
+
+    fn set_compute_msg(id: &str, type_cmp: &str, task_id: &str, callable: &str, args: &str, user_pubkey: &str, gas_limit: u64, con_addr: &str) -> Value {
+        json!({"id": id, "type": type_cmp, "input": { "taskID": task_id, "encryptedArgs": args,
+        "encryptedFn": callable, "userPubKey": user_pubkey, "gasLimit": gas_limit, "contractAddress": con_addr}})
+    }
+
+    #[test]
+    #[ignore]
+    fn test_compute_task() {
+        let port =  "5560";
+        run_core(port);
+
+        let id_dep = "78436";
+        let (_, contract_address): (_, [u8; 32]) = full_deployment_process(port, id_dep);
+        // WUKE- get the arguments encryption key
+        let (shared_key, user_pubkey) = produce_shared_key(port);
+
+        let id_cmp = "9800";
+        let type_cmp = "ComputeTask";
+        let task_id = generate_address().to_hex();
+        let fn_cmp = "addition(uint,uint)";
+        let args_cmp = [Token::Uint(19.into()), Token::Uint(22.into())];
+        let (encrypted_fn, encrypted_args) = serial_and_encrypt_input(&shared_key, fn_cmp, &args_cmp, None);
+        let gas_limit = 100_000_000;
+        println!("\n\n\ncontract_addr: {:?}", contract_address.to_hex());
+        let msg = set_compute_msg(id_cmp, type_cmp, &task_id, &encrypted_fn.to_hex(), &encrypted_args.to_hex(),
+                                  &user_pubkey.to_hex(), gas_limit, &contract_address.to_hex());
+        let res: Value = conn_and_call_ipc(&msg.to_string(), port);
+//        println!("\n\nres: {:?}" ,res);
+    }
+
+    fn set_get_tip_msg(id: &str, type_tip: &str, input: &str) -> Value {
+        json!({"id": id, "type": type_tip, "input": input})
+    }
+
+    #[test]
+    #[ignore]
+    fn test_get_tip() {
+        let port =  "5561";
+        run_core(port);
+
+        let id_dep = "49086";
+        let (_, contract_address): (_, [u8; 32]) = full_deployment_process(port, id_dep);
+
+        let id_tip = "98708";
+        let type_tip = "GetTip";
+        let msg = set_get_tip_msg(id_tip, type_tip, &contract_address.to_hex());
+        let res: Value = conn_and_call_ipc(&msg.to_string(), port);
+        println!("\n\nres: {:?}" ,res);
     }
 }
