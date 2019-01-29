@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Elichai Turkel <elichai@enigma.co>"]
 
 [dependencies]
-enigma-types = { path = "../enigma-types" }
+enigma-types = { path = "../enigma-types", default-features = false, features = ["sgx"] }
 enigma-crypto = { path = "../enigma-crypto", default-features = false, features = ["sgx"] }
 enigma-tools-t = { path = "../enigma-tools-t" }
 

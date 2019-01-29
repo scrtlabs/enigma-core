@@ -1,9 +1,10 @@
-use crate::km_t::{self, ContractAddress};
+use crate::km_t;
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeResult};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_crypto::{CryptoError, Encryption};
+use enigma_types::ContractAddress;
 use parity_wasm::elements::{self, Deserialize};
 use parity_wasm::io::Cursor;
 use std::boxed::Box;
@@ -156,8 +157,7 @@ pub mod tests {
                 let after = super::ContractState {
                     contract_id: b"Enigma".sha256(),
                     json: json!({ "code" : 157 }),
-                    delta_hash: [0u8; 32],
-                    delta_index: 0,
+                    .. Default::default()
                 };
                 let delta = super::ContractState::generate_delta(&initial_state, &after).unwrap();
                 assert_eq!(v.state_delta.unwrap(), delta);

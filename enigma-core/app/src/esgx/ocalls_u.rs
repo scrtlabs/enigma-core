@@ -1,15 +1,14 @@
 use byteorder::{BigEndian, WriteBytesExt};
 use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DATABASE};
 use crate::esgx::general;
-use crate::km_u::ContractAddress;
-use enigma_tools_u::common_u::{LockExpectMutex, Sha256};
-use enigma_types::traits::SliceCPtr;
-use enigma_types::EnclaveReturn;
+use enigma_tools_u::common_u::LockExpectMutex;
+use enigma_crypto::hash::Sha256;
+use enigma_types::{Hash256, ContractAddress, EnclaveReturn, traits::SliceCPtr};
 use lru_cache::LruCache;
 use std::sync::Mutex;
 use std::{mem, ptr, slice};
 
-lazy_static! { pub static ref DELTAS_CACHE: Mutex<LruCache<[u8; 32], Vec<Vec<u8>>>> = Mutex::new(LruCache::new(10)); }
+lazy_static! { pub static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(10)); }
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
@@ -20,7 +19,7 @@ pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_update_state(id: &[u8; 32], enc_state: *const u8, state_len: usize) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_update_state(id: &ContractAddress, enc_state: *const u8, state_len: usize) -> EnclaveReturn {
     let encrypted_state = slice::from_raw_parts(enc_state, state_len);
 
     let key = DeltaKey::new(*id, Stype::State);
@@ -34,11 +33,11 @@ pub unsafe extern "C" fn ocall_update_state(id: &[u8; 32], enc_state: *const u8,
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32],
+pub unsafe extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, contract_id: &ContractAddress,
                                          _delta_index: *const u32) -> EnclaveReturn {
     let delta_index = ptr::read(_delta_index);
     let encrypted_delta = slice::from_raw_parts(enc_delta, delta_len);
-    let key = DeltaKey::new(*delta_hash, Stype::Delta(delta_index));
+    let key = DeltaKey::new(*contract_id, Stype::Delta(delta_index));
     match DATABASE.lock().expect("Database mutex is poison").force_update(&key, encrypted_delta) {
         Ok(_) => EnclaveReturn::Success,
         Err(e) => {
@@ -64,7 +63,7 @@ pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size
             let state_len = state.len();
             *state_size = state_len;
             cache_id.write_uint::<BigEndian>(state_len as u64, mem::size_of_val(&state_len)).unwrap();
-            DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), vec![state]);
+            DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256().into(), vec![state]);
             EnclaveReturn::Success
         }
         Err(_) => EnclaveReturn::OcallDBError,
@@ -75,7 +74,7 @@ pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size
 pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut u8, state_size: usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
     cache_id.write_uint::<BigEndian>(state_size as u64, mem::size_of_val(&state_size)).unwrap();
-    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
+    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256().into()) {
         Some(state) => {
             enigma_types::write_ptr(&state[0][..], state_ptr, state_size);
             EnclaveReturn::Success
@@ -118,7 +117,7 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
         },
         Err(_) => return EnclaveReturn::OcallDBError,
     };
-    DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), deltas_vec);
+    DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256().into(), deltas_vec);
     enigma_types::write_ptr(&sizes, res_ptr, res_len);
     EnclaveReturn::Success
 }
@@ -129,7 +128,7 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
     let mut cache_id = addr.to_vec();
     cache_id.write_u32::<BigEndian>(*start).unwrap();
     cache_id.write_u32::<BigEndian>(*end).unwrap();
-    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
+    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256().into()) {
         Some(deltas_vec) => {
             // The results here are flatten to one big array.
             // The Enclave needs to separate them back to the original.

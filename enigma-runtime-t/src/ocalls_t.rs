@@ -1,15 +1,13 @@
 use crate::data::{EncryptedContractState, EncryptedPatch};
 use enigma_tools_t::common::errors_t::EnclaveError::{self, OcallError};
-use enigma_tools_t::km_primitives::ContractAddress;
-use enigma_types::traits::SliceCPtr;
-use enigma_types::EnclaveReturn;
+use enigma_types::{ContractAddress, EnclaveReturn, traits::SliceCPtr};
 use sgx_types::sgx_status_t;
 use std::string::ToString;
 use std::vec::Vec;
 
 extern "C" {
-    fn ocall_new_delta(retval: *mut EnclaveReturn, enc_delta: *const u8, delta_len: usize, delta_hash: &[u8; 32], _delta_index: *const u32) -> sgx_status_t;
-    fn ocall_update_state(retval: *mut EnclaveReturn, id: &[u8; 32], enc_delta: *const u8, delta_len: usize) -> sgx_status_t;
+    fn ocall_new_delta(retval: *mut EnclaveReturn, enc_delta: *const u8, delta_len: usize, contract_id: &ContractAddress, _delta_index: *const u32) -> sgx_status_t;
+    fn ocall_update_state(retval: *mut EnclaveReturn, id: &ContractAddress, enc_delta: *const u8, delta_len: usize) -> sgx_status_t;
     fn ocall_get_deltas_sizes(retval: *mut EnclaveReturn, addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut usize, res_len: usize) -> sgx_status_t;
     fn ocall_get_deltas(retval: *mut EnclaveReturn, addr: &ContractAddress, start: *const u32, end: *const u32, res_ptr: *mut u8, res_len: usize) -> sgx_status_t;
     fn ocall_get_state_size(retval: *mut EnclaveReturn, addr: &ContractAddress, state_len: *mut usize) -> sgx_status_t;
@@ -109,6 +107,7 @@ pub fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> Result<Vec<Enc
 pub mod tests {
     use super::{get_deltas, get_state, save_delta, save_state, EncryptedContractState, EncryptedPatch};
     use crate::data::ContractState;
+    use enigma_types::ContractAddress;
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
     use serde_json::Value;
@@ -122,7 +121,7 @@ pub mod tests {
 
         let enc_patch = EncryptedPatch {
             data: vec![197, 39, 187, 56, 29, 96, 229, 230, 172, 82, 74, 89, 152, 72, 183, 136, 80, 182, 222, 4, 47, 197, 200, 233, 105, 90, 207, 14, 20, 220, 170, 226, 21, 241, 24, 231, 69, 27, 177, 234, 110, 132, 253, 115, 87, 205, 167, 142, 163, 170, 37, 239, 240, 98, 20, 49, 185, 223, 162, 115, 194, 220, 75, 218, 160, 17, 83, 134, 247, 239, 213, 207, 59, 32, 76, 204, 206, 134, 80, 234, 88, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-            contract_id: [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162],
+            contract_id: [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162].into(),
             index: 57
         };
         save_delta(&enc_patch).unwrap();
@@ -148,14 +147,14 @@ pub mod tests {
         let contract_id = b"test_state".sha256();
         let json = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/prize.json"));
         let v: Value = serde_json::from_str(json).unwrap();
-        let state = ContractState { contract_id, json: v, delta_hash: [0u8; 32], delta_index: 0 };
+        let state = ContractState { contract_id, json: v, .. Default::default() };
         let enc = state.encrypt(&b"Enigma".sha256()).unwrap();
         save_state(&enc).unwrap();
         let ret = get_state(contract_id).unwrap();
         assert_eq!(enc, ret);
     }
 
-    fn save_deltas(start: u32, end: u32, contract_id: &[u8; 32]) -> Vec<EncryptedPatch> {
+    fn save_deltas(start: u32, end: u32, contract_id: &ContractAddress) -> Vec<EncryptedPatch> {
         let mut deltas = Vec::new();
         for i in start..end {
             let mut delta_data = b"data".sha256().to_vec();

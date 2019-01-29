@@ -1,7 +1,7 @@
 use crate::common_u::errors::{DBErr, DBErrKind};
 use crate::db::dal::{CRUDInterface, DB};
 use crate::db::primitives::{DeltaKey, SplitKey, Stype};
-use crate::km_u::ContractAddress;
+use enigma_types::ContractAddress;
 use failure::Error;
 use hex::{FromHex, ToHex};
 use rocksdb::DB as rocks_db;
@@ -172,13 +172,13 @@ impl P2PCalls<Vec<u8>> for DB {
         let addr_list = cf_list
             .iter()
             .filter_map(|address_str| {
-                let mut address = [0u8; 32];
+                let mut address = ContractAddress::default();
                 let slice_address = match address_str.from_hex() {
                     Ok(slice) => slice,
                     // if the address is not a correct hex then it is not a correct address.
                     Err(_) => return None,
                 };
-                address.copy_from_slice(&slice_address[..]);
+                address.copy_from_slice(&slice_address);
                 Some(address)
             })
             .collect::<Vec<_>>();
@@ -189,7 +189,7 @@ impl P2PCalls<Vec<u8>> for DB {
     fn get_delta<K: SplitKey>(&self, key: K) -> ResultVec<u8> { Ok(self.read(&key)?) }
 
     fn get_contract(&self, address: ContractAddress) -> ResultVec<u8> {
-        let key = DeltaKey { hash: address, key_type: Stype::ByteCode };
+        let key = DeltaKey { contract_id: address, key_type: Stype::ByteCode };
         Ok(self.read(&key)?)
     }
 
@@ -271,7 +271,8 @@ impl P2PCalls<Vec<u8>> for DB {
 #[cfg(test)]
 mod test {
     use crate::db::dal::{CRUDInterface, DB};
-    use crate::db::iterator::{ContractAddress, P2PCalls};
+    use crate::db::iterator::P2PCalls;
+    use enigma_types::ContractAddress;
     use crate::db::primitives::{DeltaKey, Stype};
 
     #[test]
@@ -282,17 +283,17 @@ mod test {
         let hash = [7u8; 32];
 
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { hash, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash.into(), key_type: key_type_a };
         let v_a = b"Enigma_a";
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { hash, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_id: hash.into(), key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         db.create(&dk_a, &v_a[..]).unwrap();
         db.create(&dk_b, &v_b[..]).unwrap();
 
-        let (accepted_key, accepted_val): (DeltaKey, Vec<u8>) = db.get_tip(&hash).unwrap();
+        let (accepted_key, accepted_val): (DeltaKey, Vec<u8>) = db.get_tip(&hash.into()).unwrap();
         assert_eq!(accepted_key, dk_b);
         assert_eq!(accepted_val, v_b);
     }
@@ -304,11 +305,11 @@ mod test {
 
         let hash = [7u8; 32];
         let key_type = Stype::Delta(23);
-        let dk = DeltaKey { hash, key_type };
+        let dk = DeltaKey { contract_id: hash.into(), key_type };
         let v = b"Enigma";
 
         db.create(&dk, &v[..]).unwrap();
-        let (accepted_key, accepted_val): (DeltaKey, Vec<u8>) = db.get_tip(&hash).unwrap();
+        let (accepted_key, accepted_val): (DeltaKey, Vec<u8>) = db.get_tip(&hash.into()).unwrap();
 
         assert_eq!(accepted_key, dk);
         assert_eq!(accepted_val, v);
@@ -320,7 +321,7 @@ mod test {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
         let db = DB::new(&tempdir, true).unwrap();
         let arr = [7u8; 32];
-        let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&arr).unwrap();
+        let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&arr.into()).unwrap();
     }
 
     #[should_panic]
@@ -330,10 +331,10 @@ mod test {
         let mut db = DB::new(&tempdir, true).unwrap();
         let hash = [7u8; 32];
         let key_type = Stype::State;
-        let dk = DeltaKey { hash, key_type };
+        let dk = DeltaKey { contract_id: hash.into(), key_type };
         let v = b"Enigma";
         db.create(&dk, &v[..]).unwrap();
-        let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&hash).unwrap();
+        let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&hash.into()).unwrap();
     }
 
     #[test]
@@ -343,11 +344,11 @@ mod test {
 
         let hash = [7u8; 32];
         let key_type = Stype::Delta(23);
-        let dk = DeltaKey { hash, key_type };
+        let dk = DeltaKey { contract_id: hash.into(), key_type };
         let v = b"Enigma";
 
         db.create(&dk, &v[..]).unwrap();
-        let accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[hash]).unwrap();
+        let accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[hash.into()]).unwrap();
 
         assert_eq!(accepted_tips[0].0, dk);
         assert_eq!(accepted_tips[0].1, v);
@@ -357,14 +358,14 @@ mod test {
     fn test_get_tips_multi_row_per_add_success() {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
         let mut db = DB::new(&tempdir, true).unwrap();
-        let hash = [7u8; 32];
+        let hash: ContractAddress = [7u8; 32].into();
 
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { hash, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { hash, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_id: hash, key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         db.create(&dk_a, &v_a[..]).unwrap();
@@ -379,19 +380,19 @@ mod test {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
         let mut db = DB::new(&tempdir, true).unwrap();
 
-        let hash_a = [7u8; 32];
+        let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { hash: hash_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash_a, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
-        let hash_b = [4u8; 32];
+        let hash_b: ContractAddress = [4u8; 32].into();
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { hash: hash_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_id: hash_b, key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         let key_type_c = Stype::State;
-        let dk_c = DeltaKey { hash: hash_b, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_id: hash_b, key_type: key_type_c };
         let v_c = b"Enigma_rules";
 
         db.create(&dk_a, &v_a[..]).unwrap();
@@ -409,12 +410,12 @@ mod test {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
         let mut db = DB::new(&tempdir, true).unwrap();
 
-        let hash_a = [7u8; 32];
+        let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { hash: hash_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash_a, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
-        let hash_b = [4u8; 32];
+        let hash_b: ContractAddress = [4u8; 32].into();
 
         db.create(&dk_a, &v_a[..]).unwrap();
 
@@ -427,14 +428,14 @@ mod test {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
         let mut db = DB::new(&tempdir, true).unwrap();
 
-        let hash_a = [7u8; 32];
+        let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::State;
-        let dk_a = DeltaKey { hash: hash_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash_a, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
-        let hash_b = [4u8; 32];
+        let hash_b: ContractAddress = [4u8; 32].into();
         let key_type_b = Stype::ByteCode;
-        let dk_b = DeltaKey { hash: hash_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_id: hash_b, key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         db.create(&dk_a, &v_a[..]).unwrap();
@@ -448,19 +449,19 @@ mod test {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
         let mut db = DB::new(&tempdir, true).unwrap();
 
-        let hash_a = [7u8; 32];
+        let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::State;
-        let dk_a = DeltaKey { hash: hash_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash_a, key_type: key_type_a };
         let v_a = b"Enigma_state_1";
 
-        let hash_b = [4u8; 32];
+        let hash_b: ContractAddress = [4u8; 32].into();
         let key_type_b = Stype::ByteCode;
-        let dk_b = DeltaKey { hash: hash_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_id: hash_b, key_type: key_type_b };
         let v_b = b"Enigma_byte_code_2";
 
-        let hash_c = [67u8; 32];
+        let hash_c: ContractAddress = [67u8; 32].into();
         let key_type_c = Stype::Delta(78);
-        let dk_c = DeltaKey { hash: hash_c, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_id: hash_c, key_type: key_type_c };
         let v_c = b"Enigma_delta_3";
 
         let expected_addresses = vec![hash_a, hash_b, hash_c];
@@ -478,19 +479,19 @@ mod test {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
         let mut db = DB::new(&tempdir, true).unwrap();
 
-        let hash_a = [7u8; 32];
+        let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::State;
-        let dk_a = DeltaKey { hash: hash_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash_a, key_type: key_type_a };
         let v_a = b"Enigma_state_1";
 
-        let hash_b = [4u8; 32];
+        let hash_b: ContractAddress = [4u8; 32].into();
         let key_type_b = Stype::ByteCode;
-        let dk_b = DeltaKey { hash: hash_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_id: hash_b, key_type: key_type_b };
         let v_b = b"Enigma_byte_code_2";
 
-        let hash_c = [67u8; 32];
+        let hash_c: ContractAddress = [67u8; 32].into();
         let key_type_c = Stype::Delta(78);
-        let dk_c = DeltaKey { hash: hash_c, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_id: hash_c, key_type: key_type_c };
         let v_c = b"Enigma_delta_3";
 
         db.create(&dk_a, &v_a[..]).unwrap();
@@ -515,26 +516,26 @@ mod test {
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { hash: hash_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash_a.into(), key_type: key_type_a };
         let v_a = b"Enigma_a";
 
         let hash_b = [4u8; 32];
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { hash: hash_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_id: hash_b.into(), key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         let key_type_c = Stype::State;
-        let dk_c = DeltaKey { hash: hash_b, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_id: hash_b.into(), key_type: key_type_c };
         let v_c = b"Enigma_rules";
 
         let key_type_d = Stype::Delta(3);
-        let dk_d = DeltaKey { hash: hash_b, key_type: key_type_d };
+        let dk_d = DeltaKey { contract_id: hash_b.into(), key_type: key_type_d };
         let v_d = b"r";
 
         let hash_e = [98u8; 32];
         let key_type_e = Stype::Delta(1);
-        let dk_e = DeltaKey { hash: hash_e, key_type: key_type_e };
+        let dk_e = DeltaKey { contract_id: hash_e.into(), key_type: key_type_e };
         let v_e = b"delta";
 
         db.create(&dk_a, &v_a[..]).unwrap();
@@ -552,30 +553,30 @@ mod test {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
         let mut db = DB::new(&tempdir, true).unwrap();
 
-        let hash = [7u8; 32];
+        let hash: ContractAddress = [7u8; 32].into();
 
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { hash, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash, key_type: key_type_a };
         let v_a = b"Enigma";
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { hash, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_id: hash, key_type: key_type_b };
         let v_b = b"to";
 
         let key_type_c = Stype::Delta(3);
-        let dk_c = DeltaKey { hash, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_id: hash, key_type: key_type_c };
         let v_c = b"da";
 
         let key_type_d = Stype::Delta(4);
-        let dk_d = DeltaKey { hash, key_type: key_type_d };
+        let dk_d = DeltaKey { contract_id: hash, key_type: key_type_d };
         let v_d = b"moon";
 
         let key_type_e = Stype::Delta(5);
-        let dk_e = DeltaKey { hash, key_type: key_type_e };
+        let dk_e = DeltaKey { contract_id: hash, key_type: key_type_e };
         let v_e = b"and";
 
         let key_type_f = Stype::Delta(6);
-        let dk_f = DeltaKey { hash, key_type: key_type_f };
+        let dk_f = DeltaKey { contract_id: hash, key_type: key_type_f };
         let v_f = b"back";
 
         db.create(&dk_a, &v_a[..]).unwrap();
@@ -605,12 +606,12 @@ mod test {
 
         let hash_a = [9u8; 32];
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { hash: hash_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_id: hash_a.into(), key_type: key_type_a };
         let value = b"hash_a";
 
         let hash_b = [7u8; 32];
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { hash: hash_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_id: hash_b.into(), key_type: key_type_b };
 
         db.create(&dk_a, &value[..]).unwrap();
         db.create(&dk_b, &value[..]).unwrap();
@@ -630,12 +631,12 @@ mod test {
         let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
         let mut db = DB::new(&tempdir, true).unwrap();
         let data = vec![
-            (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(1) }, b"Enigma".to_vec()),
-            (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(2) }, b"to".to_vec()),
-            (DeltaKey { hash: [7u8; 32], key_type: Stype::Delta(3) }, b"da".to_vec()),
-            (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(4) }, b"moon".to_vec()),
-            (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(5) }, b"and".to_vec()),
-            (DeltaKey { hash: [6u8; 32], key_type: Stype::Delta(6) }, b"back".to_vec()),
+            (DeltaKey { contract_id: [7u8; 32].into(), key_type: Stype::Delta(1) }, b"Enigma".to_vec()),
+            (DeltaKey { contract_id: [7u8; 32].into(), key_type: Stype::Delta(2) }, b"to".to_vec()),
+            (DeltaKey { contract_id: [7u8; 32].into(), key_type: Stype::Delta(3) }, b"da".to_vec()),
+            (DeltaKey { contract_id: [6u8; 32].into(), key_type: Stype::Delta(4) }, b"moon".to_vec()),
+            (DeltaKey { contract_id: [6u8; 32].into(), key_type: Stype::Delta(5) }, b"and".to_vec()),
+            (DeltaKey { contract_id: [6u8; 32].into(), key_type: Stype::Delta(6) }, b"back".to_vec()),
         ];
         let results = db.insert_tuples(&data);
         for res in results {

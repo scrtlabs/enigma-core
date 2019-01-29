@@ -20,6 +20,7 @@ extern crate zmq;
 #[macro_use]
 extern crate failure;
 extern crate enigma_tools_u;
+extern crate enigma_crypto;
 extern crate enigma_types;
 extern crate rustc_hex as hex;
 #[macro_use]

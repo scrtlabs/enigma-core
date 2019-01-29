@@ -7,6 +7,7 @@ extern crate colour;
 extern crate base64;
 extern crate dirs;
 extern crate enigma_tools_u;
+extern crate enigma_crypto;
 extern crate rlp;
 extern crate rustc_hex;
 extern crate serde;

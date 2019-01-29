@@ -20,9 +20,10 @@ extern crate wasmi;
 
 use crate::data::{ContractState, DeltasInterface, IOInterface, StatePatch};
 use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_types::ContractAddress;
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
-use wasmi::{Externals, MemoryRef, RuntimeArgs, RuntimeValue, Trap, TrapKind};
+use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
 use sgx_trts::trts::rsgx_read_rand;
 
 pub mod data;
@@ -87,7 +88,7 @@ impl From<str::Utf8Error> for WasmError {
 }
 
 impl Runtime {
-    pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_id: [u8; 32],
+    pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_id: ContractAddress,
                function_name: String, args_types: String) -> Runtime {
 
         let init_state = ContractState::new(contract_id);

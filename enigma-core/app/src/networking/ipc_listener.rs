@@ -65,9 +65,11 @@ pub(self) mod handling {
     use crate::esgx::equote;
     use crate::networking::constants::SPID;
     use crate::wasm_u::wasm;
-    use enigma_tools_u::common_u::{FromHex32, LockExpectMutex, Keccak256};
+    use enigma_tools_u::common_u::{FromHex32, LockExpectMutex};
+    use enigma_crypto::hash::Keccak256;
     use enigma_tools_u::esgx::equote as equote_tools;
     use enigma_tools_u::attestation_service::{service::AttestationService, constants::ATTESTATION_SERVICE_URL};
+    use enigma_types::ContractAddress;
     use failure::Error;
     use hex::{FromHex, ToHex};
     use rmp_serde::Deserializer;
@@ -101,7 +103,7 @@ pub(self) mod handling {
     }
 
     pub fn get_tip(input: &str) -> ResponseResult {
-        let mut address = [0u8; 32];
+        let mut address = ContractAddress::default();
         address.copy_from_slice(&input.from_hex_32()?);
         let (tip_key, tip_data) = DATABASE.lock_expect("P2P, GetTip").get_tip::<DeltaKey>(&address)?;
 
@@ -115,7 +117,7 @@ pub(self) mod handling {
         let mut tips_results = Vec::with_capacity(input.len());
         for data in input {
             let address = data.from_hex_32()?;
-            let (tip_key, tip_data) = DATABASE.lock_expect("P2P, GetTips").get_tip::<DeltaKey>(&address)?;
+            let (tip_key, tip_data) = DATABASE.lock_expect("P2P, GetTips").get_tip::<DeltaKey>(&address.into())?;
             let delta = IpcDelta::from_delta_key(tip_key, tip_data)?;
             tips_results.push(delta);
         }
@@ -141,7 +143,7 @@ pub(self) mod handling {
     pub fn get_delta(input: IpcDelta) -> ResponseResult {
         let address =
             input.address.ok_or(P2PErr { cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?.from_hex_32()?;
-        let delta_key = DeltaKey::new(address, Stype::Delta(input.key));
+        let delta_key = DeltaKey::new(address.into(), Stype::Delta(input.key));
         let delta = DATABASE.lock_expect("P2P GetDelta").get_delta(delta_key)?;
         Ok(IpcResponse::GetDelta { result: IpcResults::Delta(delta.to_hex()) })
     }
@@ -150,8 +152,8 @@ pub(self) mod handling {
         let mut results = Vec::with_capacity(input.len());
         for data in input {
             let address = data.address.from_hex_32()?;
-            let from = DeltaKey::new(address, Stype::Delta(data.from));
-            let to = DeltaKey::new(address, Stype::Delta(data.to));
+            let from = DeltaKey::new(address.into(), Stype::Delta(data.from));
+            let to = DeltaKey::new(address.into(), Stype::Delta(data.to));
 
             let db_res = DATABASE.lock_expect("P2P GetDeltas").get_deltas(from, to)?;
             if db_res.is_none() {
@@ -169,14 +171,14 @@ pub(self) mod handling {
 
     pub fn get_contract(input: &str) -> ResponseResult {
         let address = input.from_hex_32()?;
-        let data = DATABASE.lock_expect("P2P GetContract").get_contract(address).unwrap_or_default();
+        let data = DATABASE.lock_expect("P2P GetContract").get_contract(address.into()).unwrap_or_default();
         Ok(IpcResponse::GetContract { result: IpcResults::Bytecode(data.to_hex()) })
     }
 
     pub fn update_new_contract(address: String, bytecode: &str) -> ResponseResult {
         let address_arr = address.from_hex_32()?;
         let bytecode = bytecode.from_hex()?;
-        let delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
+        let delta_key = DeltaKey::new(address_arr.into(), Stype::ByteCode);
         DATABASE.lock_expect("P2P UpdateNewContract").force_update(&delta_key, &bytecode)?;
         Ok(IpcResponse::UpdateNewContract { address, result: IpcResults::Status(0) })
     }
@@ -189,7 +191,7 @@ pub(self) mod handling {
                 delta.address.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Address Missing".to_string() })?.from_hex_32()?;
             let data =
                 delta.delta.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Delta Data Missing".to_string() })?.from_hex()?;
-            let delta_key = DeltaKey::new(address, Stype::Delta(delta.key));
+            let delta_key = DeltaKey::new(address.into(), Stype::Delta(delta.key));
             tuples.push((delta_key, data));
         }
         let results = DATABASE.lock_expect("P2P UpdateDeltas").insert_tuples(&tuples);
@@ -201,7 +203,7 @@ pub(self) mod handling {
                 status = FAILED;
             }
             let key = Some(deltakey.key_type.unwrap_delta());
-            let address = deltakey.hash.to_hex();
+            let address = deltakey.contract_id.to_hex();
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
         }
@@ -225,9 +227,9 @@ pub(self) mod handling {
     }
 
     pub fn get_ptt_req(addresses: &[String], eid: sgx_enclave_id_t) -> ResponseResult {
-        let mut addresses_arr = Vec::with_capacity(addresses.len());
+        let mut addresses_arr: Vec<ContractAddress> = Vec::with_capacity(addresses.len());
         for a in addresses {
-            addresses_arr.push(a.from_hex_32()?);
+            addresses_arr.push(a.from_hex_32()?.into());
         }
         let (data, sig) = km_u::ptt_req(eid, &addresses_arr)?;
         let result = IpcResults::Request { request: data.to_hex(), sig: sig.to_hex() };
@@ -259,7 +261,7 @@ pub(self) mod handling {
             &bytecode,
             &constructor,
             &enc_args,
-            contract_address,
+            contract_address.into(),
             &user_pubkey,
             input.gas_limit)?;
 
@@ -276,7 +278,7 @@ pub(self) mod handling {
 
     pub fn compute_task(input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let enc_args = input.encrypted_args.from_hex()?;
-        let address = input.address.from_hex_32()?;
+        let address: ContractAddress = input.address.from_hex_32()?.into();
         let callable = input.encrypted_fn.from_hex()?;
         let mut user_pubkey = [0u8; 64];
         user_pubkey.clone_from_slice(&input.user_pubkey.from_hex()?);
@@ -311,6 +313,7 @@ mod test {
     use crate::db::{DeltaKey, P2PCalls, Stype, DATABASE};
     use enigma_tools_u::common_u::LockExpectMutex;
     use serde_json::Value;
+    use enigma_types::ContractAddress;
 
     #[ignore]
     #[test]
@@ -341,9 +344,9 @@ mod test {
         let data: Vec<(DeltaKey, Vec<u8>)> = data
             .into_iter()
             .map(|tip| {
-                let hash: [u8; 32] = serde_json::from_value(tip["address"].clone()).unwrap();
+                let contract_id: ContractAddress = serde_json::from_value(tip["address"].clone()).unwrap();
                 let key: u32 = serde_json::from_value(tip["key"].clone()).unwrap();
-                let delta_key = DeltaKey { hash, key_type: Stype::Delta(key) };
+                let delta_key = DeltaKey { contract_id, key_type: Stype::Delta(key) };
                 let data: Vec<u8> = serde_json::from_value(tip["delta"].clone()).unwrap();
                 (delta_key, data)
             })

@@ -5,6 +5,7 @@ use crate::localstd::option::Option;
 use crate::localstd::string::ToString;
 use crate::localstd::vec::Vec;
 use crate::localstd::vec;
+use crate::localstd::{println, print};
 use crate::rand;
 
 const IV_SIZE: usize = 96/8;
@@ -52,9 +53,8 @@ pub fn decrypt(cipheriv: &[u8], key: &Key) -> Result<Vec<u8>, CryptoError> {
     let (ciphertext, iv) = cipheriv.split_at(cipheriv.len()-12);
     let nonce = aead::Nonce::try_assume_unique_for_key(&iv).unwrap(); // This Cannot fail because split_at promises that iv.len()==12
     let mut ciphertext = ciphertext.to_owned();
-
-    let decrypted_data = aead::open_in_place(&aes_decrypt, nonce, Aad::empty(), 0, &mut ciphertext)
-        .map_err(|_| CryptoError::DecryptionError)?;
+    let decrypted_data = aead::open_in_place(&aes_decrypt, nonce, Aad::empty(), 0, &mut ciphertext);
+    let decrypted_data = decrypted_data.map_err(|_| CryptoError::DecryptionError)?;
 
     Ok(decrypted_data.to_vec())
 }

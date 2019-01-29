@@ -1,7 +1,7 @@
 use ring::digest;
-use crate::localstd::{string::String, vec::Vec, mem};
+use crate::localstd::{vec::Vec, mem};
 use tiny_keccak::Keccak;
-use rustc_hex::ToHex;
+use enigma_types::Hash256;
 
 
 /// Takes a list of variables and concat them together with lengths in between.
@@ -24,8 +24,6 @@ pub fn prepare_hash_multiple(messages: &[&[u8]]) -> Vec<u8> {
     res
 }
 
-
-
 // Hash a byte array into keccak256.
 pub trait Keccak256<T> {
     fn keccak256(&self) -> T where T: Sized;
@@ -35,19 +33,19 @@ pub trait Sha256<T> {
     fn sha256(&self) -> T where T: Sized;
 }
 
-impl Keccak256<[u8; 32]> for [u8] {
-    fn keccak256(&self) -> [u8; 32] {
+impl Keccak256<Hash256> for [u8] {
+    fn keccak256(&self) -> Hash256 {
         let mut keccak = Keccak::new_keccak256();
-        let mut result = [0u8; 32];
+        let mut result = Hash256::default();
         keccak.update(self);
-        keccak.finalize(&mut result);
+        keccak.finalize(result.as_mut());
         result
     }
 }
 
-impl Sha256<[u8; 32]> for [u8] {
-    fn sha256(&self) -> [u8; 32] {
-        let mut result = [0u8; 32];
+impl Sha256<Hash256> for [u8] {
+    fn sha256(&self) -> Hash256 {
+        let mut result = Hash256::default();
         let hash = digest::digest(&digest::SHA256, self);
         result.copy_from_slice(hash.as_ref());
         result
