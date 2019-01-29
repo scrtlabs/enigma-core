@@ -38,13 +38,14 @@ pub enum IpcResponse {
     DeploySecretContract { #[serde(flatten)] result: IpcResults},
     ComputeTask { #[serde(flatten)] result: IpcResults },
     GetPTTRequest { #[serde(flatten)] result: IpcResults },
-    PTTResponse { result: Vec<IpcStatusResult> },
+    PTTResponse { result: IpcResults },
     Error { error: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase", rename = "result")]
 pub enum IpcResults {
+    Errors(Vec<IpcStatusResult>),
     Request { request: String, #[serde(rename = "workerSig")] sig: String },
     Addresses(Vec<String>),
     Delta(String),
@@ -107,8 +108,8 @@ pub struct IpcTask {
     pub encrypted_args: String,
     #[serde(rename = "encryptedFn")]
     pub encrypted_fn: String,
-    #[serde(rename = "userPubKey")]
-    pub user_pubkey: String,
+    #[serde(rename = "userDHKey")]
+    pub user_dhkey: String,
     #[serde(rename = "GasLimit")]
     pub gas_limit: u64,
     #[serde(rename = "contractAddress")]
@@ -211,12 +212,12 @@ impl Into<Message> for IpcMessage {
     }
 }
 
-pub(crate) trait UnwrapError<T, D> {
-    fn unwrap_or_error(self, _: D) -> T;
+pub(crate) trait UnwrapError<T> {
+    fn unwrap_or_error(self) -> T;
 }
 
-impl<E: std::fmt::Debug> UnwrapError<IpcResponse, String> for Result<IpcResponse, E> {
-    fn unwrap_or_error(self, id: String) -> IpcResponse {
+impl<E: std::fmt::Debug> UnwrapError<IpcResponse> for Result<IpcResponse, E> {
+    fn unwrap_or_error(self) -> IpcResponse {
         match self {
             Ok(m) => m,
             Err(e) => {

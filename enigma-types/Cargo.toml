@@ -8,8 +8,8 @@ edition = "2018"
 categories = ["no-std"]
 
 [dependencies]
-# This is Really *NOT* Ideal. currently it just uses Baidu's serde fork but with `no-std`.
-# This is needed because if I use the official one the Serialize trait doesn't work in sgx because it's a different trait from a different crate.
+rustc-hex = { version = "2.0.1", default-features = false }
+arrayvec = { version = "0.4.10", default-features = false }
 serde_sgx = { package = "serde", git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
 serde_std = { package = "serde", version = "1.0", default-features = false }
 
