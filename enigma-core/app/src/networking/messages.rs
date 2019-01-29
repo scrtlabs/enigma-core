@@ -39,14 +39,15 @@ pub enum IpcResponse {
     DeploySecretContract { #[serde(flatten)] result: IpcResults},
     ComputeTask { #[serde(flatten)] result: IpcResults },
     GetPTTRequest { #[serde(flatten)] result: IpcResults },
-    PTTResponse { result: Vec<IpcStatusResult> },
+    PTTResponse { result: IpcResults },
     Error { error: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase", rename = "result")]
 pub enum IpcResults {
-    #[serde(rename = "result")]
+    Errors(Vec<IpcStatusResult>),
+    println!("\n\nres: {:?}" ,res);
     Request { request: String, #[serde(rename = "workerSig")] sig: String },
     Addresses(Vec<String>),
     Delta(String),
@@ -109,8 +110,8 @@ pub struct IpcTask {
     pub encrypted_args: String,
     #[serde(rename = "encryptedFn")]
     pub encrypted_fn: String,
-    #[serde(rename = "userPubKey")]
-    pub user_pubkey: String,
+    #[serde(rename = "userDHKey")]
+    pub user_dhkey: String,
     #[serde(rename = "gasLimit")]
     pub gas_limit: u64,
     #[serde(rename = "contractAddress")]
@@ -160,7 +161,7 @@ impl IpcMessageRequest {
 impl IpcDelta {
     pub fn from_delta_key(k: DeltaKey, v: Vec<u8>) -> Result<Self, Error> {
         if let Stype::Delta(indx) = k.key_type {
-            Ok( IpcDelta { address: Some(k.hash.to_hex()), key: indx, delta: Some(v.to_hex()) } )
+            Ok( IpcDelta { address: Some(k.contract_id.to_hex()), key: indx, delta: Some(v.to_hex()) } )
         } else {
             bail!("This isn't a delta")
         }
@@ -169,7 +170,7 @@ impl IpcDelta {
 
 impl From<Delta> for IpcDelta {
     fn from(delta: Delta) -> Self {
-        let address = delta.key.hash.to_hex();
+        let address = delta.key.contract_id.to_hex();
         let value = delta.value.to_hex();
         let key = delta.key.key_type.unwrap_delta();
 
@@ -192,12 +193,12 @@ impl Into<Message> for IpcMessageResponse {
     }
 }
 
-pub(crate) trait UnwrapError<T, D> {
-    fn unwrap_or_error(self, _: D) -> T;
+pub(crate) trait UnwrapError<T> {
+    fn unwrap_or_error(self) -> T;
 }
 
-impl<E: std::fmt::Debug> UnwrapError<IpcResponse, String> for Result<IpcResponse, E> {
-    fn unwrap_or_error(self, id: String) -> IpcResponse {
+impl<E: std::fmt::Debug> UnwrapError<IpcResponse> for Result<IpcResponse, E> {
+    fn unwrap_or_error(self) -> IpcResponse {
         match self {
             Ok(m) => m,
             Err(e) => {

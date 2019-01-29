@@ -16,7 +16,15 @@ fn main() {
         language: Language::C,
         no_includes: true,
         export: ExportConfig {
-            include: vec![String::from("EnclaveReturn"), String::from("ExecuteResult")],
+            include: vec![
+                String::from("EnclaveReturn"),
+                String::from("ExecuteResult"),
+                String::from("Hash256"),
+                String::from("StateKey"),
+                String::from("ContractAddress"),
+                String::from("MsgID"),
+                String::from("PubKey")
+            ],
             ..Default::default() },
         ..Default::default()
     };

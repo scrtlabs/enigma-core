@@ -1,6 +1,7 @@
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_crypto::hash::Sha256;
 use enigma_crypto::{symmetric, Encryption};
+use enigma_types::{Hash256, ContractAddress};
 use json_patch;
 use rmps::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -9,9 +10,9 @@ use std::vec::Vec;
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq)]
 pub struct StatePatch {
     pub patch: json_patch::Patch,
-    pub previous_hash: [u8; 32],
+    pub previous_hash: Hash256,
     #[serde(skip)]
-    pub contract_id: [u8; 32],
+    pub contract_id: ContractAddress,
     #[serde(skip)]
     pub index: u32,
 }
@@ -19,12 +20,12 @@ pub struct StatePatch {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct EncryptedPatch {
     pub data: Vec<u8>,
-    pub contract_id: [u8; 32],
+    pub contract_id: ContractAddress,
     pub index: u32,
 }
 
 impl StatePatch {
-    pub fn sha256_patch(&self) -> Result<[u8; 32], EnclaveError> {
+    pub fn sha256_patch(&self) -> Result<Hash256, EnclaveError> {
         let mut buf = Vec::new();
         self.patch.serialize(&mut Serializer::new(&mut buf))?;
         Ok(buf.sha256())

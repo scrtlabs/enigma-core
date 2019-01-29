@@ -3,7 +3,7 @@ extern crate sgx_urts;
 extern crate rustc_hex;
 
 use crate::common_u::errors::EnclaveFailError;
-use crate::km_u::{ContractAddress, PubKey};
+use enigma_types::{ContractAddress, PubKey};
 use super::WasmResult;
 use std::convert::TryInto;
 use enigma_types::traits::SliceCPtr;
@@ -84,16 +84,15 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &
 
 #[cfg(test)]
 pub mod tests {
-    extern crate ring;
     extern crate ethabi;
 
     use crate::esgx::general::init_enclave_wrapper;
-    use crate::km_u::tests::{exchange_keys, serial_and_encrypt_input};
+    use crate::km_u::tests::exchange_keys;
     use crate::km_u::tests::instantiate_encryption_key;
     use crate::wasm_u::wasm;
-    use self::ring::rand::*;
     use self::ethabi::{Token};
-    use super::{ContractAddress, PubKey};
+    use enigma_types::{ContractAddress, PubKey};
+    use enigma_crypto::{rand, symmetric};
     use sgx_types::*;
     use std::fs::File;
     use std::io::Read;
@@ -102,9 +101,10 @@ pub mod tests {
     use std::str::from_utf8;
     use wasm_u::{WasmResult, wasm::{rustc_hex::ToHex}};
 
+    pub const GAS_LIMIT: u64 = 100_000_000;
     pub fn generate_address() -> ContractAddress {
-        let mut address = [0u8; 32];
-        SystemRandom::new().fill(&mut address).unwrap();
+        let mut address = ContractAddress::default();
+        rand::random(address.as_mut()).unwrap();
         address
     }
 
@@ -142,14 +142,18 @@ pub mod tests {
         let enclave = init_enclave_wrapper().unwrap();
         instantiate_encryption_key(&[address], enclave.geteid());
 
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let (encrypted_construct, encrypted_args) = serial_and_encrypt_input(&key, constructor, &constructor_arguments, None);
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_construct = symmetric::encrypt(constructor.as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&constructor_arguments), &shared_key).unwrap();
 
-        let deploy_res = compile_and_deploy_wasm_contract(enclave.geteid(), test_path, address, &encrypted_construct, &encrypted_args, &pubkey);
+        let deploy_res = compile_and_deploy_wasm_contract(enclave.geteid(), test_path, address, &encrypted_construct, &encrypted_args, &keys.get_pubkey());
         let exe_code = deploy_res.output;
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let (encrypted_callable, encrypted_args) = serial_and_encrypt_input(&key, func, &func_args, None);
-        let result = wasm::execute(enclave.geteid(), &exe_code, &encrypted_callable, &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(func.as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&func_args), &shared_key).unwrap();
+
+        let result = wasm::execute(enclave.geteid(), &exe_code, &encrypted_callable, &encrypted_args,
+                                   &keys.get_pubkey(), &address, GAS_LIMIT).expect("Execution failed");
 
         (enclave, exe_code, result)
     }
@@ -252,9 +256,12 @@ pub mod tests {
                                             "mint(bytes32,uint256)",
                                             &[Token::FixedBytes(generate_address().to_vec()), amount.clone()]);
 
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let (encrypted_callable, encrypted_args) = serial_and_encrypt_input(&key, "total_supply()", &[], None);
-        let result = wasm::execute(enclave.geteid(), &contract_code, &encrypted_callable, &encrypted_args, &pubkey, &address, 100_000_000).expect("Execution failed");
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(b"total_supply()", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
+        let result = wasm::execute(
+            enclave.geteid(), &contract_code, &encrypted_callable, &encrypted_args, &keys.get_pubkey(), &address, GAS_LIMIT)
+            .expect("Execution failed");
         enclave.destroy();
         // deserialization of result
         let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result.output).unwrap().pop().unwrap();
@@ -274,14 +281,21 @@ pub mod tests {
             "mint(bytes32,uint256)",
             &[addr.clone(), Token::Uint(17.into())]);
 
-        let (pubkey_t, key_t, _, _) = exchange_keys(enclave.geteid());
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let addr_to = Token::FixedBytes(generate_address().to_vec());
-        let (encrypted_callable, transfer_args) = serial_and_encrypt_input(&key_t, "transfer(bytes32,bytes32,uint256)", &[addr, addr_to.clone(), transfer_amount.clone()], None);
-        wasm::execute(enclave.geteid(), &contract_code, &encrypted_callable, &transfer_args, &pubkey_t, &address, 100_000_000).expect("Execution failed");
+        let encrypted_callable = symmetric::encrypt(b"transfer(bytes32,bytes32,uint256)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr, addr_to.clone(), transfer_amount.clone()]), &shared_key).unwrap();
 
-        let (pubkey_b, key_b, _, _) = exchange_keys(enclave.geteid());
-        let (encrypted_callable, balance_args) = serial_and_encrypt_input(&key_b, "balance_of(bytes32)", &[addr_to], None);
-        let result_balance = wasm::execute(enclave.geteid(), &contract_code, &encrypted_callable, &balance_args, &pubkey_b, &address, 100_000_000).expect("Execution failed");
+        wasm::execute(enclave.geteid(), &contract_code, &encrypted_callable, &encrypted_args, &keys.get_pubkey(), &address, GAS_LIMIT)
+            .expect("Execution failed");
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(b"balance_of(bytes32)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr_to]), &shared_key).unwrap();
+
+        let result_balance = wasm::execute(
+            enclave.geteid(), &contract_code, &encrypted_callable, &encrypted_args, &keys.get_pubkey(), &address, GAS_LIMIT)
+            .expect("Execution failed");
 
         enclave.destroy();
         let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance.output).unwrap().pop().unwrap();
@@ -301,22 +315,31 @@ pub mod tests {
                                                                  &[],
                                                                  "mint(bytes32,uint256)",
                                                                  &[owner.clone(), Token::Uint(40.into())]);
+        let id = enclave.geteid();
 
-        let (pubkey_a, key_a, _, _) = exchange_keys(enclave.geteid());
-        let (encrypted_callable, approve_args) = serial_and_encrypt_input(&key_a, "approve(bytes32,bytes32,uint256)", &[owner.clone(), spender.clone(), Token::Uint(20.into())], None);
-        wasm::execute(enclave.geteid(), &contract_code, &encrypted_callable, &approve_args, &pubkey_a, &address, 100_000_000).expect("Execution failed");
+        let (keys, shared_key, _, _) = exchange_keys(id);
+        let encrypted_callable = symmetric::encrypt(b"approve(bytes32,bytes32,uint256)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[owner.clone(), spender.clone(), Token::Uint(20.into())]), &shared_key).unwrap();
+        wasm::execute(id, &contract_code, &encrypted_callable, &encrypted_args, &keys.get_pubkey(), &address, GAS_LIMIT)
+            .expect("Execution failed");
 
-        let (pubkey_t, key_t, _, _) = exchange_keys(enclave.geteid());
-        let (encrypted_callable, transfer_args) = serial_and_encrypt_input(&key_t, "transfer_from(bytes32,bytes32,bytes32,uint256)", &[owner.clone(), spender.clone(), addr_to.clone(), transfer_amount.clone()], None);
-        wasm::execute(enclave.geteid(), &contract_code, &encrypted_callable, &transfer_args, &pubkey_t, &address, 100_000_000).expect("Execution failed");
+        let (keys, shared_key, _, _) = exchange_keys(id);
+        let encrypted_callable = symmetric::encrypt(b"transfer_from(bytes32,bytes32,bytes32,uint256)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[owner.clone(), spender.clone(), addr_to.clone(), transfer_amount.clone()]), &shared_key).unwrap();
+        wasm::execute(id, &contract_code, &encrypted_callable, &encrypted_args, &keys.get_pubkey(), &address, GAS_LIMIT)
+            .expect("Execution failed");
 
-        let (pubkey_b, key_b, _, _) = exchange_keys(enclave.geteid());
-        let (encrypted_callable, balance_args) = serial_and_encrypt_input(&key_b, "balance_of(bytes32)", &[addr_to], None);
-        let result_balance = wasm::execute(enclave.geteid(), &contract_code, &encrypted_callable, &balance_args, &pubkey_b, &address, 100_000_000).expect("Execution failed");
+        let (keys, shared_key, _, _) = exchange_keys(id);
+        let encrypted_callable = symmetric::encrypt(b"balance_of(bytes32)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr_to]), &shared_key).unwrap();
+        let result_balance = wasm::execute(
+            id, &contract_code, &encrypted_callable, &encrypted_args, &keys.get_pubkey(), &address, GAS_LIMIT).expect("Execution failed");
 
-        let (pubkey_al, key_al, _, _) = exchange_keys(enclave.geteid());
-        let (encrypted_callable, allowance_args) = serial_and_encrypt_input(&key_al, "allowance(bytes32,bytes32)", &[owner, spender], None);
-        let result_allowance = wasm::execute(enclave.geteid(), &contract_code, &encrypted_callable, &allowance_args, &pubkey_al, &address, 100_000_000).expect("Execution failed");
+        let (keys, shared_key, _, _) = exchange_keys(id);
+        let encrypted_callable = symmetric::encrypt(b"allowance(bytes32,bytes32)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[owner, spender]), &shared_key).unwrap();
+        let result_allowance = wasm::execute(
+            id, &contract_code, &encrypted_callable, &encrypted_args, &keys.get_pubkey(), &address, GAS_LIMIT).expect("Execution failed");
 
         let res_allowance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_allowance.output).unwrap().pop().unwrap();
         let res_balance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance.output).unwrap().pop().unwrap();

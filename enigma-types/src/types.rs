@@ -1,5 +1,11 @@
 use core::{fmt, mem, ptr, default::Default};
 
+
+pub use crate::hash::Hash256;
+pub type StateKey = [u8; 32];
+pub type ContractAddress = Hash256;
+pub type PubKey = [u8; 64];
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnclaveReturn {
@@ -26,7 +32,7 @@ pub enum EnclaveReturn {
 pub struct ExecuteResult {
     pub output: *const u8,
     pub delta_ptr: *const u8,
-    pub delta_hash: [u8; 32],
+    pub delta_hash: Hash256,
     pub delta_index: u32,
     pub ethereum_payload_ptr: *const u8,
     pub ethereum_address: [u8; 20],

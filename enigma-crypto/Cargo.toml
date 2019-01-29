@@ -8,6 +8,7 @@ edition = "2018"
 description = "A Cryptography library used for easy usage in the Enigma Protocol."
 
 [dependencies]
+enigma-types = { path = "../enigma-types", default-features = false }
 rustc-hex = { version = "2.0.1", default-features = false }
 tiny-keccak = "1.4"
 ring = { git = "https://github.com/elichai/ring.git", rev = "sgx-manual", default-features = false }
@@ -18,6 +19,7 @@ rand_std = { package = "rand", version = "0.6.4", optional = true }
 
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
 sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
+
 
 [features]
 default = ["std"]

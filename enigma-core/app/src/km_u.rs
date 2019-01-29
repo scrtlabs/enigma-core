@@ -2,14 +2,11 @@
 
 use crate::common_u::errors::EnclaveFailError;
 use enigma_types::traits::SliceCPtr;
-use enigma_types::EnclaveReturn;
+use enigma_types::{EnclaveReturn, ContractAddress, PubKey};
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use std::mem;
 
-pub type ContractAddress = [u8; 32];
-pub type StateKey = [u8; 32];
-pub type PubKey = [u8; 64];
 
 extern "C" {
     fn ecall_ptt_req(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, addresses: *const ContractAddress, len: usize,
@@ -35,7 +32,7 @@ pub fn ptt_build_state(eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Er
     let part: Vec<ContractAddress> = part
         .chunks(32)
         .map(|s| {
-            let mut arr = [0u8; 32];
+            let mut arr = ContractAddress::default();
             arr.copy_from_slice(s);
             arr
         })
@@ -92,18 +89,14 @@ pub fn get_user_key(eid: sgx_enclave_id_t, user_pubkey: &PubKey) -> Result<(Box<
 
 #[cfg(test)]
 pub mod tests {
-    extern crate ring;
-    extern crate secp256k1;
     extern crate ethabi;
 
-    use self::ring::{aead, rand::*};
-    use self::secp256k1::{Message, PublicKey, RecoveryId, SecretKey, SharedSecret, Signature};
-    use super::PubKey;
-    use super::{ptt_build_state, ptt_req, ptt_res, ContractAddress, StateKey};
+    use super::{ptt_build_state, ptt_req, ptt_res};
     use crate::db::Stype::{Delta, State};
     use crate::db::{CRUDInterface, DeltaKey, DATABASE};
     use crate::esgx::general::init_enclave_wrapper;
-    use enigma_tools_u::common_u::{Keccak256, Sha256};
+    use enigma_types::{ContractAddress, StateKey};
+    use enigma_crypto::{KeyPair, symmetric, hash::Sha256};
     use rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
     use serde_json::{self, Value};
@@ -113,60 +106,28 @@ pub mod tests {
 
     const PUBKEY_DUMMY: [u8; 64] = [ 27, 132, 197, 86, 123, 18, 100, 64, 153, 93, 62, 213, 170, 186, 5, 101, 215, 30, 24, 52, 96, 72, 25, 255, 156, 23, 245, 233, 213, 221, 7, 143, 112, 190, 175, 143, 88, 139, 84, 21, 7, 254, 214, 166, 66, 197, 171, 66, 223, 223, 129, 32, 167, 246, 57, 222, 81, 34, 212, 122, 105, 168, 232, 209];
 
-    pub fn generate_key_pair() -> (SecretKey, PubKey) {
+    pub fn exchange_keys(id: sgx_enclave_id_t) -> (KeyPair, [u8; 32], Box<[u8]>, [u8; 65]) {
         let mut _priv = [0u8; 32];
-        SystemRandom::new().fill(&mut _priv).unwrap();
-        let privkey = SecretKey::parse(&_priv).unwrap();
-        let _pubkey = PublicKey::from_secret_key(&privkey);
-        let mut pubkey = [0u8; 64];
-        pubkey.clone_from_slice(&_pubkey.serialize()[1..]);
-        (privkey, pubkey)
-    }
+        let keys = KeyPair::new().unwrap();
+        let (data, sig) = super::get_user_key(id, &keys.get_pubkey()).unwrap();
+        let data_borrowed = data.clone();
 
-    pub fn get_shared_key(_node_pubkey: &[u8], privkey_user: SecretKey) -> Vec<u8> {
-        let mut _node_pub = [0u8; 65];
-        _node_pub[0] = 4;
-        _node_pub[1..].copy_from_slice(_node_pubkey);
-        let node_pubkey = PublicKey::parse(&_node_pub).unwrap();
-
-        SharedSecret::new(&node_pubkey, &privkey_user).unwrap().as_ref().to_vec()
-    }
-
-    pub fn exchange_keys(id: sgx_enclave_id_t) -> (PubKey, Vec<u8>, Box<[u8]>, [u8; 65]) {
-        let (privkey, pubkey) = generate_key_pair();
-        let (data, sig) = super::get_user_key(id, &pubkey).unwrap();
-        let data_burrowed = data.clone();
-
-        let mut des = Deserializer::new(&data_burrowed[..]);
+        let mut des = Deserializer::new(&data_borrowed[..]);
         let res: Value = Deserialize::deserialize(&mut des).unwrap();
         let _node_pubkey: Vec<u8> = serde_json::from_value(res["pubkey"].clone()).unwrap();
-        let shared_bytes = get_shared_key(&_node_pubkey, privkey);
 
-        (pubkey, shared_bytes, data, sig)
-    }
+        let mut node_pubkey = [0u8; 64];
+        node_pubkey.copy_from_slice(&_node_pubkey);
 
-    fn serial_and_encrypt(key: &aead::SealingKey, input: &[u8], iv: &[u8;12]) -> Vec<u8> {
-        let mut output: Vec<u8> = input.to_vec();
-        output.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
-        let output_len = aead::seal_in_place(key, iv, &[], &mut output, aead::AES_256_GCM.tag_len()).unwrap();
-        assert_eq!(output_len, output.len());
-        output.extend(iv);
-        output
-    }
-
-    // serialize the arguments and encrypt them; encrypt callable function signature
-    pub fn serial_and_encrypt_input(key: &[u8], callable: &str, args: &[Token], iv: Option<[u8; 12]>) -> (Vec<u8>, Vec<u8>) {
-        let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, key.clone()).unwrap();
-        let iv = iv.unwrap_or([1u8; 12]);
-
-        (serial_and_encrypt(&seal_key, callable.as_bytes(), &iv), serial_and_encrypt(&seal_key, &ethabi::encode(args), &iv))
+        let shared_bytes = keys.get_aes_key(&node_pubkey).unwrap();
+        (keys, shared_bytes, data, sig)
     }
 
     #[test]
     fn test_serial_and_encrypt_input() {
         // get the aes key
         let enclave = init_enclave_wrapper().unwrap();
-        let (_, key, _, _) = exchange_keys(enclave.geteid());
+        let (_, shared_key, _, _) = exchange_keys(enclave.geteid());
 
         // arguments
         let addr = Token::FixedBytes(generate_address().to_vec());
@@ -174,23 +135,17 @@ pub mod tests {
         let msg = Token::Bytes([3u8; 36].to_vec());
 
         let args = vec![addr, num, msg];
-        let callable = "some_function(uint)";
+        let callable = b"some_function(uint)";
 
-        let iv = [1u8; 12];
         // encryption
-        let (mut encrypted_callable, mut encrypted_args) = serial_and_encrypt_input(&key.clone(), callable, &args, Some(iv.clone()));
+        let encrypted_callable = symmetric::encrypt(callable, &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&args), &shared_key).unwrap();
 
-        // decryption
-        let decrypt_key = aead::OpeningKey::new(&aead::AES_256_GCM, &key).unwrap();
-
-        // remove the IV from the encrypted cipher
-        encrypted_args = encrypted_args[..encrypted_args.len()-iv.len()].to_vec();
-        encrypted_callable = encrypted_callable[..encrypted_callable.len() - iv.len()].to_vec();
-        let accepted_args = aead::open_in_place(&decrypt_key, &iv, &[], 0, &mut encrypted_args).unwrap();
-        let accepted_callable = aead::open_in_place(&decrypt_key, &iv, &[], 0, &mut encrypted_callable).unwrap();
+        let accepted_args = symmetric::decrypt(&encrypted_args, &shared_key).unwrap();
+        let accepted_callable = symmetric::decrypt(&encrypted_callable, &shared_key).unwrap();
 
         assert_eq!(ethabi::encode(&args), accepted_args);
-        assert_eq!(callable.as_bytes(), accepted_callable);
+        assert_eq!(callable.to_vec(), accepted_callable);
 
     }
 
@@ -206,18 +161,19 @@ pub mod tests {
 
         let mut sig = [0u8; 64];
         sig.copy_from_slice(&_sig[..64]);
-        let sig = Signature::parse(&sig);
-
-        let msg = Message::parse(&data.keccak256());
-        let recovery_id = RecoveryId::parse(_sig[64] - 27).unwrap();
-        let _pubkey = secp256k1::recover(&msg, &sig, &recovery_id).unwrap();
+        //TODO: This Can be restored after `recover` is added to enigma-crypto
+//        let sig = Signature::parse(&sig);
+//
+//        let msg = Message::parse(&data.keccak256());
+//        let recovery_id = RecoveryId::parse(_sig[64] - 27).unwrap();
+//        let _pubkey = secp256k1::recover(&msg, &sig, &recovery_id).unwrap();
         // TODO: Consider verifying this against ecall_get_signing_address
     }
 
     #[test]
     fn test_ptt_req() {
         let enclave = init_enclave_wrapper().unwrap();
-        let addresses: [ContractAddress; 3] = [[1u8; 32], [2u8; 32], [3u8; 32]];
+        let addresses: [ContractAddress; 3] = [[1u8; 32].into(), [2u8; 32].into(), [3u8; 32].into()];
         let (msg, sig) = ptt_req(enclave.geteid(), &addresses).unwrap();
         assert_ne!(msg.len(), 0);
         assert_ne!(sig.to_vec(), vec![0u8; 64]);
@@ -240,32 +196,23 @@ pub mod tests {
     pub fn make_encrypted_response(req: Value) -> Value {
         // Making the response
         let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
-        let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|add| (add, add)).collect();
+        let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|add| (add, *add)).collect();
 
         let mut response_data = Vec::new();
         _response_data.serialize(&mut Serializer::new(&mut response_data)).unwrap();
 
         // Getting the node DH Public Key
-        let _pubkey: Vec<u8> = serde_json::from_value(req["pubkey"].clone()).unwrap();
-        let mut pubkey = [0u8; 65];
-        pubkey[0] = 4;
-        pubkey[1..].copy_from_slice(&_pubkey);
-        let node_pubkey = PublicKey::parse(&pubkey).unwrap();
+        let _node_pubkey: Vec<u8> = serde_json::from_value(req["pubkey"].clone()).unwrap();
+        let mut node_pubkey = [0u8; 64];
+        node_pubkey.copy_from_slice(&_node_pubkey);
 
         // Generating a second pair of priv-pub keys for the DH
-        let km_priv_key = SecretKey::parse(&b"Enigma".sha256()).unwrap();
-        let km_pubkey = PublicKey::from_secret_key(&km_priv_key);
+        let keys = KeyPair::new().unwrap();
 
         // Generating the ECDH key for AES
-        let shared = SharedSecret::new(&node_pubkey, &km_priv_key).unwrap();
-        let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, shared.as_ref()).unwrap();
-
+        let shared_key = keys.get_aes_key(&node_pubkey).unwrap();
         // Encrypting the response
-        let iv = [1u8; 12];
-        response_data.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
-        let s = aead::seal_in_place(&seal_key, &iv, &[], &mut response_data, aead::AES_256_GCM.tag_len()).unwrap();
-        assert_eq!(s, response_data.len());
-        response_data.extend(&iv);
+        let response_data = symmetric::encrypt(&response_data, &shared_key).unwrap();
 
         // Building the Encrypted Response.
         let mut enc_template: Value = serde_json::from_str(
@@ -279,8 +226,7 @@ pub mod tests {
         ).unwrap();
         enc_template["data"]["EncryptedResponse"] = json!(response_data);
         enc_template["id"] = req["id"].clone();
-        let km_pubkey_slice = km_pubkey.serialize()[1..65].to_vec();
-        enc_template["pubkey"] = json!(km_pubkey_slice);
+        enc_template["pubkey"] = json!(&keys.get_pubkey()[..]);
 
         enc_template
     }
@@ -314,31 +260,20 @@ pub mod tests {
 //        assert!(address_result.iter().all(|x| address_set.contains(x)));
     }
 
-    fn fill_the_db() -> Vec<[u8; 32]> {
+    fn fill_the_db() -> Vec<ContractAddress> {
         let address = vec![b"first".sha256(), b"second".sha256(), b"third".sha256()];
         let mut stuff = vec![
-            (DeltaKey { hash: address[2], key_type: State }, vec![8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]),
+            (DeltaKey { contract_id: address[2], key_type: State }, vec![8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]),
         ];
-
-        let iv = [1u8; 12];
 
         for (i, (mut state, deltas)) in unencrypted_data().into_iter().enumerate() {
             println!("i: {}", i);
-            let seal_key = aead::SealingKey::new(&aead::AES_256_GCM, &address[i]).unwrap();
+            let state = symmetric::encrypt(&state, &*address[i]).unwrap();
 
-            state.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
-            let s = aead::seal_in_place(&seal_key, &iv, &[], &mut state, aead::AES_256_GCM.tag_len()).unwrap();
-            let mut state = state[..s].to_vec();
-            state.append(&mut iv.to_vec());
-
-            stuff.push((DeltaKey { hash: address[i], key_type: State}, state));
+            stuff.push((DeltaKey { contract_id: address[i], key_type: State}, state));
             for (j, mut delta) in deltas.into_iter().enumerate() {
-                delta.extend(vec![0u8; aead::AES_256_GCM.tag_len()]);
-                let s = aead::seal_in_place(&seal_key, &iv,     &[], &mut delta, aead::AES_256_GCM.tag_len()).unwrap();
-                let mut delta = delta[..s].to_vec();
-                delta.append(&mut iv.to_vec());
-
-                stuff.push((DeltaKey {hash: address[i], key_type: Delta(j as u32)}, delta));
+                let delta = symmetric::encrypt(&delta, &*address[i]).unwrap();
+                stuff.push((DeltaKey { contract_id: address[i], key_type: Delta(j as u32)}, delta));
             }
         }
         for (key, data) in stuff {

@@ -57,11 +57,12 @@ impl TryFrom<ExecuteResult> for WasmResult {
         result.eth_payload = *payload;
 
         // TODO: Is it possible to have no delta or not?. please decide this. @elichai @moria
-        if !exec.delta_ptr.is_null() && exec.delta_hash != [0u8; 32] {
+        if !exec.delta_ptr.is_null() && exec.delta_hash != Default::default() {
             let box_ptr = exec.delta_ptr as *mut Box<[u8]>;
             let delta_data = unsafe { Box::from_raw(box_ptr) };
 
             result.delta.value = delta_data.to_vec();
+            // TODO: This should be contract address, not delta_hash
             result.delta.key = DeltaKey::new(exec.delta_hash, Stype::Delta(exec.delta_index));
 
         } else {

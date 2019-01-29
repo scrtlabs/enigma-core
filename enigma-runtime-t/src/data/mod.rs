@@ -20,6 +20,7 @@ pub mod tests {
     use crate::data::*;
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
+    use enigma_types::{ContractAddress, Hash256};
     use json_patch;
     use serde_json::{self, Map, Value};
     use std::string::String;
@@ -29,8 +30,7 @@ pub mod tests {
         let con = ContractState {
             contract_id: id,
             json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
-            delta_hash: [0u8; 32],
-            delta_index: 0,
+            .. Default::default()
         };
         let key = b"EnigmaMPC".sha256();
         let iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -48,8 +48,7 @@ pub mod tests {
         let result = ContractState {
             contract_id: id,
             json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
-            delta_hash: [0u8; 32],
-            delta_index: 0,
+            .. Default::default()
         };
 
         assert_eq!(ContractState::decrypt(enc, &key).unwrap(), result)
@@ -60,8 +59,7 @@ pub mod tests {
         let con = ContractState {
             contract_id: id,
             json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
-            delta_hash: [0u8; 32],
-            delta_index: 0,
+            .. Default::default()
         };
         let key = b"EnigmaMPC".sha256();
         let iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -79,8 +77,7 @@ pub mod tests {
         let cmp = ContractState {
             contract_id: b"Enigma".sha256(),
             json: json!({"code": 200,"success": true,"payload": {"features": ["serde","json"]}}),
-            delta_hash: [0u8; 32],
-            delta_index: 0,
+            .. Default::default()
         };
         assert_eq!(con, cmp);
     }
@@ -89,8 +86,7 @@ pub mod tests {
         let con = ContractState {
             contract_id: b"Enigma".sha256(),
             json: json!({"code": 200,"success": true,"payload": {"features": ["serde","json"]}}),
-            delta_hash: [0u8; 32],
-            delta_index: 0,
+            .. Default::default()
         };
         assert_eq!(con.read_key::<u64>("code").unwrap(), 200);
         assert_eq!(con.read_key::<bool>("success").unwrap(), true);
@@ -101,15 +97,15 @@ pub mod tests {
         let before = json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] });
         let after = json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] });
         let patch =
-            StatePatch { patch: json_patch::diff(&before, &after), previous_hash: [0u8; 32], contract_id: [1u8; 32], index: 0 };
+            StatePatch { patch: json_patch::diff(&before, &after), previous_hash: [0u8; 32].into(), contract_id: [1u8; 32].into(), index: 0 };
         assert_eq!(serde_json::to_string(&patch.patch).unwrap(), "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]");
     }
 
     pub fn test_encrypt_patch() {
         let s = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
-        let contract_id = [1u8; 32];
+        let contract_id: ContractAddress = [1u8; 32].into();
         let index = 99;
-        let patch = StatePatch { patch: serde_json::from_str(s).unwrap(), previous_hash: [0u8; 32], contract_id, index };
+        let patch = StatePatch { patch: serde_json::from_str(s).unwrap(), previous_hash: [0u8; 32].into(), contract_id, index };
 
         let key = b"EnigmaMPC".sha256();
         let iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -122,8 +118,8 @@ pub mod tests {
 
     pub fn test_decrypt_patch() {
         let s = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
-        let contract_id = [1u8; 32];
-        let patch = StatePatch { patch: serde_json::from_str(s).unwrap(), previous_hash: [0u8; 32], contract_id, index: 0 };
+        let contract_id: ContractAddress = [1u8; 32].into();
+        let patch = StatePatch { patch: serde_json::from_str(s).unwrap(), previous_hash: [0u8; 32].into(), contract_id, index: 0 };
 
         let key = b"EnigmaMPC".sha256();
         let enc_data = vec![196, 39, 143, 237, 10, 117, 249, 235, 174, 84, 130, 219, 214, 92, 182, 148, 87, 171, 131, 69, 32, 201, 192, 190, 253, 176, 230, 5, 20, 221, 171, 31, 37, 51, 29, 231, 134, 147, 234, 255, 104, 144, 161, 110, 192, 28, 187, 143, 184, 188, 211, 219, 36, 117, 28, 51, 160, 204, 97, 250, 153, 193, 86, 194, 169, 111, 124, 202, 195, 44, 170, 109, 98, 164, 203, 177, 27, 246, 129, 8, 132, 12, 232, 104, 130, 98, 155, 7, 137, 89, 113, 187, 197, 211, 191, 246, 97, 112, 71, 240, 162, 35, 176, 216, 26, 97, 90, 218, 197, 244, 94, 225, 184, 235, 75, 198, 205, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -135,7 +131,7 @@ pub mod tests {
 
     pub fn test_encrypt_decrypt_patch() {
         let s = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
-        let patch = StatePatch { patch: serde_json::from_str(s).unwrap(), previous_hash: [0u8; 32], contract_id: [1u8; 32], index: 0 };
+        let patch = StatePatch { patch: serde_json::from_str(s).unwrap(), previous_hash: [0u8; 32].into(), contract_id: [1u8; 32].into(), index: 0 };
 
         let key = b"EnigmaMPC".sha256();
         let iv = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -147,15 +143,14 @@ pub mod tests {
     pub fn test_apply_delta() {
         let p = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
         let id = b"Enigma".sha256();
-        let patch = StatePatch { patch: serde_json::from_str(p).unwrap(), previous_hash: [0u8; 32], contract_id: id, index: 0 };
+        let patch = StatePatch { patch: serde_json::from_str(p).unwrap(), previous_hash: [0u8; 32].into(), contract_id: id, index: 0 };
         let mut contract = ContractState {
             contract_id: id,
             json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] }),
-            delta_hash: [0u8; 32],
-            delta_index: 0,
+            .. Default::default()
         };
         contract.apply_delta(&patch).unwrap();
-        let delta_hash = [157, 249, 235, 217, 57, 137, 72, 110, 132, 82, 163, 120, 85, 102, 111, 76, 1, 85, 24, 73, 63, 250, 219, 179, 132, 135, 42, 14, 207, 48, 173, 74, ];
+        let delta_hash: Hash256 = [157, 249, 235, 217, 57, 137, 72, 110, 132, 82, 163, 120, 85, 102, 111, 76, 1, 85, 24, 73, 63, 250, 219, 179, 132, 135, 42, 14, 207, 48, 173, 74].into();
         assert_eq!(
             contract,
             ContractState {
@@ -170,18 +165,16 @@ pub mod tests {
     pub fn test_generate_delta() {
         let p = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
         let id = b"Enigma".sha256();
-        let result = StatePatch { patch: serde_json::from_str(p).unwrap(), previous_hash: [0u8; 32], contract_id: id, index: 1 };
+        let result = StatePatch { patch: serde_json::from_str(p).unwrap(), previous_hash: [0u8; 32].into(), contract_id: id, index: 1 };
         let before = ContractState {
             contract_id: id,
             json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] }),
-            delta_hash: [0u8; 32],
-            delta_index: 0,
+            .. Default::default()
         };
         let after = ContractState {
             contract_id: id,
             json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] }),
-            delta_hash: [0u8; 32],
-            delta_index: 0,
+            .. Default::default()
         };
 
         let delta = ContractState::generate_delta(&before, &after).unwrap();
