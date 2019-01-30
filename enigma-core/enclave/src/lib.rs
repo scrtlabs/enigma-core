@@ -350,14 +350,14 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 }
 
 unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8],
-                                address: &ContractAddress, user_key: &PubKey,
+                                address: ContractAddress, user_key: &PubKey,
                                 gas_limit: u64, result: &mut ExecuteResult) -> Result<(), EnclaveError> {
 
     let deploy_bytecode = build_constructor(bytecode)?;
 
     let (decrypted_args, _, _types, _) = decrypt_inputs(constructor, args, user_key)?;
 
-    let state = ContractState::new(*address);
+    let state = ContractState::new(address);
 
     let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, decrypted_args.clone())?;
 
