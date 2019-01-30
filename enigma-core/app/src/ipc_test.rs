@@ -6,10 +6,10 @@ use crate::*;
 pub mod tests {
     extern crate zmq;
     extern crate regex;
-    extern crate secp256k1;
     extern crate ethabi;
     extern crate serde;
     extern crate rmp_serde as rmps;
+    extern crate enigma_crypto;
 
     use serde::{Deserialize, Serialize};
     use self::rmps::{Deserializer, Serializer};
@@ -19,10 +19,11 @@ pub mod tests {
     use std::thread;
     use self::regex::Regex;
     use hex::{ToHex, FromHex};
-    use crate::km_u::tests::{generate_key_pair, serial_and_encrypt_input, get_shared_key, make_encrypted_response};
+    use crate::km_u::tests::{make_encrypted_response, get_fake_state_key};
     use wasm_u::wasm::tests::{get_bytecode_from_path, generate_address};
-    use self::secp256k1::{SecretKey, SharedSecret};
     use self::ethabi::{Token};
+    use enigma_crypto::asymmetric::KeyPair;
+    use enigma_crypto::symmetric;
 
 
     fn run_core(port: &'static str) {
@@ -82,10 +83,10 @@ pub mod tests {
         let port = "5556";
         let id = "534";
         let type_req = "NewTaskEncryptionKey";
-        let (_, user_pubkey) = generate_key_pair();
+        let keys = KeyPair::new().unwrap();
 
         run_core(port);
-        let msg = set_encryption_msg(id, type_req, user_pubkey);
+        let msg = set_encryption_msg(id, type_req, keys.get_pubkey());
         let v: Value = conn_and_call_ipc(&msg.to_string(), port);
         let id_accepted = v["id"].as_str().unwrap();
         let result_key = v["result"].as_object().unwrap()["workerEncryptionKey"].as_str().unwrap();
@@ -194,7 +195,7 @@ pub mod tests {
         let addresses: Vec<String> = vec![generate_address().to_hex(), generate_address().to_hex()];
         let res_val: Value = run_ptt_round(port, addresses, id_res, type_res);
         let id_accepted = res_val["id"].as_str().unwrap();
-        let result: Vec<u8> = serde_json::from_value(res_val["result"].clone()).unwrap();
+        let result: Vec<u8> = serde_json::from_value(res_val["result"]["errors"].clone()).unwrap();
         let type_accepted = res_val["type"].as_str().unwrap();
 
         assert_eq!(type_res, type_accepted);
@@ -202,28 +203,32 @@ pub mod tests {
         assert_eq!(result.len(), 0);
     }
 
-    fn produce_shared_key(port: &'static str) -> (Vec<u8>, Vec<u8>) {
+    fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
         // get core's pubkey
         let id_enc = "7698";
         let type_enc =  "NewTaskEncryptionKey";
-        let (user_privkey, user_pubkey) = generate_key_pair();
-        let msg = set_encryption_msg(id_enc, type_enc, user_pubkey);
+        let keys = KeyPair::new().unwrap();
+        let msg = set_encryption_msg(id_enc, type_enc, keys.get_pubkey());
 
         let v: Value = conn_and_call_ipc(&msg.to_string(), port);
         let core_pubkey: String = serde_json::from_value(v["result"]["workerEncryptionKey"].clone()).unwrap();
-        let pubkey_slice: Vec<u8> = core_pubkey.from_hex().unwrap();
-        (get_shared_key(&pubkey_slice, user_privkey), user_pubkey.to_vec())
+        let _pubkey_vec: Vec<u8> = core_pubkey.from_hex().unwrap();
+        let mut pubkey_arr = [0u8; 64];
+        pubkey_arr.copy_from_slice(&_pubkey_vec);
+
+        let shared_key = keys.get_aes_key(&pubkey_arr).unwrap();
+        (shared_key, keys.get_pubkey())
     }
 
     fn set_deploy_msg(id: &str, type_dep: &str, pre_code: &str, args: &str, callable: &str, usr_pubkey: &str, gas_limit: u64, addr: &str) -> Value {
         json!({"id" : id, "type" : type_dep, "input":
                         {"preCode": &pre_code, "encryptedArgs": args,
-                        "encryptedFn": callable, "userPubKey": usr_pubkey,
+                        "encryptedFn": callable, "userDHKey": usr_pubkey,
                         "gasLimit": gas_limit, "contractAddress": addr}
                         })
     }
 
-    fn full_deployment_process(port: &'static str, id_dep: &str) -> (Value, [u8; 32]) {
+    fn full_simple_deployment(port: &'static str, id_dep: &str) -> (Value, [u8; 32]) {
         // address generation and ptt
         let address = generate_address();
         let id_ptt = "876";
@@ -237,14 +242,15 @@ pub mod tests {
         let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/simplest");
         let fn_deploy = "construct(uint)";
         let args_deploy = [Token::Uint(17.into())];
-        let (encrypted_fn, encrypted_args) = serial_and_encrypt_input(&shared_key, fn_deploy, &args_deploy, None);
+        let encrypted_callable = symmetric::encrypt(fn_deploy.as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&args_deploy), &shared_key).unwrap();
         let gas_limit = 100_000_000;
 
         let msg = set_deploy_msg(id_dep, type_dep, &pre_code.to_hex(), &encrypted_args.to_hex(),
-                                 &encrypted_fn.to_hex(), &user_pubkey.to_hex(), gas_limit, &address.to_hex());
+                                 &encrypted_callable.to_hex(), &user_pubkey.to_hex(), gas_limit, &address.to_hex());
         let v: Value = conn_and_call_ipc(&msg.to_string(), port);
 
-        (v, address)
+        (v, address.into())
     }
 
     #[test]
@@ -253,7 +259,7 @@ pub mod tests {
         run_core(port);
         let id_dep = "5784";
 
-        let (res, _): (Value, _) = full_deployment_process(port, id_dep);
+        let (res, _): (Value, _) = full_simple_deployment(port, id_dep);
 
         let accepted_id = res["id"].as_str().unwrap();
         let accepted_used_gas: u64 = serde_json::from_value(res["result"]["usedGas"].clone()).unwrap();
@@ -266,51 +272,75 @@ pub mod tests {
 
     fn set_compute_msg(id: &str, type_cmp: &str, task_id: &str, callable: &str, args: &str, user_pubkey: &str, gas_limit: u64, con_addr: &str) -> Value {
         json!({"id": id, "type": type_cmp, "input": { "taskID": task_id, "encryptedArgs": args,
-        "encryptedFn": callable, "userPubKey": user_pubkey, "gasLimit": gas_limit, "contractAddress": con_addr}})
+        "encryptedFn": callable, "userDHKey": user_pubkey, "gasLimit": gas_limit, "contractAddress": con_addr}})
     }
 
-    #[test]
-    #[ignore]
-    fn test_compute_task() {
-        let port =  "5560";
-        run_core(port);
-
+    fn full_addition_compute(port: &'static str, id: &str, a: u64, b: u64) -> (Value, [u8; 32]) {
         let id_dep = "78436";
-        let (_, contract_address): (_, [u8; 32]) = full_deployment_process(port, id_dep);
+        let (_, contract_address): (_, [u8; 32]) = full_simple_deployment(port, id_dep);
         // WUKE- get the arguments encryption key
         let (shared_key, user_pubkey) = produce_shared_key(port);
 
-        let id_cmp = "9800";
         let type_cmp = "ComputeTask";
         let task_id = generate_address().to_hex();
         let fn_cmp = "addition(uint,uint)";
-        let args_cmp = [Token::Uint(19.into()), Token::Uint(22.into())];
-        let (encrypted_fn, encrypted_args) = serial_and_encrypt_input(&shared_key, fn_cmp, &args_cmp, None);
+        let args_cmp = [Token::Uint(a.into()), Token::Uint(b.into())];
+        let encrypted_callable = symmetric::encrypt(fn_cmp.as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&args_cmp), &shared_key).unwrap();
         let gas_limit = 100_000_000;
-        println!("\n\n\ncontract_addr: {:?}", contract_address.to_hex());
-        let msg = set_compute_msg(id_cmp, type_cmp, &task_id, &encrypted_fn.to_hex(), &encrypted_args.to_hex(),
+
+        let msg = set_compute_msg(id, type_cmp, &task_id, &encrypted_callable.to_hex(), &encrypted_args.to_hex(),
                                   &user_pubkey.to_hex(), gas_limit, &contract_address.to_hex());
-        let res: Value = conn_and_call_ipc(&msg.to_string(), port);
-//        println!("\n\nres: {:?}" ,res);
+        (conn_and_call_ipc(&msg.to_string(), port), contract_address)
+    }
+
+    #[test]
+    fn test_compute_task() {
+        let port =  "5560";
+        let id_cmp = "9801";
+        run_core(port);
+        let (a, b) : (u64, u64) = (24, 67);
+        let (res, _): (Value, _) = full_addition_compute(port, id_cmp, a, b);
+
+        let output: String = serde_json::from_value(res["result"]["output"].clone()).unwrap();
+        let id_accepted = res["id"].as_str().unwrap();
+        let type_accepted = res["type"].as_str().unwrap();
+        let accepted_sum: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &output.from_hex().unwrap()).unwrap().pop().unwrap();
+
+        assert_eq!(accepted_sum.to_uint().unwrap().as_u64(), a+b);
+        assert_eq!(id_cmp, id_accepted);
+        assert_eq!("ComputeTask", type_accepted);
     }
 
     fn set_get_tip_msg(id: &str, type_tip: &str, input: &str) -> Value {
         json!({"id": id, "type": type_tip, "input": input})
     }
 
+    fn get_decrypted_delta(addr: [u8; 32], delta: &str) -> Vec<u8> {
+        let state_key = get_fake_state_key(&addr);
+        let delta_bytes: Vec<u8> = delta.from_hex().unwrap();
+        symmetric::decrypt(&delta_bytes, &state_key).unwrap()
+    }
+
     #[test]
-    #[ignore]
     fn test_get_tip() {
         let port =  "5561";
         run_core(port);
 
-        let id_dep = "49086";
-        let (_, contract_address): (_, [u8; 32]) = full_deployment_process(port, id_dep);
-
+        let id_cmp = "49086";
+        let (_, contract_address): (_, [u8; 32]) = full_addition_compute(port, id_cmp, 56, 87);
         let id_tip = "98708";
         let type_tip = "GetTip";
         let msg = set_get_tip_msg(id_tip, type_tip, &contract_address.to_hex());
         let res: Value = conn_and_call_ipc(&msg.to_string(), port);
-        println!("\n\nres: {:?}" ,res);
+
+        let id_accepted = res["id"].as_str().unwrap();
+        let type_accepted = res["type"].as_str().unwrap();
+        let delta_str: String = serde_json::from_value(res["result"]["delta"].clone()).unwrap();
+        let key: u64 = serde_json::from_value(res["result"]["key"].clone()).unwrap();
+
+        assert_eq!(id_accepted, id_tip);
+        assert_eq!(type_accepted, type_tip);
+        assert_eq!(key, 1);
     }
 }

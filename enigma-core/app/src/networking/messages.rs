@@ -47,7 +47,7 @@ pub enum IpcResponse {
 #[serde(rename_all = "camelCase", rename = "result")]
 pub enum IpcResults {
     Errors(Vec<IpcStatusResult>),
-    println!("\n\nres: {:?}" ,res);
+    #[serde(rename = "result")]
     Request { request: String, #[serde(rename = "workerSig")] sig: String },
     Addresses(Vec<String>),
     Delta(String),
