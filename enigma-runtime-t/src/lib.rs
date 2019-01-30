@@ -30,13 +30,18 @@ pub mod data;
 pub mod eng_resolver;
 pub mod ocalls_t;
 
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct EthereumData{
+    pub ethereum_payload: Vec<u8>,
+    pub ethereum_contract_addr: [u8; 20],
+}
+
 #[derive(Debug, Clone)]
 pub struct RuntimeResult {
     pub state_delta: Option<StatePatch>,
-    pub updated_state: Option<ContractState>,
+    pub updated_state: ContractState,
     pub result: Vec<u8>,
-    pub ethereum_payload: Vec<u8>,
-    pub ethereum_contract_addr: [u8; 20],
+    pub ethereum_bridge: Option<EthereumData>,
     pub used_gas: u64,
 }
 
@@ -49,8 +54,8 @@ pub struct Runtime {
     args_types: String,
     args: Vec<u8>,
     result: RuntimeResult,
-    init_state: ContractState,
-    current_state: ContractState,
+    pre_execution_state: ContractState,
+    post_execution_state: ContractState,
 }
 
 #[derive(Debug)]
@@ -96,13 +101,12 @@ impl Runtime {
         let result = RuntimeResult {
             result: Vec::new(),
             state_delta: None,
-            updated_state: None,
-            ethereum_payload: Vec::new(),
-            ethereum_contract_addr: [0u8; 20],
+            updated_state: Default::default(),
+            ethereum_bridge: Default::default(),
             used_gas: 0,
         };
 
-        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, init_state, current_state }
+        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, pre_execution_state: init_state, post_execution_state: current_state }
     }
 
     pub fn new_with_state(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, state: ContractState,
@@ -112,13 +116,12 @@ impl Runtime {
         let result = RuntimeResult {
             result: Vec::new(),
             state_delta: None,
-            updated_state: None,
-            ethereum_payload: Vec::new(),
-            ethereum_contract_addr: [0u8; 20],
+            updated_state: Default::default(),
+            ethereum_bridge: Default::default(),
             used_gas: 0,
         };
 
-        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, init_state, current_state }
+        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, pre_execution_state: init_state, post_execution_state: current_state }
     }
 
     fn fetch_args_length(&mut self) -> RuntimeValue { RuntimeValue::I32(self.args.len() as i32) }
@@ -204,7 +207,7 @@ impl Runtime {
         }
         let key1 = str::from_utf8(&buf)?;
         let value_vec =
-            serde_json::to_vec(&self.current_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
+            serde_json::to_vec(&self.post_execution_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
         self.memory.set(0, &value_vec).unwrap(); // TODO: Impl From so we could use `?`
         Ok( value_vec.len() as i32 )
     }
@@ -245,43 +248,34 @@ impl Runtime {
         let key1 = str::from_utf8(&buf)?;
         let value: serde_json::Value =
             serde_json::from_slice(&val).expect("Failed converting into Value while writing state in Runtime");
-        self.current_state.write_key(key1, &value).unwrap();
+        self.post_execution_state.write_key(key1, &value).unwrap();
         Ok(())
     }
 
     /// args:
     /// * `payload` - the start address of key in memory
     /// * `payload_len` - the length of the key
-    ///
-    /// Read `payload` from memory, and write it to result
-    pub fn write_payload(&mut self, args: RuntimeArgs) -> Result<()> {
-        let payload = args.nth_checked(0)?;
-        let payload_len: u32 = args.nth_checked(1)?;
-
-        self.result.ethereum_payload = Vec::with_capacity(payload_len as usize);
-        for _ in 0..payload_len {
-            self.result.ethereum_payload.push(0);
-        }
-
-        match self.memory.get_into(payload, &mut self.result.ethereum_payload[..]) {
-            Ok(v) => v,
-            Err(e) => return Err(WasmError::Memory(format!("{}", e))),
-        }
-
-        Ok(())
-    }
-
-    /// args:
     /// * `address` - the start address of key in memory
     ///
-    /// Read `address` from memory, and write it to result
-    pub fn write_address(&mut self, args: RuntimeArgs) -> Result<()> {
-        let address = args.nth_checked(0)?;
+    /// Read `payload` and `address` from memory, and write it to result
+    pub fn write_eth_bridge(&mut self, args: RuntimeArgs) -> Result<()> {
+        let payload = args.nth_checked(0)?;
+        let payload_len: u32 = args.nth_checked(1)?;
+        let address = args.nth_checked(2)?;
 
-        match self.memory.get_into(address, &mut self.result.ethereum_contract_addr[..]) {
+        let mut bridge = EthereumData{ethereum_payload: vec![0u8; payload_len as usize], ethereum_contract_addr: Default::default()};
+
+        match self.memory.get_into(payload, &mut bridge.ethereum_payload[..]) {
             Ok(v) => v,
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
         }
+
+        match self.memory.get_into(address, &mut bridge.ethereum_contract_addr[..]) {
+            Ok(v) => v,
+            Err(e) => return Err(WasmError::Memory(format!("{}", e))),
+        }
+
+        self.result.ethereum_bridge = Some(bridge);
 
         Ok(())
     }
@@ -324,12 +318,20 @@ impl Runtime {
 
     /// Destroy the runtime, returning currently recorded result of the execution
     pub fn into_result(mut self) -> Result<RuntimeResult> {
-        self.result.state_delta = match ContractState::generate_delta(&self.init_state, &self.current_state) {
-            Ok(v) => Some(v),
-            Err(e) => return Err(WasmError::Delta(format!("{}", e))),
+        self.result.state_delta = {
+            // The delta is always generated after a deployment.
+            // The delta is generated after an execution only if there is a state change.
+            if (&self.pre_execution_state != &self.post_execution_state) || (self.pre_execution_state.is_initial()){
+                match ContractState::generate_delta(&self.pre_execution_state, &mut self.post_execution_state) {
+                    Ok(v) => Some(v),
+                    Err(e) => return Err(WasmError::Delta(format!("{}", e))),
+                }
+            } else{
+                None
+            }
         };
         self.result.used_gas = self.gas_counter;
-        self.result.updated_state = Some(self.current_state);
+        self.result.updated_state = self.post_execution_state;
         Ok(self.result.clone())
     }
 
@@ -417,13 +419,8 @@ mod ext_impl {
                     Ok(None)
                 }
 
-                eng_resolver::ids::WRITE_PAYLOAD_FUNC => {
-                    Runtime::write_payload(self, args)?;
-                    Ok(None)
-                }
-
-                eng_resolver::ids::WRITE_ADDRESS_FUNC => {
-                    Runtime::write_address(self, args)?;
+                eng_resolver::ids::WRITE_ETH_BRIDGE_FUNC => {
+                    Runtime::write_eth_bridge(self, args)?;
                     Ok(None)
                 }
 

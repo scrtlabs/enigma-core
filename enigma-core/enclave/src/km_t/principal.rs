@@ -216,7 +216,7 @@ pub mod tests {
             for i in 0..15 {
                 let old_state = state.clone();
                 state.write_key(&i.to_string(), &json!(i)).unwrap();
-                let delta = ContractState::generate_delta(&old_state, &state).unwrap();
+                let delta = ContractState::generate_delta(&old_state, &mut state).unwrap();
                 patches.push(delta);
             }
             result.push((original_state, patches));
