@@ -41,7 +41,7 @@ pub struct RuntimeResult {
     pub state_delta: Option<StatePatch>,
     pub updated_state: ContractState,
     pub result: Vec<u8>,
-    pub ethereum_bridge: EthereumData,
+    pub ethereum_bridge: Option<EthereumData>,
     pub used_gas: u64,
 }
 
@@ -90,22 +90,6 @@ impl From<WasmError> for EnclaveError {
 }
 impl From<str::Utf8Error> for WasmError {
     fn from(err: str::Utf8Error) -> Self { WasmError::Other }
-}
-
-impl EthereumData {
-    fn is_empty(&self) -> bool {
-        self == &Default::default()
-    }
-
-    pub fn self_push<'a> (&'a self, slice: &[&'a [u8]]) -> Vec<&[u8]>{
-        let mut result = slice.to_vec();
-        if self.is_empty(){
-            result.push(&self.ethereum_payload);
-            result.push(&self.ethereum_contract_addr);
-            return result
-        }
-        slice.to_vec()
-    }
 }
 
 impl Runtime {
@@ -271,33 +255,27 @@ impl Runtime {
     /// args:
     /// * `payload` - the start address of key in memory
     /// * `payload_len` - the length of the key
-    ///
-    /// Read `payload` from memory, and write it to result
-    pub fn write_payload(&mut self, args: RuntimeArgs) -> Result<()> {
-        let payload = args.nth_checked(0)?;
-        let payload_len: u32 = args.nth_checked(1)?;
-
-        self.result.ethereum_bridge.ethereum_payload = vec![0u8; payload_len as usize];
-
-        match self.memory.get_into(payload, &mut self.result.ethereum_bridge.ethereum_payload[..]) {
-            Ok(v) => v,
-            Err(e) => return Err(WasmError::Memory(format!("{}", e))),
-        }
-
-        Ok(())
-    }
-
-    /// args:
     /// * `address` - the start address of key in memory
     ///
-    /// Read `address` from memory, and write it to result
-    pub fn write_address(&mut self, args: RuntimeArgs) -> Result<()> {
-        let address = args.nth_checked(0)?;
+    /// Read `payload` and `address` from memory, and write it to result
+    pub fn write_eth_bridge(&mut self, args: RuntimeArgs) -> Result<()> {
+        let payload = args.nth_checked(0)?;
+        let payload_len: u32 = args.nth_checked(1)?;
+        let address = args.nth_checked(2)?;
 
-        match self.memory.get_into(address, &mut self.result.ethereum_bridge.ethereum_contract_addr[..]) {
+        let mut bridge = EthereumData{ethereum_payload: vec![0u8; payload_len as usize], ethereum_contract_addr: Default::default()};
+
+        match self.memory.get_into(payload, &mut bridge.ethereum_payload[..]) {
             Ok(v) => v,
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
         }
+
+        match self.memory.get_into(address, &mut bridge.ethereum_contract_addr[..]) {
+            Ok(v) => v,
+            Err(e) => return Err(WasmError::Memory(format!("{}", e))),
+        }
+
+        self.result.ethereum_bridge = Some(bridge);
 
         Ok(())
     }
@@ -441,13 +419,8 @@ mod ext_impl {
                     Ok(None)
                 }
 
-                eng_resolver::ids::WRITE_PAYLOAD_FUNC => {
-                    Runtime::write_payload(self, args)?;
-                    Ok(None)
-                }
-
-                eng_resolver::ids::WRITE_ADDRESS_FUNC => {
-                    Runtime::write_address(self, args)?;
+                eng_resolver::ids::WRITE_ETH_BRIDGE_FUNC => {
+                    Runtime::write_eth_bridge(self, args)?;
                     Ok(None)
                 }
 

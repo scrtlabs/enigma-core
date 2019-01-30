@@ -269,6 +269,15 @@ fn encrypt_and_save_state(state: &ContractState) -> Result<(), EnclaveError>{
     Ok(())
 }
 
+fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
+    if let Some(bridge) = input {
+        (bridge.ethereum_payload, bridge.ethereum_contract_addr)
+    }
+    else{
+        (vec![], [0u8;20])
+    }
+}
+
 unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
                                  args: &[u8], user_key: &PubKey,
                                  address: ContractAddress, gas_limit: u64,
@@ -283,7 +292,7 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
 
     prepare_wasm_result(delta.clone(),
                         &exec_res.result[..],
-                        &exec_res.ethereum_bridge,
+                        exec_res.ethereum_bridge.clone(),
                         exec_res.used_gas,
                         result)?;
 
@@ -294,12 +303,12 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
         encrypt_and_save_state(&exec_res.updated_state)?;
     }
 
+    let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
     // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, optionalEthereumData)
     let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[callable, args, &*address, user_key]).keccak256();
     let (exe_code_hash, output_hash) = (bytecode.keccak256(), exec_res.result.keccak256());
-    let pre_sign = &[&*exe_code_hash, &*inputs_hash, &*prev_delta_hash, &*delta_hash, &*output_hash[..]];
-    let to_sign = &exec_res.ethereum_bridge.self_push(&pre_sign[..]);
-    result.signature = SIGNINING_KEY.sign_multiple(&to_sign)?;
+    let to_sign = &[&*exe_code_hash, &*inputs_hash, &*delta_hash, &*prev_delta_hash, &*output_hash, &ethereum_payload[..], &ethereum_address[..]];
+    result.signature = SIGNINING_KEY.sign_multiple(to_sign)?;
     Ok(())
 }
 
@@ -340,7 +349,6 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
     }
 }
 
-
 unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8],
                                 address: &ContractAddress, user_key: &PubKey,
                                 gas_limit: u64, result: &mut ExecuteResult) -> Result<(), EnclaveError> {
@@ -359,7 +367,7 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
 
     prepare_wasm_result(delta.clone(),
                         exe_code,
-                        &exec_res.ethereum_bridge,
+                        exec_res.ethereum_bridge.clone(),
                         exec_res.used_gas,
                         result)?;
 
@@ -372,19 +380,17 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
     let (pre_code_hash,  exe_code_hash) = (bytecode.keccak256(), exe_code.keccak256());
     let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[constructor, args, &pre_code_hash[..], user_key][..]).keccak256();
     let used_gas = result.used_gas.to_ne_bytes();
-    let pre_sign = &[&*inputs_hash, &*exe_code_hash, &*delta_hash, &used_gas[..]][..];
-    let to_sign = &exec_res.ethereum_bridge.self_push(&pre_sign[..]);
+    let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
+    let to_sign = &[&*inputs_hash, &*exe_code_hash, &*delta_hash, &used_gas[..], &ethereum_payload[..], &ethereum_address[..]][..];
     result.signature = SIGNINING_KEY.sign_multiple(&to_sign)?;
     Ok(())
 }
 
 unsafe fn prepare_wasm_result(delta_option: Option<EncryptedPatch>, execute_result: &[u8],
-                              ethereum_bridge: &EthereumData, used_gas: u64,
+                              ethereum_bridge: Option<EthereumData>, used_gas: u64,
                               result: &mut ExecuteResult ) -> Result<(), EnclaveError>
 {
     result.output = ocalls_t::save_to_untrusted_memory(&execute_result)? as *const u8;
-    result.ethereum_payload_ptr = ocalls_t::save_to_untrusted_memory(&ethereum_bridge.ethereum_payload)? as *const u8;
-    result.ethereum_address.clone_from_slice(&ethereum_bridge.ethereum_contract_addr);
     result.used_gas = used_gas;
     match delta_option {
         Some(enc_delta) => {
@@ -396,6 +402,18 @@ unsafe fn prepare_wasm_result(delta_option: Option<EncryptedPatch>, execute_resu
             result.delta_ptr = ocalls_t::save_to_untrusted_memory(&[])? as *const u8;
             result.delta_hash = Default::default();
             result.delta_index = 0;
+        }
+    }
+
+    match ethereum_bridge{
+        Some(ethereum_bridge) => {
+            result.ethereum_payload_ptr = ocalls_t::save_to_untrusted_memory(&ethereum_bridge.ethereum_payload)? as *const u8;
+            result.ethereum_address.clone_from_slice(&ethereum_bridge.ethereum_contract_addr);
+
+        }
+        None => {
+            result.ethereum_payload_ptr = ocalls_t::save_to_untrusted_memory(&[])? as *const u8;
+            result.ethereum_address = [0u8;20];
         }
     }
     Ok(())
