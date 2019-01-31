@@ -6,6 +6,21 @@ pub type StateKey = [u8; 32];
 pub type ContractAddress = Hash256;
 pub type PubKey = [u8; 64];
 
+#[derive(Debug)]
+pub enum ResultStatus {
+    Success,
+    Failure,
+}
+
+impl From<ResultStatus> for u8 {
+    fn from(i: ResultStatus) -> Self {
+        match i{
+            ResultStatus::Success => 1u8,
+            ResultStatus::Failure => 0u8,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnclaveReturn {

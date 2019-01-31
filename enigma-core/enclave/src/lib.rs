@@ -62,7 +62,7 @@ use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError};
 use enigma_tools_t::common::{errors_t::EnclaveError, LockExpectMutex, EthereumAddress};
 use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
-use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey};
+use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus};
 use wasm_utils::{build, SourceTarget};
 
 use sgx_types::*;
@@ -284,7 +284,8 @@ fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
 
 fn sign_if_error (internal_result: &mut Result<(), EnclaveError>, result: &mut ExecuteResult) {
     if let &mut Err(_) = internal_result{
-        let signature = SIGNINING_KEY.sign_multiple(&[&*result.inputs_hash, &*result.exe_code_hash, &[0]]);
+        // Signing: S(inputsHash, exeCodeHash, Failure)
+        let signature = SIGNINING_KEY.sign_multiple(&[&*result.inputs_hash, &*result.exe_code_hash, &[ResultStatus::Failure.into()]]);
         match signature {
             Ok(v) => {
                 result.signature = v;
@@ -401,11 +402,10 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
 //    let exe_code = &exec_res.result[..];
 //    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
 
-    // Signing: S(inputsHash, exeCodeHash, delta0Hash, usedGas)
+    // Signing: S(inputsHash, exeCodeHash, delta0Hash, usedGas, Success)
     let used_gas = result.used_gas.to_ne_bytes();
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
-    let to_sign = &[&*result.inputs_hash, &*result.exe_code_hash, &*delta_hash, &used_gas[..], &ethereum_payload[..], &ethereum_address[..], &[1]][..];
-    result.signature = SIGNINING_KEY.sign_multiple(&to_sign)?;
+    result.signature = SIGNINING_KEY.sign_multiple(&[&*result.inputs_hash, &*result.exe_code_hash, &*delta_hash, &used_gas[..], &ethereum_payload[..], &ethereum_address[..], &[ResultStatus::Success.into()]][..])?;
     Ok(())
 }
 
