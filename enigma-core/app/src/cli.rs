@@ -2,9 +2,9 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "example", about = "Enigma Core CLI commands.")]
+#[structopt(name = "Enigma Core", about = "Enigma Core CLI commands.")]
 pub(crate) struct Opt {
-    /// Activate debug mode
+    /// Increase verbosity of messages (up to 5 -vvvvv)
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     pub verbose: u8,
     /// Print the debugging directly to stdout
