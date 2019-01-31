@@ -13,7 +13,7 @@ pub trait IOInterface<E, U> {
 
 pub trait DeltasInterface<E, T> {
     fn apply_delta(&mut self, delta: &T) -> Result<(), E>;
-    fn generate_delta(old: &Self, new: &Self) -> Result<T, E> where Self: Sized;
+    fn generate_delta(old: &Self, new: &mut Self) -> Result<T, E> where Self: Sized;
 }
 
 pub mod tests {
@@ -171,13 +171,13 @@ pub mod tests {
             json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] }),
             .. Default::default()
         };
-        let after = ContractState {
+        let mut after = ContractState {
             contract_id: id,
             json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] }),
             .. Default::default()
         };
 
-        let delta = ContractState::generate_delta(&before, &after).unwrap();
+        let delta = ContractState::generate_delta(&before, &mut after).unwrap();
         assert_eq!(delta, result);
     }
 }
