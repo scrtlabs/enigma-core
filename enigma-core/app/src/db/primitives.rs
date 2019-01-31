@@ -37,8 +37,8 @@ impl Stype {
     }
 }
 
-
-pub trait SplitKey {
+use std::fmt::Debug;
+pub trait SplitKey: Debug { // The Debug is added for Debugging :), So if it ever brings up problems it can be removed.
     // as_split should get self and divide it up into two components
     // as a tuple (&str, &[u8]) and send it into a function,
     // something in this order: F(&str, &[u8]).

@@ -14,6 +14,7 @@ impl IpcListener {
     pub fn new(conn_str: &str) -> Self {
         let _context = Arc::new(zmq::Context::new());
         let rep_future = Rep::builder(_context.clone()).bind(conn_str).build();
+        trace!("Binded to socket: {}", conn_str);
         IpcListener { _context, rep_future }
     }
 
@@ -79,6 +80,7 @@ pub(self) mod handling {
 
     type ResponseResult = Result<IpcResponse, Error>;
 
+    #[logfn(INFO)]
     pub fn get_registration_params(eid: sgx_enclave_id_t, spid: &str) -> ResponseResult {
         let sigining_key = equote::get_register_signing_address(eid)?;
 
@@ -101,16 +103,16 @@ pub(self) mod handling {
         unimplemented!("identity_challenge: {}", nonce)
     }
 
+    #[logfn(INFO)]
     pub fn get_tip(input: &str) -> ResponseResult {
         let address = ContractAddress::from_hex(&input)?;
         let (tip_key, tip_data) = DATABASE.lock_expect("P2P, GetTip").get_tip::<DeltaKey>(&address)?;
-
         let key = tip_key.key_type.unwrap_delta();
         let delta = IpcDelta { address: None, key, delta: Some(tip_data.to_hex()) };
         Ok(IpcResponse::GetTip { result: delta })
-
     }
 
+    #[logfn(INFO)]
     pub fn get_tips(input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
         for data in input {
@@ -122,6 +124,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetTips { result: IpcResults::Tips(tips_results) })
     }
 
+    #[logfn(INFO)]
     pub fn get_all_tips() -> ResponseResult {
         let tips = DATABASE.lock_expect("P2P GetAllTips").get_all_tips::<DeltaKey>().unwrap_or_default();
         let mut tips_results = Vec::with_capacity(tips.len());
@@ -132,12 +135,14 @@ pub(self) mod handling {
         Ok(IpcResponse::GetAllTips { result: IpcResults::Tips(tips_results) })
     }
 
+    #[logfn(INFO)]
     pub fn get_all_addrs() -> ResponseResult {
         let addresses: Vec<String> =
             DATABASE.lock_expect("P2P GetAllAddrs").get_all_addresses().unwrap_or_default().iter().map(|addr| addr.to_hex()).collect();
         Ok(IpcResponse::GetAllAddrs { result: IpcResults::Addresses(addresses) })
     }
 
+    #[logfn(INFO)]
     pub fn get_delta(input: IpcDelta) -> ResponseResult {
         let address = input.address.ok_or(P2PErr { cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?;
         let address = ContractAddress::from_hex(&address)?;
@@ -146,6 +151,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetDelta { result: IpcResults::Delta(delta.to_hex()) })
     }
 
+    #[logfn(INFO)]
     pub fn get_deltas(input: &[IpcGetDeltas]) -> ResponseResult {
         let mut results = Vec::with_capacity(input.len());
         for data in input {
@@ -167,12 +173,14 @@ pub(self) mod handling {
         Ok(IpcResponse::GetDeltas { result: IpcResults::Deltas(results) })
     }
 
+    #[logfn(INFO)]
     pub fn get_contract(input: &str) -> ResponseResult {
         let address = ContractAddress::from_hex(&input)?;
         let data = DATABASE.lock_expect("P2P GetContract").get_contract(address).unwrap_or_default();
         Ok(IpcResponse::GetContract { result: IpcResults::Bytecode(data.to_hex()) })
     }
 
+    #[logfn(INFO)]
     pub fn update_new_contract(address: String, bytecode: &str) -> ResponseResult {
         let address_arr = ContractAddress::from_hex(&address)?;
         let bytecode = bytecode.from_hex()?;
@@ -181,6 +189,7 @@ pub(self) mod handling {
         Ok(IpcResponse::UpdateNewContract { address, result: IpcResults::Status(0) })
     }
 
+    #[logfn(INFO)]
     pub fn update_deltas(deltas: Vec<IpcDelta>) -> ResponseResult {
         let mut tuples = Vec::with_capacity(deltas.len());
 
@@ -209,6 +218,7 @@ pub(self) mod handling {
         Ok(IpcResponse::UpdateDeltas {result})
     }
 
+    #[logfn(INFO)]
     pub fn get_dh_user_key(_user_pubkey: &str, eid: sgx_enclave_id_t) -> ResponseResult {
         let mut user_pubkey = [0u8; 64];
         user_pubkey.clone_from_slice(&_user_pubkey.from_hex().unwrap());
@@ -224,6 +234,7 @@ pub(self) mod handling {
         Ok(IpcResponse::NewTaskEncryptionKey {result})
     }
 
+    #[logfn(INFO)]
     pub fn get_ptt_req(addresses: &[String], eid: sgx_enclave_id_t) -> ResponseResult {
         let mut addresses_arr: Vec<ContractAddress> = Vec::with_capacity(addresses.len());
         for a in addresses {
@@ -235,6 +246,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetPTTRequest {result})
     }
 
+    #[logfn(INFO)]
     pub fn ptt_response(response: &str, eid: sgx_enclave_id_t) -> ResponseResult {
         let msg = response.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
@@ -248,6 +260,7 @@ pub(self) mod handling {
         Ok(IpcResponse::PTTResponse {result})
     }
 
+    #[logfn(INFO)]
     pub fn deploy_contract(input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let bytecode = input.pre_code.expect("Bytecode Missing").from_hex()?;
         let contract_address = ContractAddress::from_hex(&input.address)?;
@@ -279,6 +292,7 @@ pub(self) mod handling {
 
     }
 
+    #[logfn(INFO)]
     pub fn compute_task(input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let enc_args = input.encrypted_args.from_hex()?;
         let address = ContractAddress::from_hex(&input.address)?;

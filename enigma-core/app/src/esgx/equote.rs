@@ -18,6 +18,7 @@ pub struct GetRegisterResult {
 }
 
 // wrapper function for getting the enclave public sign key (the one attached with produce_quote())
+#[logfn(DEBUG)]
 pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<String, Error> {
     let mut address: [u8; 42] = [0; 42];
     let status = unsafe { ecall_get_signing_address(eid, &mut address) };

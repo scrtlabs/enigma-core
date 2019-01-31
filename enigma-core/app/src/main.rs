@@ -31,6 +31,8 @@ extern crate serde;
 extern crate tempdir;
 #[macro_use]
 extern crate log;
+#[macro_use]
+extern crate log_derive;
 extern crate structopt;
 
 mod common_u;
@@ -53,7 +55,7 @@ use structopt::StructOpt;
 
 fn main() {
     let opt = Opt::from_args();
-    println!("{:?}", opt);
+    info!("CLI params: {:?}", opt);
     let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());
