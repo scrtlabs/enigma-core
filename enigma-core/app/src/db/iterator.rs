@@ -1,6 +1,6 @@
-use crate::common_u::errors::{DBErr, DBErrKind};
-use crate::db::dal::{CRUDInterface, DB};
-use crate::db::primitives::{DeltaKey, SplitKey, Stype};
+use common_u::errors::{DBErr, DBErrKind};
+use db::dal::{CRUDInterface, DB};
+use db::primitives::{DeltaKey, SplitKey, Stype};
 use enigma_types::ContractAddress;
 use failure::Error;
 use hex::{FromHex, ToHex};
@@ -37,74 +37,76 @@ impl<T> ResultType<T> {
 
 pub trait P2PCalls<V> {
     /// returns the latest delta for the required address.
-    /// # Examples
-    /// ```
-    /// let contract_address: [u8; 32] = [2u8; 32];
-    /// let latest_delta_key, latest_delta_value = db.get_tip(&contract_address).unwrap();
-    ///
-    ///
-    /// let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(42) };
-    /// let latest_delta_key, latest_delta_value = db.get_tip(&dk.hash).unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    /  # use db::*;
+//    /
+//    / let contract_address: [u8; 32] = [2u8; 32];
+//    / let latest_delta_key, latest_delta_value = db.get_tip(&contract_address).unwrap();
+//    /
+//    /
+//    / let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(42) };
+//    / let latest_delta_key, latest_delta_value = db.get_tip(&dk.hash).unwrap();
+//    / ```
     fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, V), Error>;
 
     /// return the latest delta for each of the required addresses.
-    /// # Examples
-    /// ```
-    /// let addresses: [[u8; 32]] = [[1u8; 32], [2u8; 32], [4u8; 32], [8u8; 32]];
-    /// let deltas_vec = db.get_tips(&addresses).unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / let addresses: [[u8; 32]] = [[1u8; 32], [2u8; 32], [4u8; 32], [8u8; 32]];
+//    / let deltas_vec = db.get_tips(&addresses).unwrap();
+//    / ```
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> ResultVec<(K, V)>;
 
     /// get a list of all valid addresses in the DB.
-    /// # Examples
-    /// ```
-    /// let addresses_vec: Vec<[u8; 32]> = db.get_all_addresses().unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / let addresses_vec: Vec<[u8; 32]> = db.get_all_addresses().unwrap();
+//    / ```
     fn get_all_addresses(&self) -> ResultVec<ContractAddress>;
 
     /// get the delta of the required address and key.
-    /// # Examples
-    /// ```
-    /// let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(42) };
-    /// let delta_val = db.get_delta(&dk).unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(42) };
+//    / let delta_val = db.get_delta(&dk).unwrap();
+//    / ```
     fn get_delta<K: SplitKey>(&self, key: K) -> ResultVec<u8>;
 
     /// get the contract of the required address.
-    /// # Examples
-    /// ```
-    /// let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::ByteCode };
-    /// let contract = "code".to_bytes();
-    /// db.create(&dk, &contract);
-    ///
-    ///
-    /// let contract_from_db = db.get_contract(&dk.hash).unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / let dk = DeltaKey{ hash: [2u8; 32], key_type: Stype::ByteCode };
+//    / let contract = "code".to_bytes();
+//    / db.create(&dk, &contract);
+//    /
+//    /
+//    / let contract_from_db = db.get_contract(&dk.hash).unwrap();
+//    / ```
     fn get_contract(&self, address: ContractAddress) -> ResultVec<u8>;
 
     /// returns a list of the latest deltas for all addresses that exist in the DB.
-    /// # Examples
-    /// ```
-    /// let deltas_vec = db.get_all_tips().unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / let deltas_vec = db.get_all_tips().unwrap();
+//    / ```
     fn get_all_tips<K: SplitKey>(&self) -> ResultVec<(K, V)>;
 
     /// returns a list of all keys in the ranges specified with their corresponding deltas.
     /// the result will contain all of the deltas in each tuple range from the
     /// first key until (not included) the last key.
-    /// # Examples
-    /// ```
-    /// let from_a = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(12) };
-    /// let to_a = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(47) };
-    ///
-    /// let from_b = DeltaKey{ hash: [6u8; 32], key_type: Stype::Delta(56) };
-    /// let to_b = DeltaKey{ hash: [6u8; 32], key_type: Stype::Delta(94) };
-    ///
-    /// let delta_keys: Vec<(DeltaKey,DeltaKey)> = vec![(from_a,to_a), (from_b, to_b)];
-    ///
-    /// let deltas_vec: Vec<Result<(DeltaKey, Vec<u8>), Error> = db.get_deltas(&delta_keys).unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / let from_a = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(12) };
+//    / let to_a = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(47) };
+//    /
+//    / let from_b = DeltaKey{ hash: [6u8; 32], key_type: Stype::Delta(56) };
+//    / let to_b = DeltaKey{ hash: [6u8; 32], key_type: Stype::Delta(94) };
+//    /
+//    / let delta_keys: Vec<(DeltaKey,DeltaKey)> = vec![(from_a,to_a), (from_b, to_b)];
+//    /
+//    / let deltas_vec: Vec<Result<(DeltaKey, Vec<u8>), Error> = db.get_deltas(&delta_keys).unwrap();
+//    / ```
     ///
     /// # Errors
     ///
@@ -113,18 +115,18 @@ pub trait P2PCalls<V> {
     fn get_deltas<K: SplitKey>(&self, from: K, to: K) -> ResultTypeVec<(K, V)>;
 
     /// Inserts a list of Key-Values into the DB in one atomic operation
-    /// # Examples
-    /// ```
-    /// let a = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(12) };
-    /// let b = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(47) };
-    /// let data_a = vec![1,2,3,4];
-    /// let data_b = vec![5,6,7,8];
-    ///
-    /// let results = db.insert_tuples(&[(a, &data_a), (b, &data_b)]);
-    /// for res in results {
-    ///     res.unwrap();
-    /// }
-    /// ```
+//    / # Examples
+//    / ```
+//    / let a = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(12) };
+//    / let b = DeltaKey{ hash: [2u8; 32], key_type: Stype::Delta(47) };
+//    / let data_a = vec![1,2,3,4];
+//    / let data_b = vec![5,6,7,8];
+//    /
+//    / let results = db.insert_tuples(&[(a, &data_a), (b, &data_b)]);
+//    / for res in results {
+//    /     res.unwrap();
+//    / }
+//    / ```
     ///
     /// # Errors
     ///
@@ -270,10 +272,10 @@ impl P2PCalls<Vec<u8>> for DB {
 
 #[cfg(test)]
 mod test {
-    use crate::db::dal::{CRUDInterface, DB};
-    use crate::db::iterator::P2PCalls;
+    use db::dal::{CRUDInterface, DB};
+    use db::iterator::P2PCalls;
     use enigma_types::ContractAddress;
-    use crate::db::primitives::{DeltaKey, Stype};
+    use db::primitives::{DeltaKey, Stype};
 
     #[test]
     fn test_get_tip_multi_deltas_success() {

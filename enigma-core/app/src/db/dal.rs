@@ -24,10 +24,10 @@ impl DB {
     /// and as a default, it adds options with a flag which creates the file if missing
     ///
     /// This Supports all the CRUD operations
-    /// # Examples
-    /// ```
-    /// let db = DB::new(PathBuf::from("/test/test.db", false);
-    /// ```
+//    / # Examples
+//    / ```
+//    / let db = DB::new("/test/test.db", false);
+//    / ```
     pub fn new<P: AsRef<Path>>(location: P, create_if_missing: bool) -> Result<DB, Error> {
         // number of bytes to take into consideration when looking for a similar prefix
         // would be helpful when querying the DB using iterators.
@@ -55,40 +55,41 @@ impl DB {
 pub trait CRUDInterface<E, K, T, V> {
     /// Creates a new Key-Value pair
     ///
-    /// # Examples
-    /// ```
-    /// db.create("test", "abc".as_bytes()).unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / db.create("test", "abc".as_bytes()).unwrap();
+//    / ```
     fn create(&mut self, key: K, value: V) -> Result<(), E>;
     // TODO: Decide what to do if key doesn't exist
     /// Reads the Value in a specific Key
     ///
-    /// # Examples
-    /// ```
-    /// let res = db.read("test").unwrap();
-    /// assert_eq!("abc".as_bytes, res);
-    /// ```
+//    / # Examples
+//    / ```
+//    / let res = db.read("test").unwrap();
+//    / assert_eq!("abc".as_bytes, res);
+//    / ```
     fn read(&self, key: K) -> Result<T, E>;
     /// Updates an existing Key with a new value
     ///
-    /// # Examples
-    /// ```
-    /// db.update("test", "abc".as_bytes()).unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / db.update("test", "abc".as_bytes()).unwrap();
+//    / ```
     fn update(&mut self, key: K, value: V) -> Result<(), E>;
     /// Deletes an existing key
     ///
-    /// # Examples
-    /// ```
-    /// db.delete("test").unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / db.delete("test").unwrap();
+//    / ```
     fn delete(&mut self, key: K) -> Result<(), E>;
     /// This is the same as update but it will create the key if it doesn't exist.
     ///
-    /// # Examples
-    /// ```
-    /// db.force_update("test", "abc".as_bytes()).unwrap();
-    /// ```
+//    / # Examples
+//    / ```
+//    / let db = DB::new("/test/test.db", false);
+//    / db.force_update("test", "abc".as_bytes()).unwrap();
+//    / ```
     fn force_update(&mut self, key: K, value: V) -> Result<(), E>;
 }
 
