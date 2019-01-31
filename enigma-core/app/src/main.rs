@@ -34,6 +34,7 @@ extern crate log;
 #[macro_use]
 extern crate log_derive;
 extern crate structopt;
+extern crate simplelog;
 
 mod common_u;
 mod db;
@@ -43,6 +44,7 @@ mod km_u;
 mod networking;
 mod wasm_u;
 mod cli;
+mod logging;
 
 use futures::Future;
 
@@ -54,8 +56,9 @@ use crate::cli::Opt;
 use structopt::StructOpt;
 
 fn main() {
-    let opt = Opt::from_args();
-    info!("CLI params: {:?}", opt);
+    let opt: Opt = Opt::from_args();
+    logging::set_logger(opt.debug_stdout, opt.data_dir.clone(), opt.verbose).expect("Failed initializing the logger");
+    debug!("CLI params: {:?}", opt);
     let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
             println!("[+] Init Enclave Successful {}!", r.geteid());

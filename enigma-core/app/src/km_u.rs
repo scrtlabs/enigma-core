@@ -20,7 +20,7 @@ extern "C" {
 
 /// This function build the states that it received in ptt_req and ptt_res
 /// It returns a Vec of the failed contract addresses
-#[logfn(DEBUG)]
+#[logfn(INFO)]
 pub fn ptt_build_state(eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Error> {
     let mut ret = EnclaveReturn::Success;
     let mut failed_ptr = 0u64;
@@ -72,7 +72,6 @@ pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(
     Ok((*part, sig))
 }
 
-#[logfn(TRACE)]
 pub fn get_user_key(eid: sgx_enclave_id_t, user_pubkey: &PubKey) -> Result<(Box<[u8]>, [u8; 65]), Error> {
     let mut sig = [0u8; 65];
     let mut ret = EnclaveReturn::Success;

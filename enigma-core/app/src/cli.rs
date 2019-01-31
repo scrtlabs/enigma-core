@@ -5,8 +5,8 @@ use structopt::StructOpt;
 #[structopt(name = "example", about = "Enigma Core CLI commands.")]
 pub(crate) struct Opt {
     /// Activate debug mode
-    #[structopt(short = "d", long = "debug")]
-    pub debug: bool,
+    #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
+    pub verbose: u8,
     /// Print the debugging directly to stdout
     #[structopt(long = "debug-stdout")]
     pub debug_stdout: bool,
