@@ -284,8 +284,9 @@ fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
 
 fn sign_if_error (internal_result: &mut Result<(), EnclaveError>, result: &mut ExecuteResult) {
     if let &mut Err(_) = internal_result{
-        // Signing: S(inputsHash, exeCodeHash, Failure)
-        let signature = SIGNINING_KEY.sign_multiple(&[&*result.inputs_hash, &*result.exe_code_hash, &[ResultStatus::Failure.into()]]);
+        // Signing: S(inputsHash, exeCodeHash, usedGas, Failure)
+        let used_gas = result.used_gas.to_ne_bytes();
+        let signature = SIGNINING_KEY.sign_multiple(&[&*result.inputs_hash, &*result.exe_code_hash, &used_gas[..], &[ResultStatus::Failure.into()]]);
         match signature {
             Ok(v) => {
                 result.signature = v;
@@ -328,10 +329,20 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
     }
 
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
-    // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, optionalEthereumData)
+    // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, usedGas, optionalEthereumData, Success)
+    let used_gas = result.used_gas.to_ne_bytes();
     let output_hash = exec_res.result.keccak256();
-    let to_sign = &[&*result.exe_code_hash, &*result.inputs_hash, &*delta_hash, &*prev_delta_hash, &*output_hash, &ethereum_payload[..], &ethereum_address[..]];
-    result.signature = SIGNINING_KEY.sign_multiple(to_sign)?;
+    let to_sign = [
+        &*result.exe_code_hash,
+        &*result.inputs_hash,
+        &*prev_delta_hash,
+        &*delta_hash,
+        &*output_hash,
+        &used_gas[..],
+        &ethereum_payload[..],
+        &ethereum_address[..],
+        &[ResultStatus::Success.into()]];
+    result.signature = SIGNINING_KEY.sign_multiple(&to_sign)?;
     Ok(())
 }
 
@@ -402,10 +413,19 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
 //    let exe_code = &exec_res.result[..];
 //    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
 
-    // Signing: S(inputsHash, exeCodeHash, delta0Hash, usedGas, Success)
+    // Signing: S(inputsHash, exeCodeHash, delta0Hash, usedGas, optionalEthereumData, Success)
     let used_gas = result.used_gas.to_ne_bytes();
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
-    result.signature = SIGNINING_KEY.sign_multiple(&[&*result.inputs_hash, &*result.exe_code_hash, &*delta_hash, &used_gas[..], &ethereum_payload[..], &ethereum_address[..], &[ResultStatus::Success.into()]][..])?;
+    let to_sign = [
+        &*result.inputs_hash,
+        &*result.exe_code_hash,
+        &*delta_hash,
+        &used_gas[..],
+        &ethereum_payload[..],
+        &ethereum_address[..],
+        &[ResultStatus::Success.into()]
+    ];
+    result.signature = SIGNINING_KEY.sign_multiple(&to_sign)?;
     Ok(())
 }
 
