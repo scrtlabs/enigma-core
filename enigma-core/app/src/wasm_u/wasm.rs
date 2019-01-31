@@ -85,7 +85,9 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &
 #[cfg(test)]
 pub mod tests {
     extern crate ethabi;
+    extern crate cross_test_utils;
 
+    use self::cross_test_utils::*;
     use crate::esgx::general::init_enclave_wrapper;
     use crate::km_u::tests::exchange_keys;
     use crate::km_u::tests::instantiate_encryption_key;
@@ -102,29 +104,6 @@ pub mod tests {
     use wasm_u::{WasmResult, wasm::{rustc_hex::ToHex}};
 
     pub const GAS_LIMIT: u64 = 100_000_000;
-    pub fn generate_address() -> ContractAddress {
-        let mut address = ContractAddress::default();
-        rand::random(address.as_mut()).unwrap();
-        address
-    }
-
-    pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
-        let mut dir = PathBuf::new();
-        dir.push(contract_path);
-        let mut output = Command::new("cargo")
-            .current_dir(&dir)
-            .args(&["build", "--release"])
-            .spawn()
-            .expect(&format!("Failed compiling wasm contract: {:?}", &dir));
-
-        assert!(output.wait().unwrap().success());
-        dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
-
-        let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir));
-        let mut wasm_code = Vec::new();
-        f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
-        wasm_code
-    }
 
     fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str, address: ContractAddress, constructor: &[u8], args: &[u8],  user_pubkey: &PubKey) -> WasmResult {
         let wasm_code = get_bytecode_from_path(test_path);
