@@ -5,7 +5,6 @@ use std::fs;
 use std::io::Read;
 use std::path;
 
-#[logfn(DEBUG)]
 pub fn init_enclave(token_path: &path::PathBuf, use_token: bool, enclave_location: &str)
     -> SgxResult<(SgxEnclave, Option<sgx_launch_token_t>)> {
     let path = env::current_dir().unwrap();

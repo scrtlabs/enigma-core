@@ -134,7 +134,7 @@ pub trait P2PCalls<V> {
 }
 
 impl P2PCalls<Vec<u8>> for DB {
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, Vec<u8>), Error> {
         // check and extract the CF from the DB
         // to_hex converts the [u8] to str
@@ -151,7 +151,7 @@ impl P2PCalls<Vec<u8>> for DB {
         Ok((k_key, value))
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> ResultVec<(K, Vec<u8>)> {
         let mut deltas_list = Vec::with_capacity(address_list.len());
         debug!("DB: Get Tips, Address List: {:?}",address_list);
@@ -164,7 +164,7 @@ impl P2PCalls<Vec<u8>> for DB {
 
     /// get_all_addresses will return a list of all addresses that are valid.
     /// meaning if an address was'nt saved according to the hex format the function will ignore it.
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_all_addresses(&self) -> Result<Vec<ContractAddress>, Error> {
         debug!("DB: Get all addresses");
         // get a list of all CF's (addresses) in our DB
@@ -196,19 +196,19 @@ impl P2PCalls<Vec<u8>> for DB {
         Ok(addr_list)
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_delta<K: SplitKey>(&self, key: K) -> ResultVec<u8> {
 
         Ok(self.read(&key)?)
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_contract(&self, address: ContractAddress) -> ResultVec<u8> {
         let key = DeltaKey { contract_id: address, key_type: Stype::ByteCode };
         Ok(self.read(&key)?)
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_all_tips<K: SplitKey>(&self) -> ResultVec<(K, Vec<u8>)> {
         let _address_list: Vec<ContractAddress> = self.get_all_addresses()?;
         self.get_tips(&_address_list[..])
@@ -216,7 +216,7 @@ impl P2PCalls<Vec<u8>> for DB {
 
     // input: addresses_range : [Tuple(K, K)] where K is usually a DeltaKey.
     // output: all keys & values from the first key (included!) up to the second key (not included!!)
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_deltas<K: SplitKey>(&self, from: K, to: K) -> ResultTypeVec<(K, Vec<u8>)> {
         // a vector for the output values which will consist of tuples: (key: K, value/delta: D)
         // convert the key to the rocksdb representation
@@ -264,7 +264,7 @@ impl P2PCalls<Vec<u8>> for DB {
         })
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn insert_tuples<K: SplitKey>(&mut self, key_vals: &[(K, Vec<u8>)]) -> Vec<Result<(), Error>> {
         let mut res = Vec::with_capacity(key_vals.len());
         let mut batch = WriteBatch::default();

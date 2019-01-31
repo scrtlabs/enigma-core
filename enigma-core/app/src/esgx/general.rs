@@ -26,6 +26,7 @@ pub fn storage_dir() -> path::PathBuf {
     home_dir.join(ENCLAVE_DIR)
 }
 
+#[logfn(INFO)]
 pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     // Step 1: try to retrieve the launch token saved by last transaction
     //         if there is no token, then create a new one.

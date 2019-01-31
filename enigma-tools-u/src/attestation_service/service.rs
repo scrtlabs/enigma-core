@@ -90,7 +90,7 @@ pub struct AttestationService {
 impl AttestationService {
     pub fn new(conn_str: &str) -> AttestationService { AttestationService { connection_str: conn_str.to_string() } }
 
-    #[logfn(DEBUG)]
+    #[logfn(INFO)]
     pub fn get_report(&self, quote: &str) -> Result<ASResponse, Error> {
         let request: QuoteRequest = self.build_request(quote);
         let response: ASResponse = self.send_request(&request)?;
@@ -145,7 +145,7 @@ impl AttestationService {
         report_obj
     }
 
-    #[logfn(DEBUG)]
+    #[logfn(INFO)]
     fn unwrap_result(&self, r: &Value) -> ASResult {
         let ca = r["result"]["ca"].as_str().unwrap().to_string();
         let certificate = r["result"]["certificate"].as_str().unwrap().to_string();
@@ -173,7 +173,7 @@ impl ASResponse {
 }
 
 impl ASResult {
-    #[logfn(DEBUG)]
+    #[logfn(INFO)]
     pub fn verify_report(&self) -> Result<bool, Error> {
         let ca = X509::from_pem(&self.ca.as_bytes())?;
         let cert = X509::from_pem(&self.certificate.as_bytes())?;

@@ -94,7 +94,7 @@ pub trait CRUDInterface<E, K, T, V> {
 
 impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn create(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             debug!("DB: Create: cf: {}, key: {:?}, value: {:?}", hash, index_key, value);
@@ -117,7 +117,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         })
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn read(&self, key: &'a K) -> Result<Vec<u8>, Error> {
         key.as_split(|hash, index_key| {
             debug!("DB: Read: cf: {}, key: {:?}", hash, index_key);
@@ -127,7 +127,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         })
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             debug!("Updating DB: cf: {}, key: {:?}, value: {:?}", hash, index_key, value);
@@ -144,7 +144,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         })
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             debug!("DB: Delete: cf: {}, key: {:?}", hash, index_key);
@@ -158,7 +158,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         })
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             debug!("DB: Force Update: cf: {}, key: {:?}, value: {:?}", hash, index_key, value);

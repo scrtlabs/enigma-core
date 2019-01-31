@@ -30,7 +30,6 @@ pub mod common_u;
 pub mod esgx;
 pub mod web3_utils;
 
-use sgx_types::*;
 
 #[cfg(test)]
 mod tests {
