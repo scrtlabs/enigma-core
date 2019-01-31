@@ -114,17 +114,17 @@ pub(self) mod handling {
 
     pub fn get_tips(input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
-        for data in input {
-            let address = ContractAddress::from_hex(&data)?;
-            let (tip_key, tip_data) = DATABASE.lock_expect("P2P, GetTips").get_tip::<DeltaKey>(&address)?;
-            let delta = IpcDelta::from_delta_key(tip_key, tip_data)?;
+        let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data.clone()).unwrap()).collect();
+        let tips = DATABASE.lock_expect("P2P, GetTips").get_tips::<DeltaKey>(&addresses)?;
+        for (key, data) in tips {
+            let delta = IpcDelta::from_delta_key(key, data)?;
             tips_results.push(delta);
         }
         Ok(IpcResponse::GetTips { result: IpcResults::Tips(tips_results) })
     }
 
     pub fn get_all_tips() -> ResponseResult {
-        let tips = DATABASE.lock_expect("P2P GetAllTips").get_all_tips::<DeltaKey>().unwrap_or_default();
+        let tips = DATABASE.lock_expect("P2P, GetAllTips").get_all_tips::<DeltaKey>()?;
         let mut tips_results = Vec::with_capacity(tips.len());
         for (key, data) in tips {
             let delta = IpcDelta::from_delta_key(key, data)?;

@@ -1,49 +1,9 @@
-#![feature(tool_lints)]
-#![warn(clippy::all)]
-#![feature(try_from)]
-
-extern crate base64;
-extern crate dirs;
-extern crate reqwest;
-extern crate rocksdb;
-extern crate sgx_types;
-extern crate sgx_urts;
-#[macro_use]
-extern crate lazy_static;
-extern crate futures;
-extern crate rmp_serde;
-#[cfg_attr(test, macro_use)]
-extern crate serde_json;
-extern crate tokio;
-extern crate tokio_zmq;
-extern crate zmq;
-#[macro_use]
-extern crate failure;
-extern crate enigma_tools_u;
-extern crate enigma_crypto;
-extern crate enigma_types;
-extern crate rustc_hex as hex;
-#[macro_use]
-extern crate serde_derive;
-extern crate byteorder;
-extern crate lru_cache;
-extern crate serde;
-extern crate tempdir;
-#[macro_use]
-extern crate log;
-
-mod common_u;
-mod db;
-mod esgx;
-mod evm_u;
-mod km_u;
-mod networking;
-mod wasm_u;
-mod ipc_test;
+extern crate enigma_core_app;
+pub use enigma_core_app::*;
 
 use futures::Future;
 
-pub use crate::esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
+pub use esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
                                 ocall_new_delta, ocall_save_to_memory, ocall_update_state};
 
 use networking::{constants, ipc_listener, IpcListener};
@@ -65,8 +25,9 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::esgx::general::init_enclave_wrapper;
-    use sgx_types::*;
+
+    use enigma_core_app::esgx::general::init_enclave_wrapper;
+    use enigma_core_app::sgx_types::*;
     extern "C" {
         fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;
     }
