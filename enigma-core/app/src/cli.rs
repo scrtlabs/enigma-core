@@ -11,8 +11,8 @@ pub(crate) struct Opt {
     #[structopt(long = "debug-stdout")]
     pub debug_stdout: bool,
     /// Specify data directory
-    #[structopt(parse(from_os_str), default_value="~/.enigma", long = "data-dir")]
-    pub data_dir: PathBuf,
+    #[structopt(parse(from_os_str), long = "data-dir")]
+    pub data_dir: Option<PathBuf>,
     /// Specify a different SPID to use for the Quote/Report
     #[structopt(long = "spid", default_value = "1601F95C39B9EA307FEAABB901ADC3EE")]
     pub spid: String,

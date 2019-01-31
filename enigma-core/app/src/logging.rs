@@ -3,7 +3,7 @@ use log::LevelFilter;
 use std::{path::Path, fs::File};
 use failure::Error;
 
-pub fn set_logger<P: AsRef<Path>>(stdout: bool, data_dir: P, verbose: u8) ->  Result<Vec<Box<SharedLogger>>, Error> {
+pub fn get_logger<P: AsRef<Path>>(stdout: bool, data_dir: P, verbose: u8) ->  Result<Vec<Box<SharedLogger>>, Error> {
     let level = log_level_from_verbose(verbose);
     let mut debug_path = data_dir.as_ref().to_path_buf();
     debug_path.push("debug.log");

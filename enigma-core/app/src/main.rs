@@ -46,18 +46,20 @@ mod wasm_u;
 mod cli;
 mod logging;
 
-use futures::Future;
-
 pub use crate::esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
                                 ocall_new_delta, ocall_save_to_memory, ocall_update_state};
 
 use networking::{ipc_listener, IpcListener};
 use crate::cli::Opt;
 use structopt::StructOpt;
+use futures::Future;
+use simplelog::CombinedLogger;
 
 fn main() {
     let opt: Opt = Opt::from_args();
-    logging::set_logger(opt.debug_stdout, opt.data_dir.clone(), opt.verbose).expect("Failed initializing the logger");
+    let datadir = opt.data_dir.clone().unwrap_or_else(|| dirs::home_dir().unwrap());
+    let loggers = logging::get_logger(opt.debug_stdout, datadir, opt.verbose).expect("Failed Creating the loggers");
+    CombinedLogger::init(loggers).expect("Failed initializing the logger");
     debug!("CLI params: {:?}", opt);
     let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
@@ -69,7 +71,7 @@ fn main() {
             return;
         }
     };
-    let server = IpcListener::new(&format!("tcp://localhost:{}", opt.port));
+    let server = IpcListener::new(&format!("tcp://*:{}", opt.port));
     server.run(move |multi| ipc_listener::handle_message(multi, &opt.spid, enclave.geteid())).wait().unwrap();
 }
 
@@ -77,8 +79,15 @@ fn main() {
 mod tests {
     use crate::esgx::general::init_enclave_wrapper;
     use sgx_types::*;
+    use simplelog::TermLogger;
+    use log::LevelFilter;
+
     extern "C" {
         fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;
+    }
+
+    pub fn log_to_stdout(level: LevelFilter) {
+        TermLogger::init(level, Default::default()).unwrap();
     }
 
     #[test]
