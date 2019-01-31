@@ -14,7 +14,7 @@ impl IpcListener {
     pub fn new(conn_str: &str) -> Self {
         let _context = Arc::new(zmq::Context::new());
         let rep_future = Rep::builder(_context.clone()).bind(conn_str).build();
-        trace!("Binded to socket: {}", conn_str);
+        debug!("Binded to socket: {}", conn_str);
         IpcListener { _context, rep_future }
     }
 

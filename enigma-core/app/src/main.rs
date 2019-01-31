@@ -63,11 +63,11 @@ fn main() {
     debug!("CLI params: {:?}", opt);
     let enclave = match esgx::general::init_enclave_wrapper() {
         Ok(r) => {
-            println!("[+] Init Enclave Successful {}!", r.geteid());
+            trace!("[+] Init Enclave Successful {}!", r.geteid());
             r
         }
         Err(x) => {
-            println!("[-] Init Enclave Failed {}!", x.as_str());
+            error!("[-] Init Enclave Failed {}!", x.as_str());
             return;
         }
     };
@@ -93,17 +93,7 @@ mod tests {
     #[test]
     pub fn test_enclave_internal() {
         // initiate the enclave
-        let enclave = match init_enclave_wrapper() {
-            Ok(r) => {
-                println!("[+] Init Enclave Successful {}!", r.geteid());
-                r
-            }
-            Err(x) => {
-                println!("[-] Init Enclave Failed {}!", x.as_str());
-                assert_eq!(0, 1);
-                return;
-            }
-        };
+        let enclave = init_enclave_wrapper().unwrap();
         let ret = unsafe { ecall_run_tests(enclave.geteid()) };
 
         assert_eq!(ret, sgx_status_t::SGX_SUCCESS);
