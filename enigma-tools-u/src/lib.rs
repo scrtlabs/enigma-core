@@ -20,6 +20,10 @@ extern crate web3;
 // SGX Libraries
 extern crate sgx_types;
 extern crate sgx_urts;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate log_derive;
 
 pub mod attestation_service;
 pub mod common_u;

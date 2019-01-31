@@ -51,7 +51,7 @@ where F: Fn() -> (sgx_status_t, T) {
     }
 }
 
-
+#[logfn(DEBUG)]
 pub fn produce_quote(eid: sgx_enclave_id_t, spid: &str) -> Result<String, Error> {
     let spid = spid.from_hex()?;
     let mut id = [0; 16];

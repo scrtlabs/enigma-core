@@ -22,6 +22,8 @@ web3 = { git = "https://github.com/tomusdrw/rust-web3.git" } #TODO: Change after
 libc = "0.2.45"
 tiny-keccak = "1.4.2"
 ethabi = "6.1.0"
+log = "0.4"
+log-derive = "0.2.0"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
