@@ -29,6 +29,10 @@ impl ContractState {
     pub fn new(contract_id: ContractAddress) -> ContractState {
         ContractState { contract_id, .. Default::default() }
     }
+
+    pub fn is_initial(&self) -> bool{
+        self.delta_index == 0
+    }
 }
 
 impl IOInterface<EnclaveError, u8> for ContractState {
@@ -53,13 +57,17 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
         Ok(())
     }
 
-    fn generate_delta(old: &Self, new: &Self) -> Result<StatePatch, EnclaveError> {
-        Ok(StatePatch {
+    fn generate_delta(old: &Self, new: &mut Self) -> Result<StatePatch, EnclaveError> {
+        new.delta_index = &old.delta_index+1;
+        let result = StatePatch{
             patch: json_patch::diff(&old.json, &new.json),
             previous_hash: old.delta_hash,
             contract_id: old.contract_id,
             index: old.delta_index + 1,
-        })
+        };
+
+        new.delta_hash = result.sha256_patch()?;
+        Ok(result)
     }
 }
 
