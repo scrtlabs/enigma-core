@@ -43,7 +43,6 @@ pub fn retry_quote(eid: sgx_enclave_id_t, spid: &str, times: usize) -> Result<St
 fn check_busy<T, F>(func: F) -> (sgx_status_t, T)
 where F: Fn() -> (sgx_status_t, T) {
     loop {
-        println!("testing again");
         let (status, rest) = func();
         if status != sgx_status_t::SGX_ERROR_BUSY {
             return (status, rest);

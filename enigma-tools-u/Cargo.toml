@@ -6,6 +6,8 @@ description = "Tools used by the untrusted part of the Enigma core and Principal
 build = "build.rs"
 
 [dependencies]
+enigma-crypto = { path = "../enigma-crypto" }
+
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"

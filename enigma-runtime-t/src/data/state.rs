@@ -1,6 +1,8 @@
 use crate::data::{DeltasInterface, IOInterface, StatePatch};
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::cryptography_t::{symmetric, Encryption};
+use enigma_types::ContractAddress;
+use enigma_crypto::{symmetric, Encryption};
+use enigma_types::Hash256;
 use json_patch;
 use rmps::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -11,21 +13,25 @@ use std::vec::Vec;
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
 pub struct ContractState {
     #[serde(skip)]
-    pub contract_id: [u8; 32],
+    pub contract_id: ContractAddress,
     pub json: Value,
-    pub delta_hash: [u8; 32],
+    pub delta_hash: Hash256,
     pub delta_index: u32,
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EncryptedContractState<T> {
-    pub contract_id: [u8; 32],
+    pub contract_id: ContractAddress,
     pub json: Vec<T>,
 }
 
 impl ContractState {
-    pub fn new(contract_id: [u8; 32]) -> ContractState {
-        ContractState { contract_id, ..Default::default() }
+    pub fn new(contract_id: ContractAddress) -> ContractState {
+        ContractState { contract_id, .. Default::default() }
+    }
+
+    pub fn is_initial(&self) -> bool{
+        self.delta_index == 0
     }
 }
 
@@ -51,13 +57,17 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
         Ok(())
     }
 
-    fn generate_delta(old: &Self, new: &Self) -> Result<StatePatch, EnclaveError> {
-        Ok(StatePatch {
+    fn generate_delta(old: &Self, new: &mut Self) -> Result<StatePatch, EnclaveError> {
+        new.delta_index = &old.delta_index+1;
+        let result = StatePatch{
             patch: json_patch::diff(&old.json, &new.json),
             previous_hash: old.delta_hash,
             contract_id: old.contract_id,
             index: old.delta_index + 1,
-        })
+        };
+
+        new.delta_hash = result.sha256_patch()?;
+        Ok(result)
     }
 }
 

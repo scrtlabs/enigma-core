@@ -1,5 +1,26 @@
 use core::{fmt, mem, ptr, default::Default};
 
+
+pub use crate::hash::Hash256;
+pub type StateKey = [u8; 32];
+pub type ContractAddress = Hash256;
+pub type PubKey = [u8; 64];
+
+#[derive(Debug)]
+pub enum ResultStatus {
+    Success,
+    Failure,
+}
+
+impl From<ResultStatus> for u8 {
+    fn from(i: ResultStatus) -> Self {
+        match i{
+            ResultStatus::Success => 1u8,
+            ResultStatus::Failure => 0u8,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnclaveReturn {
@@ -24,13 +45,16 @@ pub enum EnclaveReturn {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ExecuteResult {
+    pub exe_code_hash: Hash256,
+    pub inputs_hash: Hash256,
     pub output: *const u8,
     pub delta_ptr: *const u8,
-    pub delta_hash: [u8; 32],
+    pub delta_hash: Hash256,
     pub delta_index: u32,
     pub ethereum_payload_ptr: *const u8,
     pub ethereum_address: [u8; 20],
     pub signature: [u8; 65],
+    pub used_gas: u64,
 }
 
 impl Default for ExecuteResult {
@@ -47,6 +71,8 @@ impl Default for ExecuteResult {
 impl fmt::Debug for ExecuteResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut debug_trait_builder = f.debug_struct("ExecuteResult");
+        debug_trait_builder.field("exe_code_hash", &(self.exe_code_hash));
+        debug_trait_builder.field("inputs_hash", &(self.inputs_hash));
         debug_trait_builder.field("output", &(self.output));
         debug_trait_builder.field("delta_ptr", &(self.delta_ptr));
         debug_trait_builder.field("delta_hash", &(self.delta_hash));
@@ -54,6 +80,7 @@ impl fmt::Debug for ExecuteResult {
         debug_trait_builder.field("ethereum_payload_ptr", &(self.ethereum_payload_ptr));
         debug_trait_builder.field("ethereum_address", &(self.ethereum_address));
         debug_trait_builder.field("signature", &(&self.signature[..]));
+        debug_trait_builder.field("used_gas", &(self.used_gas));
         debug_trait_builder.finish()
     }
 }

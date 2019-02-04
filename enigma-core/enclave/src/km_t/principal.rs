@@ -4,10 +4,11 @@ use enigma_runtime_t::data::{ContractState, DeltasInterface, StatePatch};
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-use enigma_tools_t::cryptography_t::Encryption;
-use enigma_tools_t::km_primitives::{ContractAddress, MsgID, StateKey};
+use enigma_crypto::asymmetric::KeyPair;
+use enigma_crypto::{Encryption, CryptoError};
+use enigma_tools_t::km_primitives::MsgID;
 use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
+use enigma_types::{ContractAddress, StateKey};
 use std::collections::HashMap;
 use std::string::ToString;
 use std::sync::SgxMutex;
@@ -35,7 +36,7 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     let id = res.get_id();
     let msg;
     {
-        let keys = guard.get(&id).ok_or(EnclaveError::KeyError { key_type: "dh keys".to_string(), key: "".to_string() })?;
+        let keys = guard.get(&id).ok_or(CryptoError::KeyError { key_type: "dh keys".to_string(), err: "Missing".to_string() })?;
         let aes = keys.get_aes_key(&res.get_pubkey())?;
         msg = PrincipalMessage::decrypt(res, &aes)?;
     }
@@ -143,14 +144,15 @@ pub mod tests {
     use super::*;
     use enigma_runtime_t::data::IOInterface;
     use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch};
-    use enigma_tools_t::common::Sha256;
-    use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
-    use enigma_tools_t::km_primitives::{ContractAddress, PrincipalMessage, PrincipalMessageType};
+    use enigma_crypto::hash::Sha256;
+    use enigma_crypto::asymmetric::KeyPair;
+    use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
+    use enigma_types::ContractAddress;
 
     pub fn test_state_internal() {
         // Making the ground work
         let address = vec![b"meee".sha256(), b"moo".sha256(), b"maa".sha256()];
-        let state_keys = vec![b"first_key".sha256(), b"second_key".sha256(), b"third_key".sha256()];
+        let state_keys = vec![*b"first_key".sha256(), *b"second_key".sha256(), *b"third_key".sha256()];
         let states_and_deltas = get_states_deltas(&address);
         let enc_states: Vec<(EncryptedContractState<u8>, Vec<EncryptedPatch>)> = states_and_deltas
             .into_iter()
@@ -198,15 +200,12 @@ pub mod tests {
             ContractState {
                 contract_id: address[0],
                 json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
-                delta_hash: [0u8; 32],
-                delta_index: 0,
+                .. Default::default()
             },
             ContractState {
                 contract_id: address[1],
-                json: serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#)
-                    .unwrap(),
-                delta_hash: [0u8; 32],
-                delta_index: 0,
+                json: serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#).unwrap(),
+                .. Default::default()
             },
         ];
 
@@ -217,7 +216,7 @@ pub mod tests {
             for i in 0..15 {
                 let old_state = state.clone();
                 state.write_key(&i.to_string(), &json!(i)).unwrap();
-                let delta = ContractState::generate_delta(&old_state, &state).unwrap();
+                let delta = ContractState::generate_delta(&old_state, &mut state).unwrap();
                 patches.push(delta);
             }
             result.push((original_state, patches));

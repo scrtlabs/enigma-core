@@ -1,5 +1,6 @@
 #![feature(tool_lints)]
 #![warn(clippy::all)]
+#![feature(try_from)]
 
 extern crate base64;
 extern crate dirs;
@@ -19,6 +20,7 @@ extern crate zmq;
 #[macro_use]
 extern crate failure;
 extern crate enigma_tools_u;
+extern crate enigma_crypto;
 extern crate enigma_types;
 extern crate rustc_hex as hex;
 #[macro_use]
@@ -56,7 +58,7 @@ fn main() {
             return;
         }
     };
-    let server = IpcListener::new(constants::CLIENT_CONNECTION_STR_TST);
+    let server = IpcListener::new(constants::CONNECTION_STR);
     server.run(move |multi| ipc_listener::handle_message(multi, enclave.geteid())).wait().unwrap();
 }
 

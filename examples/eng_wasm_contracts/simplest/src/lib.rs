@@ -17,11 +17,33 @@ pub trait ContractInterface{
     fn write();
     fn check_address(addr: H256);
     fn check_addresses(addr1: H256, addr2: H256);
-    fn print_test(x: U256, y: U256) ;
+    fn choose_rand_color();
+    fn get_scrambled_vec();
+    fn print_test(x: U256, y: U256);
     fn construct(param: U256);
 }
 
 pub struct Contract;
+
+impl Contract {
+    fn gen_loc(len: usize) -> usize {
+        assert!(len > 0);
+        let rand: u32 = Rand::gen();
+        rand as usize % len
+    }
+    /// gets an a slice containing any type. running
+    /// on a loop in the length of (len(slice) - 1)
+    /// it swaps the last element with a random
+    /// location in the slice and reduces the length.
+    fn shuffle<T>(values: &mut [T]) {
+        let mut i = values.len();
+        while i >= 2 {
+            i -= 1;
+            values.swap(i, Contract::gen_loc(i + 1));
+        }
+    }
+}
+
 impl ContractInterface for Contract {
     /// Writes value to state and reads it.
     /// As a temporary solution the value is converted to a stream of bytes.
@@ -56,6 +78,26 @@ impl ContractInterface for Contract {
 
         assert_eq!(read_addr1, addr1.to_hex());
         assert_eq!(read_addr2, addr2.to_hex());
+    }
+
+    // tests the random service
+    #[no_mangle]
+    fn choose_rand_color() {
+        let mut colors = Vec::new();
+        colors.extend(["green", "yellow", "red", "blue", "white", "black", "orange", "purple"].iter().cloned());
+        let random: u8 = Rand::gen();
+
+        let rng_rand = (random as usize) % colors.len();
+        write_state!("color" => colors[rng_rand]);
+        let color : String = read_state!("color").unwrap();
+    }
+
+    // tests the shuffle service on a simple array
+    #[no_mangle]
+    fn get_scrambled_vec() {
+        let mut nums: [u8; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        Self::shuffle(&mut nums);
+        unsafe {external::ret(nums.as_ptr(), nums.len() as u32)};
     }
 
     #[no_mangle]
