@@ -12,7 +12,7 @@ enclave {
 
         public sgx_status_t ecall_get_registration_quote([in] const sgx_target_info_t * target_info ,[out]  sgx_report_t * report);
 
-        public void ecall_run_tests();
+        public void ecall_run_tests([in] const RawPointer* db_ptr);
 
 	    public EnclaveReturn ecall_evm([in, size=bytecode_len] const uint8_t* bytecode, size_t bytecode_len,
 	                                   [in, size=callable_len] const uint8_t* callable, size_t callable_len,

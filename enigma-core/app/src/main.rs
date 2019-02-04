@@ -65,25 +65,18 @@ fn main() {
 mod tests {
     use crate::esgx::general::init_enclave_wrapper;
     use sgx_types::*;
+    use crate::db::tests::create_test_db;
+    use enigma_types::RawPointer;
     extern "C" {
-        fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;
+        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer) -> sgx_status_t;
     }
 
     #[test]
     pub fn test_enclave_internal() {
-        // initiate the enclave
-        let enclave = match init_enclave_wrapper() {
-            Ok(r) => {
-                println!("[+] Init Enclave Successful {}!", r.geteid());
-                r
-            }
-            Err(x) => {
-                println!("[-] Init Enclave Failed {}!", x.as_str());
-                assert_eq!(0, 1);
-                return;
-            }
-        };
-        let ret = unsafe { ecall_run_tests(enclave.geteid()) };
+        let (mut db, _dir) = create_test_db();
+        let enclave = init_enclave_wrapper().unwrap();
+        let db_ptr = unsafe { RawPointer::new_mut(&mut db) };
+        let ret = unsafe { ecall_run_tests(enclave.geteid(), &db_ptr as *const RawPointer) };
 
         assert_eq!(ret, sgx_status_t::SGX_SUCCESS);
         enclave.destroy();

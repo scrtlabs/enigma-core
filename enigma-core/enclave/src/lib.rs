@@ -495,36 +495,44 @@ pub mod tests {
     use enigma_tools_t::storage_t::tests::*;
     use sgx_tunittest::*;
     use std::{vec::Vec, string::String};
+    use enigma_types::RawPointer;
     //    use crate::km_t::users::tests::*;
 
     #[no_mangle]
-    pub extern "C" fn ecall_run_tests() {
-        rsgx_unit_tests!(
-            test_full_sealing_storage,
-//            test_ecall_evm_signning,
-            test_encrypt_state,
-            test_decrypt_state,
-            test_encrypt_decrypt_state,
-            test_write_state,
-            test_read_state,
-            test_diff_patch,
-            test_encrypt_patch,
-            test_decrypt_patch,
-            test_encrypt_decrypt_patch,
-            test_apply_delta,
-            test_generate_delta,
-//            test_me,
-            test_execute_contract,
-            test_to_message,
-            test_from_message,
-            test_from_to_message,
-            test_encrypt_decrypt_response,
-            test_encrypt_response,
-            test_decrypt_reponse
-//            test_get_deltas,
-//            test_get_deltas_more,
-//            test_state_internal
-        );
+    pub extern "C" fn ecall_run_tests(db_ptr: *const RawPointer) {
+        let mut ctr = 0u64;
+        let mut failures = Vec::new();
+        rsgx_unit_test_start();
+
+        our_unitests(&mut ctr, &mut failures,  test_full_sealing_storage, "test_full_sealing_storage" );
+//        our_unitests(&mut ctr, &mut failures,  test_ecall_evm_signning, "test_ecall_evm_signning" );
+        our_unitests(&mut ctr, &mut failures,  test_encrypt_state, "test_encrypt_state" );
+        our_unitests(&mut ctr, &mut failures,  test_decrypt_state, "test_decrypt_state" );
+        our_unitests(&mut ctr, &mut failures,  test_encrypt_decrypt_state, "test_encrypt_decrypt_state" );
+        our_unitests(&mut ctr, &mut failures,  test_write_state, "test_write_state" );
+        our_unitests(&mut ctr, &mut failures,  test_read_state, "test_read_state" );
+        our_unitests(&mut ctr, &mut failures,  test_diff_patch, "test_diff_patch" );
+        our_unitests(&mut ctr, &mut failures,  test_encrypt_patch, "test_encrypt_patch" );
+        our_unitests(&mut ctr, &mut failures,  test_decrypt_patch, "test_decrypt_patch" );
+        our_unitests(&mut ctr, &mut failures,  test_encrypt_decrypt_patch, "test_encrypt_decrypt_patch" );
+        our_unitests(&mut ctr, &mut failures,  test_apply_delta, "test_apply_delta" );
+        our_unitests(&mut ctr, &mut failures,  test_generate_delta, "test_generate_delta" );
+        our_unitests(&mut ctr, &mut failures,  ||test_me(db_ptr), "test_me" );
+        our_unitests(&mut ctr, &mut failures,  test_execute_contract, "test_execute_contract" );
+        our_unitests(&mut ctr, &mut failures,  test_to_message, "test_to_message" );
+        our_unitests(&mut ctr, &mut failures,  test_from_message, "test_from_message" );
+        our_unitests(&mut ctr, &mut failures,  test_from_to_message, "test_from_to_message" );
+        our_unitests(&mut ctr, &mut failures,  test_encrypt_decrypt_response, "test_encrypt_decrypt_response" );
+        our_unitests(&mut ctr, &mut failures,  test_encrypt_response, "test_encrypt_response" );
+        our_unitests(&mut ctr, &mut failures,  test_decrypt_reponse, "test_decrypt_reponse" );
+        our_unitests(&mut ctr, &mut failures,  ||test_get_deltas(db_ptr), "test_get_deltas" );
+        our_unitests(&mut ctr, &mut failures,  ||test_get_deltas_more(db_ptr), "test_get_deltas_more" );
+        our_unitests(&mut ctr, &mut failures,  ||test_state_internal(db_ptr), "test_state_internal" );
+        our_unitests(&mut ctr, &mut failures,  || {test_state(db_ptr)}, "test_state" );
+
+
+        rsgx_unit_test_end(ctr, failures);
+
     }
 
 //    fn test_ecall_evm_signning() {
@@ -550,5 +558,36 @@ pub mod tests {
 //        recovered.copy_from_slice(&recovered_pubkey.serialize()[1..65]);
 //        assert_eq!(recovered.address(), SIGNINING_KEY.get_pubkey().address())
 ////    }
-//
+
+
+    use std::panic::UnwindSafe;
+    /// Perform one test case at a time.
+    ///
+    /// This is the core function of sgx_tunittest. It runs one test case at a
+    /// time and saves the result. On test passes, it increases the passed counter
+    /// and on test fails, it records the failed test.
+    /// Required test function must be `Fn()`, taking nothing as input and returns
+    /// nothing.
+    fn our_unitests<F, R>(ncases: &mut u64, failurecases: &mut Vec<String>, f:F, name: &str )
+        where F: FnOnce() -> R + UnwindSafe {
+        *ncases = *ncases + 1;
+        match std::panic::catch_unwind (|| { f(); } ).is_ok() {
+            true => {
+                println!("{} {} ... {}!",
+                         "testing",
+                         name,
+                         "\x1B[1;32mok\x1B[0m");
+            },
+            false => {
+                println!("{} {} ... {}!",
+                         "testing",
+                         name,
+                         "\x1B[1;31mfailed\x1B[0m");
+                failurecases.push(String::from(name));
+            },
+        }
+    }
+
+
+
 }
