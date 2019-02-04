@@ -5,9 +5,9 @@ extern crate rustc_hex;
 use crate::common_u::errors::EnclaveFailError;
 use enigma_types::{ContractAddress, PubKey};
 use super::WasmResult;
+use crate::db::DB;
 use std::convert::TryInto;
-use enigma_types::traits::SliceCPtr;
-use enigma_types::{EnclaveReturn, ExecuteResult};
+use enigma_types::{EnclaveReturn, ExecuteResult, RawPointer, traits::SliceCPtr};
 use failure::Error;
 use sgx_types::*;
 
@@ -18,20 +18,23 @@ extern "C" {
                     constructor: *const u8, constructor_len: usize,
                     args: *const u8, args_len: usize,
                     address: &ContractAddress, user_key: &PubKey,
-                    gas_limit: *const u64, result: &mut ExecuteResult) -> sgx_status_t;
+                    gas_limit: *const u64, db_ptr: *const RawPointer,
+                    result: &mut ExecuteResult) -> sgx_status_t;
 
     fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
-                     bytecode: *const u8, bytecode_len: usize, callable: *const u8,
-                     callable_len: usize, callable_args: *const u8, callable_args_len: usize,
-                     user_key: &PubKey, contract_address: &ContractAddress,
-                     gas_limit: *const u64, result: &mut ExecuteResult ) -> sgx_status_t;
+                     bytecode: *const u8, bytecode_len: usize,
+                     callable: *const u8, callable_len: usize,
+                     args: *const u8, args_len: usize,
+                     user_key: &[u8; 64], contract_address: &ContractAddress,
+                     gas_limit: *const u64, db_ptr: *const RawPointer, result: &mut ExecuteResult ) -> sgx_status_t;
 }
 
 const MAX_EVM_RESULT: usize = 100_000;
-pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
+pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
               contract_address: ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
     let mut retval = EnclaveReturn::Success;
     let mut result = ExecuteResult::default();
+    let db_ptr = unsafe { RawPointer::new_mut(db) };
 
     let status = unsafe {
         ecall_deploy(eid,
@@ -45,6 +48,7 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args:
                      &contract_address,
                      &user_pubkey,
                      &gas_limit as *const u64,
+                     &db_ptr as *const RawPointer,
                      &mut result)
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
@@ -55,10 +59,11 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args:
 }
 
 
-pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &[u8],
+pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &[u8],
                user_pubkey: &PubKey, address: &ContractAddress, gas_limit: u64)-> Result<WasmResult,Error> {
     let mut retval = EnclaveReturn::Success;
     let mut result = ExecuteResult::default();
+    let db_ptr = unsafe { RawPointer::new_mut(db) };
 
     let status = unsafe {
         ecall_execute(eid,
@@ -72,6 +77,7 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &
                       &user_pubkey,
                       &address,
                       &gas_limit as *const u64,
+                      &db_ptr as *const RawPointer,
                       &mut result)
     };
 
