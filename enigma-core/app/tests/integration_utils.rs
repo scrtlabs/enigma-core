@@ -130,6 +130,11 @@ pub fn set_delta_msg(type_msg: &str, addr: &str, key: u64) -> Value {
     json!({"id": &generate_job_id(), "type": type_msg, "input": {"address": addr, "key": key}})
 }
 
+pub fn set_deltas_msg(type_msg: &str, _input: Vec<(String, u64, u64)>) -> Value {
+    let input: Vec<Value> = _input.iter().map(|(addr, from, to)| json!({"address": addr, "from": from, "to": to})).collect();
+    json!({"id": &generate_job_id(), "type": type_msg, "input": input})
+}
+
 #[derive(Debug)]
 pub struct ParsedMessage {
     prefix: String,
