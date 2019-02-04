@@ -12,7 +12,8 @@ extern crate futures;
 extern crate dirs;
 extern crate rand;
 
-use self::cross_test_utils::*;
+use self::cross_test_utils::{generate_address, make_encrypted_response,
+                             get_fake_state_key, get_bytecode_from_path};
 use self::app::*;
 use self::futures::Future;
 use self::app::networking::*;
@@ -96,6 +97,39 @@ pub fn set_encryption_msg(type_req: &str, user_pubkey: [u8; 64]) -> Value {
     json!({"id" : &generate_job_id(), "type" : type_req, "userPubKey": user_pubkey.to_hex()})
 }
 
+pub fn set_ptt_req_msg(type_req: &str, addrs: Vec<String>) -> Value {
+    json!({"id" : &generate_job_id(), "type" : type_req, "addresses": addrs})
+}
+
+pub fn set_ptt_res_msg(type_res: &str, response: Vec<u8>) -> Value {
+    json!({"id" : &generate_job_id(), "type" : type_res, "response": response.to_hex()})
+}
+
+pub fn set_deploy_msg(type_dep: &str, pre_code: &str, args: &str, callable: &str, usr_pubkey: &str, gas_limit: u64, addr: &str) -> Value {
+    json!({"id" : &generate_job_id(), "type" : type_dep, "input":
+            {"preCode": &pre_code, "encryptedArgs": args,
+            "encryptedFn": callable, "userDHKey": usr_pubkey,
+            "gasLimit": gas_limit, "contractAddress": addr}
+            })
+}
+
+pub fn set_compute_msg(type_cmp: &str, task_id: &str, callable: &str, args: &str, user_pubkey: &str, gas_limit: u64, con_addr: &str) -> Value {
+    json!({"id": &generate_job_id(), "type": type_cmp, "input": { "taskID": task_id, "encryptedArgs": args,
+    "encryptedFn": callable, "userDHKey": user_pubkey, "gasLimit": gas_limit, "contractAddress": con_addr}})
+}
+
+pub fn set_get_tip_msg(type_tip: &str, input: &str) -> Value {
+    json!({"id": &generate_job_id(), "type": type_tip, "input": input})
+}
+
+pub fn set_get_tips_msg(type_tip: &str, input: Vec<String>) -> Value {
+    json!({"id": &generate_job_id(), "type": type_tip, "input": input})
+}
+
+pub fn set_delta_msg(type_msg: &str, addr: &str, key: u64) -> Value {
+    json!({"id": &generate_job_id(), "type": type_msg, "input": {"address": addr, "key": key}})
+}
+
 #[derive(Debug)]
 pub struct ParsedMessage {
     prefix: String,
@@ -127,10 +161,6 @@ pub fn parse_packed_msg(msg: &str) -> Value {
     Deserialize::deserialize(&mut Deserializer::new(&msg_bytes[..])).unwrap()
 }
 
-pub fn set_ptt_req_msg(type_req: &str, addrs: Vec<String>) -> Value {
-    json!({"id" : &generate_job_id(), "type" : type_req, "addresses": addrs})
-}
-
 pub fn mock_principal_res(msg: &str) -> Vec<u8> {
     let unpacked_msg: Value = parse_packed_msg(msg);
     let enc_response: Value = make_encrypted_response(unpacked_msg);
@@ -138,10 +168,6 @@ pub fn mock_principal_res(msg: &str) -> Vec<u8> {
     let mut serialized_enc_response = Vec::new();
     enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
     serialized_enc_response
-}
-
-pub fn set_ptt_res_msg(type_res: &str, response: Vec<u8>) -> Value {
-    json!({"id" : &generate_job_id(), "type" : type_res, "response": response.to_hex()})
 }
 
 pub fn run_ptt_round(port: &'static str, addrs: Vec<String>, type_res: &str) -> Value {
@@ -173,14 +199,6 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
     (shared_key, keys.get_pubkey())
 }
 
-pub fn set_deploy_msg(type_dep: &str, pre_code: &str, args: &str, callable: &str, usr_pubkey: &str, gas_limit: u64, addr: &str) -> Value {
-    json!({"id" : &generate_job_id(), "type" : type_dep, "input":
-            {"preCode": &pre_code, "encryptedArgs": args,
-            "encryptedFn": callable, "userDHKey": usr_pubkey,
-            "gasLimit": gas_limit, "contractAddress": addr}
-            })
-}
-
 pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
     // address generation and ptt
     let address = generate_address();
@@ -205,11 +223,6 @@ pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
     (v, address.into())
 }
 
-pub fn set_compute_msg(type_cmp: &str, task_id: &str, callable: &str, args: &str, user_pubkey: &str, gas_limit: u64, con_addr: &str) -> Value {
-    json!({"id": &generate_job_id(), "type": type_cmp, "input": { "taskID": task_id, "encryptedArgs": args,
-    "encryptedFn": callable, "userDHKey": user_pubkey, "gasLimit": gas_limit, "contractAddress": con_addr}})
-}
-
 pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8; 32]) {
     let (_, contract_address): (_, [u8; 32]) = full_simple_deployment(port, );
     // WUKE- get the arguments encryption key
@@ -228,19 +241,13 @@ pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8
     (conn_and_call_ipc(&msg.to_string(), port), contract_address)
 }
 
-pub fn set_get_tip_msg(type_tip: &str, input: &str) -> Value {
-    json!({"id": &generate_job_id(), "type": type_tip, "input": input})
-}
-
 pub fn get_decrypted_delta(addr: [u8; 32], delta: &str) -> Vec<u8> {
     let state_key = get_fake_state_key(&addr);
     let delta_bytes: Vec<u8> = delta.from_hex().unwrap();
     symmetric::decrypt(&delta_bytes, &state_key).unwrap()
 }
 
-pub fn set_get_tips_msg(type_tip: &str, input: Vec<String>) -> Value {
-    json!({"id": &generate_job_id(), "type": type_tip, "input": input})
-}
+
 
 pub fn deploy_and_compute_few_contracts(port: &'static str) -> Vec<[u8; 32]> {
     let (_, contract_address_a): (_, [u8; 32]) = full_addition_compute(port, 56, 87);
@@ -249,4 +256,8 @@ pub fn deploy_and_compute_few_contracts(port: &'static str) -> Vec<[u8; 32]> {
     vec![contract_address_a, contract_address_b, contract_address_c]
 }
 
-
+pub fn decrypt_delta(addr: &[u8], delta: &[u8]) -> Value {
+    let dec = symmetric::decrypt(delta, &get_fake_state_key(addr)).unwrap();
+    let mut des = Deserializer::new(&dec[..]);
+    Deserialize::deserialize(&mut des).unwrap()
+}
