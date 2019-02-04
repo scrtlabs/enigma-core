@@ -62,7 +62,7 @@ use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
 use enigma_tools_t::common::{errors_t::EnclaveError, LockExpectMutex, EthereumAddress};
 use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
-use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus};
+use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, DhKey};
 use wasm_utils::{build, SourceTarget};
 
 use sgx_types::*;
@@ -244,7 +244,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
     }
 }
 
-fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String, [u8;32]), EnclaveError>{
+fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String, DhKey), EnclaveError>{
     let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(CryptoError::KeyError { key_type: "DH Key".to_string(), err: "Missing".to_string() })?;

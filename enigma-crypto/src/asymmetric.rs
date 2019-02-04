@@ -3,6 +3,7 @@ use secp256k1::{self, PublicKey, SecretKey, SharedSecret};
 use crate::localstd::string::ToString;
 use crate::localstd::format;
 use crate::{rand, hash::{self, Keccak256}};
+use enigma_types::DhKey;
 use rustc_hex::ToHex;
 
 #[derive(Debug)]
@@ -31,7 +32,7 @@ impl KeyPair {
         Ok(KeyPair { privkey, pubkey })
     }
 
-    pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<[u8; 32], CryptoError> {
+    pub fn derive_key(&self, _pubarr: &[u8; 64]) -> Result<DhKey, CryptoError> {
         let mut pubarr: [u8; 65] = [0; 65];
         pubarr[0] = 4;
         pubarr[1..].copy_from_slice(&_pubarr[..]);
@@ -127,8 +128,8 @@ pub mod tests {
         let _priv2: [u8; 32] = [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162];
         let k1 = KeyPair::from_slice(&_priv1).unwrap();
         let k2 = KeyPair::from_slice(&_priv2).unwrap();
-        let shared1 = k1.get_aes_key(&k2.get_pubkey()).unwrap();
-        let shared2 = k2.get_aes_key(&k1.get_pubkey()).unwrap();
+        let shared1 = k1.derive_key(&k2.get_pubkey()).unwrap();
+        let shared2 = k2.derive_key(&k1.get_pubkey()).unwrap();
         assert_eq!(shared1, shared2);
         assert_eq!(
             shared1,

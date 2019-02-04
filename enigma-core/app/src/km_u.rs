@@ -95,7 +95,7 @@ pub mod tests {
     use crate::db::Stype::{Delta, State};
     use crate::db::{CRUDInterface, DeltaKey, DATABASE};
     use crate::esgx::general::init_enclave_wrapper;
-    use enigma_types::{ContractAddress, StateKey};
+    use enigma_types::{ContractAddress, DhKey, StateKey};
     use enigma_crypto::{KeyPair, symmetric, hash::Sha256};
     use rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
@@ -106,7 +106,7 @@ pub mod tests {
 
     const PUBKEY_DUMMY: [u8; 64] = [ 27, 132, 197, 86, 123, 18, 100, 64, 153, 93, 62, 213, 170, 186, 5, 101, 215, 30, 24, 52, 96, 72, 25, 255, 156, 23, 245, 233, 213, 221, 7, 143, 112, 190, 175, 143, 88, 139, 84, 21, 7, 254, 214, 166, 66, 197, 171, 66, 223, 223, 129, 32, 167, 246, 57, 222, 81, 34, 212, 122, 105, 168, 232, 209];
 
-    pub fn exchange_keys(id: sgx_enclave_id_t) -> (KeyPair, [u8; 32], Box<[u8]>, [u8; 65]) {
+    pub fn exchange_keys(id: sgx_enclave_id_t) -> (KeyPair, DhKey, Box<[u8]>, [u8; 65]) {
         let mut _priv = [0u8; 32];
         let keys = KeyPair::new().unwrap();
         let (data, sig) = super::get_user_key(id, &keys.get_pubkey()).unwrap();
@@ -119,7 +119,7 @@ pub mod tests {
         let mut node_pubkey = [0u8; 64];
         node_pubkey.copy_from_slice(&_node_pubkey);
 
-        let shared_bytes = keys.get_aes_key(&node_pubkey).unwrap();
+        let shared_bytes = keys.derive_key(&node_pubkey).unwrap();
         (keys, shared_bytes, data, sig)
     }
 
@@ -212,7 +212,7 @@ pub mod tests {
         let keys = KeyPair::new().unwrap();
 
         // Generating the ECDH key for AES
-        let shared_key = keys.get_aes_key(&node_pubkey).unwrap();
+        let shared_key = keys.derive_key(&node_pubkey).unwrap();
         // Encrypting the response
         let response_data = symmetric::encrypt(&response_data, &shared_key).unwrap();
 

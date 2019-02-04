@@ -3,11 +3,10 @@ extern crate sgx_urts;
 extern crate rustc_hex;
 
 use crate::common_u::errors::EnclaveFailError;
-use enigma_types::{ContractAddress, PubKey};
+use enigma_types::{ContractAddress, EnclaveReturn, ExecuteResult, PubKey};
 use super::WasmResult;
 use std::convert::TryInto;
 use enigma_types::traits::SliceCPtr;
-use enigma_types::{EnclaveReturn, ExecuteResult};
 use failure::Error;
 use sgx_types::*;
 
@@ -91,7 +90,7 @@ pub mod tests {
     use crate::km_u::tests::instantiate_encryption_key;
     use crate::wasm_u::wasm;
     use self::ethabi::{Token};
-    use enigma_types::{ContractAddress, PubKey};
+    use enigma_types::{ContractAddress, DhKey, PubKey};
     use enigma_crypto::{rand, symmetric};
     use sgx_types::*;
     use std::fs::File;
@@ -134,7 +133,7 @@ pub mod tests {
                               constructor: &str,
                               constructor_arguments: &[Token],
                               func: &str,
-                              func_args: &[Token]) -> (sgx_urts::SgxEnclave, Box<[u8]>, WasmResult, [u8; 32]) {
+                              func_args: &[Token]) -> (sgx_urts::SgxEnclave, Box<[u8]>, WasmResult, DhKey) {
         let enclave = init_enclave_wrapper().unwrap();
         instantiate_encryption_key(&[address], enclave.geteid());
 
