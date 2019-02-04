@@ -102,7 +102,7 @@ pub mod tests {
 
     use super::{ptt_build_state, ptt_req, ptt_res};
     use crate::db::Stype::{Delta, State};
-    use crate::db::{CRUDInterface, DeltaKey, DATABASE};
+    use crate::db::{CRUDInterface, DeltaKey, DB, tests::create_test_db};
     use crate::esgx::general::init_enclave_wrapper;
     use enigma_types::{ContractAddress, StateKey};
     use enigma_crypto::{KeyPair, symmetric, hash::Sha256};
@@ -242,13 +242,11 @@ pub mod tests {
 
     #[test]
     fn test_the_whole_round() {
-        println!("round 1");
+        let (mut db, _dir) = create_test_db();
         //Making a request
-        let address = fill_the_db();
+        let address = fill_the_db(&mut db);
         let enclave = init_enclave_wrapper().unwrap();
-        println!("round 2");
         let req = ptt_req(enclave.geteid(), &address).unwrap();
-        println!("round 3");
         // serializing the result from the request
         let mut des = Deserializer::new(&req.0[..]);
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
@@ -260,11 +258,8 @@ pub mod tests {
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
 
         ptt_res(enclave.geteid(), &serialized_enc_response).unwrap();
-        println!("round 4");
 
-
-        let address_result = ptt_build_state(enclave.geteid()).unwrap();
-        println!("round 5");
+        let address_result = ptt_build_state(&mut db, enclave.geteid()).unwrap();
         assert_eq!(address_result, vec![address[2]]);
 
         // Testing equality while ignoring order.
@@ -273,7 +268,7 @@ pub mod tests {
 //        assert!(address_result.iter().all(|x| address_set.contains(x)));
     }
 
-    fn fill_the_db() -> Vec<ContractAddress> {
+    fn fill_the_db(db: &mut DB) -> Vec<ContractAddress> {
         let address = vec![b"first".sha256(), b"second".sha256(), b"third".sha256()];
         let mut stuff = vec![
             (DeltaKey { contract_id: address[2], key_type: State }, vec![8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]),
@@ -290,7 +285,7 @@ pub mod tests {
             }
         }
         for (key, data) in stuff {
-            DATABASE.lock().expect("Database mutex is poison").force_update(&key, &data).unwrap();
+            db.force_update(&key, &data).unwrap();
         }
         address
 

@@ -28,7 +28,6 @@ extern crate serde_derive;
 extern crate byteorder;
 extern crate lru_cache;
 extern crate serde;
-extern crate tempdir;
 #[macro_use]
 extern crate log;
 
