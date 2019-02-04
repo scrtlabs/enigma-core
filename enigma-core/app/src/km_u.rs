@@ -18,7 +18,7 @@ extern "C" {
 
 }
 
-/// This function build the states that it received in ptt_req and ptt_res
+/// This function builds the states that it received in ptt_req and ptt_res
 /// It returns a Vec of the failed contract addresses
 pub fn ptt_build_state(eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Error> {
     let mut ret = EnclaveReturn::Success;
