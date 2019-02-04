@@ -1,35 +1,31 @@
 // client/build.rs
 
-extern crate cbindgen;
-
-use cbindgen::{Config, ExportConfig, Language};
-use std::env;
-use std::path::PathBuf;
+use cbindgen::Language;
+use std::{env, path::{PathBuf, Path}, io::{Write, self}, fs::File};
+use tempfile::NamedTempFile;
 
 fn main() {
     let crate_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
-
     let package_name = env::var("CARGO_PKG_NAME").unwrap();
     let output_file = target_dir().join(format!("{}.h", package_name)).display().to_string();
 
-    let config = Config {
-        language: Language::C,
-        no_includes: true,
-        export: ExportConfig {
-            include: vec![
-                String::from("EnclaveReturn"),
-                String::from("ExecuteResult"),
-                String::from("Hash256"),
-                String::from("StateKey"),
-                String::from("ContractAddress"),
-                String::from("MsgID"),
-                String::from("PubKey")
-            ],
-            ..Default::default() },
-        ..Default::default()
-    };
+    cbindgen::Builder::new()
+        .with_no_includes()
+        .with_language(Language::C)
+        .include_item("EnclaveReturn")
+        .include_item("ExecuteResult")
+        .include_item("Hash256")
+        .include_item("StateKey")
+        .include_item("ContractAddress")
+        .include_item("MsgID")
+        .include_item("PubKey")
+        .include_item("RawPointer")
+        .with_crate(&crate_dir)
+        .generate()
+        .expect("Unable to generate bindings")
+        .write_to_file(&output_file);
 
-    cbindgen::generate_with_config(&crate_dir, config).unwrap().write_to_file(&output_file);
+    add_header(output_file, b"#include <stdbool.h>");
 }
 
 /// Find the location of the `target/` directory. Note that this may be
@@ -44,4 +40,16 @@ fn target_dir() -> PathBuf {
     target.pop();
 
     target
+}
+
+/// This function receives a File Path and a header, it then adds the header to the top of the file.
+fn add_header<P: AsRef<Path>>(file_path: P, header: &[u8]) {
+    let file_path = file_path.as_ref();
+    let mut original = File::open(file_path.clone()).unwrap();
+    let mut temp = NamedTempFile::new().unwrap();
+    temp.write_all(header).unwrap();
+    temp.write(b"\n").unwrap();
+    io::copy(&mut original, &mut temp).unwrap();
+    drop(original);
+    temp.persist(file_path).unwrap();
 }
