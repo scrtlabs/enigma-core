@@ -40,7 +40,9 @@ impl ContractInterface for Contract {
     fn addition(x: U256, y: U256) -> U256 {
         x + y
     }
-}
 
-#[no_mangle]
-pub fn deploy() {}
+    // Contract constructor. May be ommitted, if empty.
+    // Included here for reference.
+    #[no_mangle]
+    fn construct() {}
+}
