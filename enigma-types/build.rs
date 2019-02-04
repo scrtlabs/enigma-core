@@ -46,7 +46,7 @@ fn target_dir() -> PathBuf {
 fn add_header<P: AsRef<Path>>(file_path: P, header: &[u8]) {
     let file_path = file_path.as_ref();
     let mut original = File::open(file_path.clone()).unwrap();
-    let mut temp = NamedTempFile::new().unwrap();
+    let mut temp = NamedTempFile::new_in(".").unwrap();
     temp.write_all(header).unwrap();
     temp.write(b"\n").unwrap();
     io::copy(&mut original, &mut temp).unwrap();
