@@ -1,6 +1,6 @@
 use crate::common::errors_t::EnclaveError;
 use enigma_crypto::{symmetric, Encryption, CryptoError};
-use enigma_types::{ContractAddress, StateKey, PubKey};
+use enigma_types::{ContractAddress, DhKey, StateKey, PubKey};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_trts::trts::rsgx_read_rand;
@@ -92,8 +92,8 @@ impl PrincipalMessage {
     }
 }
 
-impl<'a> Encryption<&'a [u8; 32], CryptoError, Self, [u8; 12]> for PrincipalMessage {
-    fn encrypt_with_nonce(self, key: &[u8; 32], _iv: Option<[u8; 12]>) -> Result<Self, CryptoError> {
+impl<'a> Encryption<&'a DhKey, CryptoError, Self, [u8; 12]> for PrincipalMessage {
+    fn encrypt_with_nonce(self, key: &DhKey, _iv: Option<[u8; 12]>) -> Result<Self, CryptoError> {
         match self.data {
             PrincipalMessageType::Response(response) => {
                 let mut buf = Vec::new();
@@ -105,7 +105,7 @@ impl<'a> Encryption<&'a [u8; 32], CryptoError, Self, [u8; 12]> for PrincipalMess
         }
     }
 
-    fn decrypt(enc: Self, key: &[u8; 32]) -> Result<Self, CryptoError> {
+    fn decrypt(enc: Self, key: &DhKey) -> Result<Self, CryptoError> {
         match &enc.data {
             PrincipalMessageType::EncryptedResponse(response) => {
                 let dec = symmetric::decrypt(&response, key)?;
