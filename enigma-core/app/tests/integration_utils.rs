@@ -118,7 +118,7 @@ pub fn set_compute_msg(type_cmp: &str, task_id: &str, callable: &str, args: &str
     "encryptedFn": callable, "userDHKey": user_pubkey, "gasLimit": gas_limit, "contractAddress": con_addr}})
 }
 
-pub fn set_get_tip_msg(type_tip: &str, input: &str) -> Value {
+pub fn set_msg_format_with_input(type_tip: &str, input: &str) -> Value {
     json!({"id": &generate_job_id(), "type": type_tip, "input": input})
 }
 

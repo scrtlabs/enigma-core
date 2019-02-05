@@ -1,7 +1,7 @@
 pub mod integration_utils;
 
 use integration_utils::{create_storage_dir, run_core, full_simple_deployment,
-                        set_get_tip_msg, conn_and_call_ipc, remove_storage_dir};
+                        set_msg_format_with_input, conn_and_call_ipc, remove_storage_dir};
 pub extern crate enigma_core_app as app;
 extern crate serde;
 extern crate rustc_hex as hex;
@@ -20,7 +20,7 @@ fn test_ipc_get_tip() {
 
     let (_, contract_address): (_, [u8; 32]) = full_simple_deployment(port);
     let type_tip = "GetTip";
-    let msg = set_get_tip_msg(type_tip, &contract_address.to_hex());
+    let msg = set_msg_format_with_input(type_tip, &contract_address.to_hex());
     let res: Value = conn_and_call_ipc(&msg.to_string(), port);
 
     let type_accepted = res["type"].as_str().unwrap();
