@@ -330,7 +330,6 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
         let prev_delta = enigma_runtime_t::ocalls_t::get_deltas(db_ptr, address, delta.index - 1, delta.index)?;
         prev_delta_hash = prev_delta[0].data.keccak256();
         encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
-        encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
     }
 
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
@@ -504,31 +503,31 @@ pub mod tests {
         let mut failures = Vec::new();
         rsgx_unit_test_start();
 
-        our_unitests(&mut ctr, &mut failures,  test_full_sealing_storage, "test_full_sealing_storage" );
+        core_unitests(&mut ctr, &mut failures, test_full_sealing_storage, "test_full_sealing_storage" );
 //        our_unitests(&mut ctr, &mut failures,  test_ecall_evm_signning, "test_ecall_evm_signning" );
-        our_unitests(&mut ctr, &mut failures,  test_encrypt_state, "test_encrypt_state" );
-        our_unitests(&mut ctr, &mut failures,  test_decrypt_state, "test_decrypt_state" );
-        our_unitests(&mut ctr, &mut failures,  test_encrypt_decrypt_state, "test_encrypt_decrypt_state" );
-        our_unitests(&mut ctr, &mut failures,  test_write_state, "test_write_state" );
-        our_unitests(&mut ctr, &mut failures,  test_read_state, "test_read_state" );
-        our_unitests(&mut ctr, &mut failures,  test_diff_patch, "test_diff_patch" );
-        our_unitests(&mut ctr, &mut failures,  test_encrypt_patch, "test_encrypt_patch" );
-        our_unitests(&mut ctr, &mut failures,  test_decrypt_patch, "test_decrypt_patch" );
-        our_unitests(&mut ctr, &mut failures,  test_encrypt_decrypt_patch, "test_encrypt_decrypt_patch" );
-        our_unitests(&mut ctr, &mut failures,  test_apply_delta, "test_apply_delta" );
-        our_unitests(&mut ctr, &mut failures,  test_generate_delta, "test_generate_delta" );
-        our_unitests(&mut ctr, &mut failures,  ||test_me(db_ptr), "test_me" );
-        our_unitests(&mut ctr, &mut failures,  test_execute_contract, "test_execute_contract" );
-        our_unitests(&mut ctr, &mut failures,  test_to_message, "test_to_message" );
-        our_unitests(&mut ctr, &mut failures,  test_from_message, "test_from_message" );
-        our_unitests(&mut ctr, &mut failures,  test_from_to_message, "test_from_to_message" );
-        our_unitests(&mut ctr, &mut failures,  test_encrypt_decrypt_response, "test_encrypt_decrypt_response" );
-        our_unitests(&mut ctr, &mut failures,  test_encrypt_response, "test_encrypt_response" );
-        our_unitests(&mut ctr, &mut failures,  test_decrypt_reponse, "test_decrypt_reponse" );
-        our_unitests(&mut ctr, &mut failures,  ||test_get_deltas(db_ptr), "test_get_deltas" );
-        our_unitests(&mut ctr, &mut failures,  ||test_get_deltas_more(db_ptr), "test_get_deltas_more" );
-        our_unitests(&mut ctr, &mut failures,  ||test_state_internal(db_ptr), "test_state_internal" );
-        our_unitests(&mut ctr, &mut failures,  || {test_state(db_ptr)}, "test_state" );
+        core_unitests(&mut ctr, &mut failures, test_encrypt_state, "test_encrypt_state" );
+        core_unitests(&mut ctr, &mut failures, test_decrypt_state, "test_decrypt_state" );
+        core_unitests(&mut ctr, &mut failures, test_encrypt_decrypt_state, "test_encrypt_decrypt_state" );
+        core_unitests(&mut ctr, &mut failures, test_write_state, "test_write_state" );
+        core_unitests(&mut ctr, &mut failures, test_read_state, "test_read_state" );
+        core_unitests(&mut ctr, &mut failures, test_diff_patch, "test_diff_patch" );
+        core_unitests(&mut ctr, &mut failures, test_encrypt_patch, "test_encrypt_patch" );
+        core_unitests(&mut ctr, &mut failures, test_decrypt_patch, "test_decrypt_patch" );
+        core_unitests(&mut ctr, &mut failures, test_encrypt_decrypt_patch, "test_encrypt_decrypt_patch" );
+        core_unitests(&mut ctr, &mut failures, test_apply_delta, "test_apply_delta" );
+        core_unitests(&mut ctr, &mut failures, test_generate_delta, "test_generate_delta" );
+        core_unitests(&mut ctr, &mut failures, ||test_me(db_ptr), "test_me" );
+        core_unitests(&mut ctr, &mut failures, test_execute_contract, "test_execute_contract" );
+        core_unitests(&mut ctr, &mut failures, test_to_message, "test_to_message" );
+        core_unitests(&mut ctr, &mut failures, test_from_message, "test_from_message" );
+        core_unitests(&mut ctr, &mut failures, test_from_to_message, "test_from_to_message" );
+        core_unitests(&mut ctr, &mut failures, test_encrypt_decrypt_response, "test_encrypt_decrypt_response" );
+        core_unitests(&mut ctr, &mut failures, test_encrypt_response, "test_encrypt_response" );
+        core_unitests(&mut ctr, &mut failures, test_decrypt_reponse, "test_decrypt_reponse" );
+        core_unitests(&mut ctr, &mut failures, ||test_get_deltas(db_ptr), "test_get_deltas" );
+        core_unitests(&mut ctr, &mut failures, ||test_get_deltas_more(db_ptr), "test_get_deltas_more" );
+        core_unitests(&mut ctr, &mut failures, ||test_state_internal(db_ptr), "test_state_internal" );
+        core_unitests(&mut ctr, &mut failures, || {test_state(db_ptr)}, "test_state" );
 
 
         rsgx_unit_test_end(ctr, failures);
@@ -568,7 +567,7 @@ pub mod tests {
     /// and on test fails, it records the failed test.
     /// Required test function must be `Fn()`, taking nothing as input and returns
     /// nothing.
-    fn our_unitests<F, R>(ncases: &mut u64, failurecases: &mut Vec<String>, f:F, name: &str )
+    fn core_unitests<F, R>(ncases: &mut u64, failurecases: &mut Vec<String>, f:F, name: &str )
         where F: FnOnce() -> R + UnwindSafe {
         *ncases = *ncases + 1;
         match std::panic::catch_unwind (|| { f(); } ).is_ok() {

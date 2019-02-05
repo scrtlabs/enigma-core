@@ -57,12 +57,12 @@ pub struct RawPointer {
 }
 
 impl RawPointer {
-    pub unsafe fn new<T>(refrence: &T) -> Self {
-        RawPointer { ptr: refrence as *const T as *const u8, _mut: false }
+    pub unsafe fn new<T>(reference: &T) -> Self {
+        RawPointer { ptr: reference as *const T as *const u8, _mut: false }
     }
 
-    pub unsafe fn new_mut<T>(refrence: &mut T) -> Self {
-        RawPointer { ptr: refrence as *mut T as *const u8, _mut: true }
+    pub unsafe fn new_mut<T>(reference: &mut T) -> Self {
+        RawPointer { ptr: reference as *mut T as *const u8, _mut: true }
     }
 
     pub fn get_ptr<T>(&self) -> *const T {

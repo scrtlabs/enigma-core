@@ -315,7 +315,7 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tip_no_data() {
-        let (mut db, _dir) = create_test_db();
+        let (db, _dir) = create_test_db();
 
         let arr = [7u8; 32];
         let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&arr.into()).unwrap();

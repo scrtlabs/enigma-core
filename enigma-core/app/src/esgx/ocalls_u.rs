@@ -8,7 +8,7 @@ use lru_cache::LruCache;
 use std::sync::Mutex;
 use std::{mem, ptr, slice};
 
-lazy_static! { pub static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(10)); }
+lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(500)); }
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
