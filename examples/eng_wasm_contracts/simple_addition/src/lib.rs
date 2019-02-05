@@ -40,9 +40,4 @@ impl ContractInterface for Contract {
     fn addition(x: U256, y: U256) -> U256 {
         x + y
     }
-
-    // Contract constructor. May be ommitted, if empty.
-    // Included here for reference.
-    #[no_mangle]
-    fn construct() {}
 }
