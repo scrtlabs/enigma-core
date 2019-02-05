@@ -70,11 +70,10 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
         };
 
         let mut start = state.delta_index;
-
         'deltas: while start < u32::MAX {
             let mut end = start + 500;
             // Get deltas from start to end, if fails save the latest state and move on.
-            let deltas = match runtime_ocalls_t::get_deltas(*addrs, start, end) {
+            let deltas = match runtime_ocalls_t::get_deltas(*addrs, start+1, end) {
                 Ok(deltas) => deltas,
                 Err(_) => {
                     // If it failed to get deltas, encrypt the latest state and save it
@@ -110,7 +109,6 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
                         continue 'contract;
                     }
                 };
-
                 match state.apply_delta(&patch) {
                     Err(e) => {
                         println!("Failed applying delta: {:?}", e);
