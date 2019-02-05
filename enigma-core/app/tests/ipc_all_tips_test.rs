@@ -7,7 +7,6 @@ extern crate serde;
 
 use self::app::*;
 use self::app::serde_json;
-#[macro_use]
 use app::serde_json::*;
 
 

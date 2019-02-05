@@ -11,7 +11,6 @@ use self::cross_test_utils::{generate_address};
 use self::app::*;
 use integration_utils::serde::*;
 use self::app::serde_json;
-#[macro_use]
 use app::serde_json::*;
 use hex::{ToHex, FromHex};
 use integration_utils::ethabi::{Token};

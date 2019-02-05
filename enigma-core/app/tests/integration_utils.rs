@@ -135,6 +135,15 @@ pub fn set_deltas_msg(type_msg: &str, _input: Vec<(String, u64, u64)>) -> Value 
     json!({"id": &generate_job_id(), "type": type_msg, "input": input})
 }
 
+pub fn set_msg_format_update_contract(type_tip: &str, addr: &str, bytecode: &str) -> Value {
+    json!({"id": &generate_job_id(), "type": type_tip, "address": addr, "bytecode": bytecode})
+}
+
+pub fn set_update_deltas_msg(type_msg: &str, _input: Vec<(String, u64, String)>) -> Value {
+    let input: Vec<Value> = _input.iter().map(|(addr, key, data)| json!({"address": addr, "key": key, "delta": data})).collect();
+    json!({"id": &generate_job_id(), "type": type_msg, "deltas": input})
+}
+
 #[derive(Debug)]
 pub struct ParsedMessage {
     prefix: String,
@@ -162,7 +171,7 @@ impl ParsedMessage {
 
 pub fn parse_packed_msg(msg: &str) -> Value {
     let msg_bytes = msg.from_hex().unwrap();
-    let mut de = Deserializer::new(&msg_bytes[..]);
+    let mut _de = Deserializer::new(&msg_bytes[..]);
     Deserialize::deserialize(&mut Deserializer::new(&msg_bytes[..])).unwrap()
 }
 
@@ -230,6 +239,11 @@ pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
 
 pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8; 32]) {
     let (_, contract_address): (_, [u8; 32]) = full_simple_deployment(port, );
+
+    (compute_add_existing_contract(port, contract_address, a, b), contract_address)
+}
+
+pub fn compute_add_existing_contract(port: &'static str,  addr: [u8; 32], a: u64, b: u64) -> Value {
     // WUKE- get the arguments encryption key
     let (shared_key, user_pubkey) = produce_shared_key(port);
 
@@ -242,8 +256,8 @@ pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8
     let gas_limit = 100_000_000;
 
     let msg = set_compute_msg(type_cmp, &task_id, &encrypted_callable.to_hex(), &encrypted_args.to_hex(),
-                              &user_pubkey.to_hex(), gas_limit, &contract_address.to_hex());
-    (conn_and_call_ipc(&msg.to_string(), port), contract_address)
+                              &user_pubkey.to_hex(), gas_limit, &addr.to_hex());
+    conn_and_call_ipc(&msg.to_string(), port)
 }
 
 pub fn get_decrypted_delta(addr: [u8; 32], delta: &str) -> Vec<u8> {
@@ -265,4 +279,10 @@ pub fn decrypt_delta(addr: &[u8], delta: &[u8]) -> Value {
     let dec = symmetric::decrypt(delta, &get_fake_state_key(addr)).unwrap();
     let mut des = Deserializer::new(&dec[..]);
     Deserialize::deserialize(&mut des).unwrap()
+}
+
+pub fn send_update_contract(port: &'static str,  addr: &str, bytecode: &str) -> Value {
+    let type_contract = "UpdateNewContract";
+    let msg = set_msg_format_update_contract(type_contract, addr, bytecode);
+    conn_and_call_ipc(&msg.to_string(), port)
 }

@@ -7,7 +7,6 @@ extern crate rustc_hex;
 extern crate serde;
 use self::app::*;
 use self::app::serde_json;
-#[macro_use]
 use app::serde_json::*;
 use rustc_hex::{FromHex, ToHex};
 use integration_utils::ethabi::{Token};

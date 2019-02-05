@@ -8,7 +8,6 @@ extern crate rustc_hex as hex;
 
 use self::app::*;
 use self::app::serde_json;
-#[macro_use]
 use app::serde_json::*;
 use hex::{ToHex, FromHex};
 
