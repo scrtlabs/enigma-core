@@ -1,6 +1,6 @@
 use crate::data::{DeltasInterface, IOInterface, StatePatch};
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_types::ContractAddress;
+use enigma_types::{ContractAddress, StateKey};
 use enigma_crypto::{symmetric, Encryption};
 use enigma_types::Hash256;
 use json_patch;
@@ -71,15 +71,15 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
     }
 }
 
-impl<'a> Encryption<&'a [u8; 32], EnclaveError, EncryptedContractState<u8>, [u8; 12]> for ContractState {
-    fn encrypt_with_nonce(self, key: &[u8; 32], _iv: Option<[u8; 12]>) -> Result<EncryptedContractState<u8>, EnclaveError> {
+impl<'a> Encryption<&'a StateKey, EnclaveError, EncryptedContractState<u8>, [u8; 12]> for ContractState {
+    fn encrypt_with_nonce(self, key: &StateKey, _iv: Option<[u8; 12]>) -> Result<EncryptedContractState<u8>, EnclaveError> {
         let mut buf = Vec::new();
         self.serialize(&mut Serializer::new(&mut buf))?;
         let enc = symmetric::encrypt_with_nonce(&buf, key, _iv)?;
         Ok(EncryptedContractState { contract_id: self.contract_id, json: enc })
     }
 
-    fn decrypt(enc: EncryptedContractState<u8>, key: &[u8; 32]) -> Result<ContractState, EnclaveError> {
+    fn decrypt(enc: EncryptedContractState<u8>, key: &StateKey) -> Result<ContractState, EnclaveError> {
         let dec = symmetric::decrypt(&enc.json, key)?;
         let mut des = Deserializer::new(&dec[..]);
         let mut state: ContractState = Deserialize::deserialize(&mut des)?;
