@@ -3,11 +3,10 @@ extern crate sgx_urts;
 extern crate rustc_hex;
 
 use crate::common_u::errors::EnclaveFailError;
-use enigma_types::{ContractAddress, PubKey};
+use enigma_types::{ContractAddress, EnclaveReturn, ExecuteResult, PubKey, RawPointer, traits::SliceCPtr};
 use super::WasmResult;
 use crate::db::DB;
 use std::convert::TryInto;
-use enigma_types::{EnclaveReturn, ExecuteResult, RawPointer, traits::SliceCPtr};
 use failure::Error;
 use sgx_types::*;
 
@@ -98,7 +97,7 @@ pub mod tests {
     use crate::db::{DB, tests::create_test_db};
     use crate::wasm_u::wasm;
     use self::ethabi::{Token};
-    use enigma_types::{ContractAddress, PubKey};
+    use enigma_types::{ContractAddress, DhKey, PubKey};
     use enigma_crypto::{rand, symmetric};
     use sgx_types::*;
     use std::fs::File;
@@ -148,7 +147,7 @@ pub mod tests {
                               constructor: &str,
                               constructor_arguments: &[Token],
                               func: &str,
-                              func_args: &[Token]) -> (sgx_urts::SgxEnclave, Box<[u8]>, WasmResult) {
+                              func_args: &[Token]) -> (sgx_urts::SgxEnclave, Box<[u8]>, WasmResult, DhKey) {
         let enclave = init_enclave_wrapper().unwrap();
         instantiate_encryption_key(&[address], enclave.geteid());
 
@@ -182,14 +181,14 @@ pub mod tests {
             GAS_LIMIT
         ).expect("Execution failed");
 
-        (enclave, exe_code, result)
+        (enclave, exe_code, result, shared_key)
     }
 
     #[test]
     fn test_print_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result) = compile_deploy_execute(
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_address(),
@@ -198,14 +197,14 @@ pub mod tests {
             "print_test(uint256,uint256)",
             &[Token::Uint(17.into()), Token::Uint(22.into())]
         );
-        assert_eq!(from_utf8(&result.output).unwrap(), "22");
+        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), "22");
     }
 
     #[test]
     fn test_write_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result) = compile_deploy_execute(
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_address(),
@@ -215,7 +214,7 @@ pub mod tests {
             &[]
         );
 
-        assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
+        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), "\"157\"");
     }
 
     // address is defined in our protocol as ethereum's H256/bytes32
@@ -224,7 +223,7 @@ pub mod tests {
         let (mut db, _dir) = create_test_db();
         let addr = Token::FixedBytes(generate_address().to_vec());
 
-        let (enclave, _, result) = compile_deploy_execute(
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_address(),
@@ -234,13 +233,13 @@ pub mod tests {
             &[addr.clone()]
         );
 
-        assert_eq!(from_utf8(&result.output).unwrap(), format!("{:?}",addr.to_fixed_bytes().unwrap().to_hex()));
+        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), format!("{:?}",addr.to_fixed_bytes().unwrap().to_hex()));
     }
 
     #[test]
     fn test_rand_u8() {
         let (mut db, _dir) = create_test_db();
-        let (enclave, _, result) = compile_deploy_execute(
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_address(),
@@ -251,7 +250,7 @@ pub mod tests {
         );
 
         let colors = vec!["\"green\"", "\"yellow\"", "\"red\"", "\"blue\"", "\"white\"", "\"black\"", "\"orange\"", "\"purple\""];
-        let res_output = result.output;
+        let res_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
         let res_str = from_utf8(&res_output).unwrap();
         let res = match colors.into_iter().find(|&x|{x==res_str}) {
             Some(color) => color,
@@ -264,7 +263,7 @@ pub mod tests {
     fn test_shuffling() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result) = compile_deploy_execute(
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_address(),
@@ -273,10 +272,10 @@ pub mod tests {
             "get_scrambled_vec()",
             &[]
         );
-
         let zeros: Box<[u8]> = Box::new([0u8; 10]);
-        assert_eq!(result.output.len(), 10);
-        assert_ne!(result.output, zeros);
+        let res_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        assert_eq!(res_output.len(), 10);
+        assert_ne!(&res_output[..], &(*zeros));
     }
 
     #[test]
@@ -284,7 +283,7 @@ pub mod tests {
         let (mut db, _dir) = create_test_db();
         let addr2 = Token::FixedBytes(generate_address().to_vec());
 
-        let (enclave, _, result) = compile_deploy_execute(
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_address(),
@@ -294,7 +293,7 @@ pub mod tests {
             &[Token::FixedBytes(generate_address().to_vec()), addr2.clone()]
         );
 
-        assert_eq!(from_utf8(&result.output).unwrap(), format!("{:?}",addr2.to_fixed_bytes().unwrap().to_hex()));
+        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), format!("{:?}",addr2.to_fixed_bytes().unwrap().to_hex()));
     }
 
     #[test]
@@ -303,7 +302,7 @@ pub mod tests {
         let amount: Token = Token::Uint(50.into());
         let address = generate_address();
 
-        let (enclave, contract_code, _) = compile_deploy_execute(
+        let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
             address.clone(),
@@ -328,7 +327,7 @@ pub mod tests {
         ).expect("Execution failed");
 
         // deserialization of result
-        let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result.output).unwrap().pop().unwrap();
+        let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
         assert_eq!(res, amount);
     }
 
@@ -339,7 +338,7 @@ pub mod tests {
         let addr: Token = Token::FixedBytes(generate_address().to_vec());
         let transfer_amount: Token = Token::Uint(8.into());
 
-        let (enclave, contract_code, _) = compile_deploy_execute(
+        let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
             address.clone(),
@@ -380,7 +379,9 @@ pub mod tests {
             GAS_LIMIT
         ).expect("Execution failed");
 
-        let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance.output).unwrap().pop().unwrap();
+        let result_balance_decrypted = symmetric::decrypt(&result_balance.output, &shared_key).unwrap();
+
+        let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance_decrypted).unwrap().pop().unwrap();
         assert_eq!(res, transfer_amount);
     }
 
@@ -393,7 +394,7 @@ pub mod tests {
         let addr_to: Token = Token::FixedBytes(generate_address().to_vec());
         let transfer_amount: Token = Token::Uint(12.into());
 
-        let (enclave, contract_code, _) = compile_deploy_execute(
+        let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
             address.clone(),
@@ -446,6 +447,8 @@ pub mod tests {
             GAS_LIMIT
         ).expect("Execution failed");
 
+        let result_balance_decrypted = symmetric::decrypt(&result_balance.output, &shared_key).unwrap();
+
         let (keys, shared_key, _, _) = exchange_keys(eid);
         let encrypted_callable = symmetric::encrypt(b"allowance(bytes32,bytes32)", &shared_key).unwrap();
         let encrypted_args = symmetric::encrypt(&ethabi::encode(&[owner, spender]), &shared_key).unwrap();
@@ -460,8 +463,9 @@ pub mod tests {
             GAS_LIMIT
         ).expect("Execution failed");
 
-        let res_allowance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_allowance.output).unwrap().pop().unwrap();
-        let res_balance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance.output).unwrap().pop().unwrap();
+        let result_allowance_decrypted = symmetric::decrypt(&result_allowance.output, &shared_key).unwrap();
+        let res_allowance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_allowance_decrypted).unwrap().pop().unwrap();
+        let res_balance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance_decrypted).unwrap().pop().unwrap();
 
         assert_eq!(res_balance, transfer_amount);
         assert_eq!(res_allowance, Token::Uint(8.into()));
@@ -471,7 +475,7 @@ pub mod tests {
     fn test_eth_bridge(){
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, contract_code, _) = compile_deploy_execute(
+        let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/contract_with_eth_calls",
             generate_address(),

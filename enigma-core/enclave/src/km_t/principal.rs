@@ -37,7 +37,7 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     let msg;
     {
         let keys = guard.get(&id).ok_or(CryptoError::KeyError { key_type: "dh keys".to_string(), err: "Missing".to_string() })?;
-        let aes = keys.get_aes_key(&res.get_pubkey())?;
+        let aes = keys.derive_key(&res.get_pubkey())?;
         msg = PrincipalMessage::decrypt(res, &aes)?;
     }
     if let PrincipalMessageType::Response(v) = msg.data {
@@ -70,11 +70,10 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
         };
 
         let mut start = state.delta_index;
-
         'deltas: while start < u32::MAX {
             let mut end = start + 500;
             // Get deltas from start to end, if fails save the latest state and move on.
-            let deltas = match runtime_ocalls_t::get_deltas(db_ptr, *addrs, start, end) {
+            let deltas = match runtime_ocalls_t::get_deltas(db_ptr, *addrs, start+1, end) {
                 Ok(deltas) => deltas,
                 Err(_) => {
                     // If it failed to get deltas, encrypt the latest state and save it
@@ -110,7 +109,6 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
                         continue 'contract;
                     }
                 };
-
                 match state.apply_delta(&patch) {
                     Err(e) => {
                         println!("Failed applying delta: {:?}", e);
@@ -184,7 +182,7 @@ pub mod tests {
         let restype: Vec<(ContractAddress, StateKey)> = address.clone().into_iter().zip(state_keys.into_iter()).collect();
 
         let res_obj = PrincipalMessage::new_id(PrincipalMessageType::Response(restype), req_obj.get_id(), km_node_keys.get_pubkey());
-        let dh_key = km_node_keys.get_aes_key(&req_obj.get_pubkey()).unwrap();
+        let dh_key = km_node_keys.derive_key(&req_obj.get_pubkey()).unwrap();
         let enc_req = res_obj.encrypt(&dh_key).unwrap();
 
         let enc_res_slice = enc_req.to_message().unwrap();

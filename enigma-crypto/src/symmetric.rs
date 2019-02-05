@@ -1,3 +1,4 @@
+use enigma_types::SymmetricKey;
 use crate::error::CryptoError;
 use ring::aead::{self, Nonce, Aad};
 use crate::localstd::borrow::ToOwned;
@@ -9,13 +10,12 @@ use crate::rand;
 
 const IV_SIZE: usize = 96/8;
 static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
-type Key = [u8; 32];
 type IV = [u8; IV_SIZE];
 
 
-pub fn encrypt(message: &[u8], key: &Key) -> Result<Vec<u8>, CryptoError> { encrypt_with_nonce(message, key, None) }
+pub fn encrypt(message: &[u8], key: &SymmetricKey) -> Result<Vec<u8>, CryptoError> { encrypt_with_nonce(message, key, None) }
 
-pub fn encrypt_with_nonce(message: &[u8], key: &Key, _iv: Option<IV>) -> Result<Vec<u8>, CryptoError> {
+pub fn encrypt_with_nonce(message: &[u8], key: &SymmetricKey, _iv: Option<IV>) -> Result<Vec<u8>, CryptoError> {
     let iv = match _iv {
         Some(x) => x,
         None => {
@@ -42,7 +42,7 @@ pub fn encrypt_with_nonce(message: &[u8], key: &Key, _iv: Option<IV>) -> Result<
 }
 
 
-pub fn decrypt(cipheriv: &[u8], key: &Key) -> Result<Vec<u8>, CryptoError> {
+pub fn decrypt(cipheriv: &[u8], key: &SymmetricKey) -> Result<Vec<u8>, CryptoError> {
     if cipheriv.len() < IV_SIZE {
         return Err(CryptoError::ImproperEncryption);
     }

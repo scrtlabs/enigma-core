@@ -59,10 +59,10 @@ use crate::wasm_g::execution;
 use enigma_runtime_t::data::{ContractState, StatePatch, EncryptedPatch};
 use enigma_runtime_t::EthereumData;
 use enigma_crypto::hash::Keccak256;
-use enigma_crypto::{asymmetric, CryptoError};
+use enigma_crypto::{asymmetric, CryptoError, symmetric};
 use enigma_tools_t::common::{errors_t::EnclaveError, LockExpectMutex, EthereumAddress};
 use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
-use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer};
+use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
 use wasm_utils::{build, SourceTarget};
 
 use sgx_types::*;
@@ -247,7 +247,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
     }
 }
 
-fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String), EnclaveError>{
+fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String, DhKey), EnclaveError>{
     let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(CryptoError::KeyError { key_type: "DH Key".to_string(), err: "Missing".to_string() })?;
@@ -258,7 +258,7 @@ fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Ve
         let decrypted_callable_str = str::from_utf8(&decrypted_callable)?;
         get_types(&decrypted_callable_str)?
     };
-    Ok((decrypted_args, decrypted_callable, types, function_name))
+    Ok((decrypted_args, decrypted_callable, types, function_name, inputs_key))
 }
 
 fn encrypt_and_save_delta(db_ptr: *const RawPointer, delta: &Option<StatePatch>) -> Result<(Option<EncryptedPatch>, Hash256), EnclaveError> {
@@ -312,14 +312,15 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
     result.exe_code_hash = bytecode.keccak256();
     let state = execution::get_state(db_ptr, address)?;
 
-    let (decrypted_args, decrypted_callable, types, function_name) = decrypt_inputs(callable, args, user_key)?;
+    let (decrypted_args, decrypted_callable, types, function_name, key) = decrypt_inputs(callable, args, user_key)?;
 
     let exec_res = execution::execute_call(&bytecode, gas_limit, state, function_name, types, decrypted_args.clone())?;
 
     let (delta, delta_hash) = encrypt_and_save_delta(db_ptr, &exec_res.state_delta)?;
 
+    let encrypted_output = symmetric::encrypt(&exec_res.result, &key)?;
     prepare_wasm_result(delta.clone(),
-                        &exec_res.result[..],
+                        &encrypted_output,
                         exec_res.ethereum_bridge.clone(),
                         exec_res.used_gas,
                         result)?;
@@ -397,7 +398,7 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
     result.exe_code_hash = bytecode.keccak256();
     let deploy_bytecode = build_constructor(bytecode)?;
 
-    let (decrypted_args, _, _types, _) = decrypt_inputs(constructor, args, user_key)?;
+    let (decrypted_args, _, _types, _, _) = decrypt_inputs(constructor, args, user_key)?;
 
     let state = ContractState::new(address);
 

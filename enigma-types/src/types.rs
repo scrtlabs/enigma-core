@@ -1,7 +1,9 @@
 use core::{fmt, mem, ptr, default::Default};
 
 pub use crate::hash::Hash256;
-pub type StateKey = [u8; 32];
+pub type SymmetricKey = [u8; 32];
+pub type StateKey = SymmetricKey;
+pub type DhKey = SymmetricKey;
 pub type ContractAddress = Hash256;
 pub type PubKey = [u8; 64];
 
