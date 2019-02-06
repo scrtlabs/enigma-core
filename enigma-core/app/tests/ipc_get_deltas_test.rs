@@ -20,12 +20,10 @@ fn test_ipc_get_deltas() {
 
     let addresses = deploy_and_compute_few_contracts(port);
 
-    let type_deltas = "GetDeltas";
     // receives only delta 2 from address 1 and delta 1 from address 0
     let _input = vec![(addresses[1].to_hex(),2, 3), (addresses[0].to_hex(), 1, 2)];
-    let msg = set_deltas_msg(type_deltas, _input);
+    let msg = set_deltas_msg(_input);
     let res: Value = conn_and_call_ipc(&msg.to_string(), port);
-    let type_accepted = res["type"].as_str().unwrap();
     let deltas_accepted = res["result"].as_object().unwrap()["deltas"].as_array().unwrap();
     let first_address: String = serde_json::from_value(deltas_accepted[0]["address"].clone()).unwrap();
     let second_address: String = serde_json::from_value(deltas_accepted[1]["address"].clone()).unwrap();
@@ -37,6 +35,5 @@ fn test_ipc_get_deltas() {
     assert_eq!(first_key, 2);
     assert_eq!(second_key, 1);
     assert!(is_hex(&delta));
-    assert_eq!(type_accepted, type_deltas);
     remove_storage_dir();
 }

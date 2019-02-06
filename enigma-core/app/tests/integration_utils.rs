@@ -93,55 +93,55 @@ pub fn get_simple_msg_format(msg_type: &str) -> Value {
     json!({"id": &generate_job_id(), "type": msg_type})
 }
 
-pub fn set_encryption_msg(type_req: &str, user_pubkey: [u8; 64]) -> Value {
-    json!({"id" : &generate_job_id(), "type" : type_req, "userPubKey": user_pubkey.to_hex()})
+pub fn set_msg_format_with_input(type_tip: &str, input: &str) -> Value {
+    json!({"id": &generate_job_id(), "type": type_tip, "input": input})
 }
 
-pub fn set_ptt_req_msg(type_req: &str, addrs: Vec<String>) -> Value {
-    json!({"id" : &generate_job_id(), "type" : type_req, "addresses": addrs})
+pub fn set_encryption_msg(user_pubkey: [u8; 64]) -> Value {
+    json!({"id" : &generate_job_id(), "type" : "NewTaskEncryptionKey", "userPubKey": user_pubkey.to_hex()})
 }
 
-pub fn set_ptt_res_msg(type_res: &str, response: Vec<u8>) -> Value {
-    json!({"id" : &generate_job_id(), "type" : type_res, "response": response.to_hex()})
+pub fn set_ptt_req_msg(addrs: Vec<String>) -> Value {
+    json!({"id" : &generate_job_id(), "type" : "GetPTTRequest", "addresses": addrs})
 }
 
-pub fn set_deploy_msg(type_dep: &str, pre_code: &str, args: &str, callable: &str, usr_pubkey: &str, gas_limit: u64, addr: &str) -> Value {
-    json!({"id" : &generate_job_id(), "type" : type_dep, "input":
+pub fn set_ptt_res_msg(response: Vec<u8>) -> Value {
+    json!({"id" : &generate_job_id(), "type" : "PTTResponse", "response": response.to_hex()})
+}
+
+pub fn set_deploy_msg( pre_code: &str, args: &str, callable: &str, usr_pubkey: &str, gas_limit: u64, addr: &str) -> Value {
+    json!({"id" : &generate_job_id(), "type" : "DeploySecretContract", "input":
             {"preCode": &pre_code, "encryptedArgs": args,
             "encryptedFn": callable, "userDHKey": usr_pubkey,
             "gasLimit": gas_limit, "contractAddress": addr}
             })
 }
 
-pub fn set_compute_msg(type_cmp: &str, task_id: &str, callable: &str, args: &str, user_pubkey: &str, gas_limit: u64, con_addr: &str) -> Value {
-    json!({"id": &generate_job_id(), "type": type_cmp, "input": { "taskID": task_id, "encryptedArgs": args,
+pub fn set_compute_msg(task_id: &str, callable: &str, args: &str, user_pubkey: &str, gas_limit: u64, con_addr: &str) -> Value {
+    json!({"id": &generate_job_id(), "type": "ComputeTask", "input": { "taskID": task_id, "encryptedArgs": args,
     "encryptedFn": callable, "userDHKey": user_pubkey, "gasLimit": gas_limit, "contractAddress": con_addr}})
 }
 
-pub fn set_msg_format_with_input(type_tip: &str, input: &str) -> Value {
-    json!({"id": &generate_job_id(), "type": type_tip, "input": input})
+pub fn set_get_tips_msg(input: Vec<String>) -> Value {
+    json!({"id": &generate_job_id(), "type": "GetTips", "input": input})
 }
 
-pub fn set_get_tips_msg(type_tip: &str, input: Vec<String>) -> Value {
-    json!({"id": &generate_job_id(), "type": type_tip, "input": input})
+pub fn set_delta_msg( addr: &str, key: u64) -> Value {
+    json!({"id": &generate_job_id(), "type": "GetDelta", "input": {"address": addr, "key": key}})
 }
 
-pub fn set_delta_msg(type_msg: &str, addr: &str, key: u64) -> Value {
-    json!({"id": &generate_job_id(), "type": type_msg, "input": {"address": addr, "key": key}})
-}
-
-pub fn set_deltas_msg(type_msg: &str, _input: Vec<(String, u64, u64)>) -> Value {
+pub fn set_deltas_msg( _input: Vec<(String, u64, u64)>) -> Value {
     let input: Vec<Value> = _input.iter().map(|(addr, from, to)| json!({"address": addr, "from": from, "to": to})).collect();
-    json!({"id": &generate_job_id(), "type": type_msg, "input": input})
+    json!({"id": &generate_job_id(), "type": "GetDeltas", "input": input})
 }
 
-pub fn set_msg_format_update_contract(type_tip: &str, addr: &str, bytecode: &str) -> Value {
-    json!({"id": &generate_job_id(), "type": type_tip, "address": addr, "bytecode": bytecode})
+pub fn set_msg_format_update_contract(addr: &str, bytecode: &str) -> Value {
+    json!({"id": &generate_job_id(), "type": "UpdateNewContract", "address": addr, "bytecode": bytecode})
 }
 
-pub fn set_update_deltas_msg(type_msg: &str, _input: Vec<(String, u64, String)>) -> Value {
+pub fn set_update_deltas_msg(_input: Vec<(String, u64, String)>) -> Value {
     let input: Vec<Value> = _input.iter().map(|(addr, key, data)| json!({"address": addr, "key": key, "delta": data})).collect();
-    json!({"id": &generate_job_id(), "type": type_msg, "deltas": input})
+    json!({"id": &generate_job_id(), "type": "UpdateDeltas", "deltas": input})
 }
 
 #[derive(Debug)]
@@ -184,24 +184,22 @@ pub fn mock_principal_res(msg: &str) -> Vec<u8> {
     serialized_enc_response
 }
 
-pub fn run_ptt_round(port: &'static str, addrs: Vec<String>, type_res: &str) -> Value {
-    let type_req = "GetPTTRequest";
+pub fn run_ptt_round(port: &'static str, addrs: Vec<String>) -> Value {
 
     // set encrypted request message to send to the principal node
-    let msg_req = set_ptt_req_msg(type_req, addrs.clone());
+    let msg_req = set_ptt_req_msg(addrs.clone());
     let req_val: Value = conn_and_call_ipc(&msg_req.to_string(), port);
     let packed_msg = req_val["result"].as_object().unwrap()["request"].as_str().unwrap();
 
     let enc_response = mock_principal_res(packed_msg);
-    let msg = set_ptt_res_msg(type_res, enc_response);
+    let msg = set_ptt_res_msg(enc_response);
     conn_and_call_ipc(&msg.to_string(), port)
 }
 
 pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
     // get core's pubkey
-    let type_enc = "NewTaskEncryptionKey";
     let keys = KeyPair::new().unwrap();
-    let msg = set_encryption_msg(type_enc, keys.get_pubkey());
+    let msg = set_encryption_msg(keys.get_pubkey());
 
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
     let core_pubkey: String = serde_json::from_value(v["result"]["workerEncryptionKey"].clone()).unwrap();
@@ -213,24 +211,42 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
     (shared_key, keys.get_pubkey())
 }
 
-pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
+pub fn full_erc20_deployment(port: &'static str) -> (Value, [u8; 32]) {
     // address generation and ptt
     let address = generate_address();
-    let type_ptt = "PTTResponse";
-    let _ = run_ptt_round(port, vec![address.to_hex()], type_ptt);
+    let _ = run_ptt_round(port, vec![address.to_hex()]);
 
     // WUKE- get the arguments encryption key
     let (shared_key, user_pubkey) = produce_shared_key(port);
 
-    let type_dep = "DeploySecretContract";
+    let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/erc20");
+    let fn_deploy = "construct()";
+    let args_deploy = [];
+    let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, shared_key);
+    let gas_limit = 100_000_000;
+
+    let msg = set_deploy_msg(&pre_code.to_hex(), &encrypted_args.to_hex(),
+                             &encrypted_callable.to_hex(), &user_pubkey.to_hex(), gas_limit, &address.to_hex());
+    let v: Value = conn_and_call_ipc(&msg.to_string(), port);
+
+    (v, address.into())
+}
+
+pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
+    // address generation and ptt
+    let address = generate_address();
+    let _ = run_ptt_round(port, vec![address.to_hex()]);
+
+    // WUKE- get the arguments encryption key
+    let (shared_key, user_pubkey) = produce_shared_key(port);
+
     let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/simplest");
     let fn_deploy = "construct(uint)";
     let args_deploy = [Token::Uint(17.into())];
-    let encrypted_callable = symmetric::encrypt(fn_deploy.as_bytes(), &shared_key).unwrap();
-    let encrypted_args = symmetric::encrypt(&ethabi::encode(&args_deploy), &shared_key).unwrap();
+    let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, shared_key);
     let gas_limit = 100_000_000;
 
-    let msg = set_deploy_msg(type_dep, &pre_code.to_hex(), &encrypted_args.to_hex(),
+    let msg = set_deploy_msg(&pre_code.to_hex(), &encrypted_args.to_hex(),
                              &encrypted_callable.to_hex(), &user_pubkey.to_hex(), gas_limit, &address.to_hex());
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
 
@@ -238,26 +254,35 @@ pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
 }
 
 pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8; 32]) {
-    let (_, contract_address): (_, [u8; 32]) = full_simple_deployment(port, );
-
-    (compute_add_existing_contract(port, contract_address, a, b), contract_address)
+    let (_, contract_addr): (_, [u8; 32]) = full_simple_deployment(port);
+    let args = [Token::Uint(a.into()), Token::Uint(b.into())];
+    let callable  = "addition(uint,uint)";
+    (contract_compute(port, contract_addr, &args, callable), contract_addr)
 }
 
-pub fn compute_add_existing_contract(port: &'static str,  addr: [u8; 32], a: u64, b: u64) -> Value {
+pub fn full_mint_compute(port: &'static str,  user_addr: &[u8; 32], amount: u64) -> (Value, [u8; 32]) {
+    let (_, contract_addr): (_, [u8; 32]) = full_erc20_deployment(port);
+    let args = [Token::FixedBytes(user_addr.to_vec()), Token::Uint(amount.into())];
+    let callable  = "mint(bytes32,uint256)";
+    (contract_compute(port, contract_addr, &args, callable), contract_addr)
+}
+
+pub fn contract_compute(port: &'static str,  contract_addr: [u8; 32], args: &[Token], callable: &str) -> Value {
     // WUKE- get the arguments encryption key
     let (shared_key, user_pubkey) = produce_shared_key(port);
 
-    let type_cmp = "ComputeTask";
     let task_id: String = generate_address().to_hex();
-    let fn_cmp = "addition(uint,uint)";
-    let args_cmp = [Token::Uint(a.into()), Token::Uint(b.into())];
-    let encrypted_callable = symmetric::encrypt(fn_cmp.as_bytes(), &shared_key).unwrap();
-    let encrypted_args = symmetric::encrypt(&ethabi::encode(&args_cmp), &shared_key).unwrap();
+    let (encrypted_callable, encrypted_args) = encrypt_args(args, callable, shared_key);
     let gas_limit = 100_000_000;
 
-    let msg = set_compute_msg(type_cmp, &task_id, &encrypted_callable.to_hex(), &encrypted_args.to_hex(),
-                              &user_pubkey.to_hex(), gas_limit, &addr.to_hex());
+    let msg = set_compute_msg(&task_id, &encrypted_callable.to_hex(), &encrypted_args.to_hex(),
+                              &user_pubkey.to_hex(), gas_limit, &contract_addr.to_hex());
     conn_and_call_ipc(&msg.to_string(), port)
+}
+
+fn encrypt_args( args:&[Token], callable: &str, key: [u8;32]) -> (Vec<u8>, Vec<u8>) {
+    (symmetric::encrypt(callable.as_bytes(), &key).unwrap(),
+     symmetric::encrypt(&ethabi::encode(args), &key).unwrap())
 }
 
 pub fn get_decrypted_delta(addr: [u8; 32], delta: &str) -> Vec<u8> {
@@ -271,7 +296,7 @@ pub fn get_decrypted_delta(addr: [u8; 32], delta: &str) -> Vec<u8> {
 pub fn deploy_and_compute_few_contracts(port: &'static str) -> Vec<[u8; 32]> {
     let (_, contract_address_a): (_, [u8; 32]) = full_addition_compute(port, 56, 87);
     let (_, contract_address_b): (_, [u8; 32]) = full_addition_compute(port, 75, 43);
-    let (_, contract_address_c): (_, [u8; 32]) = full_addition_compute(port,34, 68);
+    let (_, contract_address_c): (_, [u8; 32]) = full_mint_compute(port, &generate_address().into(), 500);
     vec![contract_address_a, contract_address_b, contract_address_c]
 }
 
@@ -282,7 +307,6 @@ pub fn decrypt_delta(addr: &[u8], delta: &[u8]) -> Value {
 }
 
 pub fn send_update_contract(port: &'static str,  addr: &str, bytecode: &str) -> Value {
-    let type_contract = "UpdateNewContract";
-    let msg = set_msg_format_update_contract(type_contract, addr, bytecode);
+    let msg = set_msg_format_update_contract(addr, bytecode);
     conn_and_call_ipc(&msg.to_string(), port)
 }

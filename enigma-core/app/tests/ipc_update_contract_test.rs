@@ -22,8 +22,7 @@ fn test_ipc_update_contract() {
     let (deployed_res, _) = full_simple_deployment(port);
     let deployed_bytecode = deployed_res["result"].as_object().unwrap()["output"].as_str().unwrap();
     let new_addr = generate_address();
-    let type_msg = "UpdateNewContract";
-    let msg = set_msg_format_update_contract(type_msg, &new_addr.to_hex(), deployed_bytecode);
+    let msg = set_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
     let res: Value =send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
 
     let updated: u64 = serde_json::from_value(res["status"].clone()).unwrap();

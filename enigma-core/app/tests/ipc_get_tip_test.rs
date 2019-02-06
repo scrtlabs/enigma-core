@@ -6,10 +6,9 @@ pub extern crate enigma_core_app as app;
 extern crate serde;
 extern crate rustc_hex as hex;
 
-use self::app::*;
 use self::app::serde_json;
 use app::serde_json::*;
-use hex::{ToHex, FromHex};
+use hex::ToHex;
 
 #[test]
 fn test_ipc_get_tip() {
