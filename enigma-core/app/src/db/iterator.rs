@@ -136,30 +136,39 @@ pub trait P2PCalls<V> {
 }
 
 impl P2PCalls<Vec<u8>> for DB {
+    #[logfn(DEBUG)]
     fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, Vec<u8>), Error> {
         // check and extract the CF from the DB
         // to_hex converts the [u8] to str
         let str_addr = address.to_hex();
+        debug!("DB: Get Tip: cf: {}, ", str_addr);
         let cf_key =
             self.database.cf_handle(&str_addr).ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
 
         let iter = self.database.prefix_iterator_cf(cf_key, DELTA_PREFIX)?;
         let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
         let k_key = K::from_split(&str_addr, &*last.0)?;
-        Ok((k_key, (&*last.1).to_vec()))
+        let value =  (&*last.1).to_vec();
+        debug!("DB: Continue Get Tip, key: {:?} value: {:?}", k_key, value);
+        Ok((k_key, value))
     }
 
+    #[logfn(DEBUG)]
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> ResultVec<(K, Vec<u8>)> {
         let mut deltas_list = Vec::with_capacity(address_list.len());
+        debug!("DB: Get Tips, Address List: {:?}",address_list);
         for address in address_list {
             deltas_list.push(self.get_tip(&address)?);
         }
+        debug!("DB: Get Tips Countinue, Deltas: {:?}", deltas_list);
         Ok(deltas_list)
     }
 
     /// get_all_addresses will return a list of all addresses that are valid.
     /// meaning if an address was'nt saved according to the hex format the function will ignore it.
+    #[logfn(DEBUG)]
     fn get_all_addresses(&self) -> Result<Vec<ContractAddress>, Error> {
+        debug!("DB: Get all addresses");
         // get a list of all CF's (addresses) in our DB
         let mut cf_list = rocks_db::list_cf(&self.options, &self.location)?;
         match cf_list.len() {
@@ -185,16 +194,23 @@ impl P2PCalls<Vec<u8>> for DB {
             })
             .collect::<Vec<_>>();
 
+        debug!("DB: Continue Get all addresses, list: {:?}", addr_list);
         Ok(addr_list)
     }
 
-    fn get_delta<K: SplitKey>(&self, key: K) -> ResultVec<u8> { Ok(self.read(&key)?) }
+    #[logfn(DEBUG)]
+    fn get_delta<K: SplitKey>(&self, key: K) -> ResultVec<u8> {
 
+        Ok(self.read(&key)?)
+    }
+
+    #[logfn(DEBUG)]
     fn get_contract(&self, address: ContractAddress) -> ResultVec<u8> {
         let key = DeltaKey { contract_id: address, key_type: Stype::ByteCode };
         Ok(self.read(&key)?)
     }
 
+    #[logfn(DEBUG)]
     fn get_all_tips<K: SplitKey>(&self) -> ResultVec<(K, Vec<u8>)> {
         let _address_list: Vec<ContractAddress> = self.get_all_addresses()?;
         self.get_tips(&_address_list[..])
@@ -202,6 +218,7 @@ impl P2PCalls<Vec<u8>> for DB {
 
     // input: addresses_range : [Tuple(K, K)] where K is usually a DeltaKey.
     // output: all keys & values from the first key (included!) up to the second key (not included!!)
+    #[logfn(DEBUG)]
     fn get_deltas<K: SplitKey>(&self, from: K, to: K) -> ResultTypeVec<(K, Vec<u8>)> {
         // a vector for the output values which will consist of tuples: (key: K, value/delta: D)
         // convert the key to the rocksdb representation
@@ -249,6 +266,7 @@ impl P2PCalls<Vec<u8>> for DB {
         })
     }
 
+    #[logfn(DEBUG)]
     fn insert_tuples<K: SplitKey>(&mut self, key_vals: &[(K, Vec<u8>)]) -> Vec<Result<(), Error>> {
         let mut res = Vec::with_capacity(key_vals.len());
         let mut batch = WriteBatch::default();
@@ -272,15 +290,13 @@ impl P2PCalls<Vec<u8>> for DB {
 
 #[cfg(test)]
 mod test {
-    use db::dal::{CRUDInterface, DB};
-    use db::iterator::P2PCalls;
+    use db::{CRUDInterface, P2PCalls, tests::create_test_db};
     use enigma_types::ContractAddress;
     use db::primitives::{DeltaKey, Stype};
 
     #[test]
     fn test_get_tip_multi_deltas_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash = [7u8; 32];
 
@@ -302,8 +318,7 @@ mod test {
 
     #[test]
     fn test_get_tip_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash = [7u8; 32];
         let key_type = Stype::Delta(23);
@@ -320,8 +335,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tip_no_data() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let db = DB::new(&tempdir, true).unwrap();
+        let (db, _dir) = create_test_db();
+
         let arr = [7u8; 32];
         let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&arr.into()).unwrap();
     }
@@ -329,8 +344,8 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tip_data_no_delta() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let hash = [7u8; 32];
         let key_type = Stype::State;
         let dk = DeltaKey { contract_id: hash.into(), key_type };
@@ -341,8 +356,7 @@ mod test {
 
     #[test]
     fn test_get_tips_single_row_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash = [7u8; 32];
         let key_type = Stype::Delta(23);
@@ -358,8 +372,8 @@ mod test {
 
     #[test]
     fn test_get_tips_multi_row_per_add_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let hash: ContractAddress = [7u8; 32].into();
 
         let key_type_a = Stype::Delta(1);
@@ -379,8 +393,7 @@ mod test {
 
     #[test]
     fn test_get_tips_multi_add_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::Delta(1);
@@ -409,8 +422,7 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tips_no_addr() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::Delta(1);
@@ -427,8 +439,7 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_tips_no_deltas() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::State;
@@ -448,8 +459,7 @@ mod test {
 
     #[test]
     fn test_get_all_addresses_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::State;
@@ -478,8 +488,7 @@ mod test {
 
     #[test]
     fn test_get_all_addresses_invalid_cf() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::State;
@@ -513,8 +522,7 @@ mod test {
 
     #[test]
     fn test_get_all_tips() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash_a = [7u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -552,8 +560,7 @@ mod test {
 
     #[test]
     fn test_get_deltas() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash: ContractAddress = [7u8; 32].into();
 
@@ -603,8 +610,7 @@ mod test {
     #[should_panic]
     #[test]
     fn test_get_deltas_different_hashes() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash_a = [9u8; 32];
         let key_type_a = Stype::Delta(1);
@@ -630,8 +636,8 @@ mod test {
 
     #[test]
     fn test_insert_tuples() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let data = vec![
             (DeltaKey { contract_id: [7u8; 32].into(), key_type: Stype::Delta(1) }, b"Enigma".to_vec()),
             (DeltaKey { contract_id: [7u8; 32].into(), key_type: Stype::Delta(2) }, b"to".to_vec()),

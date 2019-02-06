@@ -36,6 +36,7 @@ pub fn init_enclave(token_path: &path::PathBuf, use_token: bool, enclave_locatio
     let enclave = SgxEnclave::create(enclave_location, debug, &mut launch_token, &mut launch_token_updated, &mut misc_attr)?;
 
     if launch_token_updated != 0 {
+        info!("Enclave created, Token: {:?}", enclave);
         return Ok((enclave, Some(launch_token)));
     }
     Ok((enclave, None))

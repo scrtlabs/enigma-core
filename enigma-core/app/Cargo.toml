@@ -11,7 +11,6 @@ enigma-crypto = { path = "../../enigma-crypto" }
 futures = "0.1.25"
 tokio = "0.1.13"
 tokio-zmq = "0.9.0"
-tempdir = "0.3.7"
 base64 = "0.10.0"
 zmq = "0.9.0"
 serde_json = "1.0"
@@ -28,6 +27,9 @@ lazy_static = "1.2.0"
 byteorder = "1.2.7"
 lru-cache = "0.1.1"
 log = "0.4.6"
+log-derive = "0.2"
+simplelog = "0.5.3"
+structopt = "0.2"
 
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
@@ -38,3 +40,4 @@ ethabi = "6.1.0"
 cross-test-utils = { path = "cross-test-utils" }
 regex = "1"
 rand = "0.6.5"
+tempfile = "3.0"
