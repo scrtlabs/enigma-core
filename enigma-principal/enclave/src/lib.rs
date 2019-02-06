@@ -30,10 +30,10 @@ extern crate sgx_types;
 
 use sgx_types::*;
 use std::slice;
+extern crate enigma_crypto;
 
 use enigma_tools_t::common::utils_t::EthereumAddress;
-use enigma_tools_t::cryptography_t;
-use enigma_tools_t::cryptography_t::asymmetric;
+use enigma_crypto::asymmetric;
 use enigma_tools_t::quote_t;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 
@@ -64,7 +64,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     let sealed_path = path_buf.to_str().unwrap();
 
     // TODO: Decide what to do if failed to obtain keys.
-    match cryptography_t::get_sealed_keys(&sealed_path) {
+    match storage_t::get_sealed_keys(&sealed_path) {
         Ok(key) => return key,
         Err(err) => panic!("Failed obtaining keys: {:?}", err)
     };

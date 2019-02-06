@@ -1,10 +1,18 @@
-#![no_std]
+#![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
+#![feature(alloc)]
 
 pub mod traits;
 mod types;
+mod hash;
+
+#[cfg(all(feature = "sgx", not(feature = "std")))]
+use serde_sgx as serde;
+
+#[cfg(not(feature = "sgx"))]
+use serde_std as serde;
 
 use crate::traits::SliceCPtr;
-pub use crate::types::{EnclaveReturn, ResultToEnclaveReturn, ExecuteResult};
+pub use crate::types::*;
 
 pub unsafe fn write_ptr<T>(src: &[T], dst: *mut T, count: usize) {
     if src.len() > count {

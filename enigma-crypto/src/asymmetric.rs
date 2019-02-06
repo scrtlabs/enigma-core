@@ -1,8 +1,10 @@
-use crate::common::{errors_t::EnclaveError,
-                    utils_t::{Keccak256, ToHex}};
+use crate::error::CryptoError;
 use secp256k1::{self, PublicKey, SecretKey, SharedSecret};
-use sgx_trts::trts::rsgx_read_rand;
-use std::string::ToString;
+use crate::localstd::string::ToString;
+use crate::localstd::format;
+use crate::{rand, hash::{self, Keccak256}};
+use enigma_types::DhKey;
+use rustc_hex::ToHex;
 
 #[derive(Debug)]
 pub struct KeyPair {
@@ -11,12 +13,13 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
-    pub fn new() -> Result<KeyPair, EnclaveError> {
+    pub fn new() -> Result<KeyPair, CryptoError> {
         loop {
             let mut me: [u8; 32] = [0; 32];
-            rsgx_read_rand(&mut me)?;
-            if let Ok(_priv) = SecretKey::parse(&me) {
-                return Ok(KeyPair { privkey: _priv.clone(), pubkey: PublicKey::from_secret_key(&_priv) });
+            rand::random(&mut me)?;
+            if let Ok(privkey) = SecretKey::parse(&me) {
+                let pubkey = PublicKey::from_secret_key(&privkey);
+                return Ok(KeyPair { privkey, pubkey });
             }
         }
     }
@@ -43,36 +46,30 @@ impl KeyPair {
         Ok(recovered)
     }
 
-    pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, EnclaveError> {
-        let _priv = match SecretKey::parse(&privkey) {
-            Ok(key) => key,
-            Err(_) => return Err(EnclaveError::KeyError { key_type: "Private Key".to_string(), key: "".to_string() }),
-        };
-        let _pub = PublicKey::from_secret_key(&_priv);
-        let keys = KeyPair { privkey: _priv, pubkey: _pub };
-        Ok(keys)
+    pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, CryptoError> {
+        let privkey = SecretKey::parse(&privkey)
+            .map_err(|e| CryptoError::KeyError { key_type: "Private Key".to_string(), err: format!("{:?}", e) })?;
+        let pubkey = PublicKey::from_secret_key(&privkey);
+
+        Ok(KeyPair { privkey, pubkey })
     }
 
-    pub fn get_aes_key(&self, _pubarr: &[u8; 64]) -> Result<[u8; 32], EnclaveError> {
+    pub fn derive_key(&self, _pubarr: &[u8; 64]) -> Result<DhKey, CryptoError> {
         let mut pubarr: [u8; 65] = [0; 65];
         pubarr[0] = 4;
         pubarr[1..].copy_from_slice(&_pubarr[..]);
-        let pubkey = match PublicKey::parse(&pubarr) {
-            Ok(key) => key,
-            Err(_) => return Err(EnclaveError::KeyError { key: _pubarr.to_hex(), key_type: "PublicKey".to_string() }),
-        };
-        match SharedSecret::new(&pubkey, &self.privkey) {
-            Ok(val) => {
-                let mut result = [0u8; 32];
-                result.copy_from_slice(val.as_ref());
-                Ok(result)
-            }
-            Err(_) => Err(EnclaveError::DerivingKeyError {
-                self_key: self.get_pubkey().to_hex(),
-                other_key: pubkey.serialize()[1..65].to_hex(),
-            }),
-        }
+
+        let pubkey = PublicKey::parse(&pubarr)
+            .map_err(|e| CryptoError::KeyError { key_type: "Private Key".to_string(), err: format!("{:?}", e) })?;
+
+        let shared = SharedSecret::new(&pubkey, &self.privkey)
+            .map_err(|_| CryptoError::DerivingKeyError { self_key: self.get_pubkey().to_hex(), other_key: _pubarr.to_hex() })?;
+
+        let mut result = [0u8; 32];
+        result.copy_from_slice(shared.as_ref());
+        Ok(result)
     }
+
     pub fn get_privkey(&self) -> [u8; 32] { self.privkey.serialize() }
 
     /// Get the Public Key and slice the first byte
@@ -92,25 +89,26 @@ impl KeyPair {
     /// # Examples
     /// Simple Message signing:
     /// ```
-    /// let keys = KeyPair::new();
+    /// use enigma_crypto::KeyPair;
+    /// let keys = KeyPair::new().unwrap();
     /// let msg = b"Sign this";
-    /// let sig = keys.sign(&msg);
+    /// let sig = keys.sign(msg);
     /// ```
     ///
     /// The function returns a 65 bytes slice that contains:
     /// 1. 32 Bytes, ECDSA `r` variable.
     /// 2. 32 Bytes ECDSA `s` variable.
     /// 3. 1 Bytes ECDSA `v` variable aligned to the right for Ethereum compatibility
-    pub fn sign(&self, message: &[u8]) -> Result<[u8; 65], EnclaveError> {
+    pub fn sign(&self, message: &[u8]) -> Result<[u8; 65], CryptoError> {
         let hashed_msg = message.keccak256();
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
-        let (sig, recovery) = match secp256k1::sign(&message_to_sign, &self.privkey) {
-            Ok((sig, rec)) => (sig, rec),
-            Err(_) => return Err(EnclaveError::SigningError { msg: message.to_hex() }),
-        };
+
+        let (sig, recovery) = secp256k1::sign(&message_to_sign, &self.privkey)
+            .map_err(|_| CryptoError::SigningError { msg: message.to_hex() })?;
+
         let v: u8 = recovery.into();
         let mut returnvalue = [0u8; 65];
-        returnvalue[..64].copy_from_slice(&sig.serialize()[..]);
+        returnvalue[..64].copy_from_slice(&sig.serialize());
         returnvalue[64] = v + 27;
         Ok(returnvalue)
     }
@@ -120,19 +118,21 @@ impl KeyPair {
     /// e.g.: `S(H(len(a)+a, len(b)+b...))`
     /// # Examples
     /// ```
-    /// let keys = KeyPair::new();
+    /// use enigma_crypto::KeyPair;
+    /// let keys = KeyPair::new().unwrap();
     /// let msg = b"sign";
     /// let msg2 = b"this";
     /// let sig = keys.sign_multiple(&[msg, msg2]).unwrap();
     /// ```
-    pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], EnclaveError> {
-        let ready = super::prepare_hash_multiple(messages);
+    pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], CryptoError> {
+        let ready = hash::prepare_hash_multiple(messages);
         self.sign(&ready)
     }
 }
 
+#[cfg(test)]
 pub mod tests {
-    use cryptography_t::asymmetric::*;
+    use super::KeyPair;
     use common::utils_t::{EthereumAddress};
 
     pub fn test_signing() {
@@ -151,8 +151,8 @@ pub mod tests {
         let _priv2: [u8; 32] = [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162];
         let k1 = KeyPair::from_slice(&_priv1).unwrap();
         let k2 = KeyPair::from_slice(&_priv2).unwrap();
-        let shared1 = k1.get_aes_key(&k2.get_pubkey()).unwrap();
-        let shared2 = k2.get_aes_key(&k1.get_pubkey()).unwrap();
+        let shared1 = k1.derive_key(&k2.get_pubkey()).unwrap();
+        let shared2 = k2.derive_key(&k1.get_pubkey()).unwrap();
         assert_eq!(shared1, shared2);
         assert_eq!(
             shared1,

@@ -1,6 +1,7 @@
 pub mod rlp;
 use self::rlp::decode_args;
-use cryptography_t::{asymmetric::KeyPair, symmetric::decrypt};
+use enigma_crypto::{asymmetric::KeyPair, symmetric::decrypt};
+use enigma_types::DhKey;
 use crate::common::errors_t::EnclaveError;
 use crate::common::utils_t::FromHex;
 use std::string::String;
@@ -15,7 +16,7 @@ pub fn get_key() -> [u8; 32] {
     let _client_pub_key = "5587fbc96b01bfe6482bf9361a08e84810afcc0b1af72a8e4520f98771ea1080681e8a2f9546e5924e18c047fa948591dba098bffaced50f97a41b0050bdab99".from_hex().unwrap();
     let mut client_pub_key = [0u8; 64];
     client_pub_key.clone_from_slice(&_client_pub_key);
-    my_keys.get_aes_key(&client_pub_key).unwrap()
+    my_keys.derive_key(&client_pub_key).unwrap()
 }
 
 pub fn get_types(function: &str) -> Result<(String, String), EnclaveError> {
@@ -40,13 +41,21 @@ pub fn get_args(callable_args: &[u8], types: &[String], key: &[u8; 32]) -> Resul
 }
 
 // decrypt the arguments which all are sent encrypted and return the solidity abi serialized data
-pub fn decrypt_args(callable_args: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, EnclaveError>{
+pub fn decrypt_args(callable_args: &[u8], key: &DhKey) -> Result<Vec<u8>, EnclaveError>{
     // if args is empty we don't want to try decrypting the slice- it will lead to an error
     if callable_args.is_empty() {
         Ok(callable_args.to_vec())
     }
     else {
-        decrypt(callable_args, key)
+        Ok(decrypt(callable_args, key)?)
+    }
+}
+
+pub fn decrypt_callable(callable: &[u8], key: &DhKey) -> Result<Vec<u8>, EnclaveError> {
+    if callable.is_empty(){
+        Err(EnclaveError::InputError { message: "called function representation is empty".to_string()})
+    } else {
+        Ok(decrypt(callable, key)?)
     }
 }
 

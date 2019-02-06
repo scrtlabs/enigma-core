@@ -4,7 +4,8 @@ version = "0.1.0"
 authors = ["Elichai Turkel <elichai@enigma.co>"]
 
 [dependencies]
-enigma-types = { path = "../enigma-types" }
+enigma-types = { path = "../enigma-types", default-features = false, features = ["sgx"] }
+enigma-crypto = { path = "../enigma-crypto", default-features = false, features = ["sgx"] }
 enigma-tools-t = { path = "../enigma-tools-t" }
 
 etcommon-hexutil = { version = "0.2", default-features = false }
@@ -15,7 +16,9 @@ json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+hashmap_core = "=0.1.9"
 wasmi = { git = "https://github.com/enigmampc/wasmi", features = ["core"]}
 
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

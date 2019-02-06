@@ -1,9 +1,10 @@
-use crate::km_t::{self, ContractAddress};
+use crate::km_t;
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeResult};
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::cryptography_t::Encryption;
+use enigma_crypto::{CryptoError, Encryption};
+use enigma_types::{ContractAddress, RawPointer};
 use parity_wasm::elements::{self, Deserialize};
 use parity_wasm::io::Cursor;
 use std::boxed::Box;
@@ -119,15 +120,15 @@ pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
 }
 
 pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, params: Vec<u8>) -> Result<RuntimeResult, EnclaveError>{
-    let module = Module::from_buffer(&code)?;
+    let module = create_module(code)?;
     execute(&module, gas_limit, state, "".to_string(), "".to_string(), params)
 }
 
-pub fn get_state(addr: ContractAddress) -> Result<ContractState, EnclaveError> {
+pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<ContractState, EnclaveError> {
     let guard = km_t::STATE_KEYS.lock_expect("State Keys");
-    let key = guard.get(&addr).ok_or(EnclaveError::KeyError { key_type: "Missing State Key".to_string(), key: "".to_string() })?;
+    let key = guard.get(&addr).ok_or(CryptoError::KeyError { key_type: "State Key".to_string(), err: "Missing".to_string() })?;
 
-    let enc_state = runtime_ocalls_t::get_state(addr)?;
+    let enc_state = runtime_ocalls_t::get_state(db_ptr, addr)?;
     let state = ContractState::decrypt(enc_state, key)?;
 
     Ok(state)
@@ -136,7 +137,7 @@ pub fn get_state(addr: ContractAddress) -> Result<ContractState, EnclaveError> {
 pub mod tests {
 
     use enigma_runtime_t::data::{ContractState, DeltasInterface};
-    use enigma_tools_t::common::utils_t::Sha256;
+    use enigma_crypto::hash::Sha256;
     use std::string::ToString;
     use std::vec::Vec;
 
@@ -153,13 +154,12 @@ pub mod tests {
             Vec::new(),
         ) {
             Ok(v) => {
-                let after = super::ContractState {
+                let mut after = super::ContractState {
                     contract_id: b"Enigma".sha256(),
                     json: json!({ "code" : 157 }),
-                    delta_hash: [0u8; 32],
-                    delta_index: 0,
+                    .. Default::default()
                 };
-                let delta = super::ContractState::generate_delta(&initial_state, &after).unwrap();
+                let delta = super::ContractState::generate_delta(&initial_state, &mut after).unwrap();
                 assert_eq!(v.state_delta.unwrap(), delta);
             }
             Err(_) => assert!(true),

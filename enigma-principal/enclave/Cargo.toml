@@ -13,6 +13,8 @@ default = []
 [dependencies]
 enigma-tools-t = {path = "../../enigma-tools-t"}
 enigma-types = {path = "../../enigma-types"}
+enigma-crypto = { path = "../../enigma-crypto", default-features = false, features = ["sgx"] }
+
 lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
 serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
@@ -33,5 +35,3 @@ sgx_alloc = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" 
 sgx_tseal = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_rand = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_tunittest = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-
-

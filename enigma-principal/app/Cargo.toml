@@ -7,6 +7,7 @@ build = "build.rs"
 [dependencies]
 enigma-types = {path = "../../enigma-types"}
 enigma-tools-u = {path = "../../enigma-tools-u"}
+enigma-crypto = { path = "../../enigma-crypto" }
 
 ethabi = "6.0.1"
 base64 = "0.10.0"

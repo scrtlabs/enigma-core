@@ -6,6 +6,8 @@ description = "Tools used by the untrusted part of the Enigma core and Principal
 build = "build.rs"
 
 [dependencies]
+enigma-crypto = { path = "../enigma-crypto" }
+
 serde_json = "1.0"
 serde = "1.0"
 serde_derive = "1.0"
@@ -22,6 +24,8 @@ libc = "0.2.45"
 tiny-keccak = "1.4.2"
 ethabi = "6.1.0"
 ethereum-types = "0.4"
+log = "0.4"
+log-derive = "0.2.0"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

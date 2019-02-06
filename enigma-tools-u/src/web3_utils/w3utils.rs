@@ -14,13 +14,13 @@ use web3::types::{Address, Log, U256};
 use web3::Web3;
 // files
 use crate::common_u::errors;
-use crate::common_u::Keccak256;
 use serde_json;
 use serde_json::Value;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
 use std::sync::Arc;
+use enigma_crypto::hash::Keccak256;
 
 pub struct DeployParams {
     pub deployer: Address,
@@ -66,6 +66,8 @@ pub fn load_contract_abi<R: Read>(rdr: R) -> Result<String, Error> {
 // https://github.com/tomusdrw/rust-web3/blob/master/src/transports/http.rs#L79
 // Precision: This is true for Transport::new(), not Web3::new()
 pub fn connect(url: &str) -> Result<(EventLoopHandle, Web3<Http>), Error> {
+#[logfn(WARN)]
+pub fn connect(url: &str) -> Result<(web3::transports::EventLoopHandle, Web3<Http>), Error> {
     let (_eloop, http) = match web3::transports::Http::new(url) {
         Ok((eloop, http)) => (eloop, http),
         Err(_) => return Err(errors::Web3Error { message: String::from("unable to create an http connection") }.into()),
@@ -128,7 +130,7 @@ where P: Tokenize {
 
 fn build_event_filter(event_name: &str, contract_addr: Option<&str>) -> web3::types::Filter {
     let filter = FilterBuilder::default()
-        .topics(Some(vec![event_name.as_bytes().keccak256().into()]), None, None, None)
+        .topics(Some(vec![(*event_name.as_bytes().keccak256()).into()]), None, None, None)
         .from_block(BlockNumber::Earliest)
         .to_block(BlockNumber::Latest);
     match contract_addr {

@@ -158,5 +158,6 @@ clean:
 .PHONY: full-clean
 full-clean:
 	@rm -f ./bin/$(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
+	@rm -rf enclave/enigma-types.h app/enigma-types.h
 	@cd enclave && cargo clean && rm -f Cargo.lock
 	@cd app && cargo clean && rm -f Cargo.lock

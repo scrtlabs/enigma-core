@@ -1,7 +1,7 @@
 use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
-use enigma_tools_u::common_u::FromHex32;
+use enigma_types::ContractAddress;
 use failure::Error;
-use hex::ToHex;
+use hex::{FromHex, ToHex};
 use std::str;
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
@@ -11,7 +11,7 @@ pub struct VecKey(pub Vec<u8>);
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct DeltaKey {
-    pub hash: [u8; 32],
+    pub contract_id: ContractAddress,
     pub key_type: Stype,
 }
 
@@ -27,7 +27,18 @@ pub enum Stype {
     State,
     ByteCode,
 }
-pub trait SplitKey {
+
+impl Stype {
+    pub fn unwrap_delta(self) -> u32 {
+        match self {
+            Stype::Delta(val) => val,
+            _ => panic!("called `Stype::unwrap()` on a non `Delta` value"),
+        }
+    }
+}
+
+use std::fmt::Debug;
+pub trait SplitKey: Debug { // The Debug is added for Debugging :), So if it ever brings up problems it can be removed.
     // as_split should get self and divide it up into two components
     // as a tuple (&str, &[u8]) and send it into a function,
     // something in this order: F(&str, &[u8]).
@@ -46,13 +57,13 @@ impl Default for Stype {
 }
 
 impl DeltaKey {
-    pub fn new(hash: [u8; 32], key_type: Stype) -> DeltaKey { DeltaKey { hash, key_type } }
+    pub fn new(hash: ContractAddress, key_type: Stype) -> DeltaKey { DeltaKey { contract_id: hash, key_type } }
 }
 
 impl SplitKey for DeltaKey {
     fn as_split<T, F: FnMut(&str, &[u8]) -> T>(&self, mut f: F) -> T {
         // converts the [u8; 32] to a str.
-        let cf = &self.hash.to_hex();
+        let cf = &self.contract_id.to_hex();
         let mut key = Vec::new();
         match &self.key_type {
             Stype::Delta(num) => {
@@ -74,8 +85,8 @@ impl SplitKey for DeltaKey {
             _ => bail!("Failed parsing the Key, key does not contain a correct index"),
         };
         // if the address is not a correct hex then it not a correct address.
-        let hash = _hash.from_hex_32()?;
-        Ok(DeltaKey { hash, key_type })
+        let hash = ContractAddress::from_hex(&_hash)?;
+        Ok(DeltaKey { contract_id: hash, key_type })
     }
 }
 
@@ -83,8 +94,11 @@ impl SplitKey for Array32u8 {
     fn as_split<T, F: FnMut(&str, &[u8]) -> T>(&self, mut f: F) -> T { f(&self.0.to_hex(), &[2]) }
 
     fn from_split(_hash: &str, _key_type: &[u8]) -> Result<Self, Error> {
-        let arr = _hash.from_hex_32()?;
-        Ok(Array32u8(arr))
+        let hex: Vec<u8> = _hash.from_hex()?;
+        if hex.len() != 32 { bail!("Wrong length"); }
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&hex);
+        Ok(Array32u8(result))
     }
 }
 
@@ -100,7 +114,7 @@ mod tests {
         let hash = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
         let key_type = Stype::Delta(543015);
         let from = DeltaKey::from_split(&accepted_address.to_hex(), &accepted_key).unwrap();
-        let orig_del = DeltaKey { hash, key_type };
+        let orig_del = DeltaKey { contract_id: hash.into(), key_type };
         assert_eq!(from, orig_del);
     }
 
@@ -110,7 +124,7 @@ mod tests {
         let expected_key: &[u8; 5] = &[1, 1, 69, 200, 177];
         let hash = [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162];
         let key_type: Stype = Stype::Delta(21350577);
-        let del = DeltaKey { hash, key_type };
+        let del = DeltaKey { contract_id: hash.into(), key_type };
         del.as_split(|hash, key| {
             assert_eq!(hash, expected_address);
             assert_eq!(key, expected_key);

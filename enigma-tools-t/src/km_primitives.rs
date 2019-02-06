@@ -1,15 +1,13 @@
 use crate::common::errors_t::EnclaveError;
-use crate::cryptography_t::{symmetric, Encryption};
+use enigma_crypto::{symmetric, Encryption, CryptoError};
+use enigma_types::{ContractAddress, DhKey, StateKey, PubKey};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_trts::trts::rsgx_read_rand;
 use std::string::ToString;
 use std::vec::Vec;
 
-pub type StateKey = [u8; 32];
-pub type ContractAddress = [u8; 32];
 pub type MsgID = [u8; 12];
-pub type PubKey = [u8; 64];
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum PrincipalMessageType {
@@ -94,28 +92,28 @@ impl PrincipalMessage {
     }
 }
 
-impl<'a> Encryption<&'a [u8; 32], EnclaveError, Self, [u8; 12]> for PrincipalMessage {
-    fn encrypt_with_nonce(self, key: &[u8; 32], _iv: Option<[u8; 12]>) -> Result<Self, EnclaveError> {
+impl<'a> Encryption<&'a DhKey, CryptoError, Self, [u8; 12]> for PrincipalMessage {
+    fn encrypt_with_nonce(self, key: &DhKey, _iv: Option<[u8; 12]>) -> Result<Self, CryptoError> {
         match self.data {
             PrincipalMessageType::Response(response) => {
                 let mut buf = Vec::new();
-                response.serialize(&mut Serializer::new(&mut buf))?;
+                response.serialize(&mut Serializer::new(&mut buf)).map_err(|_| CryptoError::EncryptionError)?;
                 let enc = symmetric::encrypt_with_nonce(&buf, key, _iv)?;
                 Ok(Self { prefix: self.prefix, data: PrincipalMessageType::EncryptedResponse(enc), pubkey: self.pubkey, id: self.id })
             }
-            _ => Err(EnclaveError::EncryptionError {}),
+            _ => Err(CryptoError::EncryptionError ),
         }
     }
 
-    fn decrypt(enc: Self, key: &[u8; 32]) -> Result<Self, EnclaveError> {
+    fn decrypt(enc: Self, key: &DhKey) -> Result<Self, CryptoError> {
         match &enc.data {
             PrincipalMessageType::EncryptedResponse(response) => {
                 let dec = symmetric::decrypt(&response, key)?;
                 let mut des = Deserializer::new(&dec[..]);
-                let data = PrincipalMessageType::Response(Deserialize::deserialize(&mut des)?);
+                let data = PrincipalMessageType::Response(Deserialize::deserialize(&mut des).map_err(|_| CryptoError::DecryptionError)?);
                 Ok(Self { prefix: enc.prefix, data, pubkey: enc.pubkey, id: enc.id })
             }
-            _ => Err(EnclaveError::EncryptionError {}),
+            _ => Err(CryptoError::EncryptionError),
         }
     }
 }
@@ -158,9 +156,10 @@ impl UserMessage {
 }
 
 pub mod tests {
-    use super::{PrincipalMessage, PrincipalMessageType};
-    use crate::common::Sha256;
-    use crate::cryptography_t::Encryption;
+    use super::{PrincipalMessage, PrincipalMessageType, ContractAddress};
+    use enigma_crypto::hash::Sha256;
+    use enigma_crypto::Encryption;
+    use std::vec::Vec;
 
     pub fn test_to_message() {
         let res = get_request();
@@ -172,7 +171,8 @@ pub mod tests {
 
     pub fn test_from_message() {
         let msg = [132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 149, 220, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 220, 0, 32, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 220, 0, 32, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 220, 0, 32, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 220, 0, 32, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let data = PrincipalMessageType::Request(vec![[0u8; 32], [1u8; 32], [2u8; 32], [3u8; 32], [4u8; 32]]);
+        let address_vec: Vec<ContractAddress> = vec![[0u8; 32].into(), [1u8; 32].into(), [2u8; 32].into(), [3u8; 32].into(), [4u8; 32].into()];
+        let data = PrincipalMessageType::Request(address_vec);
         let id = [75, 52, 85, 160, 254, 16, 9, 130, 50, 81, 252, 231];
         assert_eq!(PrincipalMessage::new_id(data, id, [0u8; 64]), PrincipalMessage::from_message(&msg[..]).unwrap());
     }
@@ -206,7 +206,8 @@ pub mod tests {
     }
 
     fn get_request() -> PrincipalMessage {
-        let data = PrincipalMessageType::Request(vec![[0u8; 32], [1u8; 32], [2u8; 32], [3u8; 32], [4u8; 32]]);
+        let address_vec: Vec<ContractAddress> = vec![[0u8; 32].into(), [1u8; 32].into(), [2u8; 32].into(), [3u8; 32].into(), [4u8; 32].into()];
+        let data = PrincipalMessageType::Request(address_vec);
         let id = [75, 52, 85, 160, 254, 16, 9, 130, 50, 81, 252, 231];
 
         PrincipalMessage::new_id(data, id, [0u8; 64])
@@ -214,11 +215,11 @@ pub mod tests {
 
     fn get_response() -> PrincipalMessage {
         let data = PrincipalMessageType::Response(vec![
-            ([0u8; 32], [1u8; 32]),
-            ([1u8; 32], [2u8; 32]),
-            ([2u8; 32], [3u8; 32]),
-            ([3u8; 32], [4u8; 32]),
-            ([4u8; 32], [5u8; 32]),
+            ([0u8; 32].into(), [1u8; 32]),
+            ([1u8; 32].into(), [2u8; 32]),
+            ([2u8; 32].into(), [3u8; 32]),
+            ([3u8; 32].into(), [4u8; 32]),
+            ([4u8; 32].into(), [5u8; 32]),
         ]);
         let id = [75, 52, 85, 160, 254, 16, 9, 130, 50, 81, 252, 231];
 

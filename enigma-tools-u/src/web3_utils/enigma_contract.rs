@@ -23,6 +23,7 @@ pub struct EnigmaContract {
 
 impl EnigmaContract {
     /// Fetch the Enigma contract deployed on Ethereum using an HTTP Web3 provider and ethabi
+    #[logfn(INFO)]
     pub fn from_deployed<P: AsRef<Path>>(contract_address: &str, abi_path: P,
                                          account: Option<&str>, url: &str) -> Result<Self, Error> {
         let (eloop, web3) = w3utils::connect(url)?;
@@ -40,6 +41,7 @@ impl EnigmaContract {
         Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, account })
     }
 
+    #[logfn(INFO)]
     pub fn deploy_contract<P: AsRef<Path>>(token_path: P, enigma_path: P, ethereum_url: &str,
                                            account: Option<&str>, sgx_address: &str) -> Result<Self, Error> {
         let (enigma_abi, enigma_bytecode) = w3utils::load_contract_abi_bytecode(enigma_path)?;
@@ -81,6 +83,7 @@ pub trait ContractFuncs<G> {
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
+    #[logfn(INFO)]
     fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<H256, Error> {
         // register
         let signer_addr: Address = signer.parse()?;
@@ -95,6 +98,7 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
         }
     }
 
+    #[logfn(INFO)]
     fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<H256, Error> {
         let mut opts: Options = Options::default();
         opts.gas = Some(gas.into());

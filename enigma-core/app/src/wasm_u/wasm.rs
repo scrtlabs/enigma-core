@@ -1,15 +1,15 @@
-#![allow(dead_code)]
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate rustc_hex;
 
 use crate::common_u::errors::EnclaveFailError;
-use crate::db::{DeltaKey, Stype};
-use crate::km_u::{ContractAddress, PubKey};
-use enigma_types::traits::SliceCPtr;
-use enigma_types::{EnclaveReturn, ExecuteResult};
+use enigma_types::{ContractAddress, EnclaveReturn, ExecuteResult, PubKey, RawPointer, traits::SliceCPtr};
+use super::WasmResult;
+use crate::db::DB;
+use std::convert::TryInto;
 use failure::Error;
 use sgx_types::*;
+
 
 extern "C" {
     fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
@@ -17,22 +17,24 @@ extern "C" {
                     constructor: *const u8, constructor_len: usize,
                     args: *const u8, args_len: usize,
                     address: &ContractAddress, user_key: &PubKey,
-                    gas_limit: *const u64, output_ptr: *mut u64, sig: &mut [u8; 65]) -> sgx_status_t;
+                    gas_limit: *const u64, db_ptr: *const RawPointer,
+                    result: &mut ExecuteResult) -> sgx_status_t;
 
     fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
-                     bytecode: *const u8, bytecode_len: usize, callable: *const u8,
-                     callable_len: usize, callable_args: *const u8, callable_args_len: usize,
-                     user_key: &PubKey, contract_address: &ContractAddress,
-                     gas_limit: *const u64, result: &mut ExecuteResult ) -> sgx_status_t;
+                     bytecode: *const u8, bytecode_len: usize,
+                     callable: *const u8, callable_len: usize,
+                     args: *const u8, args_len: usize,
+                     user_key: &[u8; 64], contract_address: &ContractAddress,
+                     gas_limit: *const u64, db_ptr: *const RawPointer, result: &mut ExecuteResult ) -> sgx_status_t;
 }
 
 const MAX_EVM_RESULT: usize = 100_000;
-pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &str, args: &[u8],
-              contract_address: ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<(Box<[u8]>, [u8;65]), Error> {
+#[logfn(DEBUG)]
+pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
+              contract_address: ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
     let mut retval = EnclaveReturn::Success;
-
-    let mut output_ptr: u64 = 0;
-    let mut signature = [0u8; 65];
+    let mut result = ExecuteResult::default();
+    let db_ptr = unsafe { RawPointer::new_mut(db) };
 
     let status = unsafe {
         ecall_deploy(eid,
@@ -46,33 +48,22 @@ pub fn deploy(eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &str, args: 
                      &contract_address,
                      &user_pubkey,
                      &gas_limit as *const u64,
-                     &mut output_ptr as *mut u64,
-        &mut signature)
+                     &db_ptr as *const RawPointer,
+                     &mut result)
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: retval, status }.into());
+        Err(EnclaveFailError { err: retval, status }.into())
+    } else {
+        result.try_into()
     }
-    let box_ptr = output_ptr as *mut Box<[u8]>;
-    assert!(!box_ptr.is_null()); // TODO: Think about this
-    let part = unsafe { Box::from_raw(box_ptr) };
-    Ok((*part, signature))
 }
 
-#[derive(Clone, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
-pub struct WasmResult {
-    pub bytecode: Vec<u8>,
-    pub output: Vec<u8>,
-    pub delta: ::db::Delta,
-    pub eth_payload: Vec<u8>,
-    pub eth_contract_addr: [u8; 20],
-    pub signature: Vec<u8>,
-}
-
-
-pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &[u8],
-               user_pubkey: &PubKey, address: &ContractAddress, gas_limit: u64)-> Result<WasmResult,Error>{
+#[logfn(DEBUG)]
+pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &[u8],
+               user_pubkey: &PubKey, address: &ContractAddress, gas_limit: u64)-> Result<WasmResult,Error> {
     let mut retval = EnclaveReturn::Success;
     let mut result = ExecuteResult::default();
+    let db_ptr = unsafe { RawPointer::new_mut(db) };
 
     let status = unsafe {
         ecall_execute(eid,
@@ -86,72 +77,51 @@ pub fn execute(eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &str, args: &[
                       &user_pubkey,
                       &address,
                       &gas_limit as *const u64,
+                      &db_ptr as *const RawPointer,
                       &mut result)
     };
 
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: retval, status }.into());
-    }
-    // TODO: Write a handle wrapper that will free the pointers memory in case of an Error.
-
-    let mut new_result: WasmResult = Default::default();
-
-    new_result.signature = result.signature.to_vec();
-
-    assert!(!result.output.is_null()); // TODO: Think about this
-    let box_ptr = result.output as *mut Box<[u8]>;
-    let output = unsafe { Box::from_raw(box_ptr) };
-    new_result.output = output.to_vec();
-
-    assert!(!result.ethereum_payload_ptr.is_null()); // TODO: Think about this
-    let box_payload_ptr = result.ethereum_payload_ptr as *mut Box<[u8]>;
-    let payload = unsafe { Box::from_raw(box_payload_ptr) };
-    new_result.eth_payload = payload.to_vec();
-
-    new_result.eth_contract_addr = result.ethereum_address;
-    if !result.delta_ptr.is_null() && result.delta_hash != [0u8; 32] && result.delta_index != 0 {
-//    if result.delta_ptr != 0 && result.delta_hash != [0u8; 32] && result.delta_index != 0 {
-        // TODO: Replace 0 with maybe max int(accordingly).
-        let box_ptr = result.delta_ptr as *mut Box<[u8]>;
-        assert!(!box_ptr.is_null()); // TODO: Think about this
-        let delta_data = unsafe { Box::from_raw(box_ptr) };
-        new_result.delta.value = delta_data.to_vec();
-        new_result.delta.key = DeltaKey::new(result.delta_hash, Stype::Delta(result.delta_index));
+        Err(EnclaveFailError { err: retval, status }.into())
     } else {
-        bail!("Weird delta results")
+        result.try_into()
     }
-    Ok(new_result)
 }
 
 #[cfg(test)]
 pub mod tests {
-    extern crate ring;
     extern crate ethabi;
 
     use crate::esgx::general::init_enclave_wrapper;
-    use crate::km_u::tests::{exchange_keys, serial_and_encrypt_args};
+    use crate::km_u::tests::exchange_keys;
     use crate::km_u::tests::instantiate_encryption_key;
+    use crate::db::{DB, tests::create_test_db};
     use crate::wasm_u::wasm;
-    use self::ring::rand::*;
     use self::ethabi::{Token};
-    use super::{ContractAddress, PubKey};
-    use enigma_tools_u::common_u::Sha256;
+    use enigma_types::{ContractAddress, DhKey, PubKey};
+    use enigma_crypto::{rand, symmetric};
     use sgx_types::*;
     use std::fs::File;
     use std::io::Read;
     use std::path::PathBuf;
     use std::process::Command;
     use std::str::from_utf8;
-    use wasm_u::wasm::rustc_hex::ToHex;
+    use wasm_u::{WasmResult, wasm::{rustc_hex::ToHex}};
 
+    pub const GAS_LIMIT: u64 = 100_000_000;
     pub fn generate_address() -> ContractAddress {
-        let mut address = [0u8; 32];
-        SystemRandom::new().fill(&mut address).unwrap();
+        let mut address = ContractAddress::default();
+        rand::random(address.as_mut()).unwrap();
         address
     }
 
-
-    fn compile_and_deploy_wasm_contract(eid: sgx_enclave_id_t, test_path: &str, address: ContractAddress, constructor: &str, args: &[u8],  user_pubkey: &PubKey) -> (Box<[u8]>, [u8;65]) {
+    fn compile_and_deploy_wasm_contract(db: &mut DB,
+                                        eid: sgx_enclave_id_t,
+                                        test_path: &str,
+                                        address: ContractAddress,
+                                        constructor: &[u8],
+                                        args: &[u8],
+                                        user_pubkey: &PubKey) -> WasmResult {
         let mut dir = PathBuf::new();
         dir.push(test_path);
         let mut output = Command::new("cargo")
@@ -169,221 +139,351 @@ pub mod tests {
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
 
 
-        wasm::deploy(eid, &wasm_code, constructor, args, address, &user_pubkey, 100_000).expect("Deploy Failed")
+        wasm::deploy(db, eid, &wasm_code, constructor, args, address, &user_pubkey, 100_000).expect("Deploy Failed")
+    }
+
+    fn compile_deploy_execute(db: &mut DB,
+                              test_path: &str,
+                              address: ContractAddress,
+                              constructor: &str,
+                              constructor_arguments: &[Token],
+                              func: &str,
+                              func_args: &[Token]) -> (sgx_urts::SgxEnclave, Box<[u8]>, WasmResult, DhKey) {
+        let enclave = init_enclave_wrapper().unwrap();
+        instantiate_encryption_key(&[address], enclave.geteid());
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_construct = symmetric::encrypt(constructor.as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&constructor_arguments), &shared_key).unwrap();
+
+        let deploy_res = compile_and_deploy_wasm_contract(
+            db,
+            enclave.geteid(),
+            test_path,
+            address,
+            &encrypted_construct,
+            &encrypted_args,
+            &keys.get_pubkey()
+        );
+
+        let exe_code = deploy_res.output;
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(func.as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&func_args), &shared_key).unwrap();
+
+        let result = wasm::execute(
+            db,
+            enclave.geteid(),
+            &exe_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed");
+
+        (enclave, exe_code, result, shared_key)
     }
 
     #[test]
     fn test_print_simple() {
-        let enclave = init_enclave_wrapper().unwrap();
-        let address = generate_address();
-        instantiate_encryption_key(&[address], enclave.geteid());
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let test_constr_arg: Token = Token::Uint(17.into());
-        let encrypted_args = serial_and_encrypt_args(&key, &[test_constr_arg.clone()], None);
+        let (mut db, _dir) = create_test_db();
 
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address, "construct(uint)", &encrypted_args, &pubkey);
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let args = [Token::Uint(17.into()), Token::Uint(22.into())];
-        let encrypted_args = serial_and_encrypt_args(&key, &args, None);
-        let result = wasm::execute(enclave.geteid(),&contract_code, "print_test(uint256,uint256)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
-        enclave.destroy();
-        assert_eq!(from_utf8(&result.output).unwrap(), "22");
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            generate_address(),
+            "construct(uint)",
+            &[Token::Uint(17.into())],
+            "print_test(uint256,uint256)",
+            &[Token::Uint(17.into()), Token::Uint(22.into())]
+        );
+        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), "22");
     }
 
     #[test]
     fn test_write_simple() {
-        let enclave = init_enclave_wrapper().unwrap();
-        let address = generate_address();
-        instantiate_encryption_key(&[address], enclave.geteid());
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let test_constr_arg: Token = Token::Uint(17.into());
-        let encrypted_args = serial_and_encrypt_args(&key, &[test_constr_arg.clone()], None);
+        let (mut db, _dir) = create_test_db();
 
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address, "construct(uint)", &encrypted_args, &pubkey);
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let args : &[u8] = &[];
-        let result = wasm::execute(enclave.geteid(), &contract_code, "write()", args, &pubkey, &address, 100_000).expect("Execution failed");
-        enclave.destroy();
-        assert_eq!(from_utf8(&result.output).unwrap(), "\"157\"");
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            generate_address(),
+            "construct(uint)",
+            &[Token::Uint(17.into())],
+            "write()",
+            &[]
+        );
+
+        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), "\"157\"");
     }
 
     // address is defined in our protocol as ethereum's H256/bytes32
     #[test]
     fn test_single_address() {
-        let enclave = init_enclave_wrapper().unwrap();
-        let address = generate_address();
-        instantiate_encryption_key(&[address], enclave.geteid());
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let test_constr_arg: Token = Token::Uint(100.into());
-        let encrypted_args = serial_and_encrypt_args(&key, &[test_constr_arg.clone()], None);
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address, "construct(uint)", &encrypted_args, &pubkey);
+        let (mut db, _dir) = create_test_db();
+        let addr = Token::FixedBytes(generate_address().to_vec());
 
-        //defining the arguments, serializing them and encrypting them -
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let addr: Token = Token::FixedBytes(generate_address().to_vec());
-        let encrypted_args = serial_and_encrypt_args(&key, &[addr.clone()], None);
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            generate_address(),
+            "construct(uint)",
+            &[Token::Uint(100.into())],
+            "check_address(bytes32)",
+            &[addr.clone()]
+        );
 
-        let result = wasm::execute(enclave.geteid(), &contract_code, "check_address(bytes32)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
-        enclave.destroy();
-        assert_eq!(from_utf8(&result.output).unwrap(), format!("{:?}",addr.to_fixed_bytes().unwrap().to_hex()));
+        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), format!("{:?}",addr.to_fixed_bytes().unwrap().to_hex()));
+    }
+
+    #[test]
+    fn test_rand_u8() {
+        let (mut db, _dir) = create_test_db();
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            generate_address(),
+            "construct(uint)",
+            &[Token::Uint(100.into())],
+            "choose_rand_color()",
+            &[]
+        );
+
+        let colors = vec!["\"green\"", "\"yellow\"", "\"red\"", "\"blue\"", "\"white\"", "\"black\"", "\"orange\"", "\"purple\""];
+        let res_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        let res_str = from_utf8(&res_output).unwrap();
+        let res = match colors.into_iter().find(|&x|{x==res_str}) {
+            Some(color) => color,
+            None => "test_failed"
+        };
+        assert_eq!(res_str, res);
+    }
+
+    #[test]
+    fn test_shuffling() {
+        let (mut db, _dir) = create_test_db();
+
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            generate_address(),
+            "construct(uint)",
+            &[Token::Uint(100.into())],
+            "get_scrambled_vec()",
+            &[]
+        );
+        let zeros: Box<[u8]> = Box::new([0u8; 10]);
+        let res_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        assert_eq!(res_output.len(), 10);
+        assert_ne!(&res_output[..], &(*zeros));
     }
 
     #[test]
     fn test_multiple_addresses() {
-        let enclave = init_enclave_wrapper().unwrap();
-        let address = generate_address();
-        instantiate_encryption_key(&[address], enclave.geteid());
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let test_constr_arg: Token = Token::Uint(1025.into());
-        let encrypted_args = serial_and_encrypt_args(&key, &[test_constr_arg.clone()], None);
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/simplest", address, "construct(uint)", &encrypted_args, &pubkey);
+        let (mut db, _dir) = create_test_db();
+        let addr2 = Token::FixedBytes(generate_address().to_vec());
 
-        // defining the arguments, serializing them and encrypting them
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let addr1: Token = Token::FixedBytes(generate_address().to_vec());
-        let addr2: Token = Token::FixedBytes(generate_address().to_vec());
-        let encrypted_args = serial_and_encrypt_args(&key, &[addr1, addr2.clone()], None);
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            generate_address(),
+            "construct(uint)",
+            &[Token::Uint(1025.into())],
+            "check_addresses(bytes32,bytes32)",
+            &[Token::FixedBytes(generate_address().to_vec()), addr2.clone()]
+        );
 
-        let result = wasm::execute(enclave.geteid(), &contract_code, "check_addresses(bytes32,bytes32)", &encrypted_args, &pubkey, &address, 100_000).expect("Execution failed");
-        enclave.destroy();
-        assert_eq!(from_utf8(&result.output).unwrap(), format!("{:?}",addr2.to_fixed_bytes().unwrap().to_hex()));
+        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), format!("{:?}",addr2.to_fixed_bytes().unwrap().to_hex()));
     }
 
     #[test]
     fn test_mint_erc20() {
-        let enclave = init_enclave_wrapper().unwrap();
-        let address = generate_address();
-        instantiate_encryption_key(&[address], enclave.geteid());
-        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20", address, "construct()", &[], &pubkey);
-
-        // defining the arguments, serializing them and encrypting them
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let addr: Token = Token::FixedBytes(generate_address().to_vec());
+        let (mut db, _dir) = create_test_db();
         let amount: Token = Token::Uint(50.into());
-        let encrypted_args = serial_and_encrypt_args(&key, &[addr, amount.clone()], None);
-        let result = wasm::execute(enclave.geteid(), &contract_code, "mint(bytes32,uint256)", &encrypted_args, &pubkey, &address, 100_000_000).expect("Execution failed");
-        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
-        let result = wasm::execute(enclave.geteid(), &contract_code, "total_supply()", &[], &pubkey, &address, 100_000_000).expect("Execution failed");
-        enclave.destroy();
+        let address = generate_address();
+
+        let (enclave, contract_code, _, _) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/erc20",
+            address.clone(),
+            "construct()",
+            &[],
+            "mint(bytes32,uint256)",
+            &[Token::FixedBytes(generate_address().to_vec()), amount.clone()]
+        );
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(b"total_supply()", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
+        let result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed");
+
         // deserialization of result
-        let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result.output).unwrap().pop().unwrap();
+        let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
         assert_eq!(res, amount);
     }
 
-
     #[test]
     fn test_transfer_erc20() {
-        let enclave = init_enclave_wrapper().unwrap();
+        let (mut db, _dir) = create_test_db();
         let address = generate_address();
-        instantiate_encryption_key(&[address], enclave.geteid());
-        let (pubkey_deploy, _, _, _) = exchange_keys(enclave.geteid());
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20", address, "construct()", &[], &pubkey_deploy);
-        // defining the arguments, serializing them and encrypting them
-        let (pubkey_m, key_m, _, _) = exchange_keys(enclave.geteid());
         let addr: Token = Token::FixedBytes(generate_address().to_vec());
-        let mint_amount: Token = Token::Uint(17.into());
-        let mint_args = serial_and_encrypt_args(&key_m, &[addr.clone(), mint_amount.clone()], None);
-
-        let result_mint = wasm::execute(enclave.geteid(), &contract_code, "mint(bytes32,uint256)", &mint_args, &pubkey_m, &address, 100_000_000).expect("Execution failed");
-
-        let (pubkey_t, key_t, _, _) = exchange_keys(enclave.geteid());
-        let addr_to = Token::FixedBytes(generate_address().to_vec());
         let transfer_amount: Token = Token::Uint(8.into());
-        let transfer_args = serial_and_encrypt_args(&key_t, &[addr, addr_to.clone(), transfer_amount.clone()], None);
 
-        let result_transfer = wasm::execute(enclave.geteid(), &contract_code, "transfer(bytes32,bytes32,uint256)", &transfer_args, &pubkey_t, &address, 100_000_000).expect("Execution failed");
-        let (pubkey_b, key_b, _, _) = exchange_keys(enclave.geteid());
-        let balance_args = serial_and_encrypt_args(&key_b, &[addr_to], None);
-        let result_balance = wasm::execute(enclave.geteid(), &contract_code, "balance_of(bytes32)", &balance_args, &pubkey_b, &address, 100_000_000).expect("Execution failed");
-        enclave.destroy();
-        let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance.output).unwrap().pop().unwrap();
+        let (enclave, contract_code, _, _) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/erc20",
+            address.clone(),
+            "construct()",
+            &[],
+            "mint(bytes32,uint256)",
+            &[addr.clone(), Token::Uint(17.into())]
+        );
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let addr_to = Token::FixedBytes(generate_address().to_vec());
+        let encrypted_callable = symmetric::encrypt(b"transfer(bytes32,bytes32,uint256)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr, addr_to.clone(), transfer_amount.clone()]), &shared_key).unwrap();
+
+        wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed");
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(b"balance_of(bytes32)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr_to]), &shared_key).unwrap();
+
+        let result_balance = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed");
+
+        let result_balance_decrypted = symmetric::decrypt(&result_balance.output, &shared_key).unwrap();
+
+        let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance_decrypted).unwrap().pop().unwrap();
         assert_eq!(res, transfer_amount);
     }
 
     #[test]
     fn test_allow_and_transfer_erc20() {
-        let enclave = init_enclave_wrapper().unwrap();
+        let (mut db, _dir) = create_test_db();
         let address = generate_address();
-        instantiate_encryption_key(&[address], enclave.geteid());
-        let (pubkey_deploy, _, _, _) = exchange_keys(enclave.geteid());
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/erc20", address, "construct()", &[], &pubkey_deploy);
-
-        // defining the arguments, serializing them and encrypting them
-        let (pubkey_m, key_m, _, _) = exchange_keys(enclave.geteid());
         let owner: Token = Token::FixedBytes(generate_address().to_vec());
-        let mint_amount: Token = Token::Uint(40.into());
-        let mint_args = serial_and_encrypt_args(&key_m, &[owner.clone(), mint_amount.clone()], None);
-
-        let result_mint = wasm::execute(enclave.geteid(), &contract_code, "mint(bytes32,uint256)", &mint_args, &pubkey_m, &address, 100_000_000).expect("Execution failed");
-
-        let (pubkey_a, key_a, _, _) = exchange_keys(enclave.geteid());
         let spender: Token = Token::FixedBytes(generate_address().to_vec());
-        let approved_amount: Token = Token::Uint(20.into());
-        let approve_args = serial_and_encrypt_args(&key_a, &[owner.clone(), spender.clone(), approved_amount.clone()], None);
-
-        let result_approve = wasm::execute(enclave.geteid(), &contract_code, "approve(bytes32,bytes32,uint256)", &approve_args, &pubkey_a, &address, 100_000_000).expect("Execution failed");
-
-        let (pubkey_t, key_t, _, _) = exchange_keys(enclave.geteid());
         let addr_to: Token = Token::FixedBytes(generate_address().to_vec());
         let transfer_amount: Token = Token::Uint(12.into());
-        let transfer_args = serial_and_encrypt_args(&key_t, &[owner.clone(), spender.clone(), addr_to.clone(), transfer_amount.clone()], None);
 
-        let result_transfer = wasm::execute(enclave.geteid(), &contract_code, "transfer_from(bytes32,bytes32,bytes32,uint256)", &transfer_args, &pubkey_t, &address, 100_000_000).expect("Execution failed");
+        let (enclave, contract_code, _, _) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/erc20",
+            address.clone(),
+            "construct()",
+            &[],
+            "mint(bytes32,uint256)",
+            &[owner.clone(), Token::Uint(40.into())]
 
-        let (pubkey_b, key_b, _, _) = exchange_keys(enclave.geteid());
-        let balance_args = serial_and_encrypt_args(&key_b, &[addr_to], None);
+        );
+        let eid = enclave.geteid();
+        let (keys, shared_key, _, _) = exchange_keys(eid);
+        let encrypted_callable = symmetric::encrypt(b"approve(bytes32,bytes32,uint256)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[owner.clone(), spender.clone(), Token::Uint(20.into())]), &shared_key).unwrap();
+        wasm::execute(
+            &mut db,
+            eid,
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed");
 
-        let result_balance = wasm::execute(enclave.geteid(), &contract_code, "balance_of(bytes32)", &balance_args, &pubkey_b, &address, 100_000_000).expect("Execution failed");
-        let res_balance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance.output).unwrap().pop().unwrap();
+        let (keys, shared_key, _, _) = exchange_keys(eid);
+        let encrypted_callable = symmetric::encrypt(b"transfer_from(bytes32,bytes32,bytes32,uint256)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[owner.clone(), spender.clone(), addr_to.clone(), transfer_amount.clone()]), &shared_key).unwrap();
+        wasm::execute(
+            &mut db,
+            eid,
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed");
 
+        let (keys, shared_key, _, _) = exchange_keys(eid);
+        let encrypted_callable = symmetric::encrypt(b"balance_of(bytes32)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr_to]), &shared_key).unwrap();
+        let result_balance = wasm::execute(
+            &mut db,
+            eid,
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed");
 
-        let (pubkey_al, key_al, _, _) = exchange_keys(enclave.geteid());
-        let allowance_args = serial_and_encrypt_args(&key_al, &[owner, spender], None);
+        let result_balance_decrypted = symmetric::decrypt(&result_balance.output, &shared_key).unwrap();
 
-        let result_allowance = wasm::execute(enclave.geteid(), &contract_code, "allowance(bytes32,bytes32)", &allowance_args, &pubkey_al, &address, 100_000_000).expect("Execution failed");
-        let res_allowance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_allowance.output).unwrap().pop().unwrap();
+        let (keys, shared_key, _, _) = exchange_keys(eid);
+        let encrypted_callable = symmetric::encrypt(b"allowance(bytes32,bytes32)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[owner, spender]), &shared_key).unwrap();
+        let result_allowance = wasm::execute(
+            &mut db,
+            eid,
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed");
 
-        enclave.destroy();
+        let result_allowance_decrypted = symmetric::decrypt(&result_allowance.output, &shared_key).unwrap();
+        let res_allowance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_allowance_decrypted).unwrap().pop().unwrap();
+        let res_balance: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance_decrypted).unwrap().pop().unwrap();
+
         assert_eq!(res_balance, transfer_amount);
         assert_eq!(res_allowance, Token::Uint(8.into()));
-
     }
 
     #[test]
-    fn test_eth_bridge() {
-        let enclave = init_enclave_wrapper().unwrap();
-        let address = generate_address();
-        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
-        instantiate_encryption_key(&[address], enclave.geteid());
-        let (contract_code, _) = compile_and_deploy_wasm_contract(enclave.geteid(), "../../examples/eng_wasm_contracts/contract_with_eth_calls", address, "construct()", &[], &pubkey);
-        let (pubkey, key, _, _) = exchange_keys(enclave.geteid());
-        let arg: &[u8] = &[];
-        let result = wasm::execute(enclave.geteid(), &contract_code, "test()", arg, &pubkey, &address, 100_000).expect("Execution failed");
-        enclave.destroy();
-    }
+    fn test_eth_bridge(){
+        let (mut db, _dir) = create_test_db();
 
-    #[ignore]
-    #[test]
-    pub fn test_contract() {
-        let mut f = File::open(
-            "../../examples/eng_wasm_contracts/simplest/target/wasm32-unknown-unknown/release/contract.wasm",
-        )
-        .unwrap();
-        let mut wasm_code = Vec::new();
-        f.read_to_end(&mut wasm_code).unwrap();
-        println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
-        let enclave = init_enclave_wrapper().unwrap();
-
-        let address = b"Enigma".sha256();
-        instantiate_encryption_key(&[address], enclave.geteid());
-
-        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
-        let (contract_code, _) =
-            wasm::deploy(enclave.geteid(), &wasm_code, "construct()", &[], b"enigma".sha256(), &pubkey, 100_000)
-                .expect("Deploy Failed");
-        let (pubkey, _, _, _) = exchange_keys(enclave.geteid());
-        let result = wasm::execute(enclave.geteid(),&contract_code, "call", &[],  &pubkey, &address,100_000).expect("Execution failed");
-        assert_eq!(from_utf8(&result.output).unwrap(), "157");
+        let (enclave, contract_code, _, _) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/contract_with_eth_calls",
+            generate_address(),
+            "construct()",
+            &[],
+            "test()",
+            &[]
+        );
     }
 }

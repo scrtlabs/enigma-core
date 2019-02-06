@@ -10,6 +10,8 @@ extern crate base64;
 extern crate dirs;
 extern crate enigma_tools_u;
 extern crate enigma_types;
+extern crate enigma_crypto;
+extern crate rlp;
 extern crate rustc_hex;
 extern crate serde;
 #[macro_use]

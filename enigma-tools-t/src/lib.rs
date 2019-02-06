@@ -4,6 +4,7 @@
 #![feature(try_from)]
 
 extern crate enigma_types;
+extern crate enigma_crypto;
 
 #[macro_use]
 extern crate sgx_tstd as std;
@@ -23,9 +24,7 @@ extern crate sgx_tseal;
 extern crate sgx_types;
 
 extern crate bigint;
-extern crate byteorder;
 extern crate hexutil;
-extern crate ring;
 extern crate rlp;
 extern crate ethabi;
 extern crate ethereum_types;
@@ -34,7 +33,6 @@ extern crate tiny_keccak;
 extern crate wasmi;
 pub mod build_arguments_g;
 pub mod common;
-pub mod cryptography_t;
 pub mod km_primitives;
 pub mod quote_t;
 pub mod document_storage_t; //TODO: Copy of storage_t with more generic naming convention
