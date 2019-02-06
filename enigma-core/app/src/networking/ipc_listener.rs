@@ -92,9 +92,7 @@ pub(self) mod handling {
         let report_hex = response.result.report_string.as_bytes().to_hex();
         let signature = response.result.signature;
 
-        assert_eq!(str::from_utf8(&quote.report_body.report_data)?.trim_right_matches('\x00'), sigining_key);
-
-        let result = IpcResults::RegistrationParams { signing_key: sigining_key, report: report_hex, signature };
+        let result = IpcResults::RegistrationParams { signing_key: sigining_key.to_hex(), report: report_hex, signature };
 
         Ok(IpcResponse::GetRegistrationParams { result })
     }
@@ -119,7 +117,7 @@ pub(self) mod handling {
         for data in input {
             let address = ContractAddress::from_hex(&data)?;
             let (tip_key, tip_data) = db.get_tip::<DeltaKey>(&address)?;
-            let delta = IpcDelta::from_delta_key(tip_key, tip_data)?;
+            let delta = IpcDelta::from_delta_key(tip_key, &tip_data)?;
             tips_results.push(delta);
         }
         Ok(IpcResponse::GetTips { result: IpcResults::Tips(tips_results) })
@@ -130,7 +128,7 @@ pub(self) mod handling {
         let tips = db.get_all_tips::<DeltaKey>().unwrap_or_default();
         let mut tips_results = Vec::with_capacity(tips.len());
         for (key, data) in tips {
-            let delta = IpcDelta::from_delta_key(key, data)?;
+            let delta = IpcDelta::from_delta_key(key, &data)?;
             tips_results.push(delta);
         }
         Ok(IpcResponse::GetAllTips { result: IpcResults::Tips(tips_results) })
@@ -165,7 +163,7 @@ pub(self) mod handling {
                 continue; // TODO: Check if this handling makes any sense.
             }
             for (key, data) in db_res.unwrap() {
-                let delta = IpcDelta::from_delta_key(key, data)?;
+                let delta = IpcDelta::from_delta_key(key, &data)?;
                 results.push(delta);
             }
         }

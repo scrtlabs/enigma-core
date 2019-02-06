@@ -158,7 +158,7 @@ impl IpcMessage {
 
 
 impl IpcDelta {
-    pub fn from_delta_key(k: DeltaKey, v: Vec<u8>) -> Result<Self, Error> {
+    pub fn from_delta_key(k: DeltaKey, v: &[u8]) -> Result<Self, Error> {
         if let Stype::Delta(indx) = k.key_type {
             Ok( IpcDelta { address: Some(k.contract_id.to_hex()), key: indx, delta: Some(v.to_hex()) } )
         } else {

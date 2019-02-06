@@ -85,7 +85,7 @@ pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &
             let state_len = state.len();
             *state_size = state_len;
             cache_id.write_uint::<BigEndian>(state_len as u64, mem::size_of_val(&state_len)).unwrap();
-            DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256().into(), vec![state]);
+            DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), vec![state]);
             EnclaveReturn::Success
         }
         Err(_) => EnclaveReturn::OcallDBError,
@@ -106,7 +106,7 @@ pub unsafe extern "C" fn ocall_get_state(db_ptr: *const RawPointer, addr: &Contr
     };
 
 
-    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256().into()) {
+    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
         Some(state) => {
             enigma_types::write_ptr(&state[0][..], state_ptr, state_size);
             EnclaveReturn::Success
@@ -159,7 +159,7 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(db_ptr: *const RawPointer, addr:
         },
         Err(_) => return EnclaveReturn::OcallDBError,
     };
-    DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256().into(), deltas_vec);
+    DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), deltas_vec);
     enigma_types::write_ptr(&sizes, res_ptr, res_len);
     EnclaveReturn::Success
 }
@@ -181,7 +181,7 @@ pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &Cont
     };
 
 
-    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256().into()) {
+    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
         Some(deltas_vec) => {
             // The results here are flatten to one big array.
             // The Enclave needs to separate them back to the original.
