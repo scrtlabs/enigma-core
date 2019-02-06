@@ -39,7 +39,7 @@ pub enum IpcResponse {
     ComputeTask { #[serde(flatten)] result: IpcResults },
     GetPTTRequest { #[serde(flatten)] result: IpcResults },
     PTTResponse { result: IpcResults },
-    Error { error: String },
+    Error { msg: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -222,7 +222,7 @@ impl<E: std::fmt::Debug> UnwrapError<IpcResponse> for Result<IpcResponse, E> {
             Ok(m) => m,
             Err(e) => {
                 error!("Unwrapped p2p Message failed: {:?}", e);
-                IpcResponse::Error {error: format!("{:?}", e)}
+                IpcResponse::Error {msg: format!("{:?}", e)}
             }
         }
     }
