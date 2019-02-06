@@ -85,12 +85,18 @@ pub(self) mod handling {
         let sigining_key = equote::get_register_signing_address(eid)?;
 
         let enc_quote = equote_tools::retry_quote(eid, spid, 18)?;
-        let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
-        let response = service.get_report(&enc_quote)?;
-        let quote = response.get_quote()?;
 
-        let report_hex = response.result.report_string.as_bytes().to_hex();
-        let signature = response.result.signature;
+        let report_hex;
+        let signature;
+        if option_env!("SGX_MODE").unwrap_or_default() == "SW" { // Software Mode
+            report_hex = enc_quote;
+            signature = String::new();
+        } else { // Hardware Mode
+            let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
+            let response = service.get_report(&enc_quote)?;
+            report_hex = response.result.report_string.as_bytes().to_hex();
+            signature = response.result.signature;
+        }
 
         let result = IpcResults::RegistrationParams { signing_key: sigining_key.to_hex(), report: report_hex, signature };
 
