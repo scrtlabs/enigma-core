@@ -22,12 +22,14 @@ The encryption method relies on a DH key exchange between the Principal node and
 
 **Parameters**
 
-- `requestMessage` (String) - The HEX string of a serialized KM [Message](https://github.com/enigmampc/enigma-core-internal/blob/develop/enigma-tools-t/src/km_primitives.rs) struct. The Request data contains a list of secret contract addresses (`Vec<ContractAddress>`).
-- `workerSig` (String) - The HEX string of the signature of the hash of the serialized KM Message (`msg.to_message()`). This allows the Principal node to recover the worker's signer address. 
+- `data` (String) - The HEX string of a serialized KM [Message](https://github.com/enigmampc/enigma-core-internal/blob/develop/enigma-tools-t/src/km_primitives.rs) struct. The Request data contains a list of secret contract addresses (`Vec<ContractAddress>`).
+- `sig` (String) - The HEX string of the signature of the hash of the serialized KM Message (`msg.to_message()`). This allows the Principal node to recover the worker's signer address. 
 
 **Returns**
 
-`encryptedResponseMessage` (String) - The HEX string of the encrypted KM Message Response. The Response data contains a list of secret contract address / state key tuples (`Vec<(ContractAddress, StateKey)>`).
+`data` (String) - The HEX string of the encrypted KM Message Response. The Response data contains a list of secret contract address / state key tuples (`Vec<(ContractAddress, StateKey)>`).
+`sig`: (String)
+`pubKey` (String):
 
 **Example**
 
