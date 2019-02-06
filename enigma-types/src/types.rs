@@ -7,21 +7,6 @@ pub type DhKey = SymmetricKey;
 pub type ContractAddress = Hash256;
 pub type PubKey = [u8; 64];
 
-#[derive(Debug)]
-pub enum ResultStatus {
-    Success,
-    Failure,
-}
-
-impl From<ResultStatus> for u8 {
-    fn from(i: ResultStatus) -> Self {
-        match i{
-            ResultStatus::Success => 1u8,
-            ResultStatus::Failure => 0u8,
-        }
-    }
-}
-
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnclaveReturn {
@@ -43,6 +28,14 @@ pub enum EnclaveReturn {
 //    Uninitialized,
 }
 
+
+#[derive(Debug)]
+pub enum ResultStatus {
+    Success,
+    Failure,
+}
+
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ExecuteResult {
@@ -56,6 +49,60 @@ pub struct ExecuteResult {
     pub ethereum_address: [u8; 20],
     pub signature: [u8; 65],
     pub used_gas: u64,
+}
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug)]
+pub struct RawPointer {
+    ptr: *const u8,
+    _mut: bool
+}
+
+impl RawPointer {
+    pub unsafe fn new<T>(reference: &T) -> Self {
+        RawPointer { ptr: reference as *const T as *const u8, _mut: false }
+    }
+
+    pub unsafe fn new_mut<T>(reference: &mut T) -> Self {
+        RawPointer { ptr: reference as *mut T as *const u8, _mut: true }
+    }
+
+    pub fn get_ptr<T>(&self) -> *const T {
+        self.ptr as *const T
+    }
+
+    pub fn get_mut_ptr<T>(&self) -> Result<*mut T, &'static str> {
+        if !self._mut {
+            Err("This DoublePointer is not mutable")
+        } else {
+            Ok(self.ptr as *mut T)
+        }
+    }
+
+    pub unsafe fn get_ref<T>(&self) ->  &T {
+        &*(self.ptr as *const T)
+    }
+
+    pub unsafe fn get_mut_ref<T>(&self) -> Result<&mut T, &'static str> {
+        if !self._mut {
+            Err("This DoublePointer is not mutable")
+        } else {
+            Ok(&mut *(self.ptr as *mut T) )
+        }
+    }
+
+
+}
+
+
+
+impl From<ResultStatus> for u8 {
+    fn from(i: ResultStatus) -> Self {
+        match i{
+            ResultStatus::Success => 1u8,
+            ResultStatus::Failure => 0u8,
+        }
+    }
 }
 
 impl Default for ExecuteResult {

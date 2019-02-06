@@ -11,7 +11,6 @@ enigma-crypto = { path = "../../enigma-crypto" }
 futures = "0.1.25"
 tokio = "0.1.13"
 tokio-zmq = "0.9.0"
-tempdir = "0.3.7"
 base64 = "0.10.0"
 zmq = "0.9.0"
 serde_json = "1.0"
@@ -34,3 +33,4 @@ sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 
 [dev-dependencies]
 ethabi = "6.1.0"
+tempfile = "3.0"

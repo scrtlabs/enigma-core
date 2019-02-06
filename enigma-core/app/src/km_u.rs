@@ -1,8 +1,9 @@
 #![allow(dead_code)] // TODO: Remove later
 
 use crate::common_u::errors::EnclaveFailError;
+use crate::db::DB;
 use enigma_types::traits::SliceCPtr;
-use enigma_types::{EnclaveReturn, ContractAddress, PubKey};
+use enigma_types::{EnclaveReturn, ContractAddress, PubKey, RawPointer};
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use std::mem;
@@ -12,7 +13,7 @@ extern "C" {
     fn ecall_ptt_req(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, addresses: *const ContractAddress, len: usize,
                      signature: &mut [u8; 65], serialized_ptr: *mut u64) -> sgx_status_t;
     fn ecall_ptt_res(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, msg_ptr: *const u8, msg_len: usize) -> sgx_status_t;
-    fn ecall_build_state(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, failed_ptr: *mut u64) -> sgx_status_t;
+    fn ecall_build_state(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, db_ptr: *const RawPointer, failed_ptr: *mut u64) -> sgx_status_t;
     fn ecall_get_user_key(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
                           signature: &mut [u8; 65], user_pubkey: &PubKey, serialized_ptr: *mut u64) -> sgx_status_t;
 
@@ -20,10 +21,18 @@ extern "C" {
 
 /// This function build the states that it received in ptt_req and ptt_res
 /// It returns a Vec of the failed contract addresses
-pub fn ptt_build_state(eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Error> {
+pub fn ptt_build_state(db: &mut DB, eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Error> {
     let mut ret = EnclaveReturn::Success;
     let mut failed_ptr = 0u64;
-    let status = unsafe { ecall_build_state(eid, &mut ret as *mut EnclaveReturn, &mut failed_ptr as *mut u64) };
+
+    let db_ptr = unsafe { RawPointer::new_mut(db) };
+
+    let status = unsafe {
+        ecall_build_state(eid,
+                          &mut ret as *mut EnclaveReturn,
+                          &db_ptr as *const RawPointer,
+                          &mut failed_ptr as *mut u64) }
+        ;
     if ret != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: ret, status }.into());
     }
@@ -93,7 +102,7 @@ pub mod tests {
 
     use super::{ptt_build_state, ptt_req, ptt_res};
     use crate::db::Stype::{Delta, State};
-    use crate::db::{CRUDInterface, DeltaKey, DATABASE};
+    use crate::db::{CRUDInterface, DeltaKey, DB, tests::create_test_db};
     use crate::esgx::general::init_enclave_wrapper;
     use enigma_types::{ContractAddress, DhKey, StateKey};
     use enigma_crypto::{KeyPair, symmetric, hash::Sha256};
@@ -197,11 +206,9 @@ pub mod tests {
         // Making the response
         let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
         let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|add| (add, *add)).collect();
-        println!("data: {:?}", _response_data);
 
         let mut response_data = Vec::new();
         _response_data.serialize(&mut Serializer::new(&mut response_data)).unwrap();
-        println!("let ser = {:?};", response_data);
 
         // Getting the node DH Public Key
         let _node_pubkey: Vec<u8> = serde_json::from_value(req["pubkey"].clone()).unwrap();
@@ -235,11 +242,11 @@ pub mod tests {
 
     #[test]
     fn test_the_whole_round() {
+        let (mut db, _dir) = create_test_db();
         //Making a request
-        let address = fill_the_db();
+        let address = fill_the_db(&mut db);
         let enclave = init_enclave_wrapper().unwrap();
         let req = ptt_req(enclave.geteid(), &address).unwrap();
-
         // serializing the result from the request
         let mut des = Deserializer::new(&req.0[..]);
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
@@ -252,8 +259,7 @@ pub mod tests {
 
         ptt_res(enclave.geteid(), &serialized_enc_response).unwrap();
 
-
-        let address_result = ptt_build_state(enclave.geteid()).unwrap();
+        let address_result = ptt_build_state(&mut db, enclave.geteid()).unwrap();
         assert_eq!(address_result, vec![address[2]]);
 
         // Testing equality while ignoring order.
@@ -262,7 +268,7 @@ pub mod tests {
 //        assert!(address_result.iter().all(|x| address_set.contains(x)));
     }
 
-    fn fill_the_db() -> Vec<ContractAddress> {
+    fn fill_the_db(db: &mut DB) -> Vec<ContractAddress> {
         let address = vec![b"first".sha256(), b"second".sha256(), b"third".sha256()];
         let mut stuff = vec![
             (DeltaKey { contract_id: address[2], key_type: State }, vec![8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]),
@@ -279,7 +285,7 @@ pub mod tests {
             }
         }
         for (key, data) in stuff {
-            DATABASE.lock().expect("Database mutex is poison").force_update(&key, &data).unwrap();
+            db.force_update(&key, &data).unwrap();
         }
         address
 

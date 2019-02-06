@@ -8,7 +8,7 @@ use enigma_crypto::asymmetric::KeyPair;
 use enigma_crypto::{Encryption, CryptoError};
 use enigma_tools_t::km_primitives::MsgID;
 use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
-use enigma_types::{ContractAddress, StateKey};
+use enigma_types::{ContractAddress, StateKey, RawPointer};
 use std::collections::HashMap;
 use std::string::ToString;
 use std::sync::SgxMutex;
@@ -51,14 +51,14 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     Ok(())
 }
 
-pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, EnclaveError> {
+pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Vec<ContractAddress>, EnclaveError> {
     let guard = STATE_KEYS.lock_expect("State Keys");
     let mut failed_contracts = Vec::with_capacity(guard.len());
 
     'contract: for (addrs, key) in guard.iter() {
         // Get the state and decrypt it.
         // if no state exist create new one and if failed decrypting push to failed_contracts and move on.
-        let mut state = match runtime_ocalls_t::get_state(*addrs) {
+        let mut state = match runtime_ocalls_t::get_state(db_ptr, *addrs) {
             Ok(enc_state) => match ContractState::decrypt(enc_state, &key) {
                 Ok(s) => s,
                 Err(_) => {
@@ -73,7 +73,7 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
         'deltas: while start < u32::MAX {
             let mut end = start + 500;
             // Get deltas from start to end, if fails save the latest state and move on.
-            let deltas = match runtime_ocalls_t::get_deltas(*addrs, start+1, end) {
+            let deltas = match runtime_ocalls_t::get_deltas(db_ptr, *addrs, start+1, end) {
                 Ok(deltas) => deltas,
                 Err(_) => {
                     // If it failed to get deltas, encrypt the latest state and save it
@@ -85,7 +85,7 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
                             continue 'contract;
                         }
                     };
-                    runtime_ocalls_t::save_state(&enc)?;
+                    runtime_ocalls_t::save_state(db_ptr, &enc)?;
                     continue 'contract;
                 }
             };
@@ -105,7 +105,7 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
                             }
                         };
                         failed_contracts.push(*addrs);
-                        runtime_ocalls_t::save_state(&enc)?;
+                        runtime_ocalls_t::save_state(db_ptr, &enc)?;
                         continue 'contract;
                     }
                 };
@@ -133,7 +133,7 @@ pub(crate) fn ecall_build_state_internal() -> Result<Vec<ContractAddress>, Encla
                 continue 'contract;
             }
         };
-        runtime_ocalls_t::save_state(&enc)?;
+        runtime_ocalls_t::save_state(db_ptr, &enc)?;
     }
     Ok(failed_contracts)
 }
@@ -145,9 +145,10 @@ pub mod tests {
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::asymmetric::KeyPair;
     use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
-    use enigma_types::ContractAddress;
+    use enigma_types::{ContractAddress, RawPointer};
 
-    pub fn test_state_internal() {
+
+    pub fn test_state_internal(db_ptr: *const RawPointer) {
         // Making the ground work
         let address = vec![b"meee".sha256(), b"moo".sha256(), b"maa".sha256()];
         let state_keys = vec![*b"first_key".sha256(), *b"second_key".sha256(), *b"third_key".sha256()];
@@ -164,13 +165,13 @@ pub mod tests {
 
         //        // Saving the encrypted states and deltas to the db
         for (enc_state, enc_deltas) in enc_states {
-            runtime_ocalls_t::save_state(&enc_state).unwrap();
+            runtime_ocalls_t::save_state(db_ptr, &enc_state).unwrap();
             for delta in enc_deltas {
-                runtime_ocalls_t::save_delta(&delta).unwrap();
+                runtime_ocalls_t::save_delta(db_ptr, &delta).unwrap();
             }
         }
         let gibrish_state = EncryptedContractState { contract_id: address[2], json: vec![8u8; 65] };
-        runtime_ocalls_t::save_state(&gibrish_state).unwrap();
+        runtime_ocalls_t::save_state(db_ptr, &gibrish_state).unwrap();
         // Generating the request
         let mut _sig = [0u8; 65];
         let req_msg = unsafe { ecall_ptt_req_internal(&address, &mut _sig).unwrap() };
@@ -190,7 +191,7 @@ pub mod tests {
         ecall_ptt_res_internal(&enc_res_slice).unwrap();
 
         // Initiate the building
-        assert_eq!(ecall_build_state_internal().unwrap(), vec![address[2]])
+        assert_eq!(ecall_build_state_internal(db_ptr).unwrap(), vec![address[2]])
     }
 
     fn get_states_deltas(address: &[ContractAddress]) -> Vec<(ContractState, Vec<StatePatch>)> {
@@ -221,4 +222,5 @@ pub mod tests {
         }
         result
     }
+
 }
