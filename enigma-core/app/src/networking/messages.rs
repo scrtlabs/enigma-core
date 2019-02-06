@@ -103,6 +103,7 @@ pub enum IpcRequest {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcTask {
     #[serde(rename = "preCode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_code: Option<String>,
     #[serde(rename = "encryptedArgs")]
     pub encrypted_args: String,
@@ -125,14 +126,17 @@ pub struct IpcIdentityChallenge {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcStatusResult {
     pub address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<u32>,
     pub status: Status,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct IpcDelta {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     pub key: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub delta: Option<String>,
 }
 
