@@ -45,6 +45,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             principal_config.set_enigma_contract_address(contract_addr.to_hex());
             principal_config.max_epochs = ttl;
 
+            println!("Enigma contract deployed: {:?}", enigma_contract.address());
             let principal: PrincipalManager = PrincipalManager::new_delegated(principal_config, enigma_contract, eid);
 
             /* step3 optional - run miner to simulate blocks */
