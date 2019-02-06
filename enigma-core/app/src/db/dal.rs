@@ -93,8 +93,11 @@ pub trait CRUDInterface<E, K, T, V> {
 }
 
 impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
+
+    #[logfn(DEBUG)]
     fn create(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
+            debug!("DB: Create: cf: {}, key: {:?}, value: {:?}", hash, index_key, value);
             // creates the ColumnFamily and verifies that it doesn't already exist
             let cf_key = match self.database.cf_handle(hash) {
                 Some(cf) => cf,
@@ -114,19 +117,20 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         })
     }
 
+    #[logfn(DEBUG)]
     fn read(&self, key: &'a K) -> Result<Vec<u8>, Error> {
         key.as_split(|hash, index_key| {
+            debug!("DB: Read: cf: {}, key: {:?}", hash, index_key);
             let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
-
-            self.database.get_cf(cf_key, &index_key)?.map_or_else(
-                || Err(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey }.into()),
-                |data| Ok(data.to_vec()),
-            )
+            let value = self.database.get_cf(cf_key, &index_key)?.ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
+            Ok(value.to_vec())
         })
     }
 
+    #[logfn(DEBUG)]
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
+            debug!("Updating DB: cf: {}, key: {:?}, value: {:?}", hash, index_key, value);
             let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey })?;
 
             if self.database.get_cf(cf_key, &index_key)?.is_none() {
@@ -140,8 +144,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         })
     }
 
+    #[logfn(DEBUG)]
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
+            debug!("DB: Delete: cf: {}, key: {:?}", hash, index_key);
             let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey })?;
 
             if self.database.get_cf(cf_key, &index_key)?.is_none() {
@@ -152,8 +158,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         })
     }
 
+    #[logfn(DEBUG)]
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
+            debug!("DB: Force Update: cf: {}, key: {:?}, value: {:?}", hash, index_key, value);
             // if the address does not exist, in force update, we would like to write it anyways.
             let cf_key = match self.database.cf_handle(hash) {
                 Some(cf) => cf,

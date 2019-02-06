@@ -29,6 +29,7 @@ extern "C" {
 }
 
 const MAX_EVM_RESULT: usize = 100_000;
+#[logfn(DEBUG)]
 pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
               contract_address: ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
     let mut retval = EnclaveReturn::Success;
@@ -57,7 +58,7 @@ pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor:
     }
 }
 
-
+#[logfn(DEBUG)]
 pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &[u8],
                user_pubkey: &PubKey, address: &ContractAddress, gas_limit: u64)-> Result<WasmResult,Error> {
     let mut retval = EnclaveReturn::Success;
