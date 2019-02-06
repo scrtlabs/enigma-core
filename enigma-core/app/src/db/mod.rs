@@ -5,17 +5,18 @@ pub mod primitives;
 pub use crate::db::dal::*;
 pub use crate::db::iterator::*;
 pub use crate::db::primitives::*;
-use esgx::general::storage_dir;
-use std::sync::Mutex;
 
-lazy_static! {
-    pub static ref DATABASE: Mutex<dal::DB> = {
-        if cfg!(test) {
-            let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap().into_path();
-            Mutex::new(dal::DB::new(tempdir, true).expect("Failed To initialize db in Mutex"))
-        } else {
-            let enigma_dir = storage_dir();
-            Mutex::new(dal::DB::new(enigma_dir, true).expect("Failed To initialize db in Mutex"))
-        }
-    };
+
+#[cfg(test)]
+pub mod tests {
+    extern crate tempfile;
+    use self::tempfile::TempDir;
+    use crate::db::DB;
+
+    /// It's important to save TempDir too, because when it gets dropped the directory will be removed.
+    pub fn create_test_db() -> (DB, TempDir) {
+        let tempdir = tempfile::tempdir().unwrap();
+        let db = DB::new(tempdir.path(), true).unwrap();
+        (db, tempdir)
+    }
 }

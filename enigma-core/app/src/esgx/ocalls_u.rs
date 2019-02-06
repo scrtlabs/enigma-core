@@ -1,14 +1,14 @@
 use byteorder::{BigEndian, WriteBytesExt};
-use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DATABASE};
+use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DB};
 use crate::esgx::general;
 use enigma_tools_u::common_u::LockExpectMutex;
 use enigma_crypto::hash::Sha256;
-use enigma_types::{Hash256, ContractAddress, EnclaveReturn, traits::SliceCPtr};
+use enigma_types::{Hash256, ContractAddress, EnclaveReturn, RawPointer, traits::SliceCPtr};
 use lru_cache::LruCache;
 use std::sync::Mutex;
 use std::{mem, ptr, slice};
 
-lazy_static! { pub static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(10)); }
+lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(500)); }
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
@@ -19,11 +19,18 @@ pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize)
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_update_state(id: &ContractAddress, enc_state: *const u8, state_len: usize) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &ContractAddress, enc_state: *const u8, state_len: usize) -> EnclaveReturn {
     let encrypted_state = slice::from_raw_parts(enc_state, state_len);
-
     let key = DeltaKey::new(*id, Stype::State);
-    match DATABASE.lock().expect("Database mutex is poison").force_update(&key, encrypted_state) {
+
+    let db: &mut DB = match (*db_ptr).get_mut_ref() {
+        Ok(db) => db,
+        Err(e) => {
+            error!("{}", e);
+            return EnclaveReturn::OcallDBError
+        }
+    };
+    match db.force_update(&key, encrypted_state) {
         Ok(_) => EnclaveReturn::Success,
         Err(e) => {
             println!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
@@ -33,12 +40,20 @@ pub unsafe extern "C" fn ocall_update_state(id: &ContractAddress, enc_state: *co
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_new_delta(enc_delta: *const u8, delta_len: usize, contract_id: &ContractAddress,
-                                         _delta_index: *const u32) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
+                                         enc_delta: *const u8, delta_len: usize,
+                                         contract_id: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
     let delta_index = ptr::read(_delta_index);
     let encrypted_delta = slice::from_raw_parts(enc_delta, delta_len);
     let key = DeltaKey::new(*contract_id, Stype::Delta(delta_index));
-    match DATABASE.lock().expect("Database mutex is poison").force_update(&key, encrypted_delta) {
+    let db: &mut DB = match (*db_ptr).get_mut_ref() {
+        Ok(db) => db,
+        Err(e) => {
+            error!("{}", e);
+            return EnclaveReturn::OcallDBError
+        }
+    };
+    match db.force_update(&key, encrypted_delta) {
         Ok(_) => EnclaveReturn::Success,
         Err(e) => {
             println!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
@@ -55,10 +70,17 @@ pub unsafe extern "C" fn ocall_save_to_memory(data_ptr: *const u8, data_len: usi
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size: *mut usize) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &ContractAddress, state_size: *mut usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
     let _state_key = DeltaKey::new(*addr, Stype::State);
-    match DATABASE.lock_expect("Database").read(&_state_key) {
+    let db: &mut DB = match (*db_ptr).get_mut_ref() {
+        Ok(db) => db,
+        Err(e) => {
+            error!("{}", e);
+            return EnclaveReturn::OcallDBError
+        }
+    };
+    match db.read(&_state_key) {
         Ok(state) => {
             let state_len = state.len();
             *state_size = state_len;
@@ -71,9 +93,19 @@ pub unsafe extern "C" fn ocall_get_state_size(addr: &ContractAddress, state_size
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut u8, state_size: usize) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_get_state(db_ptr: *const RawPointer, addr: &ContractAddress, state_ptr: *mut u8, state_size: usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
     cache_id.write_uint::<BigEndian>(state_size as u64, mem::size_of_val(&state_size)).unwrap();
+
+    let db: &mut DB = match (*db_ptr).get_mut_ref() {
+        Ok(db) => db,
+        Err(e) => {
+            error!("{}", e);
+            return EnclaveReturn::OcallDBError
+        }
+    };
+
+
     match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256().into()) {
         Some(state) => {
             enigma_types::write_ptr(&state[0][..], state_ptr, state_size);
@@ -81,7 +113,7 @@ pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut
         }
         None => {
             let _state_key = DeltaKey::new(*addr, Stype::State);
-            match DATABASE.lock_expect("Database").read(&_state_key) {
+            match db.read(&_state_key) {
                 Ok(state) => {
                     enigma_types::write_ptr(&state, state_ptr, state_size);
                     EnclaveReturn::Success
@@ -93,8 +125,18 @@ pub unsafe extern "C" fn ocall_get_state(addr: &ContractAddress, state_ptr: *mut
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *const u32, end: *const u32,
+pub unsafe extern "C" fn ocall_get_deltas_sizes(db_ptr: *const RawPointer, addr: &ContractAddress,
+                                                start: *const u32, end: *const u32,
                                                 res_ptr: *mut usize, res_len: usize) -> EnclaveReturn {
+
+    let db: &mut DB = match (*db_ptr).get_mut_ref() {
+        Ok(db) => db,
+        Err(e) => {
+            error!("{}", e);
+            return EnclaveReturn::OcallDBError
+        }
+    };
+
     let len = (*end - *start) as usize;
     if len != res_len {
         return EnclaveReturn::OcallError;
@@ -105,7 +147,7 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
 
     let mut deltas_vec = Vec::with_capacity(len);
     let mut sizes = Vec::with_capacity(len);
-    match get_deltas(*addr, *start, *end) {
+    match get_deltas(db, *addr, *start, *end) {
         Ok(deltas_type) => match deltas_type {
             ResultType::None => return EnclaveReturn::OcallDBError,
             ResultType::Full(deltas) | ResultType::Partial(deltas) => {
@@ -123,11 +165,22 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(addr: &ContractAddress, start: *
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const u32, end: *const u32,
-                                          res_ptr: *mut u8, res_len: usize, ) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &ContractAddress,
+                                             start: *const u32, end: *const u32,
+                                             res_ptr: *mut u8, res_len: usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
     cache_id.write_u32::<BigEndian>(*start).unwrap();
     cache_id.write_u32::<BigEndian>(*end).unwrap();
+
+    let db: &mut DB = match (*db_ptr).get_mut_ref() {
+        Ok(db) => db,
+        Err(e) => {
+            error!("{}", e);
+            return EnclaveReturn::OcallDBError
+        }
+    };
+
+
     match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256().into()) {
         Some(deltas_vec) => {
             // The results here are flatten to one big array.
@@ -138,7 +191,7 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
         }
         None => {
             // If the data doesn't exist in the cache I need to pull it from the DB
-            match get_deltas(*addr, *start, *end) {
+            match get_deltas(db, *addr, *start, *end) {
                 Ok(deltas_type) => match deltas_type {
                     ResultType::None => EnclaveReturn::OcallDBError,
                     ResultType::Full(deltas) | ResultType::Partial(deltas) => {
@@ -154,9 +207,10 @@ pub unsafe extern "C" fn ocall_get_deltas(addr: &ContractAddress, start: *const 
     }
 }
 
-fn get_deltas(addr: ContractAddress, start: u32, end: u32) -> ResultTypeVec<(DeltaKey, Vec<u8>)> {
+fn get_deltas(db: &mut DB, addr: ContractAddress, start: u32, end: u32) -> ResultTypeVec<(DeltaKey, Vec<u8>)> {
     let key_start = DeltaKey::new(addr, Stype::Delta(start));
     let key_end = DeltaKey::new(addr, Stype::Delta(end));
 
-    DATABASE.lock_expect("Database").get_deltas(key_start, key_end)
+
+    db.get_deltas(key_start, key_end)
 }

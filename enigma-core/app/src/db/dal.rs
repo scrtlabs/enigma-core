@@ -177,23 +177,19 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
 #[cfg(test)]
 mod test {
-    extern crate tempdir;
 
-    use db::dal::CRUDInterface;
-    use db::dal::DB;
-    use db::primitives::{Array32u8, DeltaKey, Stype};
+    use crate::db::{tests::create_test_db, dal::CRUDInterface, primitives::{Array32u8, DeltaKey, Stype}};
     use hex::ToHex;
 
     #[test]
     fn test_new_db() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let _db = DB::new(&tempdir, true).unwrap();
+        let (_db, _dir) = create_test_db();
     }
 
     #[test]
     fn test_create_read() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [7u8; 32];
         let v = b"Enigma";
         db.create(&Array32u8(arr), &v[..]).unwrap();
@@ -202,8 +198,8 @@ mod test {
 
     #[test]
     fn test_create_update_read() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [4u8; 32];
         let v = b"Enigma";
         db.create(&Array32u8(arr), &v[..]).unwrap();
@@ -215,8 +211,7 @@ mod test {
 
     #[test]
     fn test_create_update_read_delta() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
 
         let hash = [4u8; 32];
         let key_type = Stype::Delta(3);
@@ -231,8 +226,8 @@ mod test {
 
     #[test]
     fn test_create_when_cf_exists() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [3u8; 32];
         //created an empty cf in the DB
         let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
@@ -243,8 +238,8 @@ mod test {
 
     #[test]
     fn test_create_delete() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [5u8; 32];
         let v = b"Enigma";
         db.create(&Array32u8(arr), &v[..]).unwrap();
@@ -253,8 +248,8 @@ mod test {
 
     #[test]
     fn test_force_update_no_cf_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [4u8; 32];
         let val = b"Enigma";
         db.force_update(&Array32u8(arr), val).unwrap();
@@ -264,8 +259,8 @@ mod test {
 
     #[test]
     fn test_create_force_update_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [4u8; 32];
         let val = b"Enigma";
         db.create(&Array32u8(arr), &val[..]).unwrap();
@@ -280,8 +275,8 @@ mod test {
 
     #[test]
     fn test_force_update_no_key_success() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let hash = [4u8; 32];
         let key_type = Stype::Delta(1);
         let val = b"Enigma";
@@ -300,8 +295,8 @@ mod test {
     #[test]
     #[should_panic]
     fn test_create_read_delete_fail_reading() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [9u8; 32];
         let v = b"Enigma";
         db.create(&Array32u8(arr), &v[..]).unwrap();
@@ -313,8 +308,8 @@ mod test {
     #[test]
     #[should_panic]
     fn test_fail_reading() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let db = DB::new(&tempdir, true).unwrap();
+        let (db, _dir) = create_test_db();
+
         let arr = [2u8; 32];
         db.read(&Array32u8(arr)).unwrap();
     }
@@ -322,8 +317,8 @@ mod test {
     #[test]
     #[should_panic]
     fn test_fail_cf_exists_no_key_read() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [3u8; 32];
         let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
         db.read(&Array32u8(arr)).unwrap();
@@ -332,8 +327,8 @@ mod test {
     #[test]
     #[should_panic]
     fn test_fail_updating() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [4u8; 32];
         db.update(&Array32u8(arr), b"Enigma").unwrap();
     }
@@ -341,8 +336,8 @@ mod test {
     #[test]
     #[should_panic]
     fn test_fail_updating_cf_exists() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [4u8; 32];
         let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
         db.update(&Array32u8(arr), b"Enigma").unwrap();
@@ -351,8 +346,8 @@ mod test {
     #[test]
     #[should_panic]
     fn test_fail_deleting() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [7u8; 32];
         db.delete(&Array32u8(arr)).unwrap();
     }
@@ -360,8 +355,8 @@ mod test {
     #[test]
     #[should_panic]
     fn test_fail_deleting_cf_exists() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [5u8; 32];
         let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
         db.delete(&Array32u8(arr)).unwrap();
@@ -370,8 +365,8 @@ mod test {
     #[test]
     #[should_panic]
     fn test_fail_creating_exist() {
-        let tempdir = tempdir::TempDir::new("enigma-core-test").unwrap();
-        let mut db = DB::new(&tempdir, true).unwrap();
+        let (mut db, _dir) = create_test_db();
+
         let arr = [8u8; 32];
         let v = b"Enigma";
         db.create(&Array32u8(arr), v).unwrap();

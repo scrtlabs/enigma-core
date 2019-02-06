@@ -4,7 +4,7 @@ use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeResult
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_crypto::{CryptoError, Encryption};
-use enigma_types::ContractAddress;
+use enigma_types::{ContractAddress, RawPointer};
 use parity_wasm::elements::{self, Deserialize};
 use parity_wasm::io::Cursor;
 use std::boxed::Box;
@@ -124,11 +124,11 @@ pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, pa
     execute(&module, gas_limit, state, "".to_string(), "".to_string(), params)
 }
 
-pub fn get_state(addr: ContractAddress) -> Result<ContractState, EnclaveError> {
+pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<ContractState, EnclaveError> {
     let guard = km_t::STATE_KEYS.lock_expect("State Keys");
     let key = guard.get(&addr).ok_or(CryptoError::KeyError { key_type: "State Key".to_string(), err: "Missing".to_string() })?;
 
-    let enc_state = runtime_ocalls_t::get_state(addr)?;
+    let enc_state = runtime_ocalls_t::get_state(db_ptr, addr)?;
     let state = ContractState::decrypt(enc_state, key)?;
 
     Ok(state)

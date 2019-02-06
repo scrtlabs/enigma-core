@@ -14,8 +14,8 @@ serde_sgx = { package = "serde", git = "https://github.com/baidu/rust-sgx-sdk.gi
 serde_std = { package = "serde", version = "1.0", default-features = false }
 
 [build-dependencies]
-cbindgen = "0.6.7"
-
+cbindgen = "0.7"
+tempfile = "3.0"
 
 [features]
 default = ["std"]

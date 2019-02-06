@@ -28,7 +28,6 @@ extern crate serde_derive;
 extern crate byteorder;
 extern crate lru_cache;
 extern crate serde;
-extern crate tempdir;
 #[macro_use]
 extern crate log;
 #[macro_use]
@@ -49,7 +48,8 @@ mod logging;
 pub use crate::esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
                                 ocall_new_delta, ocall_save_to_memory, ocall_update_state};
 
-use networking::{ipc_listener, IpcListener};
+use crate::networking::{constants, ipc_listener, IpcListener};
+use crate::db::DB;
 use crate::cli::Opt;
 use structopt::StructOpt;
 use futures::Future;
@@ -61,30 +61,34 @@ fn main() {
     let loggers = logging::get_logger(opt.debug_stdout, datadir, opt.verbose).expect("Failed Creating the loggers");
     CombinedLogger::init(loggers).expect("Failed initializing the logger");
     debug!("CLI params: {:?}", opt);
-    let enclave = match esgx::general::init_enclave_wrapper() {
-        Ok(r) => {
-            trace!("[+] Init Enclave Successful {}!", r.geteid());
-            r
-        }
-        Err(x) => {
-            error!("[-] Init Enclave Failed {}!", x.as_str());
-            return;
-        }
-    };
+
+    let enclave = esgx::general::init_enclave_wrapper().expect("[-] Init Enclave Failed");
+    let eid = enclave.geteid();
+    info!("[+] Init Enclave Successful {}!", eid);
+    let enigma_dir = esgx::general::storage_dir();
+
+    let mut db = DB::new(enigma_dir, true).expect("Failed initializing the DB");
     let server = IpcListener::new(&format!("tcp://*:{}", opt.port));
-    server.run(move |multi| ipc_listener::handle_message(multi, &opt.spid, enclave.geteid())).wait().unwrap();
+
+    server
+        .run(move |multi| ipc_listener::handle_message(&mut db, multi, &opt.spid, eid))
+        .wait()
+        .unwrap();
 }
 
 #[cfg(test)]
 mod tests {
     use crate::esgx::general::init_enclave_wrapper;
     use sgx_types::*;
+    use crate::db::tests::create_test_db;
+    use enigma_types::RawPointer;
     use simplelog::TermLogger;
     use log::LevelFilter;
 
     extern "C" {
-        fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;
+        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer) -> sgx_status_t;
     }
+
 
     pub fn log_to_stdout(level: LevelFilter) {
         TermLogger::init(level, Default::default()).unwrap();
@@ -92,11 +96,11 @@ mod tests {
 
     #[test]
     pub fn test_enclave_internal() {
-        // initiate the enclave
+        let (mut db, _dir) = create_test_db();
         let enclave = init_enclave_wrapper().unwrap();
-        let ret = unsafe { ecall_run_tests(enclave.geteid()) };
+        let db_ptr = unsafe { RawPointer::new_mut(&mut db) };
+        let ret = unsafe { ecall_run_tests(enclave.geteid(), &db_ptr as *const RawPointer) };
 
         assert_eq!(ret, sgx_status_t::SGX_SUCCESS);
-        enclave.destroy();
     }
 }
