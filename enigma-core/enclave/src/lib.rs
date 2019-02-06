@@ -504,8 +504,9 @@ pub mod tests {
         let mut failures = Vec::new();
         rsgx_unit_test_start();
 
+        /// The reason I had to make our own tests is because baidu's unittest lib supports only static functions that get no inputs.
         core_unitests(&mut ctr, &mut failures, test_full_sealing_storage, "test_full_sealing_storage" );
-//        our_unitests(&mut ctr, &mut failures,  test_ecall_evm_signning, "test_ecall_evm_signning" );
+//        core_unitests(&mut ctr, &mut failures,  test_ecall_evm_signning, "test_ecall_evm_signning" );
         core_unitests(&mut ctr, &mut failures, test_encrypt_state, "test_encrypt_state" );
         core_unitests(&mut ctr, &mut failures, test_decrypt_state, "test_decrypt_state" );
         core_unitests(&mut ctr, &mut failures, test_encrypt_decrypt_state, "test_encrypt_decrypt_state" );
@@ -566,8 +567,6 @@ pub mod tests {
     /// This is the core function of sgx_tunittest. It runs one test case at a
     /// time and saves the result. On test passes, it increases the passed counter
     /// and on test fails, it records the failed test.
-    /// Required test function must be `Fn()`, taking nothing as input and returns
-    /// nothing.
     fn core_unitests<F, R>(ncases: &mut u64, failurecases: &mut Vec<String>, f:F, name: &str )
         where F: FnOnce() -> R + UnwindSafe {
         *ncases = *ncases + 1;
