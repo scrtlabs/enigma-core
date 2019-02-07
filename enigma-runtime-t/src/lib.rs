@@ -322,7 +322,7 @@ impl Runtime {
             // The delta is always generated after a deployment.
             // The delta is generated after an execution only if there is a state change.
             if (&self.pre_execution_state != &self.post_execution_state) || (self.pre_execution_state.is_initial()){
-                match ContractState::generate_delta(&self.pre_execution_state, &mut self.post_execution_state) {
+                match ContractState::generate_delta_and_update_state(&self.pre_execution_state, &mut self.post_execution_state) {
                     Ok(v) => Some(v),
                     Err(e) => return Err(WasmError::Delta(format!("{}", e))),
                 }

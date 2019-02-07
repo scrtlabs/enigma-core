@@ -159,7 +159,7 @@ pub mod tests {
                     json: json!({ "code" : 157 }),
                     .. Default::default()
                 };
-                let delta = super::ContractState::generate_delta(&initial_state, &mut after).unwrap();
+                let delta = super::ContractState::generate_delta_and_update_state(&initial_state, &mut after).unwrap();
                 assert_eq!(v.state_delta.unwrap(), delta);
             }
             Err(_) => assert!(true),

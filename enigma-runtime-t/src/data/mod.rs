@@ -13,7 +13,7 @@ pub trait IOInterface<E, U> {
 
 pub trait DeltasInterface<E, T> {
     fn apply_delta(&mut self, delta: &T) -> Result<(), E>;
-    fn generate_delta(old: &Self, new: &mut Self) -> Result<T, E> where Self: Sized;
+    fn generate_delta_and_update_state(old: &Self, new: &mut Self) -> Result<T, E> where Self: Sized;
 }
 
 pub mod tests {
@@ -177,7 +177,7 @@ pub mod tests {
             .. Default::default()
         };
 
-        let delta = ContractState::generate_delta(&before, &mut after).unwrap();
+        let delta = ContractState::generate_delta_and_update_state(&before, &mut after).unwrap();
         assert_eq!(delta, result);
     }
 }

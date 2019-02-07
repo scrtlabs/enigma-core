@@ -57,7 +57,7 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
         Ok(())
     }
 
-    fn generate_delta(old: &Self, new: &mut Self) -> Result<StatePatch, EnclaveError> {
+    fn generate_delta_and_update_state(old: &Self, new: &mut Self) -> Result<StatePatch, EnclaveError> {
         new.delta_index = &old.delta_index+1;
         let result = StatePatch{
             patch: json_patch::diff(&old.json, &new.json),

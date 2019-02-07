@@ -325,13 +325,17 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
                         exec_res.used_gas,
                         result)?;
 
-    let mut prev_delta_hash: Hash256 = Default::default();
+    // This delta is origin of the state before the execution
+    let mut pre_execution_delta_hash: Hash256 = Default::default();
     if let Some(delta) = delta{
         // TODO: That's not the right thing to do. it should be the delta hash from the used State.
-        let prev_delta = enigma_runtime_t::ocalls_t::get_deltas(db_ptr, address, delta.index - 1, delta.index)?;
-        prev_delta_hash = prev_delta[0].data.keccak256();
-        encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
+        let pre_execution_delta = enigma_runtime_t::ocalls_t::get_deltas(address, delta.index - 1, delta.index)?;
+        pre_execution_delta_hash = pre_execution_delta[0].data.keccak256();
+        encrypt_and_save_state(&exec_res.updated_state)?;
     }
+    else{
+        pre_execution_delta_hash = exec_res.updated_state.delta_hash;
+    }   
 
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
     // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, usedGas, optionalEthereumData, Success)
@@ -340,7 +344,7 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
     let to_sign = [
         &*result.exe_code_hash,
         &*result.inputs_hash,
-        &*prev_delta_hash,
+        &*pre_execution_delta_hash,
         &*delta_hash,
         &*output_hash,
         &used_gas[..],
@@ -395,7 +399,9 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
 
     let pre_code_hash = bytecode.keccak256();
     result.inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[constructor, args, &pre_code_hash[..], user_key][..]).keccak256();
+
     result.exe_code_hash = bytecode.keccak256();
+
     let deploy_bytecode = build_constructor(bytecode)?;
 
     let (decrypted_args, _, _types, _, _) = decrypt_inputs(constructor, args, user_key)?;
