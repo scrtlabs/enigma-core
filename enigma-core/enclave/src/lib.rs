@@ -310,11 +310,11 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
 
     result.inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[callable, args, &*address, user_key]).keccak256();
     result.exe_code_hash = bytecode.keccak256();
-    let state = execution::get_state(db_ptr, address)?;
+    let pre_execution_state = execution::get_state(db_ptr, address)?;
 
     let (decrypted_args, decrypted_callable, types, function_name, key) = decrypt_inputs(callable, args, user_key)?;
 
-    let exec_res = execution::execute_call(&bytecode, gas_limit, state, function_name, types, decrypted_args.clone())?;
+    let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone())?;
 
     let (delta, delta_hash) = encrypt_and_save_delta(db_ptr, &exec_res.state_delta)?;
 
@@ -325,17 +325,9 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
                         exec_res.used_gas,
                         result)?;
 
-    // This delta is origin of the state before the execution
-    let mut pre_execution_delta_hash: Hash256 = Default::default();
-    if let Some(delta) = delta{
-        // TODO: That's not the right thing to do. it should be the delta hash from the used State.
-        let pre_execution_delta = enigma_runtime_t::ocalls_t::get_deltas(address, delta.index - 1, delta.index)?;
-        pre_execution_delta_hash = pre_execution_delta[0].data.keccak256();
-        encrypt_and_save_state(&exec_res.updated_state)?;
+    if delta.is_some() {
+        encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
     }
-    else{
-        pre_execution_delta_hash = exec_res.updated_state.delta_hash;
-    }   
 
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
     // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, usedGas, optionalEthereumData, Success)
@@ -344,7 +336,7 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
     let to_sign = [
         &*result.exe_code_hash,
         &*result.inputs_hash,
-        &*pre_execution_delta_hash,
+        &*pre_execution_state.delta_hash,
         &*delta_hash,
         &*output_hash,
         &used_gas[..],
