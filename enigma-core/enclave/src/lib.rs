@@ -332,7 +332,7 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
     // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, usedGas, optionalEthereumData, Success)
     let used_gas = result.used_gas.to_be_bytes();
-    let output_hash = exec_res.result.keccak256();
+    let output_hash = encrypted_output.keccak256();
     let to_sign = [
         &*result.exe_code_hash,
         &*result.inputs_hash,
