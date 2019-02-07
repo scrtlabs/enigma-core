@@ -28,9 +28,12 @@ extern crate serde_derive;
 extern crate byteorder;
 extern crate lru_cache;
 extern crate serde;
-extern crate tempdir;
 #[macro_use]
-extern crate log;
+pub extern crate log;
+#[macro_use]
+pub extern crate log_derive;
+pub extern crate structopt;
+pub extern crate simplelog;
 
 pub mod common_u;
 pub mod db;
@@ -39,6 +42,8 @@ pub mod evm_u;
 pub mod km_u;
 pub mod networking;
 pub mod wasm_u;
+pub mod logging;
+pub mod cli;
 
 #[cfg(feature = "cross-test-utils")]
 pub mod cross_test_utils {

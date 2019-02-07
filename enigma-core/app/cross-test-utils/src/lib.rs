@@ -67,7 +67,7 @@ pub fn make_encrypted_response(req: Value) -> Value {
     let keys = KeyPair::new().unwrap();
 
     // Generating the ECDH key for AES
-    let shared_key = keys.get_aes_key(&node_pubkey).unwrap();
+    let shared_key = keys.derive_key(&node_pubkey).unwrap();
     // Encrypting the response
     let response_data = symmetric::encrypt(&response_data, &shared_key).unwrap();
 

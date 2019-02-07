@@ -1,14 +1,15 @@
 extern crate enigma_core_app;
+#[macro_use]
+extern crate log;
+#[macro_use]
+pub extern crate log_derive;
+
 pub use enigma_core_app::*;
-
-use futures::Future;
-
 pub use esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
                                 ocall_new_delta, ocall_save_to_memory, ocall_update_state};
-
-use crate::networking::{ipc_listener, IpcListener};
-use crate::db::DB;
-use crate::cli::Opt;
+use networking::{ipc_listener, IpcListener};
+use db::DB;
+use cli::Opt;
 use structopt::StructOpt;
 use futures::Future;
 use simplelog::CombinedLogger;
@@ -36,18 +37,26 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-
+    extern crate enigma_types;
+    extern crate tempfile;
     use enigma_core_app::esgx::general::init_enclave_wrapper;
     use enigma_core_app::sgx_types::*;
-    use enigma_core_app::db::tests::create_test_db;
-    use enigma_core_app::enigma_types::RawPointer;
+    use enigma_core_app::db::DB;
+    use self::enigma_types::RawPointer;
     use enigma_core_app::simplelog::TermLogger;
     use enigma_core_app::log::LevelFilter;
+    use self::tempfile::TempDir;
 
     extern "C" {
         fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer) -> sgx_status_t;
     }
 
+    /// It's important to save TempDir too, because when it gets dropped the directory will be removed.
+    fn create_test_db() -> (DB, TempDir) {
+        let tempdir = tempfile::tempdir().unwrap();
+        let db = DB::new(tempdir.path(), true).unwrap();
+        (db, tempdir)
+    }
 
     pub fn log_to_stdout(level: LevelFilter) {
         TermLogger::init(level, Default::default()).unwrap();

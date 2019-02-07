@@ -1,10 +1,7 @@
 pub mod integration_utils;
 
-use integration_utils::{create_storage_dir, run_core, full_simple_deployment,
-                        conn_and_call_ipc, remove_storage_dir, send_update_contract,
-                        set_update_deltas_msg, set_msg_format_update_contract,
-                        contract_compute};
-
+use integration_utils::{run_core, full_simple_deployment, conn_and_call_ipc,
+                        set_msg_format_update_contract, send_update_contract, set_update_deltas_msg, contract_compute};
 pub extern crate enigma_core_app as app;
 extern crate serde;
 extern crate rustc_hex as hex;
@@ -14,18 +11,35 @@ use self::app::*;
 use self::app::serde_json;
 use app::serde_json::*;
 use hex::{ToHex, FromHex};
-use integration_utils::cross_test_utils::generate_address;
+use integration_utils::cross_test_utils::{generate_address};
 use ethabi::Token::Uint;
 
 #[test]
+fn test_ipc_update_contract() {
+    let port =  "5572";
+    run_core(port);
+
+    let (deployed_res, _) = full_simple_deployment(port);
+    let deployed_bytecode = deployed_res["result"].as_object().unwrap()["output"].as_str().unwrap();
+    let new_addr = generate_address();
+    let msg = set_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
+    let res: Value =send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
+
+    let updated: u64 = serde_json::from_value(res["status"].clone()).unwrap();
+    let updated_addr = res["address"].as_str().unwrap();
+
+    assert_eq!(updated, 0);
+    assert_eq!(updated_addr, new_addr.to_hex());
+}
+
+#[test]
 fn test_ipc_update_deltas() {
-    create_storage_dir();
     let port = "5573";
     run_core(port);
 
     let (deployed_res_a, address_a) = full_simple_deployment(port);
     let (deployed_res_b, address_b) = full_simple_deployment(port);
-    let compute_res_a = contract_compute(port, address_a, &[Uint(45.into()), Uint(73.into())], "addition(uint,uint)");
+    let (compute_res_a, _) = contract_compute(port, address_a, &[Uint(45.into()), Uint(73.into())], "addition(uint,uint)");
 
     // create a new address that contains a bytecode we just deployed.
     let deployed_bytecode_a = deployed_res_a["result"].as_object().unwrap()["output"].as_str().unwrap();
@@ -53,5 +67,4 @@ fn test_ipc_update_deltas() {
         assert_eq!(err["status"].as_u64().unwrap(), 0);
     }
     assert_eq!(updated, 0);
-    remove_storage_dir();
 }

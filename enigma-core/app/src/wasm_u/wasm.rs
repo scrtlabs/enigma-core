@@ -93,7 +93,7 @@ pub mod tests {
     extern crate ethabi;
     extern crate cross_test_utils;
 
-    use self::cross_test_utils::*;
+    use self::cross_test_utils::{generate_address, get_bytecode_from_path};
     use crate::esgx::general::init_enclave_wrapper;
     use crate::km_u::tests::exchange_keys;
     use crate::km_u::tests::instantiate_encryption_key;
@@ -160,7 +160,7 @@ pub mod tests {
             GAS_LIMIT
         ).expect("Execution failed");
 
-        (enclave, exe_code, result)
+        (enclave, exe_code, result, shared_key)
     }
 
     #[test]
@@ -218,7 +218,7 @@ pub mod tests {
     #[test]
     fn test_rand_u8() {
         let (mut db, _dir) = create_test_db();
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_address(),
@@ -242,7 +242,7 @@ pub mod tests {
     fn test_shuffling() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_address(),
@@ -262,7 +262,7 @@ pub mod tests {
         let (mut db, _dir) = create_test_db();
         let addr2 = Token::FixedBytes(generate_address().to_vec());
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_address(),

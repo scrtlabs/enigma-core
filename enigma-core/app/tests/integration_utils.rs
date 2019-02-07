@@ -11,6 +11,7 @@ pub extern crate cross_test_utils;
 extern crate futures;
 extern crate dirs;
 extern crate rand;
+extern crate tempfile;
 
 use self::cross_test_utils::{generate_address, make_encrypted_response,
                              get_fake_state_key, get_bytecode_from_path};
@@ -31,8 +32,17 @@ use self::enigma_crypto::symmetric;
 use std::fs;
 use std::path::PathBuf;
 use self::rand::{thread_rng, Rng};
+use app::db::DB;
+use self::tempfile::TempDir;
 
 pub static ENCLAVE_DIR: &'static str = ".enigma";
+
+/// It's important to save TempDir too, because when it gets dropped the directory will be removed.
+pub fn create_test_db() -> (DB, TempDir) {
+    let tempdir = tempfile::tempdir().unwrap();
+    let db = DB::new(tempdir.path(), true).unwrap();
+    (db, tempdir)
+}
 
 pub fn get_storage_path() -> PathBuf {
     let home_dir = match dirs::home_dir() {
@@ -42,28 +52,19 @@ pub fn get_storage_path() -> PathBuf {
     home_dir.join(ENCLAVE_DIR)
 }
 
-pub fn create_storage_dir() {
-    let home_dir = get_storage_path();
-
-    if home_dir.exists() {
-        fs::remove_dir_all(home_dir.clone()).unwrap();
-    }
-    fs::create_dir(&home_dir).unwrap();
-}
-
-pub fn remove_storage_dir() {
-    let home_dir = get_storage_path();
-
-    if home_dir.exists() {
-        fs::remove_dir_all(home_dir).unwrap();
-    }
-}
-
 pub fn run_core(port: &'static str) {
     thread::spawn(move || {
-        let enclave = esgx::general::init_enclave_wrapper().unwrap();
+        let enclave = esgx::general::init_enclave_wrapper().expect("[-] Init Enclave Failed");
+        let eid = enclave.geteid();
+
+        let (mut db, _datadir) = create_test_db();
         let server = IpcListener::new(&format!("tcp://*:{}", port));
-        server.run(move |multi| ipc_listener::handle_message(multi, enclave.geteid())).wait().unwrap();
+        let spid = "1601F95C39B9EA307FEAABB901ADC3EE";
+        server
+            .run(move |multi| ipc_listener::handle_message(&mut db, multi, spid, eid))
+            .wait()
+            .unwrap();
+
     });
 }
 
@@ -207,7 +208,7 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
     let mut pubkey_arr = [0u8; 64];
     pubkey_arr.copy_from_slice(&_pubkey_vec);
 
-    let shared_key = keys.get_aes_key(&pubkey_arr).unwrap();
+    let shared_key = keys.derive_key(&pubkey_arr).unwrap();
     (shared_key, keys.get_pubkey())
 }
 
@@ -253,21 +254,23 @@ pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
     (v, address.into())
 }
 
-pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8; 32]) {
+pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8; 32], [u8; 32]) {
     let (_, contract_addr): (_, [u8; 32]) = full_simple_deployment(port);
     let args = [Token::Uint(a.into()), Token::Uint(b.into())];
     let callable  = "addition(uint,uint)";
-    (contract_compute(port, contract_addr, &args, callable), contract_addr)
+    let (result, key) = contract_compute(port, contract_addr, &args, callable);
+    (result, key, contract_addr)
 }
 
-pub fn full_mint_compute(port: &'static str,  user_addr: &[u8; 32], amount: u64) -> (Value, [u8; 32]) {
+pub fn full_mint_compute(port: &'static str,  user_addr: &[u8; 32], amount: u64) -> (Value,  [u8;32], [u8; 32]) {
     let (_, contract_addr): (_, [u8; 32]) = full_erc20_deployment(port);
     let args = [Token::FixedBytes(user_addr.to_vec()), Token::Uint(amount.into())];
     let callable  = "mint(bytes32,uint256)";
-    (contract_compute(port, contract_addr, &args, callable), contract_addr)
+    let (result, key) = contract_compute(port, contract_addr, &args, callable);
+    (result, key, contract_addr)
 }
 
-pub fn contract_compute(port: &'static str,  contract_addr: [u8; 32], args: &[Token], callable: &str) -> Value {
+pub fn contract_compute(port: &'static str,  contract_addr: [u8; 32], args: &[Token], callable: &str) -> (Value, [u8; 32]) {
     // WUKE- get the arguments encryption key
     let (shared_key, user_pubkey) = produce_shared_key(port);
 
@@ -277,7 +280,7 @@ pub fn contract_compute(port: &'static str,  contract_addr: [u8; 32], args: &[To
 
     let msg = set_compute_msg(&task_id, &encrypted_callable.to_hex(), &encrypted_args.to_hex(),
                               &user_pubkey.to_hex(), gas_limit, &contract_addr.to_hex());
-    conn_and_call_ipc(&msg.to_string(), port)
+    (conn_and_call_ipc(&msg.to_string(), port), shared_key)
 }
 
 fn encrypt_args( args:&[Token], callable: &str, key: [u8;32]) -> (Vec<u8>, Vec<u8>) {
@@ -294,9 +297,9 @@ pub fn get_decrypted_delta(addr: [u8; 32], delta: &str) -> Vec<u8> {
 
 
 pub fn deploy_and_compute_few_contracts(port: &'static str) -> Vec<[u8; 32]> {
-    let (_, contract_address_a): (_, [u8; 32]) = full_addition_compute(port, 56, 87);
-    let (_, contract_address_b): (_, [u8; 32]) = full_addition_compute(port, 75, 43);
-    let (_, contract_address_c): (_, [u8; 32]) = full_mint_compute(port, &generate_address().into(), 500);
+    let (_, _, contract_address_a): (_, _, [u8; 32]) = full_addition_compute(port, 56, 87);
+    let (_, _, contract_address_b): (_, _ , [u8; 32]) = full_addition_compute(port, 75, 43);
+    let (_, _, contract_address_c): (_, _, [u8; 32]) = full_mint_compute(port, &generate_address().into(), 500);
     vec![contract_address_a, contract_address_b, contract_address_c]
 }
 
