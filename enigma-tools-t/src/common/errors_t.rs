@@ -19,12 +19,6 @@ pub enum EnclaveError {
     #[fail(display = "Input Error: {}", message)]
     InputError { message: String },
 
-    #[fail(display = "Signing the message failed: {}", msg)]
-    SigningError { msg: String },
-
-    #[fail(display = "Recovering the message failed: {}", msg)]
-    RecoveringError { msg: String },
-
     #[fail(display = "There's no sufficient permissions to read this file: {}", file)]
     PermissionError { file: String },
 
@@ -130,7 +124,7 @@ impl Into<EnclaveReturn> for EnclaveError {
                 IoError { .. } => EnclaveReturn::Other,
                 RandomError { .. } => EnclaveReturn::SgxError,
                 DerivingKeyError { .. } | KeyError { .. }  => EnclaveReturn::KeysError,
-                DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption => EnclaveReturn::EncryptionError,
+                DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | RecoveringError { .. } |ImproperEncryption => EnclaveReturn::EncryptionError,
             }
             WorkerAuthError { .. } => EnclaveReturn::WorkerAuthError,
             KeyProvisionError { .. } => EnclaveReturn::KeyProvisionError,

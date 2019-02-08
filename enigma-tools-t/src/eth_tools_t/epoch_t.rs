@@ -12,7 +12,7 @@ use ethereum_types::{H160, U256, H256, U64};
 use common::errors_t::EnclaveError;
 use bigint;
 use rlp::{Encodable, encode, RlpStream};
-use common::{Keccak256, ToHex};
+use enigma_crypto::hash::Keccak256;
 
 pub trait IntoBigint<T> {
     fn bigint(self) -> T;
@@ -85,7 +85,7 @@ impl WorkerParams {
         while {
             let token = WorkerSelectionToken { seed: self.seed, sc_addr, nonce };
             // This is equivalent to encodePacked in Solidity
-            let hash = encode(&token).keccak256();
+            let hash: [u8; 32] = encode(&token).keccak256().into();
             let mut rand_val: U256 = U256::from(hash) % balance_sum;
             println!("The initial random value: {:?}", rand_val);
             let mut selected_worker = self.workers[self.workers.len() - 1];

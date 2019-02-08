@@ -28,8 +28,6 @@ extern crate hexutil;
 extern crate rlp;
 extern crate ethabi;
 extern crate ethereum_types;
-extern crate secp256k1;
-extern crate tiny_keccak;
 extern crate wasmi;
 pub mod build_arguments_g;
 pub mod common;
