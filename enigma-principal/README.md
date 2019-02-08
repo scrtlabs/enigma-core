@@ -28,8 +28,9 @@ The encryption method relies on a DH key exchange between the Principal node and
 **Returns**
 
 - `data` (String) - The HEX string of the encrypted KM Message Response. The Response data contains a list of secret contract address / state key tuples (`Vec<(ContractAddress, StateKey)>`).
-- `sig` (String) - The signature of the Message Response.
-- `pubkey` (String) - The the 256-bit public key of the keypair used to encrypt the Message Response.
+- `sig`: (String)
+- `pubKey` (String):
+>>>>>>> 88f9ee4ac40f6c40f1489127fd04f987f9e8684c
 
 **Example**
 
