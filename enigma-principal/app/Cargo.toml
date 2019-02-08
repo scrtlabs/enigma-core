@@ -27,10 +27,7 @@ tiny-keccak = "1.4.2"
 colour = "0.2.1"
 dirs = "1.0"
 web3 = { git = "https://github.com/tomusdrw/rust-web3.git" } #TODO: Change after a new version is released.
-
-jsonrpc-core = { git = "https://github.com/paritytech/jsonrpc" }
-jsonrpc-minihttp-server = { git = "https://github.com/paritytech/jsonrpc" }
-rocksdb = { git = "https://github.com/elichai/rust-rocksdb.git" } # This is temporary, until PR is merged
+jsonrpc-http-server = "10.0"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

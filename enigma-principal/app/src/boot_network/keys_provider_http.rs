@@ -3,10 +3,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use failure::Error;
-use jsonrpc_minihttp_server::cors::AccessControlAllowOrigin;
-use jsonrpc_minihttp_server::DomainsValidation;
-use jsonrpc_minihttp_server::jsonrpc_core::{Error as ServerError, ErrorCode, IoHandler, Params, Value};
-use jsonrpc_minihttp_server::ServerBuilder;
+use jsonrpc_http_server::cors::AccessControlAllowOrigin;
+use jsonrpc_http_server::DomainsValidation;
+use jsonrpc_http_server::jsonrpc_core::{Error as ServerError, ErrorCode, IoHandler, Params, Value};
+use jsonrpc_http_server::ServerBuilder;
 use rustc_hex::FromHex;
 use rustc_hex::ToHex;
 
@@ -104,7 +104,7 @@ impl PrincipalHttpServer {
             .start_http(&format!("127.0.0.1:{}", self.port).parse().unwrap())
             .expect("Unable to start RPC server");
 
-        server.wait().unwrap();
+        server.wait();
         println!("JSON-RPC HTTP server listening on port: {}", self.port);
     }
 }

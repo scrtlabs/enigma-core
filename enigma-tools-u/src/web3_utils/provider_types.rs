@@ -1,8 +1,7 @@
 use bigint;
 pub use rlp::{Encodable, encode, RlpStream};
 use web3::types::{Block, Bytes, H160, H2048, H256, H64, Log, TransactionReceipt, U256};
-
-use common_u::Keccak256;
+use enigma_crypto::hash::Keccak256;
 
 pub trait IntoBigint<T> {
     fn bigint(self) -> T;
@@ -101,7 +100,8 @@ impl ReceiptHashesWrapper {
             .iter()
             .map(|r| {
                 let receipt_rlp = encode(r);
-                H256(receipt_rlp.keccak256())
+                let hash: [u8; 32] = receipt_rlp.keccak256().into();
+                H256(hash)
             })
             .collect::<Vec<H256>>();
         ReceiptHashesWrapper(hashes)

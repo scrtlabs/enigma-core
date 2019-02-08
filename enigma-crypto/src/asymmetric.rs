@@ -24,20 +24,20 @@ impl KeyPair {
         }
     }
 
-    pub fn recover(msg: &[u8], sig: &[u8; 65]) -> Result<[u8; 64], EnclaveError> {
+    pub fn recover(msg: &[u8], sig: &[u8; 65]) -> Result<[u8; 64], CryptoError> {
         let sig_msg = secp256k1::Message::parse(&msg.keccak256());
         let mut _sig_obj = [0u8; 64];
         _sig_obj.copy_from_slice(&sig[..64]);
         let sig_obj = secp256k1::Signature::parse(&_sig_obj);
         let rec_id = match secp256k1::RecoveryId::parse(*sig.last().unwrap() - 27) {
             Ok(id) => id,
-            Err(err) => return Err(EnclaveError::RecoveringError {
+            Err(err) => return Err(CryptoError::RecoveringError {
                 msg: format!("Failed to generate RecoveryId {:?}", err),
             })
         };
         let recovered_pubkey = match secp256k1::recover(&sig_msg, &sig_obj, &rec_id) {
            Ok(pubkey) => pubkey,
-            Err(err) => return Err(EnclaveError::RecoveringError {
+            Err(err) => return Err(CryptoError::RecoveringError {
                 msg: format!("Failed to recover PublicKey: {:?}", err),
             })
         };

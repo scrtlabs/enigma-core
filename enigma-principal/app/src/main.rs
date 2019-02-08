@@ -23,11 +23,10 @@ extern crate tiny_keccak;
 extern crate tokio_core;
 extern crate url;
 extern crate web3;
-extern crate jsonrpc_minihttp_server;
+extern crate jsonrpc_http_server;
 extern crate ethabi;
 
 //etcommon
-extern crate rlp;
 extern crate bigint;
 
 // enigma modules
