@@ -12,7 +12,7 @@ default = []
 
 [dependencies]
 enigma-tools-t = {path = "../../enigma-tools-t"}
-enigma-types = {path = "../../enigma-types"}
+enigma-types = { path = "../../enigma-types", default-features = false, features = ["sgx"] }
 enigma-crypto = { path = "../../enigma-crypto", default-features = false, features = ["sgx"] }
 
 lazy_static = {version = "1.0.1", features = ["spin_no_std"] }

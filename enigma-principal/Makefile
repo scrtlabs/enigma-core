@@ -108,6 +108,7 @@ $(Enclave_EDL_Files): $(SGX_EDGER8R) enclave/Enclave.edl
 ######## App Objects ########
 
 app/Enclave_u.o: $(Enclave_EDL_Files)
+	cp ../enigma-core/enclave/enigma-types.* ./enclave
 	@$(CC) $(App_C_Flags) -c app/Enclave_u.c -o $@
 	@echo "CC   <=  $<"
 
