@@ -133,7 +133,6 @@ impl KeyPair {
 #[cfg(test)]
 pub mod tests {
     use super::KeyPair;
-    use common::utils_t::{EthereumAddress};
 
     pub fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
@@ -167,6 +166,6 @@ pub mod tests {
         let msg = b"EnigmaMPC";
         let sig = k1.sign(msg).unwrap();
         let recovered_pubkey = KeyPair::recover(msg, &sig).unwrap();
-        assert_eq!(signer_pubkey.address(), recovered_pubkey.address());
+        assert_eq!(signer_pubkey, recovered_pubkey);
     }
 }
