@@ -166,6 +166,6 @@ pub mod tests {
         let msg = b"EnigmaMPC";
         let sig = k1.sign(msg).unwrap();
         let recovered_pubkey = KeyPair::recover(msg, &sig).unwrap();
-        assert_eq!(signer_pubkey, recovered_pubkey);
+        assert_eq!(signer_pubkey.to_vec(), recovered_pubkey.to_vec());
     }
 }
