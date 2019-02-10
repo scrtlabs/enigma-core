@@ -88,8 +88,8 @@ pub(self) mod handling {
 
         let report_hex;
         let signature;
-        /// *Important* `option_env!()` runs on *Compile* time.
-        /// This means that if you want Simulation mode you need to run `export SGX_MODE=SW` Before compiling.
+        // *Important* `option_env!()` runs on *Compile* time.
+        // This means that if you want Simulation mode you need to run `export SGX_MODE=SW` Before compiling.
         if option_env!("SGX_MODE").unwrap_or_default() == "SW" { // Simulation Mode
             report_hex = enc_quote;
             signature = String::new();
