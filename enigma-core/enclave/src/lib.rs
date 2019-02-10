@@ -67,7 +67,7 @@ use wasm_utils::{build, SourceTarget};
 
 use sgx_types::*;
 use std::{mem, ptr, slice, str};
-use std::{string::{String, ToString}, vec::Vec};
+use std::{boxed::Box, string::{String, ToString}, vec::Vec};
 
 lazy_static! { pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
@@ -126,9 +126,9 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     let callable = slice::from_raw_parts(callable, callable_len);
     let args = slice::from_raw_parts(args, args_len);
 
-
+    let mut pre_execution_data = vec![];
     // in order to view the specific error print out the result of the function
-    let mut internal_result = ecall_execute_internal(bytecode,
+    let mut internal_result = ecall_execute_internal(&mut pre_execution_data, bytecode,
                            callable,
                            args,
                            &user_key,
@@ -136,7 +136,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                            *gas_limit,
                            db_ptr,
                            result);
-    sign_if_error(&mut internal_result, result);
+    sign_if_error(&pre_execution_data, &mut internal_result, result);
     internal_result.into()
 }
 
@@ -162,8 +162,9 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
     let args = slice::from_raw_parts(args, args_len);
     let bytecode = slice::from_raw_parts(bytecode, bytecode_len);
     let constructor = slice::from_raw_parts(constructor, constructor_len);
-    let mut internal_result = ecall_deploy_internal(bytecode, constructor, args, (*address).into(), user_key, *gas_limit, db_ptr, result);
-    sign_if_error(&mut internal_result, result);
+    let mut pre_execution_data = vec![];
+    let mut internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, *gas_limit, db_ptr, result);
+    sign_if_error(&pre_execution_data, &mut internal_result, result);
     internal_result.into()
 }
 
@@ -285,11 +286,15 @@ fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
     }
 }
 
-fn sign_if_error (internal_result: &mut Result<(), EnclaveError>, result: &mut ExecuteResult) {
+fn sign_if_error (pre_execution_data: &Vec<Box<[u8]>>, internal_result: &mut Result<(), EnclaveError>, result: &mut ExecuteResult) {
     if let &mut Err(_) = internal_result{
-        // Signing: S(inputsHash, exeCodeHash, usedGas, Failure)
+        // Signing: S(pre-execution data, usedGas, Failure)
         let used_gas = result.used_gas.to_be_bytes();
-        let signature = SIGNINING_KEY.sign_multiple(&[&*result.inputs_hash, &*result.exe_code_hash, &used_gas[..], &[ResultStatus::Failure.into()]]);
+        let failure = [ResultStatus::Failure.into()];
+        let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
+        pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
+        to_sign.extend_from_slice(&[&used_gas[..], &failure]);
+        let signature = SIGNINING_KEY.sign_multiple(&to_sign);
         match signature {
             Ok(v) => {
                 result.signature = v;
@@ -299,17 +304,17 @@ fn sign_if_error (internal_result: &mut Result<(), EnclaveError>, result: &mut E
             }
         }
     }
-    result.inputs_hash = Default::default();
-    result.exe_code_hash = Default::default();
 }
 
-unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
+unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecode: &[u8], callable: &[u8],
                                  args: &[u8], user_key: &PubKey,
                                  address: ContractAddress, gas_limit: u64,
                                  db_ptr: *const RawPointer, result: &mut ExecuteResult) -> Result<(), EnclaveError> {
 
-    result.inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[callable, args, &*address, user_key]).keccak256();
-    result.exe_code_hash = bytecode.keccak256();
+    let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[callable, args, &*address, user_key]).keccak256();
+    let exe_code_hash = bytecode.keccak256();
+    pre_execution_data.push(Box::new(*inputs_hash));
+    pre_execution_data.push(Box::new(*exe_code_hash));
     let pre_execution_state = execution::get_state(db_ptr, address)?;
 
     let (decrypted_args, decrypted_callable, types, function_name, key) = decrypt_inputs(callable, args, user_key)?;
@@ -334,8 +339,8 @@ unsafe fn ecall_execute_internal(bytecode: &[u8], callable: &[u8],
     let used_gas = result.used_gas.to_be_bytes();
     let output_hash = encrypted_output.keccak256();
     let to_sign = [
-        &*result.exe_code_hash,
-        &*result.inputs_hash,
+        &*exe_code_hash,
+        &*inputs_hash,
         &*pre_execution_state.delta_hash,
         &*delta_hash,
         &*output_hash,
@@ -384,16 +389,14 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
     }
 }
 
-unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8],
+unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecode: &[u8], constructor: &[u8], args: &[u8],
                                 address: ContractAddress, user_key: &PubKey,
                                 gas_limit: u64, db_ptr: *const RawPointer,
                                 result: &mut ExecuteResult) -> Result<(), EnclaveError> {
 
     let pre_code_hash = bytecode.keccak256();
-    result.inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[constructor, args, &pre_code_hash[..], user_key][..]).keccak256();
-
-    result.exe_code_hash = bytecode.keccak256();
-
+    let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[constructor, args, &pre_code_hash[..], user_key][..]).keccak256();
+    pre_execution_data.push(Box::new(*inputs_hash));
     let deploy_bytecode = build_constructor(bytecode)?;
 
     let (decrypted_args, _, _types, _, _) = decrypt_inputs(constructor, args, user_key)?;
@@ -421,8 +424,8 @@ unsafe fn ecall_deploy_internal(bytecode: &[u8], constructor: &[u8], args: &[u8]
     let used_gas = result.used_gas.to_be_bytes();
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
     let to_sign = [
-        &*result.inputs_hash,
-        &*result.exe_code_hash,
+        &*(inputs_hash),
+        &*(exec_res.result.keccak256()),
         &*delta_hash,
         &used_gas[..],
         &ethereum_payload[..],

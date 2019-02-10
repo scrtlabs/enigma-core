@@ -39,8 +39,6 @@ pub enum ResultStatus {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ExecuteResult {
-    pub exe_code_hash: Hash256,
-    pub inputs_hash: Hash256,
     pub output: *const u8,
     pub delta_ptr: *const u8,
     pub delta_hash: Hash256,
@@ -119,8 +117,6 @@ impl Default for ExecuteResult {
 impl fmt::Debug for ExecuteResult {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut debug_trait_builder = f.debug_struct("ExecuteResult");
-        debug_trait_builder.field("exe_code_hash", &(self.exe_code_hash));
-        debug_trait_builder.field("inputs_hash", &(self.inputs_hash));
         debug_trait_builder.field("output", &(self.output));
         debug_trait_builder.field("delta_ptr", &(self.delta_ptr));
         debug_trait_builder.field("delta_hash", &(self.delta_hash));
