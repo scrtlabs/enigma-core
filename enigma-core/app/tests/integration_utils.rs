@@ -103,7 +103,7 @@ pub fn set_encryption_msg(user_pubkey: [u8; 64]) -> Value {
 }
 
 pub fn set_ptt_req_msg(addrs: Vec<String>) -> Value {
-    json!({"id" : &generate_job_id(), "type" : "GetPTTRequest", "addresses": addrs})
+    json!({"id" : &generate_job_id(), "type" : "GetPTTRequest", "input": addrs})
 }
 
 pub fn set_ptt_res_msg(response: Vec<u8>) -> Value {

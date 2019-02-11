@@ -19,8 +19,9 @@ fn test_get_ptt_request() {
 
     let addresses: Vec<String> = vec![generate_address().to_hex(), generate_address().to_hex()];
     let msg = set_ptt_req_msg(addresses.clone());
+    println!("msg: {:?}", msg);
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
-
+    println!("v: {:?}", v);
     let packed_msg = v["result"].as_object().unwrap()["request"].as_str().unwrap();
     let result_sig = v["result"].as_object().unwrap()["workerSig"].as_str().unwrap();
     let unpacked_msg: ParsedMessage = ParsedMessage::from_value(parse_packed_msg(packed_msg));
