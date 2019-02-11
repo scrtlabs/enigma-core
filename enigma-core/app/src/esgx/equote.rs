@@ -4,7 +4,7 @@ use sgx_types::*;
 use std::str;
 
 extern "C" {
-    fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 42]) -> sgx_status_t;
+    fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 20]) -> sgx_status_t;
 }
 
 // this struct is returned during the process registration back to the surface.
@@ -19,12 +19,11 @@ pub struct GetRegisterResult {
 
 // wrapper function for getting the enclave public sign key (the one attached with produce_quote())
 #[logfn(INFO)]
-pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<String, Error> {
-    let mut address: [u8; 42] = [0; 42];
+pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<[u8; 20], Error> {
+    let mut address = [0u8; 20];
     let status = unsafe { ecall_get_signing_address(eid, &mut address) };
     if status == sgx_status_t::SGX_SUCCESS {
-        let address_str = str::from_utf8(&address).unwrap();
-        Ok(address_str.to_owned())
+        Ok(address)
     } else {
         Err(errors::GetRegisterKeyErr { status, message: String::from("error in get_register_signing_key") }.into())
     }
@@ -70,5 +69,17 @@ mod test {
         let as_response = service.get_report(&quote).unwrap();
 
         assert!(as_response.result.verify_report().unwrap());
+    }
+
+    #[test]
+    fn test_signing_key_against_quote() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let quote = retry_quote(enclave.geteid(), &SPID, 18).unwrap();
+        let service = AttestationService::new(attestation_service::constants::ATTESTATION_SERVICE_URL);
+        let as_response = service.get_report(&quote).unwrap();
+        assert!(as_response.result.verify_report().unwrap());
+        let key = super::get_register_signing_address(enclave.geteid()).unwrap();
+        let quote = as_response.get_quote().unwrap();
+        assert_eq!(key, &quote.report_body.report_data[..20]);
     }
 }

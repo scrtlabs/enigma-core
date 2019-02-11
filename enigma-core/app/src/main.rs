@@ -58,7 +58,8 @@ mod tests {
         (db, tempdir)
     }
 
-    pub fn log_to_stdout(level: LevelFilter) {
+    pub fn log_to_stdout(level: Option<LevelFilter>) {
+        let level = level.unwrap_or_else(|| LevelFilter::max());
         TermLogger::init(level, Default::default()).unwrap();
     }
 

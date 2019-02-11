@@ -33,14 +33,14 @@ pub enum IpcResponse {
     GetDelta { result: IpcResults },
     GetDeltas { result: IpcResults },
     GetContract { result: IpcResults },
-    UpdateNewContract { address: String, #[serde(flatten)] result: IpcResults },
+    UpdateNewContract { address: String, result: IpcResults },
     UpdateDeltas { #[serde(flatten)] result: IpcResults },
     NewTaskEncryptionKey { #[serde(flatten)] result: IpcResults },
     DeploySecretContract { #[serde(flatten)] result: IpcResults},
     ComputeTask { #[serde(flatten)] result: IpcResults },
     GetPTTRequest { #[serde(flatten)] result: IpcResults },
     PTTResponse { result: IpcResults },
-    Error { error: String },
+    Error { msg: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -98,13 +98,14 @@ pub enum IpcRequest {
     NewTaskEncryptionKey { #[serde(rename = "userPubKey")] user_pubkey: String },
     DeploySecretContract { input: IpcTask},
     ComputeTask { input: IpcTask },
-    GetPTTRequest { addresses: Vec<String> },
+    GetPTTRequest { input: Addresses },
     PTTResponse {  response: String },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcTask {
     #[serde(rename = "preCode")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub pre_code: Option<String>,
     #[serde(rename = "encryptedArgs")]
     pub encrypted_args: String,
@@ -127,14 +128,17 @@ pub struct IpcIdentityChallenge {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcStatusResult {
     pub address: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub key: Option<u32>,
     pub status: Status,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct IpcDelta {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub address: Option<String>,
     pub key: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub delta: Option<String>,
 }
 
@@ -143,6 +147,17 @@ pub struct IpcGetDeltas {
     pub address: String,
     pub from: u32,
     pub to: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Addresses (pub Vec<String>);
+
+impl std::ops::Deref for Addresses {
+    type Target = Vec<String>;
+    fn deref(&self) -> &Vec<String> {
+        &self.0
+    }
 }
 
 impl IpcMessageResponse {
@@ -159,7 +174,7 @@ impl IpcMessageRequest {
 
 
 impl IpcDelta {
-    pub fn from_delta_key(k: DeltaKey, v: Vec<u8>) -> Result<Self, Error> {
+    pub fn from_delta_key(k: DeltaKey, v: &[u8]) -> Result<Self, Error> {
         if let Stype::Delta(indx) = k.key_type {
             Ok( IpcDelta { address: Some(k.contract_id.to_hex()), key: indx, delta: Some(v.to_hex()) } )
         } else {
@@ -203,7 +218,7 @@ impl<E: std::fmt::Debug> UnwrapError<IpcResponse> for Result<IpcResponse, E> {
             Ok(m) => m,
             Err(e) => {
                 error!("Unwrapped p2p Message failed: {:?}", e);
-                IpcResponse::Error {error: format!("{:?}", e)}
+                IpcResponse::Error {msg: format!("{:?}", e)}
             }
         }
     }

@@ -48,7 +48,7 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::NewTaskEncryptionKey { user_pubkey } => handling::get_dh_user_key( &user_pubkey, eid),
             IpcRequest::DeploySecretContract { input } => handling::deploy_contract(db, input, eid),
             IpcRequest::ComputeTask { input } => handling::compute_task(db, input, eid),
-            IpcRequest::GetPTTRequest { addresses } => handling::get_ptt_req(&addresses, eid),
+            IpcRequest::GetPTTRequest { input } => handling::get_ptt_req(&input, eid),
             IpcRequest::PTTResponse { response } => handling::ptt_response(db, &response, eid),
         };
         let msg = IpcMessageResponse::from_response(response_msg.unwrap_or_error(), id);
@@ -85,16 +85,22 @@ pub(self) mod handling {
         let sigining_key = equote::get_register_signing_address(eid)?;
 
         let enc_quote = equote_tools::retry_quote(eid, spid, 18)?;
-        let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
-        let response = service.get_report(&enc_quote)?;
-        let quote = response.get_quote()?;
 
-        let report_hex = response.result.report_string.as_bytes().to_hex();
-        let signature = response.result.signature;
+        let report_hex;
+        let signature;
+        // *Important* `option_env!()` runs on *Compile* time.
+        // This means that if you want Simulation mode you need to run `export SGX_MODE=SW` Before compiling.
+        if option_env!("SGX_MODE").unwrap_or_default() == "SW" { // Simulation Mode
+            report_hex = enc_quote;
+            signature = String::new();
+        } else { // Hardware Mode
+            let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
+            let response = service.get_report(&enc_quote)?;
+            report_hex = response.result.report_string.as_bytes().to_hex();
+            signature = response.result.signature;
+        }
 
-        assert_eq!(str::from_utf8(&quote.report_body.report_data)?.trim_right_matches('\x00'), sigining_key);
-
-        let result = IpcResults::RegistrationParams { signing_key: sigining_key, report: report_hex, signature };
+        let result = IpcResults::RegistrationParams { signing_key: sigining_key.to_hex(), report: report_hex, signature };
 
         Ok(IpcResponse::GetRegistrationParams { result })
     }
@@ -119,7 +125,7 @@ pub(self) mod handling {
         let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data.clone()).unwrap()).collect();
         let tips = db.get_tips::<DeltaKey>(&addresses)?;
         for (key, data) in tips {
-            let delta = IpcDelta::from_delta_key(key, data)?;
+            let delta = IpcDelta::from_delta_key(key, &data)?;
             tips_results.push(delta);
         }
         Ok(IpcResponse::GetTips { result: IpcResults::Tips(tips_results) })
@@ -130,7 +136,7 @@ pub(self) mod handling {
         let tips = db.get_all_tips::<DeltaKey>().unwrap_or_default();
         let mut tips_results = Vec::with_capacity(tips.len());
         for (key, data) in tips {
-            let delta = IpcDelta::from_delta_key(key, data)?;
+            let delta = IpcDelta::from_delta_key(key, &data)?;
             tips_results.push(delta);
         }
         Ok(IpcResponse::GetAllTips { result: IpcResults::Tips(tips_results) })
@@ -165,7 +171,7 @@ pub(self) mod handling {
                 continue; // TODO: Check if this handling makes any sense.
             }
             for (key, data) in db_res.unwrap() {
-                let delta = IpcDelta::from_delta_key(key, data)?;
+                let delta = IpcDelta::from_delta_key(key, &data)?;
                 results.push(delta);
             }
         }
@@ -235,9 +241,9 @@ pub(self) mod handling {
     }
 
     #[logfn(INFO)]
-    pub fn get_ptt_req(addresses: &[String], eid: sgx_enclave_id_t) -> ResponseResult {
+    pub fn get_ptt_req(addresses: &Addresses, eid: sgx_enclave_id_t) -> ResponseResult {
         let mut addresses_arr: Vec<ContractAddress> = Vec::with_capacity(addresses.len());
-        for a in addresses {
+        for a in addresses.iter() {
             addresses_arr.push(ContractAddress::from_hex(a)?);
         }
         let (data, sig) = km_u::ptt_req(eid, &addresses_arr)?;
