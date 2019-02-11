@@ -31,7 +31,7 @@ extern "C" {
 const MAX_EVM_RESULT: usize = 100_000;
 #[logfn(DEBUG)]
 pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
-              contract_address: ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
+              contract_address: &ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
     let mut retval = EnclaveReturn::Success;
     let mut result = ExecuteResult::default();
     let db_ptr = unsafe { RawPointer::new_mut(db) };
@@ -45,7 +45,7 @@ pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor:
                      constructor.len(),
                      args.as_c_ptr(),
                      args.len(),
-                     &contract_address,
+                     contract_address,
                      &user_pubkey,
                      &gas_limit as *const u64,
                      &db_ptr as *const RawPointer,
@@ -54,7 +54,7 @@ pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor:
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         Err(EnclaveFailError { err: retval, status }.into())
     } else {
-        result.try_into()
+        (result, *contract_address).try_into()
     }
 }
 
@@ -84,7 +84,7 @@ pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         Err(EnclaveFailError { err: retval, status }.into())
     } else {
-        result.try_into()
+        (result, *address).try_into()
     }
 }
 
@@ -118,7 +118,7 @@ pub mod tests {
     fn compile_and_deploy_wasm_contract(db: &mut DB,
                                         eid: sgx_enclave_id_t,
                                         test_path: &str,
-                                        address: ContractAddress,
+                                        address: &ContractAddress,
                                         constructor: &[u8],
                                         args: &[u8],
                                         user_pubkey: &PubKey) -> WasmResult {
@@ -160,7 +160,7 @@ pub mod tests {
             db,
             enclave.geteid(),
             test_path,
-            address,
+            &address,
             &encrypted_construct,
             &encrypted_args,
             &keys.get_pubkey()

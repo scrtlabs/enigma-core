@@ -274,7 +274,7 @@ pub(self) mod handling {
             &bytecode,
             &constructor,
             &enc_args,
-            contract_address,
+            &contract_address,
             &user_pubkey,
             input.gas_limit)?;
 
