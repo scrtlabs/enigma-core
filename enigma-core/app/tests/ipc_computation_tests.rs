@@ -8,7 +8,7 @@ use integration_utils::{conn_and_call_ipc, is_hex, run_core, set_msg_format_upda
                         set_encryption_msg, full_simple_deployment, full_addition_compute,
                         send_update_contract, full_erc20_deployment, run_ptt_round, contract_compute, set_update_deltas_msg};
 use self::app::*;
-use cross_test_utils::generate_address;
+use cross_test_utils::generate_contract_address;
 use integration_utils::serde::*;
 use self::app::serde_json;
 use app::serde_json::*;
@@ -73,7 +73,7 @@ fn test_execute_on_existing_contract() {
 
     let (deployed_res, _) = full_erc20_deployment(port, None);
     let deployed_bytecode = deployed_res["result"].as_object().unwrap()["output"].as_str().unwrap();
-    let new_addr = generate_address();
+    let new_addr = generate_contract_address();
     let _msg = set_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
     let res_a = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
     println!("contract: {:?}", res_a);
@@ -84,7 +84,7 @@ fn test_execute_on_existing_contract() {
     let update_deltas_res: Value = conn_and_call_ipc(&msg.to_string(), port);
     println!("deltas: {:?}", update_deltas_res);
     let res_b = run_ptt_round(port, vec![new_addr.to_hex()]);
-    let args = [Token::FixedBytes(generate_address().to_vec()), Token::Uint(100.into())];
+    let args = [Token::FixedBytes(generate_contract_address().to_vec()), Token::Uint(100.into())];
     let callable  = "mint(bytes32,uint256)";
     let (res, _key) = contract_compute(port, new_addr.into(), &args, callable);
     println!("res: {:?}", res);

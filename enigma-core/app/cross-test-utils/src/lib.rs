@@ -20,7 +20,7 @@ use serde_json::{*, Value};
 use rmp_serde::{Serializer};
 use serde::{Serialize};
 
-pub fn generate_address() -> ContractAddress {
+pub fn generate_contract_address() -> ContractAddress {
     let mut address = ContractAddress::default();
     rand::random(address.as_mut()).unwrap();
     address

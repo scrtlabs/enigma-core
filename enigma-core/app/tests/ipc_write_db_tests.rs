@@ -11,7 +11,7 @@ use self::app::*;
 use self::app::serde_json;
 use app::serde_json::*;
 use hex::{ToHex, FromHex};
-use integration_utils::cross_test_utils::{generate_address};
+use integration_utils::cross_test_utils::{generate_contract_address};
 use ethabi::Token::Uint;
 
 #[test]
@@ -21,7 +21,7 @@ fn test_ipc_update_contract() {
 
     let (deployed_res, _) = full_simple_deployment(port);
     let deployed_bytecode = deployed_res["result"].as_object().unwrap()["output"].as_str().unwrap();
-    let new_addr = generate_address();
+    let new_addr = generate_contract_address();
     let msg = set_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
     let res: Value = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
 
@@ -43,11 +43,11 @@ fn test_ipc_update_deltas() {
 
     // create a new address that contains a bytecode we just deployed.
     let deployed_bytecode_a = deployed_res_a["result"].as_object().unwrap()["output"].as_str().unwrap();
-    let new_addr_a = generate_address();
+    let new_addr_a = generate_contract_address();
     let update_contract_a: Value = send_update_contract(port, &new_addr_a.to_hex(), deployed_bytecode_a);
 
     let deployed_bytecode_b = deployed_res_b["result"].as_object().unwrap()["output"].as_str().unwrap();
-    let new_addr_b = generate_address();
+    let new_addr_b = generate_contract_address();
     let update_contract_b: Value = send_update_contract(port, &new_addr_b.to_hex(), deployed_bytecode_b);
 
     // get the delta for each of the computations above and push it to the input/ deltas vec with their new addr.

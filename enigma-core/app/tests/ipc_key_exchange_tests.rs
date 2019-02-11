@@ -5,7 +5,7 @@ extern crate rustc_hex as hex;
 
 use integration_utils::{get_simple_msg_format, conn_and_call_ipc, is_hex, run_core, run_ptt_round,
                         set_ptt_req_msg, ParsedMessage, parse_packed_msg};
-use self::cross_test_utils::{generate_address};
+use self::cross_test_utils::{generate_contract_address};
 use self::app::*;
 use integration_utils::serde::*;
 use self::app::serde_json;
@@ -17,7 +17,7 @@ fn test_get_ptt_request() {
     let port = "5558";
     run_core(port);
 
-    let addresses: Vec<String> = vec![generate_address().to_hex(), generate_address().to_hex()];
+    let addresses: Vec<String> = vec![generate_contract_address().to_hex(), generate_contract_address().to_hex()];
     let msg = set_ptt_req_msg(addresses.clone());
     println!("msg: {:?}", msg);
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
@@ -35,7 +35,7 @@ fn test_get_ptt_request() {
 fn test_ptt_response() {
     let port = "5559";
     run_core(port);
-    let addresses: Vec<String> = vec![generate_address().to_hex(), generate_address().to_hex()];
+    let addresses: Vec<String> = vec![generate_contract_address().to_hex(), generate_contract_address().to_hex()];
     let res_val: Value = run_ptt_round(port, addresses);
     let result: Vec<u8> = serde_json::from_value(res_val["result"]["errors"].clone()).unwrap();
 

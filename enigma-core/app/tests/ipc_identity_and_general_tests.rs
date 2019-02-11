@@ -6,7 +6,7 @@ extern crate ethabi;
 
 use integration_utils::{get_simple_msg_format, conn_and_call_ipc, is_hex, run_core, erc20_deployment_without_ptt_to_addr,
                         run_ptt_round, contract_compute, full_simple_deployment, full_erc20_deployment};
-use cross_test_utils::{generate_address, get_bytecode_from_path};
+use cross_test_utils::{generate_contract_address, get_bytecode_from_path};
 use self::app::*;
 use integration_utils::serde::*;
 use self::app::serde_json;
@@ -38,7 +38,7 @@ fn test_registration_params() {
 fn test_deploy_with_no_ptt() {
     let port = "5575";
     run_core(port);
-    let _val = erc20_deployment_without_ptt_to_addr(port, &generate_address().to_hex());
+    let _val = erc20_deployment_without_ptt_to_addr(port, &generate_contract_address().to_hex());
     let accepted_err =  _val["msg"].as_str().unwrap();
     assert_eq!(accepted_err, "EnclaveFailError { err: KeysError, status: SGX_SUCCESS }");
 }
@@ -47,9 +47,9 @@ fn test_deploy_with_no_ptt() {
 fn test_compute_on_empty_address() {
     let port = "5576";
     run_core(port);
-    let _address = generate_address();
+    let _address = generate_contract_address();
     let _ = run_ptt_round(port, vec![_address.to_hex()]);
-    let args = [Token::FixedBytes(generate_address().to_vec()), Token::Uint(100.into())];
+    let args = [Token::FixedBytes(generate_contract_address().to_vec()), Token::Uint(100.into())];
     let callable  = "mint(bytes32,uint256)";
     let (_val,_) = contract_compute(port, _address.into(), &args, callable);
     let accepted_err =  _val["msg"].as_str().unwrap();
@@ -60,7 +60,7 @@ fn test_compute_on_empty_address() {
 fn test_run_ptt_twice() {
     let port = "5577";
     run_core(port);
-    let address = generate_address();
+    let address = generate_contract_address();
     let _val_first = run_ptt_round(port, vec![address.to_hex()]);
     let _val_second = run_ptt_round(port, vec![address.to_hex()]);
     //todo what should we expect to happen?
@@ -70,7 +70,7 @@ fn test_run_ptt_twice() {
 fn test_deploy_same_contract_twice() {
     let port = "5578";
     run_core(port);
-    let address = generate_address().to_hex();
+    let address = generate_contract_address().to_hex();
     let val_ptt = run_ptt_round(port, vec![address.clone()]);
     let _deploy_first = erc20_deployment_without_ptt_to_addr(port, &address.clone());
     let _deploy_second = erc20_deployment_without_ptt_to_addr(port, &address);
@@ -83,7 +83,7 @@ fn test_wrong_arguments() {
     let port = "5579";
     run_core(port);
     let (_, _address) = full_simple_deployment(port);
-    let args = [Token::FixedBytes(generate_address().to_vec()), Token::FixedBytes(generate_address().to_vec())];
+    let args = [Token::FixedBytes(generate_contract_address().to_vec()), Token::FixedBytes(generate_contract_address().to_vec())];
     let callable  = "mint(bytes32,bytes32)";
     let (_val, _) = contract_compute(port, _address.into(), &args, callable);
     let accepted_err =  _val["msg"].as_str().unwrap();

@@ -13,7 +13,7 @@ extern crate dirs;
 extern crate rand;
 extern crate tempfile;
 
-use self::cross_test_utils::{generate_address, make_encrypted_response,
+use self::cross_test_utils::{generate_contract_address, make_encrypted_response,
                              get_fake_state_key, get_bytecode_from_path};
 use self::app::*;
 use self::futures::Future;
@@ -214,7 +214,7 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
 
 pub fn full_erc20_deployment(port: &'static str, gas_limit: Option<u64>) -> (Value, [u8; 32]) {
     // address generation and ptt
-    let address = generate_address();
+    let address = generate_contract_address();
     let _ = run_ptt_round(port, vec![address.to_hex()]);
 
     // WUKE- get the arguments encryption key
@@ -249,7 +249,7 @@ pub fn erc20_deployment_without_ptt_to_addr(port: &'static str, _address: &str) 
 
 pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
     // address generation and ptt
-    let address = generate_address();
+    let address = generate_contract_address();
     let _ = run_ptt_round(port, vec![address.to_hex()]);
 
     // WUKE- get the arguments encryption key
@@ -288,7 +288,7 @@ pub fn contract_compute(port: &'static str,  contract_addr: [u8; 32], args: &[To
     // WUKE- get the arguments encryption key
     let (shared_key, user_pubkey) = produce_shared_key(port);
 
-    let task_id: String = generate_address().to_hex();
+    let task_id: String = generate_contract_address().to_hex();
     let (encrypted_callable, encrypted_args) = encrypt_args(args, callable, shared_key);
     let gas_limit = 100_000_000;
 
@@ -313,7 +313,7 @@ pub fn get_decrypted_delta(addr: [u8; 32], delta: &str) -> Vec<u8> {
 pub fn deploy_and_compute_few_contracts(port: &'static str) -> Vec<[u8; 32]> {
     let (_, _, contract_address_a): (_, _, [u8; 32]) = full_addition_compute(port, 56, 87);
     let (_, _, contract_address_b): (_, _ , [u8; 32]) = full_addition_compute(port, 75, 43);
-    let (_, _, contract_address_c): (_, _, [u8; 32]) = full_mint_compute(port, &generate_address().into(), 500);
+    let (_, _, contract_address_c): (_, _, [u8; 32]) = full_mint_compute(port, &generate_contract_address().into(), 500);
     vec![contract_address_a, contract_address_b, contract_address_c]
 }
 

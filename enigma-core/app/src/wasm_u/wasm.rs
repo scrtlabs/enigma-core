@@ -93,7 +93,7 @@ pub mod tests {
     extern crate ethabi;
     extern crate cross_test_utils;
 
-    use self::cross_test_utils::{generate_address, get_bytecode_from_path};
+    use self::cross_test_utils::{generate_contract_address, get_bytecode_from_path};
     use crate::esgx::general::init_enclave_wrapper;
     use crate::km_u::tests::exchange_keys;
     use crate::km_u::tests::instantiate_encryption_key;
@@ -117,7 +117,7 @@ pub mod tests {
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
 
 
-        wasm::deploy(db, eid, &wasm_code, constructor, args, contract_address, &user_pubkey, 100_000).expect("Deploy Failed")
+        wasm::deploy(db, eid, &wasm_code, constructor, args, &contract_address, &user_pubkey, 100_000).expect("Deploy Failed")
     }
 
     fn compile_deploy_execute(db: &mut DB,
@@ -138,7 +138,7 @@ pub mod tests {
             db,
             enclave.geteid(),
             test_path,
-            &contract_address,
+            contract_address,
             &encrypted_construct,
             &encrypted_args,
             &keys.get_pubkey()

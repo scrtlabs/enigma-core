@@ -47,15 +47,15 @@ pub trait P2PCalls<V> {
     ///
     /// let tempdir = tempfile::tempdir().unwrap();
     /// let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// let contract_id: ContractAddress = [2u8; 32].into();
-    /// let dk1 = DeltaKey {contract_id, key_type: Stype::Delta(1)};
+    /// let contract_address: ContractAddress = [2u8; 32].into();
+    /// let dk1 = DeltaKey {contract_address, key_type: Stype::Delta(1)};
     /// let val1 = b"Enigma".to_vec();
-    /// let dk2 = DeltaKey {contract_id, key_type: Stype::Delta(2)};
+    /// let dk2 = DeltaKey {contract_address, key_type: Stype::Delta(2)};
     /// let val2 = b"MPC".to_vec();
     /// let key_vals = vec![(dk1, val1.clone()), (dk2, val2.clone())];
     /// let _ = db.insert_tuples(&key_vals);
     ///
-    /// let (key, tip): (DeltaKey, Vec<u8>)= db.get_tip(&contract_id).unwrap();
+    /// let (key, tip): (DeltaKey, Vec<u8>)= db.get_tip(&contract_address).unwrap();
     /// assert_eq!(tip, val2);
     /// ```
     fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, V), Error>;
@@ -71,22 +71,22 @@ pub trait P2PCalls<V> {
     ///
     /// # let tempdir = tempfile::tempdir().unwrap();
     /// # let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// # let contract_id: ContractAddress = [2u8; 32].into();
-    /// # let dk1 = DeltaKey {contract_id, key_type: Stype::Delta(1)};
+    /// # let contract_address: ContractAddress = [2u8; 32].into();
+    /// # let dk1 = DeltaKey {contract_address, key_type: Stype::Delta(1)};
     /// # let val1 = b"Enigma".to_vec();
-    /// # let dk2 = DeltaKey {contract_id, key_type: Stype::Delta(2)};
+    /// # let dk2 = DeltaKey {contract_address, key_type: Stype::Delta(2)};
     /// # let val2 = b"MPC".to_vec();
     /// # let key_vals = vec![(dk1, val1.clone()), (dk2, val2.clone())];
     /// # let _ = db.insert_tuples(&key_vals);
     ///
-    /// let other_contract_id: ContractAddress = [4u8; 32].into();
-    /// let other_dk = DeltaKey {contract_id: other_contract_id, key_type: Stype::Delta(1)};
+    /// let other_contract_address: ContractAddress = [4u8; 32].into();
+    /// let other_dk = DeltaKey {contract_address: other_contract_address, key_type: Stype::Delta(1)};
     /// let other_val = b"delta1".to_vec();
     /// let _ = db.insert_tuples(&vec![(other_dk, other_val.clone())]);
     ///
-    /// let tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_id, other_contract_id]).unwrap();
+    /// let tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_address, other_contract_address]).unwrap();
     /// for tip in tips {
-    ///     if tip.0.contract_id == contract_id {
+    ///     if tip.0.contract_address == contract_address {
     ///         assert_eq!(tip.1, val2);
     ///     } else {
     ///         assert_eq!(tip.1, other_val);
@@ -106,20 +106,20 @@ pub trait P2PCalls<V> {
     ///
     /// # let tempdir = tempfile::tempdir().unwrap();
     /// # let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// # let contract_id: ContractAddress = [2u8; 32].into();
-    /// # let dk1 = DeltaKey {contract_id, key_type: Stype::Delta(1)};
+    /// # let contract_address: ContractAddress = [2u8; 32].into();
+    /// # let dk1 = DeltaKey {contract_address, key_type: Stype::Delta(1)};
     /// # let val1 = b"Enigma".to_vec();
-    /// # let dk2 = DeltaKey {contract_id, key_type: Stype::Delta(2)};
+    /// # let dk2 = DeltaKey {contract_address, key_type: Stype::Delta(2)};
     /// # let val2 = b"MPC".to_vec();
     /// # let key_vals = vec![(dk1, val1.clone()), (dk2, val2.clone())];
     /// # let _ = db.insert_tuples(&key_vals);
     ///
-    /// # let other_contract_id: ContractAddress = [4u8; 32].into();
-    /// # let other_dk = DeltaKey {contract_id: other_contract_id, key_type: Stype::Delta(1)};
+    /// # let other_contract_address: ContractAddress = [4u8; 32].into();
+    /// # let other_dk = DeltaKey {contract_address: other_contract_address, key_type: Stype::Delta(1)};
     /// # let other_val = b"delta1".to_vec();
     /// # let _ = db.insert_tuples(&vec![(other_dk, other_val.clone())]);
     /// let all_addresses: Vec<ContractAddress> = db.get_all_addresses().unwrap();
-    /// let expected_addresses = vec![contract_id, other_contract_id];
+    /// let expected_addresses = vec![contract_address, other_contract_address];
     /// assert_eq!(all_addresses, expected_addresses);
     /// ```
     fn get_all_addresses(&self) -> ResultVec<ContractAddress>;
@@ -135,10 +135,10 @@ pub trait P2PCalls<V> {
     ///
     /// # let tempdir = tempfile::tempdir().unwrap();
     /// # let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// # let contract_id: ContractAddress = [2u8; 32].into();
-    /// # let dk1 = DeltaKey {contract_id, key_type: Stype::Delta(1)};
+    /// # let contract_address: ContractAddress = [2u8; 32].into();
+    /// # let dk1 = DeltaKey {contract_address, key_type: Stype::Delta(1)};
     /// # let val1 = b"Enigma".to_vec();
-    /// # let dk2 = DeltaKey {contract_id, key_type: Stype::Delta(2)};
+    /// # let dk2 = DeltaKey {contract_address, key_type: Stype::Delta(2)};
     /// # let val2 = b"MPC".to_vec();
     /// # let key_vals = vec![(dk1, val1.clone()), (dk2, val2.clone())];
     /// # let _ = db.insert_tuples(&key_vals);
@@ -158,11 +158,11 @@ pub trait P2PCalls<V> {
     ///
     /// # let tempdir = tempfile::tempdir().unwrap();
     /// # let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// # let contract_id: ContractAddress = [2u8; 32].into();
-    /// let dk_bytecode = DeltaKey {contract_id, key_type: Stype::ByteCode};
+    /// # let contract_address: ContractAddress = [2u8; 32].into();
+    /// let dk_bytecode = DeltaKey {contract_address, key_type: Stype::ByteCode};
     /// let contract = b"This is a Contract".to_vec();
     /// let _ = db.insert_tuples(&vec![(dk_bytecode, contract.clone())]);
-    /// let db_contract = db.get_contract(contract_id).unwrap();
+    /// let db_contract = db.get_contract(contract_address).unwrap();
     /// assert_eq!(contract, db_contract);
     /// ```
     fn get_contract(&self, address: ContractAddress) -> ResultVec<u8>;
@@ -178,22 +178,22 @@ pub trait P2PCalls<V> {
     ///
     /// # let tempdir = tempfile::tempdir().unwrap();
     /// # let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// # let contract_id: ContractAddress = [2u8; 32].into();
-    /// # let dk1 = DeltaKey {contract_id, key_type: Stype::Delta(1)};
+    /// # let contract_address: ContractAddress = [2u8; 32].into();
+    /// # let dk1 = DeltaKey {contract_address, key_type: Stype::Delta(1)};
     /// # let val1 = b"Enigma".to_vec();
-    /// # let dk2 = DeltaKey {contract_id, key_type: Stype::Delta(2)};
+    /// # let dk2 = DeltaKey {contract_address, key_type: Stype::Delta(2)};
     /// # let val2 = b"MPC".to_vec();
     /// # let key_vals = vec![(dk1, val1.clone()), (dk2, val2.clone())];
     /// # let _ = db.insert_tuples(&key_vals);
     ///
-    /// # let other_contract_id: ContractAddress = [4u8; 32].into();
-    /// # let other_dk = DeltaKey {contract_id: other_contract_id, key_type: Stype::Delta(1)};
+    /// # let other_contract_address: ContractAddress = [4u8; 32].into();
+    /// # let other_dk = DeltaKey {contract_address: other_contract_address, key_type: Stype::Delta(1)};
     /// # let other_val = b"delta1".to_vec();
     /// # let _ = db.insert_tuples(&vec![(other_dk, other_val.clone())]);
     ///
     /// let tips: Vec<(DeltaKey, Vec<u8>)> = db.get_all_tips().unwrap();
     /// for tip in tips {
-    ///     if tip.0.contract_id == contract_id {
+    ///     if tip.0.contract_address == contract_address {
     ///         assert_eq!(tip.1, val2);
     ///     } else {
     ///         assert_eq!(tip.1, other_val);
@@ -215,14 +215,14 @@ pub trait P2PCalls<V> {
     ///
     /// # let tempdir = tempfile::tempdir().unwrap();
     /// # let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// # let contract_id: ContractAddress = [2u8; 32].into();
-    /// # let dk1 = DeltaKey {contract_id, key_type: Stype::Delta(1)};
+    /// # let contract_address: ContractAddress = [2u8; 32].into();
+    /// # let dk1 = DeltaKey {contract_address, key_type: Stype::Delta(1)};
     /// # let val1 = b"Enigma".to_vec();
-    /// # let dk2 = DeltaKey {contract_id, key_type: Stype::Delta(2)};
+    /// # let dk2 = DeltaKey {contract_address, key_type: Stype::Delta(2)};
     /// # let val2 = b"MPC".to_vec();
     /// # let key_vals = vec![(dk1, val1.clone()), (dk2, val2.clone())];
     /// # let _ = db.insert_tuples(&key_vals);
-    /// let dk3 = DeltaKey {contract_id, key_type: Stype::Delta(3)};
+    /// let dk3 = DeltaKey {contract_address, key_type: Stype::Delta(3)};
     /// let deltas = db.get_deltas(dk1, dk3).unwrap().unwrap();
     /// assert_eq!(deltas.len(), 2);
     /// ```
@@ -239,10 +239,10 @@ pub trait P2PCalls<V> {
     ///
     /// # let tempdir = tempfile::tempdir().unwrap();
     /// # let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// # let contract_id: ContractAddress = [2u8; 32].into();
-    /// # let dk1 = DeltaKey {contract_id, key_type: Stype::Delta(1)};
+    /// # let contract_address: ContractAddress = [2u8; 32].into();
+    /// # let dk1 = DeltaKey {contract_address, key_type: Stype::Delta(1)};
     /// # let val1 = b"Enigma".to_vec();
-    /// # let dk2 = DeltaKey {contract_id, key_type: Stype::Delta(2)};
+    /// # let dk2 = DeltaKey {contract_address, key_type: Stype::Delta(2)};
     /// # let val2 = b"MPC".to_vec();
     /// # let key_vals = vec![(dk1, val1.clone()), (dk2, val2.clone())];
     /// # let results = db.insert_tuples(&key_vals);
