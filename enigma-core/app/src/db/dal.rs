@@ -24,10 +24,15 @@ impl DB {
     /// and as a default, it adds options with a flag which creates the file if missing
     ///
     /// This Supports all the CRUD operations
-//    / # Examples
-//    / ```
-//    / let db = DB::new("/test/test.db", false);
-//    / ```
+    /// # Examples
+    /// ```
+    /// extern crate tempfile;
+    /// extern crate enigma_core_app;
+    /// use enigma_core_app::db::dal::DB;
+    ///
+    /// let tempdir = tempfile::tempdir().unwrap();
+    /// let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// ```
     pub fn new<P: AsRef<Path>>(location: P, create_if_missing: bool) -> Result<DB, Error> {
         // number of bytes to take into consideration when looking for a similar prefix
         // would be helpful when querying the DB using iterators.
@@ -53,43 +58,96 @@ impl DB {
 }
 
 pub trait CRUDInterface<E, K, T, V> {
-    /// Creates a new Key-Value pair
+    /// Creates a new Key-Value pair:
+    /// # Examples
+    /// ```
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// use enigma_core_app::db::primitives::Array32u8;
     ///
-//    / # Examples
-//    / ```
-//    / db.create("test", "abc".as_bytes()).unwrap();
-//    / ```
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// let key = Array32u8([7u8; 32]);
+    /// let val = b"Enigma";
+    /// db.create(&key, &val[..]).unwrap();
+    ///  ```
     fn create(&mut self, key: K, value: V) -> Result<(), E>;
     // TODO: Decide what to do if key doesn't exist
+
     /// Reads the Value in a specific Key
     ///
-//    / # Examples
-//    / ```
-//    / let res = db.read("test").unwrap();
-//    / assert_eq!("abc".as_bytes, res);
-//    / ```
+    /// # Examples
+    /// ```
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// # let val = b"Enigma";
+    /// # db.create(&key, &val[..]).unwrap();
+    /// let res = db.read(&key).unwrap();
+    /// assert_eq!(b"Enigma".to_vec(), res);
+    /// ```
     fn read(&self, key: K) -> Result<T, E>;
     /// Updates an existing Key with a new value
     ///
-//    / # Examples
-//    / ```
-//    / db.update("test", "abc".as_bytes()).unwrap();
-//    / ```
+    /// # Examples
+    /// ```
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// # let val = b"Enigma";
+    /// # db.create(&key, &val[..]).unwrap();
+    /// let new_val = b"protocol";
+    /// db.update(&key, &new_val[..]).unwrap();
+    /// assert_eq!(b"protocol".to_vec(), db.read(&key).unwrap());
+    /// ```
     fn update(&mut self, key: K, value: V) -> Result<(), E>;
     /// Deletes an existing key
     ///
-//    / # Examples
-//    / ```
-//    / db.delete("test").unwrap();
-//    / ```
+    /// # Examples
+    /// ```should_panic
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// # let val = b"Enigma";
+    /// # db.create(&key, &val[..]).unwrap();
+    /// db.delete(&key).unwrap();
+    /// let no_val = db.read(&key).unwrap();
+    ///
+    ///  ```
     fn delete(&mut self, key: K) -> Result<(), E>;
     /// This is the same as update but it will create the key if it doesn't exist.
     ///
-//    / # Examples
-//    / ```
-//    / let db = DB::new("/test/test.db", false);
-//    / db.force_update("test", "abc".as_bytes()).unwrap();
-//    / ```
+    /// # Examples
+    /// ```
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// # let val = b"Enigma";
+    /// # db.create(&key, &val[..]).unwrap();
+    /// let updated_val = b"EnigmaMPC";
+    /// db.force_update(&key, &updated_val[..]).unwrap();
+    /// assert_eq!(b"EnigmaMPC".to_vec(), db.read(&key).unwrap());
     fn force_update(&mut self, key: K, value: V) -> Result<(), E>;
 }
 
