@@ -1,7 +1,6 @@
 extern crate enigma_types;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
-#[macro_use]
 extern crate serde_derive;
 extern crate serde;
 extern crate rmp_serde;
@@ -33,12 +32,12 @@ pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
         .current_dir(&dir)
         .args(&["build", "--release"])
         .spawn()
-        .expect(&format!("Failed compiling wasm contract: {:?}", &dir));
+        .unwrap_or_else(|_| panic!("Failed compiling wasm contract: {:?}", &dir));
 
     assert!(output.wait().unwrap().success());
     dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
 
-    let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir));
+    let mut f = File::open(&dir).unwrap_or_else(|_| panic!("Can't open the contract.wasm file: {:?}", &dir));
     let mut wasm_code = Vec::new();
     f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
     wasm_code
@@ -50,7 +49,7 @@ pub fn get_fake_state_key(addr: &[u8]) -> [u8; 32] {
     *first_hashing.sha256()
 }
 
-pub fn make_encrypted_response(req: Value) -> Value {
+pub fn make_encrypted_response(req: &Value) -> Value {
     // Making the response
     let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
     let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|addr| (addr, get_fake_state_key(&*addr))).collect();

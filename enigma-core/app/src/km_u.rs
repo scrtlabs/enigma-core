@@ -104,12 +104,13 @@ pub mod tests {
 
     use super::{ptt_build_state, ptt_req, ptt_res};
     use crate::db::Stype::{Delta, State};
-    use crate::db::{CRUDInterface, DeltaKey, DB, tests::create_test_db};
+    use crate::db::{CRUDInterface, DeltaKey, DB
+                    , tests::create_test_db};
     use crate::esgx::general::init_enclave_wrapper;
     use self::cross_test_utils::*;
-    use enigma_types::{ContractAddress, DhKey, StateKey};
+    use enigma_types::{ContractAddress, DhKey};
     use enigma_crypto::{KeyPair, symmetric};
-    use enigma_crypto::hash::{Sha256, Keccak256};
+    use enigma_crypto::hash::Sha256;
     use rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
     use serde_json::{self, Value};
@@ -196,7 +197,7 @@ pub mod tests {
         let mut des = Deserializer::new(&req.0[..]);
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
-        let enc_response = make_encrypted_response(req_val);
+        let enc_response = make_encrypted_response(&req_val);
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
@@ -216,7 +217,7 @@ pub mod tests {
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
         // Generating the response
-        let enc_response = make_encrypted_response(req_val);
+        let enc_response = make_encrypted_response(&req_val);
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();

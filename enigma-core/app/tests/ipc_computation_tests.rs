@@ -7,9 +7,7 @@ extern crate cross_test_utils;
 use integration_utils::{conn_and_call_ipc, is_hex, run_core, set_msg_format_update_contract,
                         set_encryption_msg, full_simple_deployment, full_addition_compute,
                         send_update_contract, full_erc20_deployment, run_ptt_round, contract_compute, set_update_deltas_msg};
-use self::app::*;
 use cross_test_utils::generate_contract_address;
-use integration_utils::serde::*;
 use self::app::serde_json;
 use app::serde_json::*;
 use hex::{ToHex, FromHex};
@@ -64,9 +62,9 @@ fn test_compute_task() {
 #[ignore]
 fn test_execute_on_existing_contract() {
    // update a contract in a new address and then run an execution on it.
-    pub extern crate log;
-    pub extern crate simplelog;
-    use simplelog::TermLogger;
+//    pub extern crate log;
+//    pub extern crate simplelog;
+//    use simplelog::TermLogger;
 //    TermLogger::init(log::LevelFilter::Debug, Default::default()).unwrap();
     let port =  "5571";
     run_core(port);
@@ -79,11 +77,11 @@ fn test_execute_on_existing_contract() {
     println!("contract: {:?}", res_a);
     let deployed_delta = deployed_res["result"].as_object().unwrap()["delta"].as_object().unwrap();
     let deltas = vec![(new_addr.to_hex(), serde_json::from_value(deployed_delta["key"].clone()).unwrap(), serde_json::from_value(deployed_delta["delta"].clone()).unwrap())];
-    let msg = set_update_deltas_msg(deltas);
+    let msg = set_update_deltas_msg(&deltas);
     println!("msg: {:?}", msg);
     let update_deltas_res: Value = conn_and_call_ipc(&msg.to_string(), port);
     println!("deltas: {:?}", update_deltas_res);
-    let res_b = run_ptt_round(port, vec![new_addr.to_hex()]);
+    let _res_b = run_ptt_round(port, &[new_addr.to_hex()]);
     let args = [Token::FixedBytes(generate_contract_address().to_vec()), Token::Uint(100.into())];
     let callable  = "mint(bytes32,uint256)";
     let (res, _key) = contract_compute(port, new_addr.into(), &args, callable);

@@ -28,7 +28,6 @@ extern "C" {
                      gas_limit: *const u64, db_ptr: *const RawPointer, result: &mut ExecuteResult ) -> sgx_status_t;
 }
 
-const MAX_EVM_RESULT: usize = 100_000;
 #[logfn(DEBUG)]
 pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
               contract_address: &ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
@@ -101,12 +100,8 @@ pub mod tests {
     use crate::wasm_u::wasm;
     use self::ethabi::{Token};
     use enigma_types::{ContractAddress, DhKey, PubKey};
-    use enigma_crypto::{rand, symmetric};
+    use enigma_crypto::symmetric;
     use sgx_types::*;
-    use std::fs::File;
-    use std::io::Read;
-    use std::path::PathBuf;
-    use std::process::Command;
     use std::str::from_utf8;
     use wasm_u::{WasmResult, wasm::{rustc_hex::ToHex}};
 
@@ -167,7 +162,7 @@ pub mod tests {
     fn test_print_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
@@ -183,7 +178,7 @@ pub mod tests {
     fn test_write_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
@@ -202,7 +197,7 @@ pub mod tests {
         let (mut db, _dir) = create_test_db();
         let addr = Token::FixedBytes(generate_contract_address().to_vec());
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
@@ -284,7 +279,7 @@ pub mod tests {
         let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
-            address.clone(),
+            address,
             "construct()",
             &[],
             "mint(bytes32,uint256)",
@@ -320,7 +315,7 @@ pub mod tests {
         let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
-            address.clone(),
+            address,
             "construct()",
             &[],
             "mint(bytes32,uint256)",
@@ -376,7 +371,7 @@ pub mod tests {
         let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
-            address.clone(),
+            address,
             "construct()",
             &[],
             "mint(bytes32,uint256)",
@@ -454,7 +449,7 @@ pub mod tests {
     fn test_eth_bridge(){
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, contract_code, _, _) = compile_deploy_execute(
+        let (_enclave, _contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/contract_with_eth_calls",
             generate_contract_address(),

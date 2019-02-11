@@ -21,7 +21,6 @@ use self::app::networking::*;
 use self::serde::{Deserialize, Serialize};
 use self::rmps::{Deserializer, Serializer};
 use self::app::serde_json;
-#[macro_use]
 use app::serde_json::*;
 use std::thread;
 use self::regex::Regex;
@@ -29,7 +28,6 @@ use self::hex::{ToHex, FromHex};
 use self::ethabi::{Token};
 use self::enigma_crypto::asymmetric::KeyPair;
 use self::enigma_crypto::symmetric;
-use std::fs;
 use std::path::PathBuf;
 use self::rand::{thread_rng, Rng};
 use app::db::DB;
@@ -102,11 +100,11 @@ pub fn set_encryption_msg(user_pubkey: [u8; 64]) -> Value {
     json!({"id" : &generate_job_id(), "type" : "NewTaskEncryptionKey", "userPubKey": user_pubkey.to_hex()})
 }
 
-pub fn set_ptt_req_msg(addrs: Vec<String>) -> Value {
-    json!({"id" : &generate_job_id(), "type" : "GetPTTRequest", "input": addrs})
+pub fn set_ptt_req_msg(addrs: &[String]) -> Value {
+    json!({"id" : &generate_job_id(), "type" : "GetPTTRequest", "input": addrs.to_vec()})
 }
 
-pub fn set_ptt_res_msg(response: Vec<u8>) -> Value {
+pub fn set_ptt_res_msg(response: &[u8]) -> Value {
     json!({"id" : &generate_job_id(), "type" : "PTTResponse", "response": response.to_hex()})
 }
 
@@ -123,15 +121,15 @@ pub fn set_compute_msg(task_id: &str, callable: &str, args: &str, user_pubkey: &
     "encryptedFn": callable, "userDHKey": user_pubkey, "gasLimit": gas_limit, "contractAddress": con_addr}})
 }
 
-pub fn set_get_tips_msg(input: Vec<String>) -> Value {
-    json!({"id": &generate_job_id(), "type": "GetTips", "input": input})
+pub fn set_get_tips_msg(input: &[String]) -> Value {
+    json!({"id": &generate_job_id(), "type": "GetTips", "input": input.to_vec()})
 }
 
 pub fn set_delta_msg( addr: &str, key: u64) -> Value {
     json!({"id": &generate_job_id(), "type": "GetDelta", "input": {"address": addr, "key": key}})
 }
 
-pub fn set_deltas_msg( _input: Vec<(String, u64, u64)>) -> Value {
+pub fn set_deltas_msg( _input: &[(String, u64, u64)]) -> Value {
     let input: Vec<Value> = _input.iter().map(|(addr, from, to)| json!({"address": addr, "from": from, "to": to})).collect();
     json!({"id": &generate_job_id(), "type": "GetDeltas", "input": input})
 }
@@ -140,7 +138,7 @@ pub fn set_msg_format_update_contract(addr: &str, bytecode: &str) -> Value {
     json!({"id": &generate_job_id(), "type": "UpdateNewContract", "address": addr, "bytecode": bytecode})
 }
 
-pub fn set_update_deltas_msg(_input: Vec<(String, u64, String)>) -> Value {
+pub fn set_update_deltas_msg(_input: &[(String, u64, String)]) -> Value {
     let input: Vec<Value> = _input.iter().map(|(addr, key, data)| json!({"address": addr, "key": key, "delta": data})).collect();
     json!({"id": &generate_job_id(), "type": "UpdateDeltas", "deltas": input})
 }
@@ -154,7 +152,7 @@ pub struct ParsedMessage {
 }
 
 impl ParsedMessage {
-    pub fn from_value(msg: Value) -> Self {
+    pub fn from_value(msg: &Value) -> Self {
         let prefix_bytes: Vec<u8> = serde_json::from_value(msg["prefix"].clone()).unwrap();
         let prefix: String = std::str::from_utf8(&prefix_bytes[..]).unwrap().to_string();
 
@@ -178,22 +176,22 @@ pub fn parse_packed_msg(msg: &str) -> Value {
 
 pub fn mock_principal_res(msg: &str) -> Vec<u8> {
     let unpacked_msg: Value = parse_packed_msg(msg);
-    let enc_response: Value = make_encrypted_response(unpacked_msg);
+    let enc_response: Value = make_encrypted_response(&unpacked_msg);
 
     let mut serialized_enc_response = Vec::new();
     enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
     serialized_enc_response
 }
 
-pub fn run_ptt_round(port: &'static str, addrs: Vec<String>) -> Value {
+pub fn run_ptt_round(port: &'static str, addrs: &[String]) -> Value {
 
     // set encrypted request message to send to the principal node
-    let msg_req = set_ptt_req_msg(addrs.clone());
+    let msg_req = set_ptt_req_msg(&addrs.to_owned());
     let req_val: Value = conn_and_call_ipc(&msg_req.to_string(), port);
     let packed_msg = req_val["result"].as_object().unwrap()["request"].as_str().unwrap();
 
     let enc_response = mock_principal_res(packed_msg);
-    let msg = set_ptt_res_msg(enc_response);
+    let msg = set_ptt_res_msg(&enc_response);
     conn_and_call_ipc(&msg.to_string(), port)
 }
 
@@ -215,7 +213,7 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
 pub fn full_erc20_deployment(port: &'static str, gas_limit: Option<u64>) -> (Value, [u8; 32]) {
     // address generation and ptt
     let address = generate_contract_address();
-    let _ = run_ptt_round(port, vec![address.to_hex()]);
+    let _ = run_ptt_round(port, &[address.to_hex()]);
 
     // WUKE- get the arguments encryption key
     let (_shared_key, _user_pubkey) = produce_shared_key(port);
@@ -250,7 +248,7 @@ pub fn erc20_deployment_without_ptt_to_addr(port: &'static str, _address: &str) 
 pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
     // address generation and ptt
     let address = generate_contract_address();
-    let _ = run_ptt_round(port, vec![address.to_hex()]);
+    let _ = run_ptt_round(port, &[address.to_hex()]);
 
     // WUKE- get the arguments encryption key
     let (shared_key, user_pubkey) = produce_shared_key(port);
