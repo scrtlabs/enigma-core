@@ -53,11 +53,11 @@ enclave {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] size_t* result_length);
 
         // TODO: Add explicit size wherever is possible.
-        EnclaveReturn ocall_update_state([in] const RawPointer* db_ptr, [in] ContractAddress* contract_id, [in, size=len] const uint8_t* enc_state, size_t len);
+        EnclaveReturn ocall_update_state([in] const RawPointer* db_ptr, [in] ContractAddress* contract_address, [in, size=len] const uint8_t* enc_state, size_t len);
 
         EnclaveReturn ocall_new_delta([in] const RawPointer* db_ptr,
                                       [in, size=len] const uint8_t* enc_delta, size_t len,
-                                      [in] ContractAddress* contract_id, [in] uint32_t* delta_index);
+                                      [in] ContractAddress* contract_address, [in] uint32_t* delta_index);
 
         uint64_t ocall_save_to_memory( [in, count=data_len] const uint8_t* data_ptr, size_t data_len);
 

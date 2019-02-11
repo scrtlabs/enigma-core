@@ -13,7 +13,7 @@ use std::vec::Vec;
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
 pub struct ContractState {
     #[serde(skip)]
-    pub contract_id: ContractAddress,
+    pub contract_address: ContractAddress,
     pub json: Value,
     pub delta_hash: Hash256,
     pub delta_index: u32,
@@ -21,13 +21,13 @@ pub struct ContractState {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EncryptedContractState<T> {
-    pub contract_id: ContractAddress,
+    pub contract_address: ContractAddress,
     pub json: Vec<T>,
 }
 
 impl ContractState {
-    pub fn new(contract_id: ContractAddress) -> ContractState {
-        ContractState { contract_id, .. Default::default() }
+    pub fn new(contract_address: ContractAddress) -> ContractState {
+        ContractState { contract_address, .. Default::default() }
     }
 
     pub fn is_initial(&self) -> bool{
@@ -57,12 +57,12 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
         Ok(())
     }
 
-    fn generate_delta(old: &Self, new: &mut Self) -> Result<StatePatch, EnclaveError> {
+    fn generate_delta_and_update_state(old: &Self, new: &mut Self) -> Result<StatePatch, EnclaveError> {
         new.delta_index = &old.delta_index+1;
         let result = StatePatch{
             patch: json_patch::diff(&old.json, &new.json),
             previous_hash: old.delta_hash,
-            contract_id: old.contract_id,
+            contract_address: old.contract_address,
             index: old.delta_index + 1,
         };
 
@@ -76,14 +76,14 @@ impl<'a> Encryption<&'a StateKey, EnclaveError, EncryptedContractState<u8>, [u8;
         let mut buf = Vec::new();
         self.serialize(&mut Serializer::new(&mut buf))?;
         let enc = symmetric::encrypt_with_nonce(&buf, key, _iv)?;
-        Ok(EncryptedContractState { contract_id: self.contract_id, json: enc })
+        Ok(EncryptedContractState { contract_address: self.contract_address, json: enc })
     }
 
     fn decrypt(enc: EncryptedContractState<u8>, key: &StateKey) -> Result<ContractState, EnclaveError> {
         let dec = symmetric::decrypt(&enc.json, key)?;
         let mut des = Deserializer::new(&dec[..]);
         let mut state: ContractState = Deserialize::deserialize(&mut des)?;
-        state.contract_id = enc.contract_id;
+        state.contract_address = enc.contract_address;
         Ok(state)
     }
 }

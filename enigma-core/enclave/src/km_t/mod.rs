@@ -20,7 +20,7 @@ lazy_static! {
 pub fn encrypt_delta(del: StatePatch) -> Result<EncryptedPatch, EnclaveError> {
     let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
     let key = statekeys_guard
-        .get(&del.contract_id)
+        .get(&del.contract_address)
         .ok_or(CryptoError::KeyError { key_type: "State Key".to_string(), err: "Missing".to_string() })?;
     del.encrypt(&key)
 }
@@ -28,7 +28,7 @@ pub fn encrypt_delta(del: StatePatch) -> Result<EncryptedPatch, EnclaveError> {
 pub fn encrypt_state(state: ContractState) -> Result<EncryptedContractState<u8>, EnclaveError> {
     let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
     let key = statekeys_guard
-        .get(&state.contract_id)
+        .get(&state.contract_address)
         .ok_or(CryptoError::KeyError { key_type: "State Key".to_string(), err: "Missing".to_string() })?;
     state.encrypt(&key)
 }

@@ -112,7 +112,7 @@ pub mod tests {
     use serde_json::{self, Value};
     use sgx_types::sgx_enclave_id_t;
     use self::ethabi::{Token};
-    use wasm_u::wasm::tests::generate_address;
+    use wasm_u::wasm::tests::generate_contract_address;
 
     const PUBKEY_DUMMY: [u8; 64] = [ 27, 132, 197, 86, 123, 18, 100, 64, 153, 93, 62, 213, 170, 186, 5, 101, 215, 30, 24, 52, 96, 72, 25, 255, 156, 23, 245, 233, 213, 221, 7, 143, 112, 190, 175, 143, 88, 139, 84, 21, 7, 254, 214, 166, 66, 197, 171, 66, 223, 223, 129, 32, 167, 246, 57, 222, 81, 34, 212, 122, 105, 168, 232, 209];
 
@@ -140,11 +140,11 @@ pub mod tests {
         let (_, shared_key, _, _) = exchange_keys(enclave.geteid());
 
         // arguments
-        let addr = Token::FixedBytes(generate_address().to_vec());
+        let contract_address = Token::FixedBytes(generate_contract_address().to_vec());
         let num = Token::Uint(34.into());
         let msg = Token::Bytes([3u8; 36].to_vec());
 
-        let args = vec![addr, num, msg];
+        let args = vec![contract_address, num, msg];
         let callable = b"some_function(uint)";
 
         // encryption
@@ -272,17 +272,17 @@ pub mod tests {
     fn fill_the_db(db: &mut DB) -> Vec<ContractAddress> {
         let address = vec![b"first".sha256(), b"second".sha256(), b"third".sha256()];
         let mut stuff = vec![
-            (DeltaKey { contract_id: address[2], key_type: State }, vec![8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]),
+            (DeltaKey { contract_address: address[2], key_type: State }, vec![8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]),
         ];
 
         for (i, (mut state, deltas)) in unencrypted_data().into_iter().enumerate() {
             println!("i: {}", i);
             let state = symmetric::encrypt(&state, &*address[i]).unwrap();
 
-            stuff.push((DeltaKey { contract_id: address[i], key_type: State}, state));
+            stuff.push((DeltaKey { contract_address: address[i], key_type: State}, state));
             for (j, mut delta) in deltas.into_iter().enumerate() {
                 let delta = symmetric::encrypt(&delta, &*address[i]).unwrap();
-                stuff.push((DeltaKey { contract_id: address[i], key_type: Delta(j as u32)}, delta));
+                stuff.push((DeltaKey { contract_address: address[i], key_type: Delta(j as u32)}, delta));
             }
         }
         for (key, data) in stuff {
