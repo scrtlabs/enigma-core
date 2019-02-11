@@ -286,15 +286,16 @@ fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
     }
 }
 
-fn sign_if_error (pre_execution_data: &Vec<Box<[u8]>>, internal_result: &mut Result<(), EnclaveError>, result: &mut ExecuteResult) {
+fn sign_if_error (pre_execution_data: &[Box<[u8]>], internal_result: &mut Result<(), EnclaveError>, result: &mut ExecuteResult) {
     if let &mut Err(_) = internal_result{
         // Signing: S(pre-execution data, usedGas, Failure)
         let used_gas = result.used_gas.to_be_bytes();
         let failure = [ResultStatus::Failure.into()];
         let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
         pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
-        to_sign.extend_from_slice(&[&used_gas[..], &failure]);
-        let signature = SIGNING_KEY.sign_multiple(&to_sign);
+        to_sign.push(&used_gas);
+        to_sign.push(&failure);
+        let signature = SIGNINING_KEY.sign_multiple(&to_sign);
         match signature {
             Ok(v) => {
                 result.signature = v;
