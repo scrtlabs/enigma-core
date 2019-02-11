@@ -35,7 +35,6 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
         let id = msg.id.clone();
         let response_msg = match msg.request {
             IpcRequest::GetRegistrationParams => handling::get_registration_params(eid, spid),
-            IpcRequest::IdentityChallenge { nonce } => handling::identity_challange(&nonce),
             IpcRequest::GetTip { input } => handling::get_tip(db, &input),
             IpcRequest::GetTips { input } => handling::get_tips(db, &input),
             IpcRequest::GetAllTips => handling::get_all_tips(db),

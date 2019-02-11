@@ -25,7 +25,6 @@ pub struct IpcMessageResponse {
 #[serde(tag = "type")]
 pub enum IpcResponse {
     GetRegistrationParams { #[serde(flatten)] result: IpcResults },
-    IdentityChallenge { nonce: String, signature: IpcIdentityChallenge },
     GetTip { result: IpcDelta },
     GetTips { result: IpcResults },
     GetAllTips { result: IpcResults },
@@ -85,7 +84,6 @@ pub enum IpcResults {
 #[serde(tag = "type")]
 pub enum IpcRequest {
     GetRegistrationParams,
-    IdentityChallenge { nonce: String },
     GetTip { input: String },
     GetTips { input: Vec<String> },
     GetAllTips,
@@ -117,12 +115,6 @@ pub struct IpcTask {
     pub gas_limit: u64,
     #[serde(rename = "contractAddress")]
     pub address: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IpcIdentityChallenge {
-    pub nonce: String,
-    pub signature: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
