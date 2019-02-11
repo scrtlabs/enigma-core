@@ -57,7 +57,7 @@ fn test_ipc_get_tips() {
 
 #[test]
 fn test_ipc_get_all_tips() {
-    let port =  "5567";
+    let port =  "5563";
     run_core(port);
 
     let addresses = deploy_and_compute_few_contracts(port);
@@ -76,7 +76,7 @@ fn test_ipc_get_all_tips() {
 
 #[test]
 fn test_ipc_all_addrs() {
-    let port =  "5566";
+    let port =  "5564";
     run_core(port);
     let _addresses = deploy_and_compute_few_contracts(port);
     let addresses: Vec<String> = _addresses.iter().map(|addr| {addr.to_hex()}).collect();
@@ -90,7 +90,7 @@ fn test_ipc_all_addrs() {
 
 #[test]
 fn test_ipc_get_delta() {
-    let port =  "5570";
+    let port =  "5565";
     run_core(port);
 
     let addresses = deploy_and_compute_few_contracts(port);
@@ -106,7 +106,7 @@ fn test_ipc_get_delta() {
 
 #[test]
 fn test_ipc_get_deltas() {
-    let port =  "5570";
+    let port =  "5566";
     run_core(port);
 
     let addresses = deploy_and_compute_few_contracts(port);
@@ -130,7 +130,7 @@ fn test_ipc_get_deltas() {
 
 #[test]
 fn test_ipc_get_contract() {
-    let port =  "5571";
+    let port =  "5567";
     run_core(port);
 
     let (deployed_res, address) = full_simple_deployment(port);

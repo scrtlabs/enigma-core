@@ -212,12 +212,28 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
     (shared_key, keys.get_pubkey())
 }
 
-pub fn full_erc20_deployment(port: &'static str) -> (Value, [u8; 32]) {
+pub fn full_erc20_deployment(port: &'static str, gas_limit: Option<u64>) -> (Value, [u8; 32]) {
     // address generation and ptt
     let address = generate_address();
     let _ = run_ptt_round(port, vec![address.to_hex()]);
 
     // WUKE- get the arguments encryption key
+    let (_shared_key, _user_pubkey) = produce_shared_key(port);
+
+    let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/erc20");
+    let fn_deploy = "construct()";
+    let args_deploy = [];
+    let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, _shared_key);
+    let gas_limit = gas_limit.unwrap_or(100_000_000);
+
+    let msg = set_deploy_msg(&pre_code.to_hex(), &encrypted_args.to_hex(),
+                             &encrypted_callable.to_hex(), &_user_pubkey.to_hex(), gas_limit, &address.to_hex());
+    let v: Value = conn_and_call_ipc(&msg.to_string(), port);
+
+    (v, address.into())
+}
+
+pub fn erc20_deployment_without_ptt_to_addr(port: &'static str, _address: &str) -> Value {
     let (shared_key, user_pubkey) = produce_shared_key(port);
 
     let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/erc20");
@@ -227,10 +243,8 @@ pub fn full_erc20_deployment(port: &'static str) -> (Value, [u8; 32]) {
     let gas_limit = 100_000_000;
 
     let msg = set_deploy_msg(&pre_code.to_hex(), &encrypted_args.to_hex(),
-                             &encrypted_callable.to_hex(), &user_pubkey.to_hex(), gas_limit, &address.to_hex());
-    let v: Value = conn_and_call_ipc(&msg.to_string(), port);
-
-    (v, address.into())
+    &encrypted_callable.to_hex(), &user_pubkey.to_hex(), gas_limit, _address);
+    conn_and_call_ipc(&msg.to_string(), port)
 }
 
 pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
@@ -263,7 +277,7 @@ pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8
 }
 
 pub fn full_mint_compute(port: &'static str,  user_addr: &[u8; 32], amount: u64) -> (Value,  [u8;32], [u8; 32]) {
-    let (_, contract_addr): (_, [u8; 32]) = full_erc20_deployment(port);
+    let (_, contract_addr): (_, [u8; 32]) = full_erc20_deployment(port, None);
     let args = [Token::FixedBytes(user_addr.to_vec()), Token::Uint(amount.into())];
     let callable  = "mint(bytes32,uint256)";
     let (result, key) = contract_compute(port, contract_addr, &args, callable);
