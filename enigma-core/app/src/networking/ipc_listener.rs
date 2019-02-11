@@ -211,7 +211,7 @@ pub(self) mod handling {
                 status = FAILED;
             }
             let key = Some(deltakey.key_type.unwrap_delta());
-            let address = deltakey.contract_id.to_hex();
+            let address = deltakey.contract_address.to_hex();
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
         }
@@ -275,7 +275,7 @@ pub(self) mod handling {
             &bytecode,
             &constructor,
             &enc_args,
-            contract_address,
+            &contract_address,
             &user_pubkey,
             input.gas_limit)?;
 
@@ -366,9 +366,9 @@ mod test {
         let data: Vec<(DeltaKey, Vec<u8>)> = data
             .into_iter()
             .map(|tip| {
-                let contract_id: ContractAddress = serde_json::from_value(tip["address"].clone()).unwrap();
+                let contract_address: ContractAddress = serde_json::from_value(tip["address"].clone()).unwrap();
                 let key: u32 = serde_json::from_value(tip["key"].clone()).unwrap();
-                let delta_key = DeltaKey { contract_id, key_type: Stype::Delta(key) };
+                let delta_key = DeltaKey { contract_address, key_type: Stype::Delta(key) };
                 let data: Vec<u8> = serde_json::from_value(tip["delta"].clone()).unwrap();
                 (delta_key, data)
             })

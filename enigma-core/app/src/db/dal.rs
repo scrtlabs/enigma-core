@@ -272,9 +272,9 @@ mod test {
     fn test_create_update_read_delta() {
         let (mut db, _dir) = create_test_db();
 
-        let hash = [4u8; 32];
+        let contract_address = [4u8; 32].into();
         let key_type = Stype::Delta(3);
-        let dk = DeltaKey { contract_id: hash.into(), key_type };
+        let dk = DeltaKey { contract_address, key_type };
         let v = b"Enigma";
 
         db.create(&dk, &v[..]).unwrap();
@@ -336,18 +336,18 @@ mod test {
     fn test_force_update_no_key_success() {
         let (mut db, _dir) = create_test_db();
 
-        let hash = [4u8; 32];
+        let contract_address = [4u8; 32].into();
         let key_type = Stype::Delta(1);
         let val = b"Enigma";
-        db.create(&DeltaKey { contract_id: hash.into(), key_type }, &val[..]).unwrap();
-        let accepted_val = db.read(&DeltaKey { contract_id: hash.into(), key_type }).unwrap();
+        db.create(&DeltaKey { contract_address, key_type }, &val[..]).unwrap();
+        let accepted_val = db.read(&DeltaKey { contract_address, key_type }).unwrap();
         assert_eq!(accepted_val, val);
 
         // update a different delta
         let key_type = Stype::Delta(2);
         let val_update = b"enigma_rocks";
-        db.force_update(&DeltaKey { contract_id: hash.into(), key_type }, &val_update[..]).unwrap();
-        let accepted_val = db.read(&DeltaKey { contract_id: hash.into(), key_type }).unwrap();
+        db.force_update(&DeltaKey { contract_address, key_type }, &val_update[..]).unwrap();
+        let accepted_val = db.read(&DeltaKey { contract_address, key_type }).unwrap();
         assert_eq!(accepted_val, val_update);
     }
 

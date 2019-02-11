@@ -168,7 +168,7 @@ impl IpcMessageRequest {
 impl IpcDelta {
     pub fn from_delta_key(k: DeltaKey, v: &[u8]) -> Result<Self, Error> {
         if let Stype::Delta(indx) = k.key_type {
-            Ok( IpcDelta { address: Some(k.contract_id.to_hex()), key: indx, delta: Some(v.to_hex()) } )
+            Ok( IpcDelta { address: Some(k.contract_address.to_hex()), key: indx, delta: Some(v.to_hex()) } )
         } else {
             bail!("This isn't a delta")
         }
@@ -177,7 +177,7 @@ impl IpcDelta {
 
 impl From<Delta> for IpcDelta {
     fn from(delta: Delta) -> Self {
-        let address = delta.key.contract_id.to_hex();
+        let address = delta.key.contract_address.to_hex();
         let value = delta.value.to_hex();
         let key = delta.key.key_type.unwrap_delta();
 
