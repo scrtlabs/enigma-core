@@ -445,12 +445,10 @@ unsafe fn prepare_wasm_result(delta_option: Option<EncryptedPatch>, execute_resu
     match delta_option {
         Some(enc_delta) => {
             result.delta_ptr = ocalls_t::save_to_untrusted_memory(&enc_delta.data)? as *const u8;
-            result.delta_hash = enc_delta.contract_id;
             result.delta_index = enc_delta.index;
         }
         None => {
             result.delta_ptr = ocalls_t::save_to_untrusted_memory(&[])? as *const u8;
-            result.delta_hash = Default::default();
             result.delta_index = 0;
         }
     }

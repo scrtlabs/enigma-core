@@ -11,7 +11,7 @@ pub struct VecKey(pub Vec<u8>);
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct DeltaKey {
-    pub contract_id: ContractAddress,
+    pub contract_address: ContractAddress,
     pub key_type: Stype,
 }
 
@@ -57,13 +57,13 @@ impl Default for Stype {
 }
 
 impl DeltaKey {
-    pub fn new(contract_id: ContractAddress, key_type: Stype) -> DeltaKey { DeltaKey { contract_id, key_type } }
+    pub fn new(contract_address: ContractAddress, key_type: Stype) -> DeltaKey { DeltaKey { contract_address, key_type } }
 }
 
 impl SplitKey for DeltaKey {
     fn as_split<T, F: FnMut(&str, &[u8]) -> T>(&self, mut f: F) -> T {
         // converts the [u8; 32] to a str.
-        let cf = &self.contract_id.to_hex();
+        let cf = &self.contract_address.to_hex();
         let mut key = Vec::new();
         match &self.key_type {
             Stype::Delta(num) => {
@@ -85,8 +85,8 @@ impl SplitKey for DeltaKey {
             _ => bail!("Failed parsing the Key, key does not contain a correct index"),
         };
         // if the address is not a correct hex then it not a correct address.
-        let contract_id = ContractAddress::from_hex(&_hash)?;
-        Ok(DeltaKey { contract_id, key_type })
+        let contract_address = ContractAddress::from_hex(&_hash)?;
+        Ok(DeltaKey { contract_address, key_type })
     }
 }
 
@@ -111,10 +111,10 @@ mod tests {
     fn test_deltakey_from_split() {
         let accepted_address: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
         let accepted_key: [u8; 5] = [1, 0, 8, 73, 39];
-        let contract_id = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205].into();
+        let contract_address = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205].into();
         let key_type = Stype::Delta(543015);
         let from = DeltaKey::from_split(&accepted_address.to_hex(), &accepted_key).unwrap();
-        let orig_del = DeltaKey { contract_id, key_type };
+        let orig_del = DeltaKey { contract_address, key_type };
         assert_eq!(from, orig_del);
     }
 
@@ -122,11 +122,11 @@ mod tests {
     fn test_deltakey_as_split() {
         let expected_address: &str = &[181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162].to_hex();
         let expected_key: &[u8; 5] = &[1, 1, 69, 200, 177];
-        let contract_id = [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162].into();
+        let contract_address = [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162].into();
         let key_type: Stype = Stype::Delta(21350577);
-        let del = DeltaKey { contract_id, key_type };
-        del.as_split(|contract_id, key| {
-            assert_eq!(contract_id, expected_address);
+        let del = DeltaKey { contract_address, key_type };
+        del.as_split(|contract_address, key| {
+            assert_eq!(contract_address, expected_address);
             assert_eq!(key, expected_key);
         });
     }

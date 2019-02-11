@@ -93,11 +93,11 @@ impl From<str::Utf8Error> for WasmError {
 }
 
 impl Runtime {
-    pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_id: ContractAddress,
+    pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_address: ContractAddress,
                function_name: String, args_types: String) -> Runtime {
 
-        let init_state = ContractState::new(contract_id);
-        let current_state = ContractState::new(contract_id);
+        let init_state = ContractState::new(contract_address);
+        let current_state = ContractState::new(contract_address);
         let result = RuntimeResult {
             result: Vec::new(),
             state_delta: None,

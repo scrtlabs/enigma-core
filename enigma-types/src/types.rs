@@ -41,7 +41,6 @@ pub enum ResultStatus {
 pub struct ExecuteResult {
     pub output: *const u8,
     pub delta_ptr: *const u8,
-    pub delta_hash: Hash256,
     pub delta_index: u32,
     pub ethereum_payload_ptr: *const u8,
     pub ethereum_address: [u8; 20],
@@ -119,7 +118,6 @@ impl fmt::Debug for ExecuteResult {
         let mut debug_trait_builder = f.debug_struct("ExecuteResult");
         debug_trait_builder.field("output", &(self.output));
         debug_trait_builder.field("delta_ptr", &(self.delta_ptr));
-        debug_trait_builder.field("delta_hash", &(self.delta_hash));
         debug_trait_builder.field("delta_index", &(self.delta_index));
         debug_trait_builder.field("ethereum_payload_ptr", &(self.ethereum_payload_ptr));
         debug_trait_builder.field("ethereum_address", &(self.ethereum_address));

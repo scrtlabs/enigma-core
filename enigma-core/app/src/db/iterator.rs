@@ -44,7 +44,7 @@ pub trait P2PCalls<V> {
     ///
     ///
     /// let dk = DeltaKey{ contact_id: [2u8; 32].into(), key_type: Stype::Delta(42) };
-    /// let latest_delta_key, latest_delta_value = db.get_tip(&dk.contract_id).unwrap();
+    /// let latest_delta_key, latest_delta_value = db.get_tip(&dk.contract_address).unwrap();
     /// ```
     fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, V), Error>;
 
@@ -66,7 +66,7 @@ pub trait P2PCalls<V> {
     /// get the delta of the required address and key.
     /// # Examples
     /// ```
-    /// let dk = DeltaKey{ contract_id: [2u8; 32].into(), key_type: Stype::Delta(42) };
+    /// let dk = DeltaKey{ contract_address: [2u8; 32].into(), key_type: Stype::Delta(42) };
     /// let delta_val = db.get_delta(&dk).unwrap();
     /// ```
     fn get_delta<K: SplitKey>(&self, key: K) -> ResultVec<u8>;
@@ -74,12 +74,12 @@ pub trait P2PCalls<V> {
     /// get the contract of the required address.
     /// # Examples
     /// ```
-    /// let dk = DeltaKey{ contract_id: [2u8; 32].into(), key_type: Stype::ByteCode };
+    /// let dk = DeltaKey{ contract_address: [2u8; 32].into(), key_type: Stype::ByteCode };
     /// let contract = "code".to_bytes();
     /// db.create(&dk, &contract);
     ///
     ///
-    /// let contract_from_db = db.get_contract(&dk.contract_id).unwrap();
+    /// let contract_from_db = db.get_contract(&dk.contract_address).unwrap();
     /// ```
     fn get_contract(&self, address: ContractAddress) -> ResultVec<u8>;
 
@@ -95,11 +95,11 @@ pub trait P2PCalls<V> {
     /// first key until (not included) the last key.
     /// # Examples
     /// ```
-    /// let from_a = DeltaKey{ contract_id: [2u8; 32].into(), key_type: Stype::Delta(12) };
-    /// let to_a = DeltaKey{ contract_id: [2u8; 32].into(), key_type: Stype::Delta(47) };
+    /// let from_a = DeltaKey{ contract_address: [2u8; 32].into(), key_type: Stype::Delta(12) };
+    /// let to_a = DeltaKey{ contract_address: [2u8; 32].into(), key_type: Stype::Delta(47) };
     ///
-    /// let from_b = DeltaKey{ contract_id: [6u8; 32].into(), key_type: Stype::Delta(56) };
-    /// let to_b = DeltaKey{ contract_id: [6u8; 32].into(), key_type: Stype::Delta(94) };
+    /// let from_b = DeltaKey{ contract_address: [6u8; 32].into(), key_type: Stype::Delta(56) };
+    /// let to_b = DeltaKey{ contract_address: [6u8; 32].into(), key_type: Stype::Delta(94) };
     ///
     /// let delta_keys: Vec<(DeltaKey,DeltaKey)> = vec![(from_a,to_a), (from_b, to_b)];
     ///
@@ -115,8 +115,8 @@ pub trait P2PCalls<V> {
     /// Inserts a list of Key-Values into the DB in one atomic operation
     /// # Examples
     /// ```
-    /// let a = DeltaKey{ contract_id: [2u8; 32].into(), key_type: Stype::Delta(12) };
-    /// let b = DeltaKey{ contract_id: [2u8; 32].into(), key_type: Stype::Delta(47) };
+    /// let a = DeltaKey{ contract_address: [2u8; 32].into(), key_type: Stype::Delta(12) };
+    /// let b = DeltaKey{ contract_address: [2u8; 32].into(), key_type: Stype::Delta(47) };
     /// let data_a = vec![1,2,3,4];
     /// let data_b = vec![5,6,7,8];
     ///
@@ -203,8 +203,8 @@ impl P2PCalls<Vec<u8>> for DB {
     }
 
     #[logfn(DEBUG)]
-    fn get_contract(&self, contract_id: ContractAddress) -> ResultVec<u8> {
-        let key = DeltaKey { contract_id, key_type: Stype::ByteCode };
+    fn get_contract(&self, contract_address: ContractAddress) -> ResultVec<u8> {
+        let key = DeltaKey { contract_address, key_type: Stype::ByteCode };
         Ok(self.read(&key)?)
     }
 
@@ -296,20 +296,20 @@ mod test {
     fn test_get_tip_multi_deltas_success() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id = [7u8; 32].into();
+        let contract_address = [7u8; 32].into();
 
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { contract_id, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { contract_id, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_address, key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         db.create(&dk_a, &v_a[..]).unwrap();
         db.create(&dk_b, &v_b[..]).unwrap();
 
-        let (accepted_key, accepted_val): (DeltaKey, Vec<u8>) = db.get_tip(&contract_id).unwrap();
+        let (accepted_key, accepted_val): (DeltaKey, Vec<u8>) = db.get_tip(&contract_address).unwrap();
         assert_eq!(accepted_key, dk_b);
         assert_eq!(accepted_val, v_b);
     }
@@ -318,13 +318,13 @@ mod test {
     fn test_get_tip_success() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id = [7u8; 32].into();
+        let contract_address = [7u8; 32].into();
         let key_type = Stype::Delta(23);
-        let dk = DeltaKey { contract_id, key_type };
+        let dk = DeltaKey { contract_address, key_type };
         let v = b"Enigma";
 
         db.create(&dk, &v[..]).unwrap();
-        let (accepted_key, accepted_val): (DeltaKey, Vec<u8>) = db.get_tip(&contract_id).unwrap();
+        let (accepted_key, accepted_val): (DeltaKey, Vec<u8>) = db.get_tip(&contract_address).unwrap();
 
         assert_eq!(accepted_key, dk);
         assert_eq!(accepted_val, v);
@@ -335,8 +335,8 @@ mod test {
     fn test_get_tip_no_data() {
         let (db, _dir) = create_test_db();
 
-        let contract_id = [7u8; 32].into();
-        let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&contract_id).unwrap();
+        let contract_address = [7u8; 32].into();
+        let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&contract_address).unwrap();
     }
 
     #[should_panic]
@@ -344,25 +344,25 @@ mod test {
     fn test_get_tip_data_no_delta() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id = [7u8; 32].into();
+        let contract_address = [7u8; 32].into();
         let key_type = Stype::State;
-        let dk = DeltaKey { contract_id, key_type };
+        let dk = DeltaKey { contract_address, key_type };
         let v = b"Enigma";
         db.create(&dk, &v[..]).unwrap();
-        let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&contract_id).unwrap();
+        let (_key, _val): (DeltaKey, Vec<u8>) = db.get_tip(&contract_address).unwrap();
     }
 
     #[test]
     fn test_get_tips_single_row_success() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id = [7u8; 32].into();
+        let contract_address = [7u8; 32].into();
         let key_type = Stype::Delta(23);
-        let dk = DeltaKey { contract_id, key_type };
+        let dk = DeltaKey { contract_address, key_type };
         let v = b"Enigma";
 
         db.create(&dk, &v[..]).unwrap();
-        let accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_id]).unwrap();
+        let accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_address]).unwrap();
 
         assert_eq!(accepted_tips[0].0, dk);
         assert_eq!(accepted_tips[0].1, v);
@@ -372,19 +372,19 @@ mod test {
     fn test_get_tips_multi_row_per_add_success() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id: ContractAddress = [7u8; 32].into();
+        let contract_address: ContractAddress = [7u8; 32].into();
 
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { contract_id, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { contract_id, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_address, key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         db.create(&dk_a, &v_a[..]).unwrap();
         db.create(&dk_b, &v_b[..]).unwrap();
-        let accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_id]).unwrap();
+        let accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_address]).unwrap();
         assert_eq!(accepted_tips[0].0, dk_b);
         assert_eq!(accepted_tips[0].1, v_b);
     }
@@ -393,26 +393,26 @@ mod test {
     fn test_get_tips_multi_add_success() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id_a: ContractAddress = [7u8; 32].into();
+        let contract_address_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { contract_id: contract_id_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address: contract_address_a, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
-        let contract_id_b: ContractAddress = [4u8; 32].into();
+        let contract_address_b: ContractAddress = [4u8; 32].into();
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { contract_id: contract_id_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_address: contract_address_b, key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         let key_type_c = Stype::State;
-        let dk_c = DeltaKey { contract_id: contract_id_b, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_address: contract_address_b, key_type: key_type_c };
         let v_c = b"Enigma_rules";
 
         db.create(&dk_a, &v_a[..]).unwrap();
         db.create(&dk_b, &v_b[..]).unwrap();
         db.create(&dk_c, &v_c[..]).unwrap();
 
-        let accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_id_a, contract_id_b]).unwrap();
+        let accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_address_a, contract_address_b]).unwrap();
         assert_eq!(accepted_tips[0].1, v_a);
         assert_eq!(accepted_tips[1].1, v_b);
     }
@@ -422,16 +422,16 @@ mod test {
     fn test_get_tips_no_addr() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id_a: ContractAddress = [7u8; 32].into();
+        let contract_address_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { contract_id: contract_id_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address: contract_address_a, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
-        let contract_id_b: ContractAddress = [4u8; 32].into();
+        let contract_address_b: ContractAddress = [4u8; 32].into();
 
         db.create(&dk_a, &v_a[..]).unwrap();
 
-        let _accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_id_a, contract_id_b]).unwrap();
+        let _accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_address_a, contract_address_b]).unwrap();
     }
 
     #[should_panic]
@@ -439,42 +439,42 @@ mod test {
     fn test_get_tips_no_deltas() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id_a: ContractAddress = [7u8; 32].into();
+        let contract_address_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::State;
-        let dk_a = DeltaKey { contract_id: contract_id_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address: contract_address_a, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
-        let contract_id_b: ContractAddress = [4u8; 32].into();
+        let contract_address_b: ContractAddress = [4u8; 32].into();
         let key_type_b = Stype::ByteCode;
-        let dk_b = DeltaKey { contract_id: contract_id_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_address: contract_address_b, key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         db.create(&dk_a, &v_a[..]).unwrap();
         db.create(&dk_b, &v_b[..]).unwrap();
 
-        let _accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_id_a, contract_id_b]).unwrap();
+        let _accepted_tips: Vec<(DeltaKey, Vec<u8>)> = db.get_tips(&[contract_address_a, contract_address_b]).unwrap();
     }
 
     #[test]
     fn test_get_all_addresses_success() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id_a: ContractAddress = [7u8; 32].into();
+        let contract_address_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::State;
-        let dk_a = DeltaKey { contract_id: contract_id_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address: contract_address_a, key_type: key_type_a };
         let v_a = b"Enigma_state_1";
 
-        let contract_id_b: ContractAddress = [4u8; 32].into();
+        let contract_address_b: ContractAddress = [4u8; 32].into();
         let key_type_b = Stype::ByteCode;
-        let dk_b = DeltaKey { contract_id: contract_id_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_address: contract_address_b, key_type: key_type_b };
         let v_b = b"Enigma_byte_code_2";
 
-        let contract_id_c: ContractAddress = [67u8; 32].into();
+        let contract_address_c: ContractAddress = [67u8; 32].into();
         let key_type_c = Stype::Delta(78);
-        let dk_c = DeltaKey { contract_id: contract_id_c, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_address: contract_address_c, key_type: key_type_c };
         let v_c = b"Enigma_delta_3";
 
-        let expected_addresses = vec![contract_id_a, contract_id_b, contract_id_c];
+        let expected_addresses = vec![contract_address_a, contract_address_b, contract_address_c];
 
         db.create(&dk_a, &v_a[..]).unwrap();
         db.create(&dk_b, &v_b[..]).unwrap();
@@ -488,19 +488,19 @@ mod test {
     fn test_get_all_addresses_invalid_cf() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id_a: ContractAddress = [7u8; 32].into();
+        let contract_address_a: ContractAddress = [7u8; 32].into();
         let key_type_a = Stype::State;
-        let dk_a = DeltaKey { contract_id: contract_id_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address: contract_address_a, key_type: key_type_a };
         let v_a = b"Enigma_state_1";
 
-        let contract_id_b: ContractAddress = [4u8; 32].into();
+        let contract_address_b: ContractAddress = [4u8; 32].into();
         let key_type_b = Stype::ByteCode;
-        let dk_b = DeltaKey { contract_id: contract_id_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_address: contract_address_b, key_type: key_type_b };
         let v_b = b"Enigma_byte_code_2";
 
-        let contract_id_c: ContractAddress = [67u8; 32].into();
+        let contract_address_c: ContractAddress = [67u8; 32].into();
         let key_type_c = Stype::Delta(78);
-        let dk_c = DeltaKey { contract_id: contract_id_c, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_address: contract_address_c, key_type: key_type_c };
         let v_c = b"Enigma_delta_3";
 
         db.create(&dk_a, &v_a[..]).unwrap();
@@ -509,7 +509,7 @@ mod test {
 
         let cf_str = "hello";
 
-        let expected_addresses = vec![contract_id_a, contract_id_b, contract_id_c];
+        let expected_addresses = vec![contract_address_a, contract_address_b, contract_address_c];
 
         let _cf = db.database.create_cf(&cf_str, &db.options).unwrap();
 
@@ -522,28 +522,28 @@ mod test {
     fn test_get_all_tips() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id_a = [7u8; 32].into();
+        let contract_address_a = [7u8; 32].into();
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { contract_id: contract_id_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address: contract_address_a, key_type: key_type_a };
         let v_a = b"Enigma_a";
 
-        let contract_id_b = [4u8; 32].into();
+        let contract_address_b = [4u8; 32].into();
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { contract_id: contract_id_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_address: contract_address_b, key_type: key_type_b };
         let v_b = b"Enigma_b";
 
         let key_type_c = Stype::State;
-        let dk_c = DeltaKey { contract_id: contract_id_b, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_address: contract_address_b, key_type: key_type_c };
         let v_c = b"Enigma_rules";
 
         let key_type_d = Stype::Delta(3);
-        let dk_d = DeltaKey { contract_id: contract_id_b, key_type: key_type_d };
+        let dk_d = DeltaKey { contract_address: contract_address_b, key_type: key_type_d };
         let v_d = b"r";
 
-        let contract_id_e = [98u8; 32].into();
+        let contract_address_e = [98u8; 32].into();
         let key_type_e = Stype::Delta(1);
-        let dk_e = DeltaKey { contract_id: contract_id_e, key_type: key_type_e };
+        let dk_e = DeltaKey { contract_address: contract_address_e, key_type: key_type_e };
         let v_e = b"delta";
 
         db.create(&dk_a, &v_a[..]).unwrap();
@@ -560,30 +560,30 @@ mod test {
     fn test_get_deltas() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id: ContractAddress = [7u8; 32].into();
+        let contract_address: ContractAddress = [7u8; 32].into();
 
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { contract_id, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address, key_type: key_type_a };
         let v_a = b"Enigma";
 
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { contract_id, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_address, key_type: key_type_b };
         let v_b = b"to";
 
         let key_type_c = Stype::Delta(3);
-        let dk_c = DeltaKey { contract_id, key_type: key_type_c };
+        let dk_c = DeltaKey { contract_address, key_type: key_type_c };
         let v_c = b"da";
 
         let key_type_d = Stype::Delta(4);
-        let dk_d = DeltaKey { contract_id, key_type: key_type_d };
+        let dk_d = DeltaKey { contract_address, key_type: key_type_d };
         let v_d = b"moon";
 
         let key_type_e = Stype::Delta(5);
-        let dk_e = DeltaKey { contract_id, key_type: key_type_e };
+        let dk_e = DeltaKey { contract_address, key_type: key_type_e };
         let v_e = b"and";
 
         let key_type_f = Stype::Delta(6);
-        let dk_f = DeltaKey { contract_id, key_type: key_type_f };
+        let dk_f = DeltaKey { contract_address, key_type: key_type_f };
         let v_f = b"back";
 
         db.create(&dk_a, &v_a[..]).unwrap();
@@ -610,14 +610,14 @@ mod test {
     fn test_get_deltas_different_hashes() {
         let (mut db, _dir) = create_test_db();
 
-        let contract_id_a = [9u8; 32].into();
+        let contract_address_a = [9u8; 32].into();
         let key_type_a = Stype::Delta(1);
-        let dk_a = DeltaKey { contract_id: contract_id_a, key_type: key_type_a };
+        let dk_a = DeltaKey { contract_address: contract_address_a, key_type: key_type_a };
         let value = b"hash_a";
 
-        let contract_id_b = [7u8; 32].into();
+        let contract_address_b = [7u8; 32].into();
         let key_type_b = Stype::Delta(2);
-        let dk_b = DeltaKey { contract_id: contract_id_b, key_type: key_type_b };
+        let dk_b = DeltaKey { contract_address: contract_address_b, key_type: key_type_b };
 
         db.create(&dk_a, &value[..]).unwrap();
         db.create(&dk_b, &value[..]).unwrap();
@@ -637,12 +637,12 @@ mod test {
         let (mut db, _dir) = create_test_db();
 
         let data = vec![
-            (DeltaKey { contract_id: [7u8; 32].into(), key_type: Stype::Delta(1) }, b"Enigma".to_vec()),
-            (DeltaKey { contract_id: [7u8; 32].into(), key_type: Stype::Delta(2) }, b"to".to_vec()),
-            (DeltaKey { contract_id: [7u8; 32].into(), key_type: Stype::Delta(3) }, b"da".to_vec()),
-            (DeltaKey { contract_id: [6u8; 32].into(), key_type: Stype::Delta(4) }, b"moon".to_vec()),
-            (DeltaKey { contract_id: [6u8; 32].into(), key_type: Stype::Delta(5) }, b"and".to_vec()),
-            (DeltaKey { contract_id: [6u8; 32].into(), key_type: Stype::Delta(6) }, b"back".to_vec()),
+            (DeltaKey { contract_address: [7u8; 32].into(), key_type: Stype::Delta(1) }, b"Enigma".to_vec()),
+            (DeltaKey { contract_address: [7u8; 32].into(), key_type: Stype::Delta(2) }, b"to".to_vec()),
+            (DeltaKey { contract_address: [7u8; 32].into(), key_type: Stype::Delta(3) }, b"da".to_vec()),
+            (DeltaKey { contract_address: [6u8; 32].into(), key_type: Stype::Delta(4) }, b"moon".to_vec()),
+            (DeltaKey { contract_address: [6u8; 32].into(), key_type: Stype::Delta(5) }, b"and".to_vec()),
+            (DeltaKey { contract_address: [6u8; 32].into(), key_type: Stype::Delta(6) }, b"back".to_vec()),
         ];
         let results = db.insert_tuples(&data);
         for res in results {

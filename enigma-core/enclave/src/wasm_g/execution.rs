@@ -155,7 +155,7 @@ pub mod tests {
         ) {
             Ok(v) => {
                 let mut after = super::ContractState {
-                    contract_id: b"Enigma".sha256(),
+                    contract_address: b"Enigma".sha256(),
                     json: json!({ "code" : 157 }),
                     .. Default::default()
                 };

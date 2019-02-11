@@ -170,7 +170,7 @@ pub mod tests {
                 runtime_ocalls_t::save_delta(db_ptr, &delta).unwrap();
             }
         }
-        let gibrish_state = EncryptedContractState { contract_id: address[2], json: vec![8u8; 65] };
+        let gibrish_state = EncryptedContractState { contract_address: address[2], json: vec![8u8; 65] };
         runtime_ocalls_t::save_state(db_ptr, &gibrish_state).unwrap();
         // Generating the request
         let mut _sig = [0u8; 65];
@@ -197,12 +197,12 @@ pub mod tests {
     fn get_states_deltas(address: &[ContractAddress]) -> Vec<(ContractState, Vec<StatePatch>)> {
         let states = vec![
             ContractState {
-                contract_id: address[0],
+                contract_address: address[0],
                 json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
                 .. Default::default()
             },
             ContractState {
-                contract_id: address[1],
+                contract_address: address[1],
                 json: serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#).unwrap(),
                 .. Default::default()
             },

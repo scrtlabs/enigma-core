@@ -42,10 +42,10 @@ pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &Cont
 #[no_mangle]
 pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
                                          enc_delta: *const u8, delta_len: usize,
-                                         contract_id: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
+                                         contract_address: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
     let delta_index = ptr::read(_delta_index);
     let encrypted_delta = slice::from_raw_parts(enc_delta, delta_len);
-    let key = DeltaKey::new(*contract_id, Stype::Delta(delta_index));
+    let key = DeltaKey::new(*contract_address, Stype::Delta(delta_index));
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
         Ok(db) => db,
         Err(e) => {
