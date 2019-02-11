@@ -1,7 +1,6 @@
 extern crate enigma_core_app;
 #[macro_use]
 extern crate log;
-#[macro_use]
 pub extern crate log_derive;
 
 pub use enigma_core_app::*;

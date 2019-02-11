@@ -103,10 +103,6 @@ pub(self) mod handling {
 
         Ok(IpcResponse::GetRegistrationParams { result })
     }
-    /// Not implemented.
-    pub fn identity_challange(nonce: &str) -> ResponseResult {
-        unimplemented!("identity_challenge: {}", nonce)
-    }
 
     #[logfn(INFO)]
     pub fn get_tip(db: &DB, input: &str) -> ResponseResult {
