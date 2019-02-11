@@ -73,12 +73,12 @@ lazy_static! { pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_se
 
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, real_report: &mut sgx_report_t) -> sgx_status_t {
-    quote_t::create_report_with_data(&target_info, real_report, &SIGNINING_KEY.get_pubkey().address().as_bytes())
+    quote_t::create_report_with_data(&target_info, real_report, &SIGNINING_KEY.get_pubkey().address())
 }
 
 #[no_mangle]
-pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
-    pubkey.copy_from_slice(SIGNINING_KEY.get_pubkey().address().as_bytes());
+pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) {
+    pubkey.copy_from_slice(&SIGNINING_KEY.get_pubkey().address());
 }
 
 #[no_mangle]
