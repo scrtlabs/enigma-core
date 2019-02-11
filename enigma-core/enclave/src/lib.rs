@@ -504,7 +504,7 @@ pub mod tests {
         let mut failures = Vec::new();
         rsgx_unit_test_start();
 
-        /// The reason I had to make our own tests is because baidu's unittest lib supports only static functions that get no inputs.
+        // The reason I had to make our own tests is because baidu's unittest lib supports only static functions that get no inputs.
         core_unitests(&mut ctr, &mut failures, test_full_sealing_storage, "test_full_sealing_storage" );
 //        core_unitests(&mut ctr, &mut failures,  test_ecall_evm_signning, "test_ecall_evm_signning" );
         core_unitests(&mut ctr, &mut failures, test_encrypt_state, "test_encrypt_state" );
