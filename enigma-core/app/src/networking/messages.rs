@@ -96,7 +96,7 @@ pub enum IpcRequest {
     NewTaskEncryptionKey { #[serde(rename = "userPubKey")] user_pubkey: String },
     DeploySecretContract { input: IpcTask},
     ComputeTask { input: IpcTask },
-    GetPTTRequest { addresses: Vec<String> },
+    GetPTTRequest { input: Addresses },
     PTTResponse {  response: String },
 }
 
@@ -146,6 +146,18 @@ pub struct IpcGetDeltas {
     pub from: u32,
     pub to: u32,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Addresses (pub Vec<String>);
+
+impl std::ops::Deref for Addresses {
+    type Target = Vec<String>;
+    fn deref(&self) -> &Vec<String> {
+        &self.0
+    }
+}
+
 
 impl IpcMessage {
     pub fn from_response(res: IpcResponse, id: String) -> Self {

@@ -48,7 +48,7 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::NewTaskEncryptionKey { user_pubkey } => handling::get_dh_user_key( &user_pubkey, eid),
             IpcRequest::DeploySecretContract { input } => handling::deploy_contract(db, input, eid),
             IpcRequest::ComputeTask { input } => handling::compute_task(db, input, eid),
-            IpcRequest::GetPTTRequest { addresses } => handling::get_ptt_req(&addresses, eid),
+            IpcRequest::GetPTTRequest { input } => handling::get_ptt_req(&input, eid),
             IpcRequest::PTTResponse { response } => handling::ptt_response(db, &response, eid),
         };
         let msg = IpcMessage::from_response(response_msg.unwrap_or_error(), id);
@@ -241,9 +241,9 @@ pub(self) mod handling {
     }
 
     #[logfn(INFO)]
-    pub fn get_ptt_req(addresses: &[String], eid: sgx_enclave_id_t) -> ResponseResult {
+    pub fn get_ptt_req(addresses: &Addresses, eid: sgx_enclave_id_t) -> ResponseResult {
         let mut addresses_arr: Vec<ContractAddress> = Vec::with_capacity(addresses.len());
-        for a in addresses {
+        for a in addresses.iter() {
             addresses_arr.push(ContractAddress::from_hex(a)?);
         }
         let (data, sig) = km_u::ptt_req(eid, &addresses_arr)?;
