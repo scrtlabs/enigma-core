@@ -1,20 +1,14 @@
 use crate::SIGNINING_KEY;
 
 use sgx_trts::trts::rsgx_read_rand;
-use std::sync::SgxMutex;
-use std::sync::SgxMutexGuard;
-
 use std::string::ToString;
-use std::vec::Vec;
-use std::collections::HashMap;
-use std::collections::hash_map::RandomState;
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::utils_t::LockExpectMutex;
 use crate::epoch_keeper_t::ecall_get_epoch_workers_internal;
-use enigma_tools_t::cryptography_t::asymmetric::KeyPair;
+use enigma_crypto::asymmetric::KeyPair;
+use enigma_crypto::Encryption;
 use enigma_tools_t::common::{EthereumAddress, ToHex};
-use enigma_tools_t::km_primitives::{PrincipalMessageType, StateKey, PrincipalMessage, ContractAddress, PubKey};
-use enigma_tools_t::cryptography_t::Encryption;
+use enigma_tools_t::km_primitives::{PrincipalMessageType, PrincipalMessage};
+use enigma_types::{PubKey, StateKey, ContractAddress, Hash256};
 use ethereum_types::H256;
 use ocalls_t;
 use std::path;
@@ -22,6 +16,8 @@ use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save
 use sgx_types::marker::ContiguousMemory;
 use secp256k1::SecretKey;
 use secp256k1::PublicKey;
+use enigma_tools_t::common::utils_t::LockExpectMutex;
+use std::{sync::SgxMutex, sync::SgxMutexGuard, vec::Vec, collections::HashMap, collections::hash_map::RandomState};
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
@@ -154,7 +150,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
     let mut privkey_slice = [0u8; 32];
     privkey_slice.copy_from_slice(&rand_num[..32]);
     let my_keypair = KeyPair::from_slice(&privkey_slice)?;
-    let derived_key = my_keypair.get_aes_key(&pubkey)?;
+    let derived_key = my_keypair.derive_key(&pubkey)?;
     // Generate the iv from the first 12 bytes of a new random number
     let mut iv: [u8; 12] = [0; 12];
     iv.clone_from_slice(&rand_num[32..44]);
@@ -183,9 +179,9 @@ pub mod tests {
         ];
         let mut sc_addrs: Vec<ContractAddress> = Vec::new();
         for (i, addr) in data.iter().enumerate() {
-            let mut a = [0u8; 32];
+            let mut a: Hash256 = [0u8; 32].into();
             a.copy_from_slice(addr);
-            sc_addrs.push(a);
+            sc_addrs.push( a);
         }
         let mut guard = STATE_KEY_STORE.lock_expect("State Key Store");
         let new_keys = new_state_keys(&mut guard, &sc_addrs).expect("Unable to store state keys");

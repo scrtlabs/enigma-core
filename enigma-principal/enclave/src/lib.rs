@@ -36,6 +36,7 @@ use enigma_tools_t::common::utils_t::EthereumAddress;
 use enigma_crypto::asymmetric;
 use enigma_tools_t::quote_t;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
+use enigma_tools_t::storage_t;
 
 use crate::epoch_keeper_t::{
     ecall_generate_epoch_seed_internal,
@@ -138,7 +139,6 @@ pub mod tests {
     use std::string::String;
     use std::vec::Vec;
 
-    use enigma_tools_t::cryptography_t::asymmetric::tests::*;
     use enigma_tools_t::storage_t::tests::*;
     use enigma_tools_t::document_storage_t::tests::*;
     use crate::epoch_keeper_t::tests::*;
@@ -149,8 +149,6 @@ pub mod tests {
         rsgx_unit_tests!(
             test_full_sealing_storage,
             test_document_sealing_storage,
-            test_signing,
-            test_ecdh,
             test_get_epoch_workers_internal,
             test_state_keys_storage
         );
