@@ -165,11 +165,7 @@ impl Runtime {
         let value: u32 = args.nth_checked(0).unwrap();
         let value_len: i32 = args.nth_checked(1).unwrap();
 
-        let mut buf = Vec::with_capacity(value_len as usize);
-        for _ in 0..value_len {
-            buf.push(0);
-        }
-
+        let mut buf = vec![0u8; value_len as usize];
         match self.memory.get_into(0, &mut buf[..]) {
             Ok(()) => {
                 match self.memory.set(value, &buf[..]) {
@@ -197,10 +193,7 @@ impl Runtime {
         // TODO: Handle the error here, should we return len=0?;
         let key = args.nth_checked(0);
         let key_len: u32 = args.nth_checked(1).unwrap();
-        let mut buf = Vec::with_capacity(key_len as usize);
-        for _ in 0..key_len {
-            buf.push(0);
-        }
+        let mut buf = vec![0u8; key_len as usize];
         match self.memory.get_into(key.unwrap(), &mut buf[..]) {
             Ok(()) => (),
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
@@ -225,21 +218,13 @@ impl Runtime {
         let value: u32 = args.nth_checked(2).unwrap();
         let value_len: u32 = args.nth_checked(3).unwrap();
 
-        let mut buf = Vec::with_capacity(key_len as usize);
-        for _ in 0..key_len {
-            buf.push(0);
-        }
-
+        let mut buf = vec![0u8; key_len as usize];
         match self.memory.get_into(key.unwrap(), &mut buf[..]) {
             Ok(v) => v,
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
         }
 
-        let mut val = Vec::with_capacity(value_len as usize);
-        for _ in 0..value_len {
-            val.push(0);
-        }
-
+        let mut val = vec![0u8; value_len as usize];
         match self.memory.get_into(value, &mut val[..]) {
             Ok(v) => v,
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
@@ -300,11 +285,7 @@ impl Runtime {
         let ptr: u32 = args.nth_checked(0)?;
         let len: u32 = args.nth_checked(1)?;
 
-        let mut buf = Vec::with_capacity(len as usize);
-        for _ in 0..len {
-            buf.push(0);
-        }
-
+        let mut buf = vec![0u8; len as usize];
         match rsgx_read_rand(&mut buf[..]) {
             Ok(_) => {
                 match self.memory.set(ptr, &buf[..]) {
