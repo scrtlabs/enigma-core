@@ -6,6 +6,9 @@ use failure::Error;
 pub fn get_logger<P: AsRef<Path>>(stdout: bool, data_dir: P, verbose: u8) ->  Result<Vec<Box<SharedLogger>>, Error> {
     let file_level = log_level_from_verbose(verbose + 2); // This plus 2 means that by default it logs from Warn level and up
 
+    // Make sure the directory exist.
+    fs::create_dir_all(data_dir)?;
+    
     let mut debug_path = data_dir.as_ref().to_path_buf();
     debug_path.push("debug.log");
     let file = File::create(debug_path)?;
