@@ -35,7 +35,6 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
         let id = msg.id.clone();
         let response_msg = match msg.unwrap_request() {
             IpcRequest::GetRegistrationParams => handling::get_registration_params(eid, spid),
-            IpcRequest::IdentityChallenge { nonce } => handling::identity_challange(&nonce),
             IpcRequest::GetTip { input } => handling::get_tip(db, &input),
             IpcRequest::GetTips { input } => handling::get_tips(db, &input),
             IpcRequest::GetAllTips => handling::get_all_tips(db),
@@ -49,7 +48,7 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::DeploySecretContract { input } => handling::deploy_contract(db, input, eid),
             IpcRequest::ComputeTask { input } => handling::compute_task(db, input, eid),
             IpcRequest::GetPTTRequest { input } => handling::get_ptt_req(&input, eid),
-            IpcRequest::PTTResponse { response } => handling::ptt_response(db, &response, eid),
+            IpcRequest::PTTResponse { input } => handling::ptt_response(db, &input, eid),
         };
         let msg = IpcMessage::from_response(response_msg.unwrap_or_error(), id);
         responses.push_back(msg.into());
@@ -103,10 +102,6 @@ pub(self) mod handling {
         let result = IpcResults::RegistrationParams { signing_key: sigining_key.to_hex(), report: report_hex, signature };
 
         Ok(IpcResponse::GetRegistrationParams { result })
-    }
-    /// Not implemented.
-    pub fn identity_challange(nonce: &str) -> ResponseResult {
-        unimplemented!("identity_challenge: {}", nonce)
     }
 
     #[logfn(INFO)]
@@ -253,8 +248,8 @@ pub(self) mod handling {
     }
 
     #[logfn(INFO)]
-    pub fn ptt_response(db: &mut DB, response: &str, eid: sgx_enclave_id_t) -> ResponseResult {
-        let msg = response.from_hex()?;
+    pub fn ptt_response(db: &mut DB, response: &PrincipalResponse, eid: sgx_enclave_id_t) -> ResponseResult {
+        let msg = response.0.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
         let res = km_u::ptt_build_state(db, eid)?;
         let result: Vec<_> = res
