@@ -1,5 +1,5 @@
 use super::STATE_KEYS;
-use crate::SIGNINING_KEY;
+use crate::SIGNING_KEY;
 use enigma_runtime_t::data::{ContractState, DeltasInterface, StatePatch};
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_tools_t::common::errors_t::EnclaveError;
@@ -24,7 +24,7 @@ pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: 
     let data = PrincipalMessageType::Request(addresses.to_vec());
     let req = PrincipalMessage::new(data, keys.get_pubkey())?;
     let msg = req.to_message()?;
-    *sig = SIGNINING_KEY.sign(&msg[..])?;
+    *sig = SIGNING_KEY.sign(&msg[..])?;
     DH_KEYS.lock_expect("DH Keys").insert(req.get_id(), keys);
     Ok(msg)
 }
