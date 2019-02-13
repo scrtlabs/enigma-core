@@ -42,8 +42,8 @@ mod tests {
     use enigma_core_app::sgx_types::*;
     use enigma_core_app::db::DB;
     use self::enigma_types::RawPointer;
-    use enigma_core_app::simplelog::TermLogger;
-    use enigma_core_app::log::LevelFilter;
+//    use enigma_core_app::simplelog::TermLogger;
+//    use enigma_core_app::log::LevelFilter;
     use self::tempfile::TempDir;
 
     extern "C" {
@@ -56,11 +56,11 @@ mod tests {
         let db = DB::new(tempdir.path(), true).unwrap();
         (db, tempdir)
     }
-
-    pub fn log_to_stdout(level: Option<LevelFilter>) {
-        let level = level.unwrap_or_else(|| LevelFilter::max());
-        TermLogger::init(level, Default::default()).unwrap();
-    }
+//
+//    pub fn log_to_stdout(level: Option<LevelFilter>) {
+//        let level = level.unwrap_or_else(|| LevelFilter::max());
+//        TermLogger::init(level, Default::default()).unwrap();
+//    }
 
     #[test]
     pub fn test_enclave_internal() {

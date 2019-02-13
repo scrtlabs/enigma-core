@@ -306,7 +306,11 @@ pub fn get_decrypted_delta(addr: [u8; 32], delta: &str) -> Vec<u8> {
     symmetric::decrypt(&delta_bytes, &state_key).unwrap()
 }
 
-
+pub fn get_encrypted_delta(addr: [u8; 32], delta: &[u8]) -> String {
+    let state_key = get_fake_state_key(&addr);
+    let enc = symmetric::encrypt(delta, &state_key).unwrap();
+    enc.to_hex()
+}
 
 pub fn deploy_and_compute_few_contracts(port: &'static str) -> Vec<[u8; 32]> {
     let (_, _, contract_address_a): (_, _, [u8; 32]) = full_addition_compute(port, 56, 87);
@@ -319,6 +323,12 @@ pub fn decrypt_delta(addr: &[u8], delta: &[u8]) -> Value {
     let dec = symmetric::decrypt(delta, &get_fake_state_key(addr)).unwrap();
     let mut des = Deserializer::new(&dec[..]);
     Deserialize::deserialize(&mut des).unwrap()
+}
+
+pub fn decrypt_int_output(output: &[u8], key: &[u8; 32]) -> Token {
+
+    let dec = symmetric::decrypt(output, key).unwrap();
+    ethabi::decode(&[ethabi::ParamType::Uint(256)], &dec).unwrap().pop().unwrap()
 }
 
 pub fn send_update_contract(port: &'static str,  addr: &str, bytecode: &str) -> Value {

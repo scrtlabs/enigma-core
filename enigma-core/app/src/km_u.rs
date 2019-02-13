@@ -32,8 +32,8 @@ pub fn ptt_build_state(db: &mut DB, eid: sgx_enclave_id_t) -> Result<Vec<Contrac
         ecall_build_state(eid,
                           &mut ret as *mut EnclaveReturn,
                           &db_ptr as *const RawPointer,
-                          &mut failed_ptr as *mut u64) }
-        ;
+                          &mut failed_ptr as *mut u64) };
+
     if ret != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: ret, status }.into());
     }

@@ -20,6 +20,7 @@ pub trait ContractInterface{
     fn choose_rand_color();
     fn get_scrambled_vec();
     fn addition(x: U256, y: U256) -> U256;
+    fn get_last_sum() -> U256;
     fn print_test(x: U256, y: U256);
     fn construct(param: U256);
 }
@@ -105,6 +106,12 @@ impl ContractInterface for Contract {
     fn addition(x: U256, y: U256) -> U256 {
         let sum: u64 = x.as_u64() + y.as_u64();
         write_state!("curr_sum" => sum);
+        sum.into()
+    }
+
+    #[no_mangle]
+    fn get_last_sum() -> U256 {
+        let sum: u64 = read_state!("curr_sum").unwrap();
         sum.into()
     }
 

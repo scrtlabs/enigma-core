@@ -17,9 +17,8 @@ fn test_get_ptt_request() {
 
     let addresses: Vec<String> = vec![generate_contract_address().to_hex(), generate_contract_address().to_hex()];
     let msg = set_ptt_req_msg(&addresses.clone());
-    println!("msg: {:?}", msg);
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
-    println!("v: {:?}", v);
+
     let packed_msg = v["result"].as_object().unwrap()["request"].as_str().unwrap();
     let result_sig = v["result"].as_object().unwrap()["workerSig"].as_str().unwrap();
     let unpacked_msg: ParsedMessage = ParsedMessage::from_value(&parse_packed_msg(packed_msg));
@@ -35,7 +34,7 @@ fn test_ptt_response() {
     run_core(port);
     let addresses: Vec<String> = vec![generate_contract_address().to_hex(), generate_contract_address().to_hex()];
     let res_val: Value = run_ptt_round(port, &addresses);
-    let result: Vec<u8> = serde_json::from_value(res_val["result"]["errors"].clone()).unwrap();
 
-    assert_eq!(result.len(), 0);
+    let errors: Vec<u8> = serde_json::from_value(res_val["result"]["errors"].clone()).unwrap();
+    assert_eq!(errors.len(), 0);
 }

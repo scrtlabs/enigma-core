@@ -1,7 +1,7 @@
 pub mod integration_utils;
 
 use integration_utils::{run_core, full_simple_deployment, conn_and_call_ipc,
-                        set_msg_format_update_contract, send_update_contract, set_update_deltas_msg, contract_compute};
+                        send_update_contract, set_update_deltas_msg, contract_compute};
 pub extern crate enigma_core_app as app;
 extern crate serde;
 extern crate rustc_hex as hex;

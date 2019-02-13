@@ -317,7 +317,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     pre_execution_data.push(Box::new(*exe_code_hash));
     let pre_execution_state = execution::get_state(db_ptr, address)?;
 
-    let (decrypted_args, decrypted_callable, types, function_name, key) = decrypt_inputs(callable, args, user_key)?;
+    let (decrypted_args, _decrypted_callable, types, function_name, key) = decrypt_inputs(callable, args, user_key)?;
 
     let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone())?;
 
