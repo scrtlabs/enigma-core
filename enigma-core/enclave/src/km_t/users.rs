@@ -1,4 +1,4 @@
-use crate::SIGNINING_KEY;
+use crate::SIGNING_KEY;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_crypto::asymmetric::KeyPair;
@@ -13,7 +13,7 @@ pub(crate) unsafe fn ecall_get_user_key_internal(sig: &mut [u8; 65], user_pubkey
     let keys = KeyPair::new()?;
     let req = UserMessage::new(keys.get_pubkey());
     let msg = req.to_message()?;
-    *sig = SIGNINING_KEY.sign(&msg[..])?;
+    *sig = SIGNING_KEY.sign(&msg[..])?;
     let enc_key = keys.derive_key(&user_pubkey)?;
     DH_KEYS.lock_expect("DH Keys").insert(user_pubkey.to_vec(), enc_key);
     Ok(msg)

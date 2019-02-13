@@ -35,12 +35,12 @@ use enigma_tools_t::storage_t;
 use enigma_tools_t::quote_t;
 
 
-lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
+lazy_static! { static ref SIGNING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
 
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote( target_info: &sgx_target_info_t , real_report: &mut sgx_report_t) -> sgx_status_t {
-    quote_t::create_report_with_data(&target_info ,real_report, &SIGNINING_KEY.get_pubkey().address_string().as_bytes())
+    quote_t::create_report_with_data(&target_info ,real_report, &SIGNING_KEY.get_pubkey().address_string().as_bytes())
 }
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
@@ -59,7 +59,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 #[no_mangle]
 pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
-    pubkey.clone_from_slice(SIGNINING_KEY.get_pubkey().address_string().as_bytes());
+    pubkey.clone_from_slice(SIGNING_KEY.get_pubkey().address_string().as_bytes());
 }
 
 
@@ -78,7 +78,7 @@ pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
 pub extern "C" fn ecall_get_random_seed(rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t  {
     // TODO: Check if needs to check the random is within the curve.
     let status = rsgx_read_rand(&mut rand_out[..]);
-    let sig = SIGNINING_KEY.sign(&rand_out[..]).unwrap();
+    let sig = SIGNING_KEY.sign(&rand_out[..]).unwrap();
     sig_out.copy_from_slice(&sig[..]);
     // println!("Random inside Enclave: {:?}", &rand_out[..]);
     // println!("Signature inside Enclave: {:?}\n", &sig.as_slice());
