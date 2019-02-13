@@ -12,7 +12,6 @@ extern crate sgx_urts;
 extern crate lazy_static;
 pub extern crate futures;
 extern crate rmp_serde;
-#[cfg_attr(test, macro_use)]
 pub extern crate serde_json;
 extern crate tokio;
 extern crate tokio_zmq;

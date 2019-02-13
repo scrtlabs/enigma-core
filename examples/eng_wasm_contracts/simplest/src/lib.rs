@@ -91,7 +91,7 @@ impl ContractInterface for Contract {
 
         let rng_rand = (random as usize) % colors.len();
         write_state!("color" => colors[rng_rand]);
-        let color : String = read_state!("color").unwrap();
+        let _color : String = read_state!("color").unwrap();
     }
 
     // tests the shuffle service on a simple array
@@ -119,8 +119,8 @@ impl ContractInterface for Contract {
     fn print_test(x: U256, y: U256) {
         eprint!("{:?} {:?}", x.as_u64(), y.as_u64());
         write_state!("x" => x.as_u64(), "y" => y.as_u64());
-        let x: u64 = read_state!("x").unwrap();
-        let y: u64 = read_state!("y").unwrap();
+        let _x: u64 = read_state!("x").unwrap();
+        let _y: u64 = read_state!("y").unwrap();
     }
 
     #[no_mangle]

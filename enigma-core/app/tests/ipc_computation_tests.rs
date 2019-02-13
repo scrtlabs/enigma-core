@@ -4,7 +4,7 @@ pub extern crate ethabi;
 extern crate rustc_hex as hex;
 extern crate cross_test_utils;
 
-use integration_utils::{conn_and_call_ipc, is_hex, run_core, set_msg_format_update_contract, set_delta_msg,
+use integration_utils::{conn_and_call_ipc, is_hex, run_core, set_msg_format_update_contract,
                         set_encryption_msg, full_simple_deployment, full_addition_compute, decrypt_int_output,
                         send_update_contract, full_erc20_deployment, run_ptt_round, contract_compute, set_update_deltas_msg, get_decrypted_delta, get_encrypted_delta};
 use cross_test_utils::generate_contract_address;
@@ -84,7 +84,7 @@ fn test_execute_on_existing_contract_no_construct() {
     let decrypt_dep_data_from_old = get_decrypted_delta(_old_addr, &deployed_data);
     let encrypted_dep_data_new = get_encrypted_delta(new_addr.into(), &decrypt_dep_data_from_old);
     let decrypt_exe_data_from_old = get_decrypted_delta(_old_addr, &computed_data);
-    let encrypted_exe_data_new = get_encrypted_delta(new_addr.into(), &get_decrypted_delta(_old_addr, &computed_data));
+    let encrypted_exe_data_new = get_encrypted_delta(new_addr.into(), &decrypt_exe_data_from_old);
     let deltas = vec![
         (new_addr.to_hex(), serde_json::from_value(deployed_delta["key"].clone()).unwrap(), encrypted_dep_data_new),
         (new_addr.to_hex(), serde_json::from_value(mint_delta["key"].clone()).unwrap(), encrypted_exe_data_new)
@@ -136,7 +136,7 @@ fn test_execute_on_existing_contract_with_constructor() {
     let decrypt_dep_data_from_old = get_decrypted_delta(_old_addr, &deployed_data);
     let encrypted_dep_data_new = get_encrypted_delta(new_addr.into(), &decrypt_dep_data_from_old);
     let decrypt_exe_data_from_old = get_decrypted_delta(_old_addr, &computed_data);
-    let encrypted_exe_data_new = get_encrypted_delta(new_addr.into(), &get_decrypted_delta(_old_addr, &computed_data));
+    let encrypted_exe_data_new = get_encrypted_delta(new_addr.into(), &decrypt_exe_data_from_old);
     let deltas = vec![
         (new_addr.to_hex(), serde_json::from_value(deployed_delta["key"].clone()).unwrap(), encrypted_dep_data_new),
         (new_addr.to_hex(), serde_json::from_value(add_delta["key"].clone()).unwrap(), encrypted_exe_data_new)
