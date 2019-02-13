@@ -38,10 +38,7 @@ use enigma_tools_t::quote_t;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 use enigma_tools_t::storage_t;
 
-use crate::epoch_keeper_t::{
-    ecall_generate_epoch_seed_internal,
-    ecall_set_worker_params_internal,
-};
+use crate::epoch_keeper_t::ecall_set_worker_params_internal;
 use crate::keys_keeper_t::ecall_get_enc_state_keys_internal;
 use std::ptr;
 
@@ -76,38 +73,14 @@ pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
     pubkey.clone_from_slice(SIGNINING_KEY.get_pubkey().address().as_bytes());
 }
 
-
-/// This is an ecall function that returns a signed seed and a signature.
-/// Use this from outside of the enclave
-/// # Examples
-/// ```
-/// extern { fn ecall_get_random_seed(eid: sgx_enclave_id_t, retval: &mut sgx_status_t, rand_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t; }
-/// let enclave = esgx::general::init_enclave.unwrap();
-/// let mut rand_out: [u8; 32] = [0; 32];
-/// let mut sig_out: [u8; 65] = [0; 65];
-/// let mut retval = sgx_status_t::default();
-/// unsafe { ecall_get_random_seed(enclave.geteid(), &mut retval, &mut rand_out, &mut sig_out); }
-/// ```
 #[no_mangle]
-pub extern "C" fn ecall_generate_epoch_seed(rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> EnclaveReturn {
-    match ecall_generate_epoch_seed_internal(rand_out, nonce_out, sig_out) {
-        Ok(nonce) => println!("the new epoch nonce: {:?}", nonce),
-        Err(err) => return err.into(),
-    }
-    EnclaveReturn::Success
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn ecall_set_worker_params(receipt_rlp: *const u8, receipt_rlp_len: usize,
-                                                 receipt_hashes_rlp: *const u8, receipt_hashes_rlp_len: usize,
-                                                 headers_rlp: *const u8, headers_rlp_len: usize,
+pub unsafe extern "C" fn ecall_set_worker_params(worker_params_rlp: *const u8, worker_params_rlp_len: usize,
+                                                 rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32],
                                                  sig_out: &mut [u8; 65]) -> EnclaveReturn {
     // Assembling byte arrays with the RLP data
-    let receipt_rlp = slice::from_raw_parts(receipt_rlp, receipt_rlp_len);
-    let receipt_hashes_rlp = slice::from_raw_parts(receipt_hashes_rlp, receipt_hashes_rlp_len);
-    let block_headers_rlp = slice::from_raw_parts(headers_rlp, headers_rlp_len);
+    let worker_params_rlp = slice::from_raw_parts(worker_params_rlp, worker_params_rlp_len);
 
-    match ecall_set_worker_params_internal(receipt_rlp, receipt_hashes_rlp, block_headers_rlp, sig_out) {
+    match ecall_set_worker_params_internal(worker_params_rlp, rand_out, nonce_out, sig_out) {
         Ok(_) => println!("Worker parameters set successfully"),
         Err(err) => return err.into(),
     };

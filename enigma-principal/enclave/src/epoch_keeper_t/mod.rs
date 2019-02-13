@@ -1,7 +1,4 @@
-use core::convert::TryFrom;
-
 use ethabi::{Address, Hash, Token, Uint};
-use ethabi::token::{LenientTokenizer, Tokenizer};
 use ethereum_types::H256;
 use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
@@ -15,13 +12,12 @@ use std::vec::Vec;
 
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::eth_tools_t::epoch_t::{Epoch, WorkerParams};
-use enigma_tools_t::eth_tools_t::keeper_types_t::{BlockHeader, BlockHeaders, decode, Receipt, ReceiptHashes};
+use enigma_tools_t::eth_tools_t::epoch_t::Epoch;
+use enigma_tools_t::eth_tools_t::keeper_types_t::{decode, InputWorkerParams};
 
 use crate::SIGNINING_KEY;
 
 const INIT_NONCE: uint32_t = 0;
-const PREVERIFIED_BLOCK_HASH: &str = "ae67b813aa89d47d4ba4d34dcd8b77a57bd433338ac0980137f5a6ca81ff9566";
 const EPOCH_DIR: &str = "epoch";
 
 // The epoch seed contains the seeds + a nonce that must match the Ethereum tx
@@ -48,10 +44,14 @@ fn get_epoch(guard: &SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>, block_num
     Ok(Some(epoch))
 }
 
-pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> Result<Uint, EnclaveError> {
+pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> Result<(), EnclaveError> {
+    // RLP decoding the necessary data
+    let receipt: InputWorkerParams = decode(worker_params_rlp);
+
+    println!("Successfully decoded RLP objects");
     let mut guard = EPOCH.lock_expect("Epoch");
-    let epoch = get_epoch(&guard, None)?;
-    let nonce: Uint = match epoch {
+    let previous_epoch = get_epoch(&guard, None)?;
+    let nonce: Uint = match previous_epoch {
         Some(_) => guard.keys().max().unwrap() + 1,
         None => Uint::from(INIT_NONCE),
     };
@@ -61,85 +61,18 @@ pub(crate) fn ecall_generate_epoch_seed_internal(rand_out: &mut [u8; 32], nonce_
 
     // TODO: Check if needs to check the random is within the curve.
     rsgx_read_rand(&mut rand_out[..])?;
+    // TODO: Sign on all the input worker params
     let sig = SIGNINING_KEY.sign(&rand_out[..])?;
     sig_out.copy_from_slice(&sig[..]);
+
     let seed_token = Token::Uint(rand_out[..].into());
     let seed = seed_token.to_uint().unwrap();
-
-    // If no stored epoch, use the hardcoded preverified block hash
-    // Otherwise, use the block hash verified in the previous epoch
-    let new_epoch = match epoch {
-        Some(epoch) => {
-            println!("Epoch found: {:?}", epoch);
-            Epoch {
-                seed,
-                worker_params: None,
-                preverified_block_hash: epoch.preverified_block_hash.clone(),
-            }
-        }
-        None => {
-            let init_block_hash = H256(LenientTokenizer::tokenize_uint(PREVERIFIED_BLOCK_HASH).unwrap());
-            println!("Epoch not found, using hardcoded block hash: {:?}", init_block_hash);
-            Epoch {
-                seed,
-                worker_params: None,
-                preverified_block_hash: init_block_hash,
-            }
-        }
-    };
+    let new_epoch = Epoch::new(receipt, nonce, seed)?;
     println!("Storing epoch: {:?}", new_epoch);
     match guard.insert(nonce, new_epoch) {
         Some(prev) => println!("New epoch stored successfully, previous epoch: {:?}", prev),
         None => println!("Initial epoch stored successfully"),
     }
-    Ok(nonce)
-}
-
-pub(crate) fn ecall_set_worker_params_internal(receipt_rlp: &[u8], receipt_hashes_rlp: &[u8],
-                                               block_headers_rlp: &[u8], sig_out: &mut [u8; 65]) -> Result<(), EnclaveError> {
-    // RLP decoding the necessary data
-    let receipt: Receipt = decode(receipt_rlp);
-    let receipt_hashes: ReceiptHashes = decode(receipt_hashes_rlp);
-    let block_headers: BlockHeaders = decode(block_headers_rlp);
-
-    println!("Successfully decoded RLP objects");
-    // TODO: is cloning the whole Vec necessary here?
-    let block_headers_raw = block_headers.0.clone();
-    let block_header: &BlockHeader = match block_headers_raw.get(0) {
-        Some(block_header) => block_header,
-        None => {
-            return Err(EnclaveError::WorkerAuthError {
-                err: "The BlockHeaders parameter is empty.".to_string(),
-            });
-        }
-    };
-    let mut guard = EPOCH.lock_expect("Epoch");
-    if guard.is_empty() {
-        return Err(EnclaveError::WorkerAuthError {
-            err: format!("The Epoch store is empty."),
-        });
-    }
-    let nonce = get_max_nonce(&guard);
-    let epoch = match guard.get_mut(&nonce) {
-        Some(value) => value,
-        None => {
-            return Err(EnclaveError::WorkerAuthError {
-                err: format!("Epoch not found for WorkerParams nonce: {:?}", nonce),
-            });
-        }
-    };
-    // TODO: Implement verifier
-//    let mut verifier = BlockVerifier::new(epoch.preverified_block_hash);
-//    for header in block_headers.0 {
-//        verifier.add_block(header.clone())?;
-//    }
-//    verifier.verify_receipt(receipt.clone(), receipt_hashes)?;
-
-    let params: WorkerParams = WorkerParams::try_from(receipt.logs[0].clone())?;
-    epoch.set_worker_params(params)?;
-    // TODO: Replace the preverified block hash of the epoch with last block header
-    let sig = SIGNINING_KEY.sign(&receipt_rlp[..])?;
-    sig_out.copy_from_slice(&sig[..]);
     Ok(())
 }
 
@@ -154,7 +87,7 @@ pub(crate) fn ecall_get_epoch_workers_internal(sc_addr: Hash, block_number: Opti
         }
     };
     println!("Running worker selection using Epoch: {:?}", epoch);
-    let workers = epoch.get_selected_workers(sc_addr)?;
+    let workers = epoch.get_selected_workers(sc_addr, None)?;
     Ok(workers)
 }
 
@@ -164,24 +97,16 @@ pub mod tests {
 
     //noinspection RsTypeCheck
     pub fn test_get_epoch_workers_internal() {
-        println!("Testing worker selection for the epoch");
-        let seed = U256::from(100);
-        let params = WorkerParams {
+        let epoch = Epoch {
             block_number: U256::from(1),
             workers: vec![H160::from(0), H160::from(1), H160::from(2), H160::from(3)],
             balances: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
             nonce: U256::from(0),
-            seed,
-        };
-        println!("The worker parameters: {:?}", params);
-        let epoch = Epoch {
-            seed,
-            worker_params: Some(params),
-            preverified_block_hash: H256::from(1),
+            seed: U256::from(1),
         };
         println!("The epoch: {:?}", epoch);
         let sc_addr = H256::from(1);
-        let workers = epoch.get_selected_workers(sc_addr).unwrap();
+        let workers = epoch.get_selected_workers(sc_addr, None).unwrap();
         println!("The selected workers: {:?}", workers);
     }
 }

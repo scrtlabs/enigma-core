@@ -1,7 +1,8 @@
 use bigint;
 pub use rlp::{Encodable, encode, RlpStream};
-use web3::types::{Block, Bytes, H160, H2048, H256, H64, Log, TransactionReceipt, U256};
+use web3::types::{Block, Bytes, H160, H2048, H256, H64, Log, TransactionReceipt, U256, Address};
 use enigma_crypto::hash::Keccak256;
+use ethabi::{Event, EventParam, ParamType};
 
 pub trait IntoBigint<T> {
     fn bigint(self) -> T;
@@ -20,97 +21,17 @@ impl IntoBigint<bigint::H2048> for H2048 { fn bigint(self) -> bigint::H2048 { bi
 impl IntoBigint<bigint::B256> for Bytes { fn bigint(self) -> bigint::B256 { bigint::B256::new(&self.0) } }
 
 #[derive(Debug, Clone)]
-pub struct LogWrapper(pub Log);
-
-impl Encodable for LogWrapper {
+pub struct InputWorkerParams {
+    pub block_number: U256,
+    pub workers: Vec<Address>,
+    pub balances: Vec<U256>,
+}
+impl Encodable for InputWorkerParams {
     fn rlp_append(&self, s: &mut RlpStream) {
         s.begin_list(3);
-        s.append(&self.0.address.bigint());
-        s.append_list(&self.0.topics.iter().map(|t| t.bigint()).collect::<Vec<bigint::H256>>());
-        s.append(&self.0.data.0);
-    }
-}
-
-
-#[derive(Debug, Clone)]
-pub struct BlockHeaderWrapper(pub Block<H256>);
-
-impl Encodable for BlockHeaderWrapper {
-    fn rlp_append(&self, s: &mut RlpStream) {
-        //TODO: panic if None?
-        let block_number = &self.0.number.unwrap();
-        s.begin_list(15);
-        s.append(&self.0.parent_hash.bigint());
-        s.append(&self.0.uncles_hash.bigint());
-        s.append(&self.0.author.bigint());
-        s.append(&self.0.state_root.bigint());
-        s.append(&self.0.transactions_root.bigint());
-        s.append(&self.0.receipts_root.bigint());
-        s.append(&self.0.logs_bloom.bigint());
-        s.append(&self.0.difficulty.bigint());
-        s.append(&U256::from(*block_number).bigint());
-        s.append(&self.0.gas_limit.bigint());
-        s.append(&self.0.gas_used.bigint());
-        s.append(&self.0.timestamp.bigint());
-        s.append(&self.0.extra_data.clone().bigint());
-        let mix_hash = match &self.0.mix_hash {
-            Some(h) => h.bigint(),
-            None => H256::from(0).bigint(),
-        };
-        s.append(&mix_hash);
-        let nonce = match &self.0.nonce {
-            Some(n) => n.bigint(),
-            None => H64::from(0).bigint(),
-        };
-        s.append(&nonce);
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct BlockHeadersWrapper(pub Vec<BlockHeaderWrapper>);
-
-impl Encodable for BlockHeadersWrapper {
-    fn rlp_append(&self, s: &mut RlpStream) {
-        s.begin_list(1);
-        s.append_list(&self.0);
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ReceiptWrapper(pub TransactionReceipt);
-
-impl Encodable for ReceiptWrapper {
-    fn rlp_append(&self, s: &mut RlpStream) {
-        // Supports EIP-658 rules only (blocks after Metropolis)
-        let status_code: &u64 = &self.0.status.unwrap().as_u64();
-        s.begin_list(4);
-        s.append(status_code);
-        s.append(&self.0.cumulative_gas_used.bigint());
-        s.append(&self.0.logs_bloom.bigint());
-        s.append_list(&self.0.logs.iter().map(|l| LogWrapper(l.clone())).collect::<Vec<LogWrapper>>());
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ReceiptHashesWrapper(pub Vec<H256>);
-
-impl ReceiptHashesWrapper {
-    pub fn from_receipts(receipts: &Vec<ReceiptWrapper>) -> Self {
-        let hashes = receipts
-            .iter()
-            .map(|r| {
-                let receipt_rlp = encode(r);
-                let hash: [u8; 32] = receipt_rlp.keccak256().into();
-                H256(hash)
-            })
-            .collect::<Vec<H256>>();
-        ReceiptHashesWrapper(hashes)
-    }
-}
-impl Encodable for ReceiptHashesWrapper {
-    fn rlp_append(&self, s: &mut RlpStream) {
-        s.begin_list(1);
-        s.append_list(&self.0.iter().map(|h| h.bigint()).collect::<Vec<bigint::H256>>());
+        s.append(&self.block_number.bigint());
+        s.append_list(&self.workers.iter().map(|a| a.bigint()).collect::<Vec<bigint::H160>>());
+        s.append_list(&self.balances.iter().map(|b| b.bigint()).collect::<Vec<bigint::U256>>());
     }
 }
 
@@ -119,4 +40,37 @@ pub struct EpochSeed {
     pub seed: U256,
     pub sig: Bytes,
     pub nonce: U256,
+}
+
+#[derive(Debug, Clone)]
+pub struct EventWrapper(pub Event);
+
+impl EventWrapper {
+    pub fn workers_parameterized() -> Self {
+        EventWrapper(Event {
+            name: "WorkersParameterized".to_string(),
+            inputs: vec![EventParam {
+                name: "seed".to_string(),
+                kind: ParamType::Uint(256),
+                indexed: false,
+            }, EventParam {
+                name: "blockNumber".to_string(),
+                kind: ParamType::Uint(256),
+                indexed: false,
+            }, EventParam {
+                name: "workers".to_string(),
+                kind: ParamType::Array(Box::new(ParamType::Address)),
+                indexed: false,
+            }, EventParam {
+                name: "balances".to_string(),
+                kind: ParamType::Array(Box::new(ParamType::Uint(256))),
+                indexed: false,
+            }, EventParam {
+                name: "nonce".to_string(),
+                kind: ParamType::Uint(256),
+                indexed: false,
+            }],
+            anonymous: false,
+        })
+    }
 }

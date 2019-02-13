@@ -8,14 +8,10 @@ use enigma_crypto::asymmetric::KeyPair;
 use enigma_crypto::Encryption;
 use enigma_tools_t::common::{EthereumAddress, ToHex};
 use enigma_tools_t::km_primitives::{PrincipalMessageType, PrincipalMessage};
-use enigma_types::{PubKey, StateKey, ContractAddress, Hash256};
-use ethereum_types::H256;
+use enigma_types::{StateKey, ContractAddress, Hash256};
 use ocalls_t;
 use std::path;
 use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
-use sgx_types::marker::ContiguousMemory;
-use secp256k1::SecretKey;
-use secp256k1::PublicKey;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use std::{sync::SgxMutex, sync::SgxMutexGuard, vec::Vec, collections::HashMap, collections::hash_map::RandomState};
 
@@ -85,9 +81,10 @@ fn new_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, R
         let path = get_document_path(addr);
         save_sealed_document(&path, &sealed_log_in)?;
         // Add to cache
-        guard.insert(addr.clone(), doc.data).ok_or(EnclaveError::KeyProvisionError {
-            err: format!("Unable to store key in cache: {:?}", addr.to_hex())
-        });
+        match guard.insert(addr.clone(), doc.data) {
+            Some(prev) => println!("New key stored successfully, previous key: {:?}", prev),
+            None => println!("Initial key stored successfully"),
+        }
         results.push(doc.data);
     }
     Ok(results)
@@ -178,7 +175,7 @@ pub mod tests {
             "60303AE22B998861BCE3B28F33EEC1BE758A213C86C93C076DBE9F558C11C752".from_hex().unwrap(),
         ];
         let mut sc_addrs: Vec<ContractAddress> = Vec::new();
-        for (i, addr) in data.iter().enumerate() {
+        for (_i, addr) in data.iter().enumerate() {
             let mut a: Hash256 = [0u8; 32].into();
             a.copy_from_slice(addr);
             sc_addrs.push( a);

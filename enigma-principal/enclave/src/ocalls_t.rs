@@ -1,7 +1,6 @@
 use std::path;
 use sgx_types::sgx_status_t;
 use std::str;
-use enigma_types::EnclaveReturn;
 
 const PATH_MAX: usize = 4096; // linux/limits.h - this depends on the FS.
 

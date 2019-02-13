@@ -3,83 +3,50 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, H256, U256};
 
 use common_u::errors::EnclaveFailError;
-use enigma_tools_u::web3_utils::provider_types::{BlockHeadersWrapper, encode, EpochSeed, ReceiptHashesWrapper, ReceiptWrapper};
+use enigma_tools_u::web3_utils::provider_types::{ encode, EpochSeed, InputWorkerParams};
 use enigma_types::EnclaveReturn;
 
 extern {
-    fn ecall_generate_epoch_seed(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
-                                 rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32], sig_out: &mut [u8; 65]) -> sgx_status_t;
-
     fn ecall_set_worker_params(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
-                               receipt_rlp: *const u8, receipt_rlp_len: usize,
-                               receipt_hashes_rlp: *const u8, receipt_hashes_rlp_len: usize,
-                               headers_rlp: *const u8, headers_rlp_len: usize,
+                               worker_params_rlp: *const u8, worker_params_rlp_len: usize,
+                               rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32],
                                sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
 
 /// Returns an EpochSeed object 32 bytes signed random seed and an incremented account nonce.
-///
-/// The seed must be submitted to Ethereum in a `setWorkersParams` transaction.
-/// This will emit a `WorkerParameterized` event with a matching account nonce.
 /// # Examples
 /// ```
 /// let enclave = esgx::general::init_enclave().unwrap();
-/// let epoch_seed: EpochSeed = generate_epoch_seed(enclave.geteid()).unwrap();
+/// let worker_params = web3.get_worker_params(block_number);
+/// let sig = set_worker_params(enclave.geteid(), worker_params).unwrap();
 /// ```
-pub fn generate_epoch_seed(eid: sgx_enclave_id_t) -> Result<EpochSeed, Error> {
+pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams) -> Result<EpochSeed, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut nonce_out: [u8; 32] = [0; 32];
     let mut rand_out: [u8; 32] = [0; 32];
     let mut sig_out: [u8; 65] = [0; 65];
-    let status = unsafe {
-        ecall_generate_epoch_seed(eid, &mut retval, &mut rand_out, &mut nonce_out, &mut sig_out)
-    };
-    if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: retval, status }.into());
-    }
-    Ok(EpochSeed { seed: U256::from_big_endian(&rand_out), nonce: U256::from_big_endian(&nonce_out), sig: Bytes(sig_out.to_vec()) })
-}
-
-/// Returns a signature of the ReceiptWrapper rlp bytes provided.
-///
-/// Successful execution guarantees that:
-/// 1- Merkling the provided receipt bytes, along with the list of receipt hash, equals the `receipt_root` of the max provided Block header
-/// 2- The provided Block headers follow a chain verified with `parent_hash` ending with the latest `verified_block_hash` stored in the Enclave
-/// 3- The first log in the Receipt contains a WorkerParameterized event
-/// 4- The nonce attribute of the WorkerParameterized event equals the nonce returned by `generate_epoch_seed`
-/// # Examples
-/// ```
-/// let enclave = esgx::general::init_enclave().unwrap();
-/// let receipt = ReceiptWrapper(web3_receipt);
-/// let receipt_hashes = ReceiptHashesWrapper::from_receipts(&vec![web3_receipt]);
-/// let block_header = BlockHeaderWrapper(web3_block);
-/// let headers = BlockHeadersWrapper(vec![block_header]);
-/// let sig = set_worker_params(enclave.geteid(), receipt, receipt_hashes, headers).unwrap();
-/// ```
-pub fn set_worker_params(eid: sgx_enclave_id_t, receipt: ReceiptWrapper, receipt_hashes: ReceiptHashesWrapper, headers: BlockHeadersWrapper) -> Result<[u8; 65], Error> {
-    let mut retval: EnclaveReturn = EnclaveReturn::Success;
     // Serialize the receipt into RLP
-    let receipt_rlp = encode(&receipt);
-    let receipt_hashes_rlp = encode(&receipt_hashes);
-    let headers_rlp = encode(&headers);
+    let worker_params_rlp = encode(&worker_params);
     let mut sig_out: [u8; 65] = [0; 65];
     let status = unsafe {
         ecall_set_worker_params(
             eid,
             &mut retval,
-            receipt_rlp.as_ptr() as *const u8,
-            receipt_rlp.len(),
-            receipt_hashes_rlp.as_ptr() as *const u8,
-            receipt_hashes_rlp.len(),
-            headers_rlp.as_ptr() as *const u8,
-            headers_rlp.len(),
+            worker_params_rlp.as_ptr() as *const u8,
+            worker_params_rlp.len(),
+            &mut rand_out,
+            &mut nonce_out,
             &mut sig_out,
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: retval, status }.into());
     }
-    Ok(sig_out)
+    Ok(EpochSeed {
+        seed: U256::from_big_endian(&rand_out),
+        nonce: U256::from_big_endian(&nonce_out),
+        sig: Bytes(sig_out.to_vec())
+    })
 }
 
 #[cfg(test)]
@@ -89,7 +56,7 @@ pub mod tests {
     use ethabi::Uint;
     use rustc_hex::ToHex;
     use sgx_urts::SgxEnclave;
-    use web3::types::{Block, Bytes, TransactionReceipt};
+    use web3::types::{Bytes, Address};
 
     use enigma_tools_u::common_u::Keccak256;
     use enigma_tools_u::web3_utils::keeper_types_u::{BlockHeader, BlockHeaders, decode, Receipt, ReceiptHashes};
@@ -116,64 +83,23 @@ pub mod tests {
         enclave
     }
 
-    pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t, receipt_ser: &str, block_ser: &str) -> ([u8; 65]) {
-        let receipt_raw = serde_json::from_str::<TransactionReceipt>(EXAMPLE_RECEIPT).unwrap();
-        let block = serde_json::from_str::<Block<H256>>(EXAMPLE_BLOCK).unwrap();
-        let receipt = ReceiptWrapper(receipt_raw);
-        let receipt_hashes = ReceiptHashesWrapper::from_receipts(&vec![receipt.clone()]);
-        let block_header = BlockHeaderWrapper(block.clone());
-        let headers = BlockHeadersWrapper(vec![block_header]);
-        set_worker_params(eid, receipt, receipt_hashes, headers).unwrap()
+    pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams) -> (EpochSeed) {
+        set_worker_params(eid, worker_params).unwrap()
     }
 
-    #[test]
-    fn test_generate_epoch_seed() {
-        let enclave = init_enclave();
-        let epoch = generate_epoch_seed(enclave.geteid()).unwrap();
-        println!("Got epoch seed params: {:?}", epoch);
-        assert_eq!(epoch.nonce, Uint::from(0));
-        enclave.destroy();
-    }
 
     #[test]
     fn test_set_worker_params() {
         let enclave = init_enclave();
-        let epoch_1 = generate_epoch_seed(enclave.geteid()).unwrap();
-        println!("Got epoch seed params: {:?}", epoch_1);
-        assert_eq!(epoch_1.nonce, Uint::from(0));
+        let worker_params = InputWorkerParams{
+            block_number: U256::from(1),
+            workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],
+            balances: vec![U256::from(1)]
+        };
+        let epoch_seed = set_mock_worker_params(enclave.geteid(), worker_params).unwrap();
+        println!("Got epoch seed params: {:?}", epoch_seed);
+        assert_eq!(epoch_seed.nonce, Uint::from(0));
 
-        let sig = set_mock_worker_params(enclave.geteid(), EXAMPLE_RECEIPT, EXAMPLE_BLOCK);
-        println!("got the data signature: {:?}", Bytes(sig.to_vec()));
-        let epoch_2 = generate_epoch_seed(enclave.geteid()).unwrap();
-        println!("Got next epoch seed params: {:?}", epoch_2);
-        assert_eq!(epoch_2.nonce, Uint::from(1));
         enclave.destroy();
-    }
-
-    #[test]
-    //noinspection RsTypeCheck
-    fn test_rlp_encode_decode_hash() {
-        let receipt = serde_json::from_str::<TransactionReceipt>(EXAMPLE_RECEIPT).unwrap();
-        let block = serde_json::from_str::<Block<H256>>(EXAMPLE_BLOCK).unwrap();
-        let block_header = BlockHeaderWrapper(block.clone());
-        let block_header_rlp = encode(&block_header);
-        let block_header_decoded: BlockHeader = decode(&block_header_rlp);
-        let block_hash = block_header_rlp.keccak256();
-        assert_eq!(format!("0x{}", block_hash.to_hex()), format!("{:?}", block.hash.unwrap()));
-
-        let receipt = ReceiptWrapper(receipt.clone());
-        let receipt_rlp = encode(&receipt);
-        let receipt_decoded: Receipt = decode(&receipt_rlp);
-        let receipt_hash = receipt_rlp.keccak256();
-        println!("The receipt hash: 0x{}", receipt_hash.to_hex());
-
-        let receipt_hashes = ReceiptHashesWrapper(vec![H256(receipt_hash)]);
-        let receipt_hashes_rlp = encode(&receipt_hashes);
-        let receipt_hashes_decoded: ReceiptHashes = decode(&receipt_hashes_rlp);
-
-        let headers = BlockHeadersWrapper(vec![block_header]);
-        let headers_rlp = encode(&headers);
-        let headers_decoded: BlockHeaders = decode(&headers_rlp);
-        println!("The decoded block headers: {:?}", headers_decoded);
     }
 }
