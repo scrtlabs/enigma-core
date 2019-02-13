@@ -69,16 +69,16 @@ use sgx_types::*;
 use std::{mem, ptr, slice, str};
 use std::{boxed::Box, string::{String, ToString}, vec::Vec};
 
-lazy_static! { pub(crate) static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
+lazy_static! { pub(crate) static ref SIGNING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, real_report: &mut sgx_report_t) -> sgx_status_t {
-    quote_t::create_report_with_data(&target_info, real_report, &SIGNINING_KEY.get_pubkey().address())
+    quote_t::create_report_with_data(&target_info, real_report, &SIGNING_KEY.get_pubkey().address())
 }
 
 #[no_mangle]
 pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) {
-    pubkey.copy_from_slice(&SIGNINING_KEY.get_pubkey().address());
+    pubkey.copy_from_slice(&SIGNING_KEY.get_pubkey().address());
 }
 
 #[no_mangle]
@@ -229,7 +229,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
     let callback_data: Vec<u8>;
     if !callback_slice.is_empty() {
         callback_data = create_callback(&mut res.1, callback_slice)?;
-        *signature = SIGNINING_KEY.sign_multiple(&[&callable_args[..], &callback_data, &bytecode])?;
+        *signature = SIGNING_KEY.sign_multiple(&[&callable_args[..], &callback_data, &bytecode])?;
     } else {
         println!("Callback cannot be empty");
         return Err(EnclaveError::InputError { message: "Callback cannot be empty".to_string() });
@@ -294,7 +294,7 @@ fn sign_if_error (pre_execution_data: &Vec<Box<[u8]>>, internal_result: &mut Res
         let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
         pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
         to_sign.extend_from_slice(&[&used_gas[..], &failure]);
-        let signature = SIGNINING_KEY.sign_multiple(&to_sign);
+        let signature = SIGNING_KEY.sign_multiple(&to_sign);
         match signature {
             Ok(v) => {
                 result.signature = v;
@@ -348,7 +348,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
         &ethereum_payload[..],
         &ethereum_address[..],
         &[ResultStatus::Success.into()]];
-    result.signature = SIGNINING_KEY.sign_multiple(&to_sign)?;
+    result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
     Ok(())
 }
 
@@ -432,7 +432,7 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
         &ethereum_address[..],
         &[ResultStatus::Success.into()]
     ];
-    result.signature = SIGNINING_KEY.sign_multiple(&to_sign)?;
+    result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
     Ok(())
 }
 
@@ -545,7 +545,7 @@ pub mod tests {
 //        to_be_signed.extend_from_slice(&callable_args_hex);
 //        to_be_signed.extend_from_slice(&real_output_hex);
 //        to_be_signed.extend_from_slice(&bytecode_hex);
-//        let sig = SIGNINING_KEY.sign(&to_be_signed.as_slice()).unwrap();
+//        let sig = SIGNING_KEY.sign(&to_be_signed.as_slice()).unwrap();
 //
 //        // Recover address.
 //        let msg = secp256k1::Message::parse(&to_be_signed.keccak256());
@@ -556,7 +556,7 @@ pub mod tests {
 //        let recovered_pubkey = secp256k1::recover(&msg, &sig_obj, &rec_id).unwrap();
 //        let mut recovered = [0u8; 64];
 //        recovered.copy_from_slice(&recovered_pubkey.serialize()[1..65]);
-//        assert_eq!(recovered.address(), SIGNINING_KEY.get_pubkey().address())
+//        assert_eq!(recovered.address(), SIGNING_KEY.get_pubkey().address())
 ////    }
 
 
