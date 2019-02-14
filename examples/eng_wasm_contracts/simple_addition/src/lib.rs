@@ -38,6 +38,7 @@ pub struct Contract;
 impl ContractInterface for Contract {
     #[no_mangle]
     fn addition(x: U256, y: U256) -> U256 {
+        write_state!("code"=> (x+y).as_u32());
         x + y
     }
 }
