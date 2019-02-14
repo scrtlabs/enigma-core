@@ -44,15 +44,14 @@ pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
 }
 
 // creates a non trivial reproducible stateKey from the contract address
-pub fn get_fake_state_key(addr: &[u8]) -> [u8; 32] {
-    let first_hashing: &[u8] = &*(addr.keccak256());
-    *first_hashing.sha256()
+pub fn get_fake_state_key(contract_address: ContractAddress) -> [u8; 32] {
+    contract_address.keccak256().sha256().into()
 }
 
 pub fn make_encrypted_response(req: &Value) -> Value {
     // Making the response
     let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
-    let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|addr| (addr, get_fake_state_key(&*addr))).collect();
+    let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|addr| (addr, get_fake_state_key(addr))).collect();
 
     let mut response_data = Vec::new();
     _response_data.serialize(&mut Serializer::new(&mut response_data)).unwrap();

@@ -241,11 +241,11 @@ pub mod tests {
 
         for (i, (mut state, deltas)) in unencrypted_data().into_iter().enumerate() {
             println!("i: {}", i);
-            let state = symmetric::encrypt(&state, &get_fake_state_key(&*address[i])).unwrap();
+            let state = symmetric::encrypt(&state, &get_fake_state_key(address[i])).unwrap();
 
             stuff.push((DeltaKey { contract_address: address[i], key_type: State}, state));
             for (j, mut delta) in deltas.into_iter().enumerate() {
-                let delta = symmetric::encrypt(&delta, &get_fake_state_key(&*address[i])).unwrap();
+                let delta = symmetric::encrypt(&delta, &get_fake_state_key(address[i])).unwrap();
                 stuff.push((DeltaKey { contract_address: address[i], key_type: Delta(j as u32)}, delta));
             }
         }

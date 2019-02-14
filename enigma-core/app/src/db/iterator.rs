@@ -39,15 +39,15 @@ pub trait P2PCalls<V> {
     /// returns the latest delta for the required address.
     /// # Examples
     /// ```
-    /// extern crate tempfile;
-    /// extern crate enigma_core_app;
-    /// extern crate enigma_types;
-    /// use enigma_core_app::db::{dal::DB, primitives::{DeltaKey, Stype}, iterator::P2PCalls};
-    /// use enigma_types::ContractAddress;
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # extern crate enigma_types;
+    /// # use enigma_core_app::db::{dal::DB, primitives::{DeltaKey, Stype}, iterator::P2PCalls};
+    /// # use enigma_types::ContractAddress;
     ///
-    /// let tempdir = tempfile::tempdir().unwrap();
-    /// let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// let contract_address: ContractAddress = [2u8; 32].into();
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let contract_address: ContractAddress = [2u8; 32].into();
     /// let dk1 = DeltaKey {contract_address, key_type: Stype::Delta(1)};
     /// let val1 = b"Enigma".to_vec();
     /// let dk2 = DeltaKey {contract_address, key_type: Stype::Delta(2)};
@@ -79,7 +79,7 @@ pub trait P2PCalls<V> {
     /// # let key_vals = vec![(dk1, val1.clone()), (dk2, val2.clone())];
     /// # let _ = db.insert_tuples(&key_vals);
     ///
-    /// let other_contract_address: ContractAddress = [4u8; 32].into();
+    /// # let other_contract_address: ContractAddress = [4u8; 32].into();
     /// let other_dk = DeltaKey {contract_address: other_contract_address, key_type: Stype::Delta(1)};
     /// let other_val = b"delta1".to_vec();
     /// let _ = db.insert_tuples(&vec![(other_dk, other_val.clone())]);
@@ -245,7 +245,7 @@ pub trait P2PCalls<V> {
     /// # let dk2 = DeltaKey {contract_address, key_type: Stype::Delta(2)};
     /// # let val2 = b"MPC".to_vec();
     /// # let key_vals = vec![(dk1, val1.clone()), (dk2, val2.clone())];
-    /// # let results = db.insert_tuples(&key_vals);
+    /// let results = db.insert_tuples(&key_vals);
     /// for res in results {
     ///     res.unwrap();
     /// }

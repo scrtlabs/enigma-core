@@ -26,12 +26,13 @@ impl DB {
     /// This Supports all the CRUD operations
     /// # Examples
     /// ```
-    /// extern crate tempfile;
-    /// extern crate enigma_core_app;
-    /// use enigma_core_app::db::dal::DB;
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::DB;
     ///
-    /// let tempdir = tempfile::tempdir().unwrap();
-    /// let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let path = tempdir.path();
+    /// let mut db = DB::new(path, true).unwrap();
     /// ```
     pub fn new<P: AsRef<Path>>(location: P, create_if_missing: bool) -> Result<DB, Error> {
         // number of bytes to take into consideration when looking for a similar prefix
@@ -64,11 +65,11 @@ pub trait CRUDInterface<E, K, T, V> {
     /// # extern crate tempfile;
     /// # extern crate enigma_core_app;
     /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
-    /// use enigma_core_app::db::primitives::Array32u8;
+    /// # use enigma_core_app::db::primitives::Array32u8;
     ///
     /// # let tempdir = tempfile::tempdir().unwrap();
     /// # let mut db = DB::new(tempdir.path(), true).unwrap();
-    /// let key = Array32u8([7u8; 32]);
+    /// # let key = Array32u8([7u8; 32]);
     /// let val = b"Enigma";
     /// db.create(&key, &val[..]).unwrap();
     ///  ```

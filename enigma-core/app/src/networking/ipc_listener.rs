@@ -117,7 +117,7 @@ pub(self) mod handling {
     #[logfn(INFO)]
     pub fn get_tips(db: &DB, input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
-        let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data.clone()).unwrap()).collect();
+        let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data).unwrap()).collect();
         let tips = db.get_tips::<DeltaKey>(&addresses)?;
         for (key, data) in tips {
             let delta = IpcDelta::from_delta_key(key, &data)?;

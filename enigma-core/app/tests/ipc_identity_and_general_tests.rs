@@ -7,7 +7,6 @@ extern crate ethabi;
 use integration_utils::{get_simple_msg_format, conn_and_call_ipc, is_hex, run_core, erc20_deployment_without_ptt_to_addr,
                         run_ptt_round, contract_compute, full_simple_deployment, full_erc20_deployment};
 use cross_test_utils::generate_contract_address;
-use self::app::serde_json;
 use rustc_hex::ToHex;
 use ethabi::Token;
 use app::serde_json::*;
@@ -21,15 +20,15 @@ fn test_registration_params() {
     let msg = get_simple_msg_format(type_req);
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
 
-    let result_key: String = serde_json::from_value(v["result"]["signingKey"].clone()).unwrap();
-    let result_rep: String = serde_json::from_value(v["result"]["report"].clone()).unwrap();
-    let result_sig: String = serde_json::from_value(v["result"]["signature"].clone()).unwrap();
+    let result_key = v["result"]["signingKey"].as_str().unwrap();
+    let result_rep= v["result"]["report"].as_str().unwrap();
+    let result_sig = v["result"]["signature"].as_str().unwrap();
     let type_res = v["type"].as_str().unwrap();
 
     assert_eq!(type_res, type_req);
-    assert!(is_hex(&result_key));
-    assert!(is_hex(&result_rep));
-    assert!(is_hex(&result_sig));
+    assert!(is_hex(result_key));
+    assert!(is_hex(result_rep));
+    assert!(is_hex(result_sig));
 }
 
 #[test]
