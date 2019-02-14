@@ -8,7 +8,7 @@ use web3::futures::stream::Stream;
 use web3::types::FilterBuilder;
 
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
-use enigma_tools_u::web3_utils::keeper_types_u::EventWrapper;
+use enigma_tools_u::web3_utils::provider_types::EventWrapper;
 
 pub struct EpochProvider {
     contract: Arc<EnigmaContract>,
@@ -58,10 +58,6 @@ impl EpochProvider {
 #[cfg(test)]
 mod test {
     use std::env;
-    use enigma_tools_u::web3_utils::keeper_types_u::{decode, Log, Receipt};
-    use enigma_tools_u::web3_utils::provider_types::{encode, LogWrapper, ReceiptWrapper};
-    use enigma_tools_u::web3_utils::w3utils;
-
     use super::*;
 
     /// This function is important to enable testing both on the CI server and local.

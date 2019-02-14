@@ -57,10 +57,6 @@ pub mod tests {
     use rustc_hex::ToHex;
     use sgx_urts::SgxEnclave;
     use web3::types::{Bytes, Address};
-
-    use enigma_tools_u::common_u::Keccak256;
-    use enigma_tools_u::web3_utils::keeper_types_u::{BlockHeader, BlockHeaders, decode, Receipt, ReceiptHashes};
-    use enigma_tools_u::web3_utils::provider_types::BlockHeaderWrapper;
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
@@ -96,7 +92,7 @@ pub mod tests {
             workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],
             balances: vec![U256::from(1)]
         };
-        let epoch_seed = set_mock_worker_params(enclave.geteid(), worker_params).unwrap();
+        let epoch_seed = set_mock_worker_params(enclave.geteid(), worker_params);
         println!("Got epoch seed params: {:?}", epoch_seed);
         assert_eq!(epoch_seed.nonce, Uint::from(0));
 

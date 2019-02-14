@@ -1,5 +1,5 @@
 use bigint;
-pub use rlp::{Encodable, encode, RlpStream};
+pub use rlp::{Encodable, encode, decode, RlpStream};
 use web3::types::{Block, Bytes, H160, H2048, H256, H64, Log, TransactionReceipt, U256, Address};
 use enigma_crypto::hash::Keccak256;
 use ethabi::{Event, EventParam, ParamType};
