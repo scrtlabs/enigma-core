@@ -79,7 +79,7 @@ pub trait Sampler {
 
     fn get_quote(&self) -> Result<String, Error>;
 
-    fn get_report(&self, quote: &str) -> Result<(Vec<u8>, service::ASResponse), Error>;
+    fn get_report(&self, quote: &str) -> Result<(Vec<u8>, String, service::ASResponse), Error>;
 
     fn get_signing_address(&self) -> Result<String, Error>;
 
@@ -106,9 +106,10 @@ impl Sampler for PrincipalManager {
 
     fn get_quote(&self) -> Result<String, Error> { Ok(retry_quote(self.eid, &self.config.spid, 18)?) }
 
-    fn get_report(&self, quote: &str) -> Result<(Vec<u8>, service::ASResponse), Error> {
+    fn get_report(&self, quote: &str) -> Result<(Vec<u8>, String, service::ASResponse), Error> {
         let (rlp_encoded, as_response) = self.as_service.rlp_encode_registration_params(quote)?;
-        Ok((rlp_encoded, as_response))
+        let signature = as_response.result.signature.clone();
+        Ok((rlp_encoded, signature, as_response))
     }
 
     fn get_signing_address(&self) -> Result<String, Error> {
@@ -126,7 +127,7 @@ impl Sampler for PrincipalManager {
         // get quote
         let quote = self.get_quote()?;
         // get report
-        let (rlp_encoded, _) = self.get_report(&quote)?;
+        let (rlp_encoded, signature, _) = self.get_report(&quote)?;
         // get enigma contract
         let enigma_contract = &self.contract;
 //        let enigma_contract = &self.contract;
@@ -135,7 +136,7 @@ impl Sampler for PrincipalManager {
         //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
         let signer = self.get_signing_address()?;
         println!("Registering Principal node with signing address = {}", signer);
-        let tx = enigma_contract.register(&signer, &rlp_encoded, gas_limit)?;
+        let tx = enigma_contract.register(&signer, &rlp_encoded, &signature, gas_limit)?;
         println!("Registered worker with tx: {:?}", tx);
 
         // Start the WorkerParameterized Web3 log filter

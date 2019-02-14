@@ -7,8 +7,9 @@ use std::sync::Arc;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
 use web3::transports::{EventLoopHandle, Http};
-use web3::types::{Address, H160, U256, H256};
+use web3::types::{Address, H160, U256, H256, Bytes};
 use web3::Web3;
+use std::str;
 
 // This should be used as the main Web3/EventLoop
 // Creating another one means more threads and more thing to handle.
@@ -75,7 +76,7 @@ impl EnigmaContract {
 pub trait ContractFuncs<G> {
     // register
     // input: _signer: Address, _report: bytes
-    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<H256, Error>;
+    fn register(&self, signer: &str, report: &[u8], signature: &str, gas: G) -> Result<H256, Error>;
 
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
@@ -83,14 +84,15 @@ pub trait ContractFuncs<G> {
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
-    #[logfn(INFO)]
-    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<H256, Error> {
+    fn register(&self, signer: &str, report: &[u8], signature: &str, gas: G) -> Result<H256, Error> {
         // register
         let signer_addr: Address = signer.parse()?;
         let mut opts = Options::default();
         opts.gas = Some(gas.into());
         // call the register function
-        match self.w3_contract.call("register", (signer_addr, report.to_vec()), self.account, opts).wait() {
+        let sig = signature.as_bytes().to_vec();
+//        println!("Calling the registed fn: {:?}: {:?} {:?}", signer_addr, report.to_vec(), sig);
+        match self.w3_contract.call("register", (signer_addr, report.to_vec(), sig), self.account, opts).wait() {
             Ok(tx) => Ok(tx),
             Err(e) => {
                 Err(errors::Web3Error { message: format!("Unable to call register: {:?}", e) }.into())
@@ -107,7 +109,7 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
             .call("setWorkersParams", (seed, _sig.to_vec()), self.account, opts)
             .wait() {
             Ok(tx) => Ok(tx),
-            Err(e) => Err(errors::Web3Error{ message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
+            Err(e) => Err(errors::Web3Error { message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
         }
     }
 }

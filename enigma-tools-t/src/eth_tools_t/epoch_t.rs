@@ -1,6 +1,6 @@
 use ethabi::{Address, Hash};
 use std::vec::Vec;
-use eth_tools_t::keeper_types_t::{InputWorkerParams};
+use eth_tools_t::keeper_types_t::InputWorkerParams;
 use ethereum_types::{H160, U256, H256, U64};
 use common::errors_t::EnclaveError;
 use bigint;
@@ -14,6 +14,8 @@ pub trait IntoBigint<T> {
 impl IntoBigint<bigint::U256> for U256 { fn bigint(self) -> bigint::U256 { bigint::U256(self.0) } }
 
 impl IntoBigint<bigint::H256> for H256 { fn bigint(self) -> bigint::H256 { bigint::H256(self.0) } }
+
+pub type EpochNonce = [u8; 32];
 
 #[derive(Debug, Clone)]
 struct WorkerSelectionToken {
@@ -42,7 +44,7 @@ pub struct Epoch {
 
 impl Epoch {
     pub fn new(params: InputWorkerParams, nonce: U256, seed: U256) -> Result<Epoch, EnclaveError> {
-        Ok(Epoch{
+        Ok(Epoch {
             block_number: params.block_number,
             workers: params.workers,
             balances: params.balances,
