@@ -21,6 +21,12 @@ pub enum CryptoError {
     #[fail(display = "Signing the message failed: {}", msg)]
     SigningError { msg: String },
 
+    #[fail(display = "Parsing the signature failed: {}", msg)]
+    ParsingError { msg: String },
+
+    #[fail(display = "Recovering the pubkey failed: {}", msg)]
+    RecoveryError { msg: String },
+
     #[fail(display = "Failed Generating a: {}", err)]
     RandomError { err: String },
 

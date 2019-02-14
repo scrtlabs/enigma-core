@@ -1,5 +1,5 @@
 use crate::error::CryptoError;
-use secp256k1::{self, PublicKey, SecretKey, SharedSecret};
+use secp256k1::{self, PublicKey, SecretKey, SharedSecret, RecoveryId, Signature};
 use crate::localstd::string::ToString;
 use crate::localstd::format;
 use crate::{rand, hash::{self, Keccak256}};
@@ -58,8 +58,12 @@ impl KeyPair {
     ///     `https://tools.ietf.org/html/rfc5480#section-2.2`
     ///     `https://docs.rs/libsecp256k1/0.1.13/src/secp256k1/lib.rs.html#146`
     pub fn get_pubkey(&self) -> [u8; 64] {
+        KeyPair::pubkey_object_to_pubkey(&self.pubkey)
+    }
+
+    fn pubkey_object_to_pubkey(key: &PublicKey) -> [u8; 64] {
         let mut sliced_pubkey: [u8; 64] = [0; 64];
-        sliced_pubkey.clone_from_slice(&self.pubkey.serialize()[1..65]);
+        sliced_pubkey.clone_from_slice(&key.serialize()[1..65]);
         sliced_pubkey
     }
 
@@ -91,6 +95,28 @@ impl KeyPair {
         Ok(returnvalue)
     }
 
+    /// Recover the pubkey using the message and it's signature.
+    /// # Examples
+    /// Simple Message recovering:
+    /// ```
+    /// use enigma_crypto::KeyPair;
+    /// let keys = KeyPair::new().unwrap();
+    /// let msg = b"Sign this";
+    /// let sig = keys.sign(msg).unwrap();
+    /// let recovered_pubkey = keys.recover(msg, sig).unwrap();
+    /// ```
+    pub fn recover(&self, message: &[u8], sig: [u8;65]) -> Result<[u8; 64], CryptoError> {
+        let recovery = RecoveryId::parse(sig[64] -27)
+            .map_err(|_| CryptoError::ParsingError { msg: message.to_hex() })?;
+        let signature = Signature::parse_slice(&sig[..64])
+            .map_err(|_| CryptoError::ParsingError { msg: message.to_hex() })?;
+        let hashed_msg = message.keccak256();
+        let signed_message = secp256k1::Message::parse(&hashed_msg);
+        let recovered_pub = secp256k1::recover(&signed_message, &signature, &recovery)
+            .map_err(|_| CryptoError::RecoveryError { msg: message.to_hex() })?;
+        Ok(KeyPair::pubkey_object_to_pubkey(&recovered_pub))
+    }
+
     /// The same as sign() but for multiple arguments.
     /// What this does is appends the length of the messages before each message and make one big slice from all of them.
     /// e.g.: `S(H(len(a)+a, len(b)+b...))`
@@ -109,10 +135,11 @@ impl KeyPair {
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::KeyPair;
 
-    pub fn test_signing() {
+    #[test]
+    fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
         let k1 = KeyPair::from_slice(&_priv).unwrap();
         let msg = b"EnigmaMPC";
@@ -123,7 +150,18 @@ pub mod tests {
         );
     }
 
-    pub fn test_ecdh() {
+    #[test]
+    fn test_recover() {
+        let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
+        let k1 = KeyPair::new().unwrap();
+        let msg = b"EnigmaMPC";
+        let sig = k1.sign(msg).unwrap();
+        let recover_pub = k1.recover(msg, sig).unwrap();
+        assert_eq!(&k1.get_pubkey()[..], &recover_pub[..]);
+    }
+
+    #[test]
+    fn test_ecdh() {
         let _priv1: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
         let _priv2: [u8; 32] = [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162];
         let k1 = KeyPair::from_slice(&_priv1).unwrap();
