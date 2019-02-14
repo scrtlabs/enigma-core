@@ -45,6 +45,7 @@ impl TryFrom<(ExecuteResult, ContractAddress)> for WasmResult {
 
         let mut result: WasmResult = Default::default();
         result.signature = exec.0.signature;
+        result.used_gas = exec.0.used_gas;
 
         // If there is no call to any ethereum contract in the execution, then
         // `eth_contract_addr` is all zeros

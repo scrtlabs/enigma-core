@@ -57,7 +57,7 @@ mod test {
         println!("{}", tested_encoded_quote);
         println!("-------------------------");
         enclave.destroy();
-        assert!(tested_encoded_quote.len() > 0);
+        assert!(!tested_encoded_quote.is_empty());
         //assert_eq!(real_encoded_quote, tested_encoded_quote);
     }
 

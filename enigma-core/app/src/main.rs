@@ -1,56 +1,14 @@
-#![feature(tool_lints)]
-#![warn(clippy::all)]
-#![feature(try_from)]
-
-extern crate base64;
-extern crate dirs;
-extern crate reqwest;
-extern crate rocksdb;
-extern crate sgx_types;
-extern crate sgx_urts;
-#[macro_use]
-extern crate lazy_static;
-extern crate futures;
-extern crate rmp_serde;
-#[cfg_attr(test, macro_use)]
-extern crate serde_json;
-extern crate tokio;
-extern crate tokio_zmq;
-extern crate zmq;
-#[macro_use]
-extern crate failure;
-extern crate enigma_tools_u;
-extern crate enigma_crypto;
-extern crate enigma_types;
-extern crate rustc_hex as hex;
-#[macro_use]
-extern crate serde_derive;
-extern crate byteorder;
-extern crate lru_cache;
-extern crate serde;
+extern crate enigma_core_app;
 #[macro_use]
 extern crate log;
-#[macro_use]
-extern crate log_derive;
-extern crate structopt;
-extern crate simplelog;
+pub extern crate log_derive;
 
-mod common_u;
-mod db;
-mod esgx;
-mod evm_u;
-mod km_u;
-mod networking;
-mod wasm_u;
-mod cli;
-mod logging;
-
-pub use crate::esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
+pub use enigma_core_app::*;
+pub use esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
                                 ocall_new_delta, ocall_save_to_memory, ocall_update_state};
-
-use crate::networking::{ipc_listener, IpcListener};
-use crate::db::DB;
-use crate::cli::Opt;
+use networking::{ipc_listener, IpcListener};
+use db::DB;
+use cli::Opt;
 use structopt::StructOpt;
 use futures::Future;
 use simplelog::CombinedLogger;
@@ -78,17 +36,26 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use crate::esgx::general::init_enclave_wrapper;
-    use sgx_types::*;
-    use crate::db::tests::create_test_db;
-    use enigma_types::RawPointer;
-    use simplelog::TermLogger;
-    use log::LevelFilter;
+    extern crate enigma_types;
+    extern crate tempfile;
+    use enigma_core_app::esgx::general::init_enclave_wrapper;
+    use enigma_core_app::sgx_types::*;
+    use enigma_core_app::db::DB;
+    use self::enigma_types::RawPointer;
+    use enigma_core_app::simplelog::TermLogger;
+    use enigma_core_app::log::LevelFilter;
+    use self::tempfile::TempDir;
 
     extern "C" {
         fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer) -> sgx_status_t;
     }
 
+    /// It's important to save TempDir too, because when it gets dropped the directory will be removed.
+    fn create_test_db() -> (DB, TempDir) {
+        let tempdir = tempfile::tempdir().unwrap();
+        let db = DB::new(tempdir.path(), true).unwrap();
+        (db, tempdir)
+    }
 
     pub fn log_to_stdout(level: Option<LevelFilter>) {
         let level = level.unwrap_or_else(|| LevelFilter::max());

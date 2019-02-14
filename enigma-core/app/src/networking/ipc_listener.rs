@@ -31,11 +31,10 @@ impl IpcListener {
 pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_enclave_id_t) -> Multipart {
     let mut responses = Multipart::new();
     for msg in request {
-        let msg: IpcMessage = msg.into();
+        let msg: IpcMessageRequest = msg.into();
         let id = msg.id.clone();
-        let response_msg = match msg.unwrap_request() {
+        let response_msg = match msg.request {
             IpcRequest::GetRegistrationParams => handling::get_registration_params(eid, spid),
-            IpcRequest::IdentityChallenge { nonce } => handling::identity_challange(&nonce),
             IpcRequest::GetTip { input } => handling::get_tip(db, &input),
             IpcRequest::GetTips { input } => handling::get_tips(db, &input),
             IpcRequest::GetAllTips => handling::get_all_tips(db),
@@ -51,7 +50,7 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::GetPTTRequest { input } => handling::get_ptt_req(&input, eid),
             IpcRequest::PTTResponse { response } => handling::ptt_response(db, &response, eid),
         };
-        let msg = IpcMessage::from_response(response_msg.unwrap_or_error(), id);
+        let msg = IpcMessageResponse::from_response(response_msg.unwrap_or_error(), id);
         responses.push_back(msg.into());
     }
     responses
@@ -104,10 +103,6 @@ pub(self) mod handling {
 
         Ok(IpcResponse::GetRegistrationParams { result })
     }
-    /// Not implemented.
-    pub fn identity_challange(nonce: &str) -> ResponseResult {
-        unimplemented!("identity_challenge: {}", nonce)
-    }
 
     #[logfn(INFO)]
     pub fn get_tip(db: &DB, input: &str) -> ResponseResult {
@@ -122,10 +117,10 @@ pub(self) mod handling {
     #[logfn(INFO)]
     pub fn get_tips(db: &DB, input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
-        for data in input {
-            let address = ContractAddress::from_hex(&data)?;
-            let (tip_key, tip_data) = db.get_tip::<DeltaKey>(&address)?;
-            let delta = IpcDelta::from_delta_key(tip_key, &tip_data)?;
+        let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data).unwrap()).collect();
+        let tips = db.get_tips::<DeltaKey>(&addresses)?;
+        for (key, data) in tips {
+            let delta = IpcDelta::from_delta_key(key, &data)?;
             tips_results.push(delta);
         }
         Ok(IpcResponse::GetTips { result: IpcResults::Tips(tips_results) })
