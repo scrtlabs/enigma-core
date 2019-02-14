@@ -82,14 +82,14 @@ impl std::fmt::Display for WasmError {
 }
 
 impl From<wasmi::Trap> for WasmError {
-    fn from(trap: wasmi::Trap) -> Self { WasmError::Other }
+    fn from(_trap: wasmi::Trap) -> Self { WasmError::Other }
 }
 
 impl From<WasmError> for EnclaveError {
-    fn from(e: WasmError) -> Self { EnclaveError::ExecutionError { code: "".to_string(), err: "from E to Enclave".to_string() } }
+    fn from(_e: WasmError) -> Self { EnclaveError::ExecutionError { code: "".to_string(), err: "from E to Enclave".to_string() } }
 }
 impl From<str::Utf8Error> for WasmError {
-    fn from(err: str::Utf8Error) -> Self { WasmError::Other }
+    fn from(_err: str::Utf8Error) -> Self { WasmError::Other }
 }
 
 impl Runtime {

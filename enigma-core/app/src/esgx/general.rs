@@ -58,7 +58,7 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
         }
     };
     // Create the home/dir/.enigma folder for storage (Sealed, token , etc )
-    let token_file: path::PathBuf = storage_path.join(ENCLAVE_TOKEN);;
+    let token_file: path::PathBuf = storage_path.join(ENCLAVE_TOKEN);
 
     let (enclave, launch_token) = enigma_tools_u::esgx::init_enclave(&token_file, use_token, &ENCLAVE_FILE)?;
     // Step 3: save the launch token if it is updated

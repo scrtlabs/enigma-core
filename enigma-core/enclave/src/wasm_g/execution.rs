@@ -108,6 +108,7 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
         }
         Err(e) => {
             println!("Error in invocation of the external function: {}", e);
+            // TODO: @moria This is not always deployment.
             Err(EnclaveError::ExecutionError { code: "deployment code".to_string(), err: e.to_string() })
         }
     }

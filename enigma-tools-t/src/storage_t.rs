@@ -141,7 +141,6 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
     let mut output: [u8; SEAL_LOG_SIZE] = [0; SEAL_LOG_SIZE];
     data.seal_key(&mut output);
     save_sealed_key(&sealed_path, &output);
-    println!("Generated a new key");
 
     Ok(keypair)
 }
