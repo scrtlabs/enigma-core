@@ -10,7 +10,7 @@ pub mod ids {
     pub const RET_FUNC: usize = 1;
     pub const WRITE_STATE_FUNC: usize = 2;
     pub const READ_STATE_FUNC: usize = 3;
-    pub const FROM_MEM_FUNC: usize = 4;
+    pub const READ_STATE_LEN_FUNC: usize = 4;
     pub const EPRINT_FUNC: usize = 5;
     pub const NAME_LENGTH_FUNC: usize = 6;
     pub const NAME_FUNC: usize = 7;
@@ -33,9 +33,9 @@ pub mod signatures {
 
     pub const WRITE_STATE: StaticSignature = StaticSignature(&[I32, I32, I32, I32], None);
 
-    pub const READ_STATE: StaticSignature = StaticSignature(&[I32, I32], Some(I32));
+    pub const READ_STATE_LEN: StaticSignature = StaticSignature(&[I32, I32], Some(I32));
 
-    pub const FROM_MEM: StaticSignature = StaticSignature(&[I32, I32], None);
+    pub const READ_STATE: StaticSignature = StaticSignature(&[I32, I32, I32], None);
 
     pub const EPRINT: StaticSignature = StaticSignature(&[I32, I32], None);
 
@@ -103,8 +103,8 @@ impl ModuleImportResolver for ImportResolver {
         let func_ref = match field_name {
             "ret" => FuncInstance::alloc_host(signatures::RET.into(), ids::RET_FUNC),
             "write_state" => FuncInstance::alloc_host(signatures::WRITE_STATE.into(), ids::WRITE_STATE_FUNC),
+            "read_state_len" => FuncInstance::alloc_host(signatures::READ_STATE_LEN.into(), ids::READ_STATE_LEN_FUNC),
             "read_state" => FuncInstance::alloc_host(signatures::READ_STATE.into(), ids::READ_STATE_FUNC),
-            "from_memory" => FuncInstance::alloc_host(signatures::FROM_MEM.into(), ids::FROM_MEM_FUNC),
             "eprint" => FuncInstance::alloc_host(signatures::EPRINT.into(), ids::EPRINT_FUNC),
             "fetch_function_name_length" => FuncInstance::alloc_host(signatures::NAME_LENGTH.into(), ids::NAME_LENGTH_FUNC),
             "fetch_function_name" => FuncInstance::alloc_host(signatures::NAME.into(), ids::NAME_FUNC),
