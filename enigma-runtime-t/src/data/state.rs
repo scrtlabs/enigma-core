@@ -27,7 +27,8 @@ pub struct EncryptedContractState<T> {
 
 impl ContractState {
     pub fn new(contract_address: ContractAddress) -> ContractState {
-        ContractState { contract_address, .. Default::default() }
+        let json = serde_json::from_str("{}").unwrap();
+        ContractState { contract_address, json,.. Default::default() }
     }
 
     pub fn is_initial(&self) -> bool{
@@ -54,6 +55,7 @@ impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
         }
         json_patch::patch(&mut self.json, &delta.patch)?;
         self.delta_hash = delta.sha256_patch()?;
+        self.delta_index = delta.index;
         Ok(())
     }
 

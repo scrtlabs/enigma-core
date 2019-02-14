@@ -19,7 +19,7 @@ extern "C" {
 
 }
 
-/// This function build the states that it received in ptt_req and ptt_res
+/// This function builds the states that it received in ptt_req and ptt_res
 /// It returns a Vec of the failed contract addresses
 #[logfn(INFO)]
 pub fn ptt_build_state(db: &mut DB, eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Error> {
@@ -32,8 +32,8 @@ pub fn ptt_build_state(db: &mut DB, eid: sgx_enclave_id_t) -> Result<Vec<Contrac
         ecall_build_state(eid,
                           &mut ret as *mut EnclaveReturn,
                           &db_ptr as *const RawPointer,
-                          &mut failed_ptr as *mut u64) }
-        ;
+                          &mut failed_ptr as *mut u64) };
+
     if ret != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: ret, status }.into());
     }
@@ -100,24 +100,26 @@ pub fn get_user_key(eid: sgx_enclave_id_t, user_pubkey: &PubKey) -> Result<(Box<
 #[cfg(test)]
 pub mod tests {
     extern crate ethabi;
+    extern crate cross_test_utils;
 
     use super::{ptt_build_state, ptt_req, ptt_res};
     use crate::db::Stype::{Delta, State};
-    use crate::db::{CRUDInterface, DeltaKey, DB, tests::create_test_db};
+    use crate::db::{CRUDInterface, DeltaKey, DB
+                    , tests::create_test_db};
     use crate::esgx::general::init_enclave_wrapper;
-    use enigma_types::{ContractAddress, DhKey, StateKey};
-    use enigma_crypto::{KeyPair, symmetric, hash::Sha256};
+    use self::cross_test_utils::*;
+    use enigma_types::{ContractAddress, DhKey};
+    use enigma_crypto::{KeyPair, symmetric};
+    use enigma_crypto::hash::Sha256;
     use rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
     use serde_json::{self, Value};
     use sgx_types::sgx_enclave_id_t;
     use self::ethabi::{Token};
-    use wasm_u::wasm::tests::generate_contract_address;
 
     const PUBKEY_DUMMY: [u8; 64] = [ 27, 132, 197, 86, 123, 18, 100, 64, 153, 93, 62, 213, 170, 186, 5, 101, 215, 30, 24, 52, 96, 72, 25, 255, 156, 23, 245, 233, 213, 221, 7, 143, 112, 190, 175, 143, 88, 139, 84, 21, 7, 254, 214, 166, 66, 197, 171, 66, 223, 223, 129, 32, 167, 246, 57, 222, 81, 34, 212, 122, 105, 168, 232, 209];
 
     pub fn exchange_keys(id: sgx_enclave_id_t) -> (KeyPair, DhKey, Box<[u8]>, [u8; 65]) {
-        let mut _priv = [0u8; 32];
         let keys = KeyPair::new().unwrap();
         let (data, sig) = super::get_user_key(id, &keys.get_pubkey()).unwrap();
         let data_borrowed = data.clone();
@@ -195,50 +197,12 @@ pub mod tests {
         let mut des = Deserializer::new(&req.0[..]);
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
-        let enc_response = make_encrypted_response(req_val);
+        let enc_response = make_encrypted_response(&req_val);
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
 
         ptt_res(eid, &serialized_enc_response).unwrap();
-    }
-
-    fn make_encrypted_response(req: Value) -> Value {
-        // Making the response
-        let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
-        let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|add| (add, *add)).collect();
-
-        let mut response_data = Vec::new();
-        _response_data.serialize(&mut Serializer::new(&mut response_data)).unwrap();
-
-        // Getting the node DH Public Key
-        let _node_pubkey: Vec<u8> = serde_json::from_value(req["pubkey"].clone()).unwrap();
-        let mut node_pubkey = [0u8; 64];
-        node_pubkey.copy_from_slice(&_node_pubkey);
-
-        // Generating a second pair of priv-pub keys for the DH
-        let keys = KeyPair::new().unwrap();
-
-        // Generating the ECDH key for AES
-        let shared_key = keys.derive_key(&node_pubkey).unwrap();
-        // Encrypting the response
-        let response_data = symmetric::encrypt(&response_data, &shared_key).unwrap();
-
-        // Building the Encrypted Response.
-        let mut enc_template: Value = serde_json::from_str(
-            "{\"data\":{\
-                    \"EncryptedResponse\":[239,255,23,228,191,26,143,198,128,188,100,241,178,217,234,168,108,235,78,65,238,186,149,171,226,107,165,133,44,177,27,14,128,38,137,97,202,160,120,230,88,226,218,127,41,16,29,135,167,0,186,110,21,164,73,226,244,202,243,227,78,75,216,216,138,135,158,26,136,143,45,118,11,248,0,66,204,94,63,193,31,148,110,58,35,104,219,233,159,244,176,244,33,8,214,223,107,103,44,243,28,237,155,104,3,243,217,122,233,16,192,163,112,164,66,250,116,194,45,111,174,65,142,179,228,132,195,118,123,34,219,135,245,83,113,8,141,6,241,156,136,70,134,206,238,227,26,106,248,215,20,130,181,231,216,193,238,87,241,150,14,45,180,22,191,100,207,148,82,89,5,158,241,173,193,140,214,109,139,18,91,200,251,121,16,119,21,243,177,104,46,254,48,41,115,56,8,37,27,155,95,51,125,244,75,154,90,47,181,110,126,174,96,90,25,34,92,89,250,240,5,200,147,228,148,158,193,54,12,249,243,47,172,27,131,158,32,167,116,200,110,29,151,13,78,23,41,199,188,127,142,109,3,130,202,179,168,111,128,246,242,23,7,247,87,151,110,102,30,226,94,135,249,244,48,250,32,177,155,28,217,175,25,89,231,167,1,54,204,124,20,196,168,239,148,200,45,213,185,37,144,138,244,194,211,141,5,171,93,146,138,154,5,4,243,9,123,237,186,233,215,42,121,152,75,208,13,156,53,86,254,123,182,21,210,230,235,237,12]\
-                },\
-                \"id\":[99,31,224,64,105,252,120,51,200,241,224,56],\
-                \"prefix\":[69,110,105,103,109,97,32,77,101,115,115,97,103,101],\
-                \"pubkey\":[127,228,135,71,145,246,191,25,182,250,194,154,40,157,166,47,6,214,203,209,7,71,48,253,171,195,26,131,255,59,181,47,202,186,164,88,190,47,24,102,237,57,130,227,253,190,12,121,200,130,221,255,42,121,136,131,170,143,132,174,21,219,245,153]\
-            }"
-        ).unwrap();
-        enc_template["data"]["EncryptedResponse"] = json!(response_data);
-        enc_template["id"] = req["id"].clone();
-        enc_template["pubkey"] = json!(&keys.get_pubkey()[..]);
-
-        enc_template
     }
 
     #[test]
@@ -253,7 +217,7 @@ pub mod tests {
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
         // Generating the response
-        let enc_response = make_encrypted_response(req_val);
+        let enc_response = make_encrypted_response(&req_val);
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
@@ -277,11 +241,11 @@ pub mod tests {
 
         for (i, (mut state, deltas)) in unencrypted_data().into_iter().enumerate() {
             println!("i: {}", i);
-            let state = symmetric::encrypt(&state, &*address[i]).unwrap();
+            let state = symmetric::encrypt(&state, &get_fake_state_key(address[i])).unwrap();
 
             stuff.push((DeltaKey { contract_address: address[i], key_type: State}, state));
             for (j, mut delta) in deltas.into_iter().enumerate() {
-                let delta = symmetric::encrypt(&delta, &*address[i]).unwrap();
+                let delta = symmetric::encrypt(&delta, &get_fake_state_key(address[i])).unwrap();
                 stuff.push((DeltaKey { contract_address: address[i], key_type: Delta(j as u32)}, delta));
             }
         }
