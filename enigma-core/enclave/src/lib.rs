@@ -295,7 +295,7 @@ fn sign_if_error (pre_execution_data: &[Box<[u8]>], internal_result: &mut Result
         pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
         to_sign.push(&used_gas);
         to_sign.push(&failure);
-        let signature = SIGNINING_KEY.sign_multiple(&to_sign);
+        let signature = SIGNING_KEY.sign_multiple(&to_sign);
         match signature {
             Ok(v) => {
                 result.signature = v;
