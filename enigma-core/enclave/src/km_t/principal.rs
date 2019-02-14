@@ -36,7 +36,7 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     let id = res.get_id();
     let msg;
     {
-        let keys = guard.get(&id).ok_or(CryptoError::KeyError { key_type: "dh keys".to_string(), err: "Missing".to_string() })?;
+        let keys = guard.get(&id).ok_or(CryptoError::MissingKeyError { key_type: "dh keys" })?;
         let aes = keys.derive_key(&res.get_pubkey())?;
         msg = PrincipalMessage::decrypt(res, &aes)?;
     }

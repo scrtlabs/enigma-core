@@ -126,7 +126,7 @@ pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, pa
 
 pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<ContractState, EnclaveError> {
     let guard = km_t::STATE_KEYS.lock_expect("State Keys");
-    let key = guard.get(&addr).ok_or(CryptoError::KeyError { key_type: "State Key".to_string(), err: "Missing".to_string() })?;
+    let key = guard.get(&addr).ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
 
     let enc_state = runtime_ocalls_t::get_state(db_ptr, addr)?;
     let state = ContractState::decrypt(enc_state, key)?;
