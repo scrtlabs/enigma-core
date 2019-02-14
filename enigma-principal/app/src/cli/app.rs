@@ -32,7 +32,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             let enigma_contract = Arc::new(EnigmaContract::deploy_contract(Path::new(&config.enigma_token_contract_path),
                                                                   Path::new(&config.enigma_contract_path),
                                                                   &principal_config.url,
-                                                                  None, // This means that account no. 0 will be used, we should use the one from the JSON or add an `--account` cli option. or
+                                                                  Some(&config.account_address), // This means that account no. 0 will be used, we should use the one from the JSON or add an `--account` cli option. or
                                                                   &sign_key)?);
 
             /* step2 : build the config of the principal node   */
@@ -47,6 +47,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
 
             println!("Enigma contract deployed: {:?}", enigma_contract.address());
             let principal: PrincipalManager = PrincipalManager::new_delegated(principal_config, enigma_contract, eid);
+            println!("Connected to the Enigma contract with account: {:?}", principal.get_account_address());
 
             /* step3 optional - run miner to simulate blocks */
             let join_handle = if opt.mine > 0 {
@@ -65,9 +66,9 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             /* step1 : build the config of the principal node   */
             // optional : set time limit for the principal node
 
-            let enigma_contract = Arc::new(EnigmaContract::from_deployed(&config.account_address,
-                                                                Path::new(&config.enigma_contract_path),
-                                                                None, // This means that account no. 0 will be used, we should use the one from the JSON or add an `--account` cli option. or
+            let enigma_contract = Arc::new(EnigmaContract::from_deployed(&principal_config.enigma_contract_address,
+                                                                Path::new(&principal_config.enigma_contract_path),
+                                                                Some(&principal_config.account_address),
                                                                 &principal_config.url)?);
 
             let ttl = if opt.time_to_live > 0 { Some(opt.time_to_live) } else { None };
@@ -76,6 +77,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             principal_config.max_epochs = ttl;
 
             let principal: PrincipalManager = PrincipalManager::new_delegated(principal_config, enigma_contract, eid);
+            println!("Connected to the Enigma contract with account: {:?}", principal.get_account_address());
 
             /* step2 optional - run miner to simulate blocks */
             let join_handle = if opt.mine > 0 {
