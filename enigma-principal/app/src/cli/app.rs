@@ -31,7 +31,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             // deploy all contracts. (Enigma & EnigmaToken)
             let enigma_contract = Arc::new(EnigmaContract::deploy_contract(Path::new(&config.enigma_token_contract_path),
                                                                   Path::new(&config.enigma_contract_path),
-                                                                  &config.url,
+                                                                  &principal_config.url,
                                                                   None, // This means that account no. 0 will be used, we should use the one from the JSON or add an `--account` cli option. or
                                                                   &sign_key)?);
 
@@ -68,7 +68,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             let enigma_contract = Arc::new(EnigmaContract::from_deployed(&config.account_address,
                                                                 Path::new(&config.enigma_contract_path),
                                                                 None, // This means that account no. 0 will be used, we should use the one from the JSON or add an `--account` cli option. or
-                                                                &config.url)?);
+                                                                &principal_config.url)?);
 
             let ttl = if opt.time_to_live > 0 { Some(opt.time_to_live) } else { None };
 
