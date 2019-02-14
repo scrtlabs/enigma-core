@@ -101,7 +101,7 @@ impl PrincipalHttpServer {
 
         let server = ServerBuilder::new(io)
             .cors(DomainsValidation::AllowOnly(vec![AccessControlAllowOrigin::Null]))
-            .start_http(&format!("127.0.0.1:{}", self.port).parse().unwrap())
+            .start_http(&format!("0.0.0.0:{}", self.port).parse().unwrap())
             .expect("Unable to start RPC server");
 
         server.wait();
