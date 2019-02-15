@@ -7,9 +7,10 @@ use std::sync::Arc;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
 use web3::transports::{EventLoopHandle, Http};
-use web3::types::{Address, H160, U256, H256, Bytes};
+use web3::types::{Address, H160, U256, H256};
 use web3::Web3;
 use std::str;
+use web3_utils::provider_types::InputWorkerParams;
 
 // This should be used as the main Web3/EventLoop
 // Creating another one means more threads and more thing to handle.
@@ -81,9 +82,14 @@ pub trait ContractFuncs<G> {
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
     fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<H256, Error>;
+
+    // getActiveWorkers
+    // input: block_number
+    fn get_active_workers(&self, block_number: U256) -> Result<InputWorkerParams, Error>;
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
+    #[logfn(INFO)]
     fn register(&self, signer: &str, report: &[u8], signature: &str, gas: G) -> Result<H256, Error> {
         // register
         let signer_addr: Address = signer.parse()?;
@@ -91,13 +97,33 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
         opts.gas = Some(gas.into());
         // call the register function
         let sig = signature.as_bytes().to_vec();
-//        println!("Calling the registed fn: {:?}: {:?} {:?}", signer_addr, report.to_vec(), sig);
+        println!("Calling the registed fn with signer: {:?}, report: {:?}, sig: {:?}", signer_addr, report.to_vec(), sig);
         match self.w3_contract.call("register", (signer_addr, report.to_vec(), sig), self.account, opts).wait() {
             Ok(tx) => Ok(tx),
             Err(e) => {
                 Err(errors::Web3Error { message: format!("Unable to call register: {:?}", e) }.into())
             }
         }
+    }
+
+    #[logfn(INFO)]
+    fn get_active_workers(&self, block_number: U256) -> Result<InputWorkerParams, Error> {
+        let worker_params = InputWorkerParams {
+            block_number: U256::from(1),
+            workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],
+            balances: vec![U256::from(1)],
+        };
+        let result = self.w3_contract.query("getActiveWorkers", (block_number), self.account, Options::default(), None);
+        let active_workers: (Vec<Address>, Vec<U256>) = result.wait().unwrap();
+        println!("The getActiveWorkers results: {:?}", active_workers);
+//        match
+//            .wait::<Result<(Vec<Address>, Vec<U256>), Error>>() {
+//            Ok(result) => {
+//               println!("The getActiveWorkers results: {:?}", result);
+//            },
+//            Err(e) => return Err(errors::Web3Error { message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
+//        };
+        Ok(worker_params)
     }
 
     #[logfn(INFO)]

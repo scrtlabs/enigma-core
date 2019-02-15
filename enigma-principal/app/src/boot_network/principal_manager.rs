@@ -186,6 +186,7 @@ mod test {
     use web3::transports::Http;
     use web3::types::{Log, H256};
     use web3::Web3;
+    use std::path::Path;
 
     /// This function is important to enable testing both on the CI server and local.
     /// On the CI Side:
@@ -201,6 +202,31 @@ mod test {
         Ok(logs)
     }
 
+    pub fn init_no_deploy(eid: u64) -> Result<PrincipalManager, Error> {
+        let config_path = "../app/tests/principal_node/config/principal_test_config.json";
+        let mut config = PrincipalManager::load_config(config_path)?;
+        let contract = Arc::new(
+            EnigmaContract::from_deployed(&config.enigma_contract_address,
+                                          Path::new(&config.enigma_contract_path),
+                                          Some(&config.account_address), &config.url)?
+        );
+        let gas_limit = 5_999_999;
+        config.max_epochs = None;
+        let principal: PrincipalManager = PrincipalManager::new_delegated(config, contract, eid);
+        println!("Connected to the Enigma contract with account: {:?}", principal.get_account_address());
+        Ok(principal)
+    }
+
+    #[test]
+    fn test_set_worker_params() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let eid = enclave.geteid();
+        let principal = init_no_deploy(eid).expect("Cannot init the PrincipalManager");
+        let gas_limit = 5999999;
+        principal.contract.get_active_workers(U256::from(1));
+        assert_eq!(true, true);
+    }
+
     /// This test is more like a system-test than a unit-test.
     /// It is only dependent on an ethereum node running under the NODE_URL evn var or the default localhost:8545
     /// First it deploys all the contracts related (EnigmaToken, Enigma) and runs miner to simulate blocks.
@@ -210,7 +236,7 @@ mod test {
     /// The testing is looking for atleast 2 emmits of the WorkersParameterized event and compares the event triggerd
     /// If the event name is different or if it takes more than 30 seconds then the test will fail.
     #[test]
-    //#[ignore]
+    #[ignore]
     fn test_full_principal_logic() {
         let enclave = init_enclave_wrapper().unwrap();
 

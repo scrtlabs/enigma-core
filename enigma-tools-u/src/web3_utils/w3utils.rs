@@ -94,7 +94,7 @@ pub fn deployed_contract(web3: &Web3<Http>, contract_addr: Address, abi: &[u8]) 
 // 2) serde_json reads the bytecode as string with '"0x..."' so 4 chars needs to be removed.
 // TODO:: solve the fact that serde doesnt ignore `"`
 pub fn truncate_bytecode(bytecode: &str) -> Result<Vec<u8>, Error> {
-    println!("Truncating bytecode: {}", bytecode);
+    // TODO: this does not work with linked libraries and probably should be handled be web3
     let b = bytecode.as_bytes();
     let sliced = &b[3..b.len() - 1];
     let result = str::from_utf8(&sliced.to_vec()).unwrap().from_hex()?;
