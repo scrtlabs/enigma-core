@@ -26,7 +26,13 @@ impl DB {
     /// This Supports all the CRUD operations
     /// # Examples
     /// ```
-    /// let db = DB::new(PathBuf::from("/test/test.db", false);
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::DB;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let path = tempdir.path();
+    /// let mut db = DB::new(path, true).unwrap();
     /// ```
     pub fn new<P: AsRef<Path>>(location: P, create_if_missing: bool) -> Result<DB, Error> {
         // number of bytes to take into consideration when looking for a similar prefix
@@ -53,42 +59,96 @@ impl DB {
 }
 
 pub trait CRUDInterface<E, K, T, V> {
-    /// Creates a new Key-Value pair
-    ///
+    /// Creates a new Key-Value pair:
     /// # Examples
     /// ```
-    /// db.create("test", "abc".as_bytes()).unwrap();
-    /// ```
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// let val = b"Enigma";
+    /// db.create(&key, &val[..]).unwrap();
+    ///  ```
     fn create(&mut self, key: K, value: V) -> Result<(), E>;
     // TODO: Decide what to do if key doesn't exist
+
     /// Reads the Value in a specific Key
     ///
     /// # Examples
     /// ```
-    /// let res = db.read("test").unwrap();
-    /// assert_eq!("abc".as_bytes, res);
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// # let val = b"Enigma";
+    /// # db.create(&key, &val[..]).unwrap();
+    /// let res = db.read(&key).unwrap();
+    /// assert_eq!(b"Enigma".to_vec(), res);
     /// ```
     fn read(&self, key: K) -> Result<T, E>;
     /// Updates an existing Key with a new value
     ///
     /// # Examples
     /// ```
-    /// db.update("test", "abc".as_bytes()).unwrap();
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// # let val = b"Enigma";
+    /// # db.create(&key, &val[..]).unwrap();
+    /// let new_val = b"protocol";
+    /// db.update(&key, &new_val[..]).unwrap();
+    /// assert_eq!(b"protocol".to_vec(), db.read(&key).unwrap());
     /// ```
     fn update(&mut self, key: K, value: V) -> Result<(), E>;
     /// Deletes an existing key
     ///
     /// # Examples
-    /// ```
-    /// db.delete("test").unwrap();
-    /// ```
+    /// ```should_panic
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// # let val = b"Enigma";
+    /// # db.create(&key, &val[..]).unwrap();
+    /// db.delete(&key).unwrap();
+    /// let no_val = db.read(&key).unwrap();
+    ///
+    ///  ```
     fn delete(&mut self, key: K) -> Result<(), E>;
     /// This is the same as update but it will create the key if it doesn't exist.
     ///
     /// # Examples
     /// ```
-    /// db.force_update("test", "abc".as_bytes()).unwrap();
-    /// ```
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// # let val = b"Enigma";
+    /// # db.create(&key, &val[..]).unwrap();
+    /// let updated_val = b"EnigmaMPC";
+    /// db.force_update(&key, &updated_val[..]).unwrap();
+    /// assert_eq!(b"EnigmaMPC".to_vec(), db.read(&key).unwrap());
     fn force_update(&mut self, key: K, value: V) -> Result<(), E>;
 }
 
@@ -213,9 +273,9 @@ mod test {
     fn test_create_update_read_delta() {
         let (mut db, _dir) = create_test_db();
 
-        let hash = [4u8; 32];
+        let contract_address = [4u8; 32].into();
         let key_type = Stype::Delta(3);
-        let dk = DeltaKey { contract_id: hash.into(), key_type };
+        let dk = DeltaKey { contract_address, key_type };
         let v = b"Enigma";
 
         db.create(&dk, &v[..]).unwrap();
@@ -277,18 +337,18 @@ mod test {
     fn test_force_update_no_key_success() {
         let (mut db, _dir) = create_test_db();
 
-        let hash = [4u8; 32];
+        let contract_address = [4u8; 32].into();
         let key_type = Stype::Delta(1);
         let val = b"Enigma";
-        db.create(&DeltaKey { contract_id: hash.into(), key_type }, &val[..]).unwrap();
-        let accepted_val = db.read(&DeltaKey { contract_id: hash.into(), key_type }).unwrap();
+        db.create(&DeltaKey { contract_address, key_type }, &val[..]).unwrap();
+        let accepted_val = db.read(&DeltaKey { contract_address, key_type }).unwrap();
         assert_eq!(accepted_val, val);
 
         // update a different delta
         let key_type = Stype::Delta(2);
         let val_update = b"enigma_rocks";
-        db.force_update(&DeltaKey { contract_id: hash.into(), key_type }, &val_update[..]).unwrap();
-        let accepted_val = db.read(&DeltaKey { contract_id: hash.into(), key_type }).unwrap();
+        db.force_update(&DeltaKey { contract_address, key_type }, &val_update[..]).unwrap();
+        let accepted_val = db.read(&DeltaKey { contract_address, key_type }).unwrap();
         assert_eq!(accepted_val, val_update);
     }
 

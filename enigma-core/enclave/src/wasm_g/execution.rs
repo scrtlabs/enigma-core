@@ -108,6 +108,7 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
         }
         Err(e) => {
             println!("Error in invocation of the external function: {}", e);
+            // TODO: @moria This is not always deployment.
             Err(EnclaveError::ExecutionError { code: "deployment code".to_string(), err: e.to_string() })
         }
     }
@@ -155,11 +156,11 @@ pub mod tests {
         ) {
             Ok(v) => {
                 let mut after = super::ContractState {
-                    contract_id: b"Enigma".sha256(),
+                    contract_address: b"Enigma".sha256(),
                     json: json!({ "code" : 157 }),
                     .. Default::default()
                 };
-                let delta = super::ContractState::generate_delta(&initial_state, &mut after).unwrap();
+                let delta = super::ContractState::generate_delta_and_update_state(&initial_state, &mut after).unwrap();
                 assert_eq!(v.state_delta.unwrap(), delta);
             }
             Err(_) => assert!(true),

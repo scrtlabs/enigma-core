@@ -2,7 +2,7 @@ pub mod wasm;
 
 use crate::db::{Delta, DeltaKey, Stype};
 use std::{fmt, mem, convert::TryFrom};
-use enigma_types::ExecuteResult;
+use enigma_types::{ExecuteResult, ContractAddress};
 use failure::Error;
 
 #[derive(Clone)]
@@ -36,32 +36,39 @@ impl fmt::Debug for WasmResult {
     }
 }
 
-impl TryFrom<ExecuteResult> for WasmResult {
+impl TryFrom<(ExecuteResult, ContractAddress)> for WasmResult {
     type Error = Error;
-    fn try_from(exec: ExecuteResult) -> Result<Self, Self::Error> {
-        if exec.output.is_null() || exec.ethereum_payload_ptr.is_null() || exec.delta_ptr.is_null(){
-            bail!("One of the pointers in ExecuteResult is null: {:?}", exec);
+    fn try_from(exec: (ExecuteResult, ContractAddress)) -> Result<Self, Self::Error> {
+        if exec.0.output.is_null() || exec.0.ethereum_payload_ptr.is_null() || exec.0.delta_ptr.is_null(){
+            bail!("One of the pointers in ExecuteResult is null: {:?}", exec.0);
         }
 
         let mut result: WasmResult = Default::default();
-        result.signature = exec.signature;
-        result.eth_contract_addr = exec.ethereum_address;
+        result.signature = exec.0.signature;
+        result.used_gas = exec.0.used_gas;
 
-        let box_ptr = exec.output as *mut Box<[u8]>;
+        // If there is no call to any ethereum contract in the execution, then
+        // `eth_contract_addr` is all zeros
+        result.eth_contract_addr = exec.0.ethereum_address;
+
+        // If execution does not return any result, then `output` points to empty array []
+        let box_ptr = exec.0.output as *mut Box<[u8]>;
         let output = unsafe { Box::from_raw(box_ptr) };
         result.output = *output;
 
-        let box_payload_ptr = exec.ethereum_payload_ptr as *mut Box<[u8]>;
+        // If there is no call to any ethereum contract in the execution, then
+        // `ethereum_payload_ptr` points to empty array []
+        let box_payload_ptr = exec.0.ethereum_payload_ptr as *mut Box<[u8]>;
         let payload = unsafe { Box::from_raw(box_payload_ptr) };
         result.eth_payload = *payload;
 
-        // TODO: Is it possible to have no delta or not?. please decide this. @elichai @moria
-        let box_ptr = exec.delta_ptr as *mut Box<[u8]>;
+        // If state was not changed by the execution (which means that delta is empty),
+        // then `delta_ptr` points to empty array []
+        let box_ptr = exec.0.delta_ptr as *mut Box<[u8]>;
         let delta_data = unsafe { Box::from_raw(box_ptr) };
 
         result.delta.value = delta_data.to_vec();
-        // TODO: This should be contract address, not delta_hash
-        result.delta.key = DeltaKey::new(exec.delta_hash, Stype::Delta(exec.delta_index));
+        result.delta.key = DeltaKey::new(exec.1, Stype::Delta(exec.0.delta_index));
 
         Ok(result)
     }

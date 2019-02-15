@@ -31,11 +31,10 @@ impl IpcListener {
 pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_enclave_id_t) -> Multipart {
     let mut responses = Multipart::new();
     for msg in request {
-        let msg: IpcMessage = msg.into();
+        let msg: IpcMessageRequest = msg.into();
         let id = msg.id.clone();
-        let response_msg = match msg.unwrap_request() {
+        let response_msg = match msg.request {
             IpcRequest::GetRegistrationParams => handling::get_registration_params(eid, spid),
-            IpcRequest::IdentityChallenge { nonce } => handling::identity_challange(&nonce),
             IpcRequest::GetTip { input } => handling::get_tip(db, &input),
             IpcRequest::GetTips { input } => handling::get_tips(db, &input),
             IpcRequest::GetAllTips => handling::get_all_tips(db),
@@ -48,10 +47,10 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::NewTaskEncryptionKey { user_pubkey } => handling::get_dh_user_key( &user_pubkey, eid),
             IpcRequest::DeploySecretContract { input } => handling::deploy_contract(db, input, eid),
             IpcRequest::ComputeTask { input } => handling::compute_task(db, input, eid),
-            IpcRequest::GetPTTRequest { addresses } => handling::get_ptt_req(&addresses, eid),
+            IpcRequest::GetPTTRequest { input } => handling::get_ptt_req(&input, eid),
             IpcRequest::PTTResponse { response } => handling::ptt_response(db, &response, eid),
         };
-        let msg = IpcMessage::from_response(response_msg.unwrap_or_error(), id);
+        let msg = IpcMessageResponse::from_response(response_msg.unwrap_or_error(), id);
         responses.push_back(msg.into());
     }
     responses
@@ -85,22 +84,24 @@ pub(self) mod handling {
         let sigining_key = equote::get_register_signing_address(eid)?;
 
         let enc_quote = equote_tools::retry_quote(eid, spid, 18)?;
-        let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
-        let response = service.get_report(&enc_quote)?;
-        let quote = response.get_quote()?;
 
-        let report_hex = response.result.report_string.as_bytes().to_hex();
-        let signature = response.result.signature;
+        let report_hex;
+        let signature;
+        // *Important* `option_env!()` runs on *Compile* time.
+        // This means that if you want Simulation mode you need to run `export SGX_MODE=SW` Before compiling.
+        if option_env!("SGX_MODE").unwrap_or_default() == "SW" { // Simulation Mode
+            report_hex = enc_quote;
+            signature = String::new();
+        } else { // Hardware Mode
+            let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
+            let response = service.get_report(&enc_quote)?;
+            report_hex = response.result.report_string.as_bytes().to_hex();
+            signature = response.result.signature;
+        }
 
-        assert_eq!(str::from_utf8(&quote.report_body.report_data)?.trim_right_matches('\x00'), sigining_key);
-
-        let result = IpcResults::RegistrationParams { signing_key: sigining_key, report: report_hex, signature };
+        let result = IpcResults::RegistrationParams { signing_key: sigining_key.to_hex(), report: report_hex, signature };
 
         Ok(IpcResponse::GetRegistrationParams { result })
-    }
-    /// Not implemented.
-    pub fn identity_challange(nonce: &str) -> ResponseResult {
-        unimplemented!("identity_challenge: {}", nonce)
     }
 
     #[logfn(INFO)]
@@ -116,10 +117,10 @@ pub(self) mod handling {
     #[logfn(INFO)]
     pub fn get_tips(db: &DB, input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
-        for data in input {
-            let address = ContractAddress::from_hex(&data)?;
-            let (tip_key, tip_data) = db.get_tip::<DeltaKey>(&address)?;
-            let delta = IpcDelta::from_delta_key(tip_key, tip_data)?;
+        let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data).unwrap()).collect();
+        let tips = db.get_tips::<DeltaKey>(&addresses)?;
+        for (key, data) in tips {
+            let delta = IpcDelta::from_delta_key(key, &data)?;
             tips_results.push(delta);
         }
         Ok(IpcResponse::GetTips { result: IpcResults::Tips(tips_results) })
@@ -130,7 +131,7 @@ pub(self) mod handling {
         let tips = db.get_all_tips::<DeltaKey>().unwrap_or_default();
         let mut tips_results = Vec::with_capacity(tips.len());
         for (key, data) in tips {
-            let delta = IpcDelta::from_delta_key(key, data)?;
+            let delta = IpcDelta::from_delta_key(key, &data)?;
             tips_results.push(delta);
         }
         Ok(IpcResponse::GetAllTips { result: IpcResults::Tips(tips_results) })
@@ -165,7 +166,7 @@ pub(self) mod handling {
                 continue; // TODO: Check if this handling makes any sense.
             }
             for (key, data) in db_res.unwrap() {
-                let delta = IpcDelta::from_delta_key(key, data)?;
+                let delta = IpcDelta::from_delta_key(key, &data)?;
                 results.push(delta);
             }
         }
@@ -210,7 +211,7 @@ pub(self) mod handling {
                 status = FAILED;
             }
             let key = Some(deltakey.key_type.unwrap_delta());
-            let address = deltakey.contract_id.to_hex();
+            let address = deltakey.contract_address.to_hex();
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
         }
@@ -235,9 +236,9 @@ pub(self) mod handling {
     }
 
     #[logfn(INFO)]
-    pub fn get_ptt_req(addresses: &[String], eid: sgx_enclave_id_t) -> ResponseResult {
+    pub fn get_ptt_req(addresses: &Addresses, eid: sgx_enclave_id_t) -> ResponseResult {
         let mut addresses_arr: Vec<ContractAddress> = Vec::with_capacity(addresses.len());
-        for a in addresses {
+        for a in addresses.iter() {
             addresses_arr.push(ContractAddress::from_hex(a)?);
         }
         let (data, sig) = km_u::ptt_req(eid, &addresses_arr)?;
@@ -274,7 +275,7 @@ pub(self) mod handling {
             &bytecode,
             &constructor,
             &enc_args,
-            contract_address,
+            &contract_address,
             &user_pubkey,
             input.gas_limit)?;
 
@@ -365,9 +366,9 @@ mod test {
         let data: Vec<(DeltaKey, Vec<u8>)> = data
             .into_iter()
             .map(|tip| {
-                let contract_id: ContractAddress = serde_json::from_value(tip["address"].clone()).unwrap();
+                let contract_address: ContractAddress = serde_json::from_value(tip["address"].clone()).unwrap();
                 let key: u32 = serde_json::from_value(tip["key"].clone()).unwrap();
-                let delta_key = DeltaKey { contract_id, key_type: Stype::Delta(key) };
+                let delta_key = DeltaKey { contract_address, key_type: Stype::Delta(key) };
                 let data: Vec<u8> = serde_json::from_value(tip["delta"].clone()).unwrap();
                 (delta_key, data)
             })

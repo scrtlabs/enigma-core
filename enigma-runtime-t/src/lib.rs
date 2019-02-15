@@ -82,22 +82,22 @@ impl std::fmt::Display for WasmError {
 }
 
 impl From<wasmi::Trap> for WasmError {
-    fn from(trap: wasmi::Trap) -> Self { WasmError::Other }
+    fn from(_trap: wasmi::Trap) -> Self { WasmError::Other }
 }
 
 impl From<WasmError> for EnclaveError {
-    fn from(e: WasmError) -> Self { EnclaveError::ExecutionError { code: "".to_string(), err: "from E to Enclave".to_string() } }
+    fn from(_e: WasmError) -> Self { EnclaveError::ExecutionError { code: "".to_string(), err: "from E to Enclave".to_string() } }
 }
 impl From<str::Utf8Error> for WasmError {
-    fn from(err: str::Utf8Error) -> Self { WasmError::Other }
+    fn from(_err: str::Utf8Error) -> Self { WasmError::Other }
 }
 
 impl Runtime {
-    pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_id: ContractAddress,
+    pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_address: ContractAddress,
                function_name: String, args_types: String) -> Runtime {
 
-        let init_state = ContractState::new(contract_id);
-        let current_state = ContractState::new(contract_id);
+        let init_state = ContractState::new(contract_address);
+        let current_state = ContractState::new(contract_address);
         let result = RuntimeResult {
             result: Vec::new(),
             state_delta: None,
@@ -322,7 +322,7 @@ impl Runtime {
             // The delta is always generated after a deployment.
             // The delta is generated after an execution only if there is a state change.
             if (&self.pre_execution_state != &self.post_execution_state) || (self.pre_execution_state.is_initial()){
-                match ContractState::generate_delta(&self.pre_execution_state, &mut self.post_execution_state) {
+                match ContractState::generate_delta_and_update_state(&self.pre_execution_state, &mut self.post_execution_state) {
                     Ok(v) => Some(v),
                     Err(e) => return Err(WasmError::Delta(format!("{}", e))),
                 }

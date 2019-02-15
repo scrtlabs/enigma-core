@@ -19,6 +19,8 @@ pub trait ContractInterface{
     fn check_addresses(addr1: H256, addr2: H256);
     fn choose_rand_color();
     fn get_scrambled_vec();
+    fn addition(x: U256, y: U256) -> U256;
+    fn get_last_sum() -> U256;
     fn print_test(x: U256, y: U256);
     fn construct(param: U256);
 }
@@ -89,7 +91,7 @@ impl ContractInterface for Contract {
 
         let rng_rand = (random as usize) % colors.len();
         write_state!("color" => colors[rng_rand]);
-        let color : String = read_state!("color").unwrap();
+        let _color : String = read_state!("color").unwrap();
     }
 
     // tests the shuffle service on a simple array
@@ -101,11 +103,24 @@ impl ContractInterface for Contract {
     }
 
     #[no_mangle]
+    fn addition(x: U256, y: U256) -> U256 {
+        let sum: u64 = x.as_u64() + y.as_u64();
+        write_state!("curr_sum" => sum);
+        sum.into()
+    }
+
+    #[no_mangle]
+    fn get_last_sum() -> U256 {
+        let sum: u64 = read_state!("curr_sum").unwrap();
+        sum.into()
+    }
+
+    #[no_mangle]
     fn print_test(x: U256, y: U256) {
         eprint!("{:?} {:?}", x.as_u64(), y.as_u64());
         write_state!("x" => x.as_u64(), "y" => y.as_u64());
-        let x: u64 = read_state!("x").unwrap();
-        let y: u64 = read_state!("y").unwrap();
+        let _x: u64 = read_state!("x").unwrap();
+        let _y: u64 = read_state!("y").unwrap();
     }
 
     #[no_mangle]

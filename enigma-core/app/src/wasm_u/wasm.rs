@@ -28,10 +28,9 @@ extern "C" {
                      gas_limit: *const u64, db_ptr: *const RawPointer, result: &mut ExecuteResult ) -> sgx_status_t;
 }
 
-const MAX_EVM_RESULT: usize = 100_000;
 #[logfn(DEBUG)]
 pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
-              contract_address: ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
+              contract_address: &ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
     let mut retval = EnclaveReturn::Success;
     let mut result = ExecuteResult::default();
     let db_ptr = unsafe { RawPointer::new_mut(db) };
@@ -45,7 +44,7 @@ pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor:
                      constructor.len(),
                      args.as_c_ptr(),
                      args.len(),
-                     &contract_address,
+                     contract_address,
                      &user_pubkey,
                      &gas_limit as *const u64,
                      &db_ptr as *const RawPointer,
@@ -54,13 +53,13 @@ pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor:
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         Err(EnclaveFailError { err: retval, status }.into())
     } else {
-        result.try_into()
+        (result, *contract_address).try_into()
     }
 }
 
 #[logfn(DEBUG)]
 pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &[u8],
-               user_pubkey: &PubKey, address: &ContractAddress, gas_limit: u64)-> Result<WasmResult,Error> {
+               user_pubkey: &PubKey, contract_address: &ContractAddress, gas_limit: u64)-> Result<WasmResult,Error> {
     let mut retval = EnclaveReturn::Success;
     let mut result = ExecuteResult::default();
     let db_ptr = unsafe { RawPointer::new_mut(db) };
@@ -75,7 +74,7 @@ pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &
                       args.as_c_ptr() as *const u8,
                       args.len(),
                       &user_pubkey,
-                      &address,
+                      contract_address,
                       &gas_limit as *const u64,
                       &db_ptr as *const RawPointer,
                       &mut result)
@@ -84,14 +83,16 @@ pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         Err(EnclaveFailError { err: retval, status }.into())
     } else {
-        result.try_into()
+        (result, *contract_address).try_into()
     }
 }
 
 #[cfg(test)]
 pub mod tests {
     extern crate ethabi;
+    extern crate cross_test_utils;
 
+    use self::cross_test_utils::{generate_contract_address, get_bytecode_from_path};
     use crate::esgx::general::init_enclave_wrapper;
     use crate::km_u::tests::exchange_keys;
     use crate::km_u::tests::instantiate_encryption_key;
@@ -99,58 +100,30 @@ pub mod tests {
     use crate::wasm_u::wasm;
     use self::ethabi::{Token};
     use enigma_types::{ContractAddress, DhKey, PubKey};
-    use enigma_crypto::{rand, symmetric};
+    use enigma_crypto::symmetric;
     use sgx_types::*;
-    use std::fs::File;
-    use std::io::Read;
-    use std::path::PathBuf;
-    use std::process::Command;
     use std::str::from_utf8;
     use wasm_u::{WasmResult, wasm::{rustc_hex::ToHex}};
 
     pub const GAS_LIMIT: u64 = 100_000_000;
-    pub fn generate_address() -> ContractAddress {
-        let mut address = ContractAddress::default();
-        rand::random(address.as_mut()).unwrap();
-        address
-    }
 
-    fn compile_and_deploy_wasm_contract(db: &mut DB,
-                                        eid: sgx_enclave_id_t,
-                                        test_path: &str,
-                                        address: ContractAddress,
-                                        constructor: &[u8],
-                                        args: &[u8],
-                                        user_pubkey: &PubKey) -> WasmResult {
-        let mut dir = PathBuf::new();
-        dir.push(test_path);
-        let mut output = Command::new("cargo")
-            .current_dir(&dir)
-            .args(&["build", "--release"])
-            .spawn()
-            .expect(&format!("Failed compiling wasm contract: {:?}", &dir));
-
-        assert!(output.wait().unwrap().success());
-        dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
-
-        let mut f = File::open(&dir).expect(&format!("Can't open the contract.wasm file: {:?}", &dir));
-        let mut wasm_code = Vec::new();
-        f.read_to_end(&mut wasm_code).expect("Failed reading the wasm file");
+    fn compile_and_deploy_wasm_contract(db: &mut DB, eid: sgx_enclave_id_t, test_path: &str, contract_address: ContractAddress, constructor: &[u8], args: &[u8],  user_pubkey: &PubKey) -> WasmResult {
+        let wasm_code = get_bytecode_from_path(test_path);
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
 
 
-        wasm::deploy(db, eid, &wasm_code, constructor, args, address, &user_pubkey, 100_000).expect("Deploy Failed")
+        wasm::deploy(db, eid, &wasm_code, constructor, args, &contract_address, &user_pubkey, 100_000).expect("Deploy Failed")
     }
 
     fn compile_deploy_execute(db: &mut DB,
                               test_path: &str,
-                              address: ContractAddress,
+                              contract_address: ContractAddress,
                               constructor: &str,
                               constructor_arguments: &[Token],
                               func: &str,
                               func_args: &[Token]) -> (sgx_urts::SgxEnclave, Box<[u8]>, WasmResult, DhKey) {
         let enclave = init_enclave_wrapper().unwrap();
-        instantiate_encryption_key(&[address], enclave.geteid());
+        instantiate_encryption_key(&[contract_address], enclave.geteid());
 
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let encrypted_construct = symmetric::encrypt(constructor.as_bytes(), &shared_key).unwrap();
@@ -160,7 +133,7 @@ pub mod tests {
             db,
             enclave.geteid(),
             test_path,
-            address,
+            contract_address,
             &encrypted_construct,
             &encrypted_args,
             &keys.get_pubkey()
@@ -178,7 +151,7 @@ pub mod tests {
             &encrypted_callable,
             &encrypted_args,
             &keys.get_pubkey(),
-            &address,
+            &contract_address,
             GAS_LIMIT
         ).expect("Execution failed");
 
@@ -189,10 +162,10 @@ pub mod tests {
     fn test_print_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
-            generate_address(),
+            generate_contract_address(),
             "construct(uint)",
             &[Token::Uint(17.into())],
             "print_test(uint256,uint256)",
@@ -205,10 +178,10 @@ pub mod tests {
     fn test_write_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
-            generate_address(),
+            generate_contract_address(),
             "construct(uint)",
             &[Token::Uint(17.into())],
             "write()",
@@ -222,12 +195,12 @@ pub mod tests {
     #[test]
     fn test_single_address() {
         let (mut db, _dir) = create_test_db();
-        let addr = Token::FixedBytes(generate_address().to_vec());
+        let addr = Token::FixedBytes(generate_contract_address().to_vec());
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
-            generate_address(),
+            generate_contract_address(),
             "construct(uint)",
             &[Token::Uint(100.into())],
             "check_address(bytes32)",
@@ -240,10 +213,10 @@ pub mod tests {
     #[test]
     fn test_rand_u8() {
         let (mut db, _dir) = create_test_db();
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
-            generate_address(),
+            generate_contract_address(),
             "construct(uint)",
             &[Token::Uint(100.into())],
             "choose_rand_color()",
@@ -264,10 +237,10 @@ pub mod tests {
     fn test_shuffling() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
-            generate_address(),
+            generate_contract_address(),
             "construct(uint)",
             &[Token::Uint(100.into())],
             "get_scrambled_vec()",
@@ -282,16 +255,16 @@ pub mod tests {
     #[test]
     fn test_multiple_addresses() {
         let (mut db, _dir) = create_test_db();
-        let addr2 = Token::FixedBytes(generate_address().to_vec());
+        let addr2 = Token::FixedBytes(generate_contract_address().to_vec());
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
-            generate_address(),
+            generate_contract_address(),
             "construct(uint)",
             &[Token::Uint(1025.into())],
             "check_addresses(bytes32,bytes32)",
-            &[Token::FixedBytes(generate_address().to_vec()), addr2.clone()]
+            &[Token::FixedBytes(generate_contract_address().to_vec()), addr2.clone()]
         );
 
         assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), format!("{:?}",addr2.to_fixed_bytes().unwrap().to_hex()));
@@ -301,16 +274,16 @@ pub mod tests {
     fn test_mint_erc20() {
         let (mut db, _dir) = create_test_db();
         let amount: Token = Token::Uint(50.into());
-        let address = generate_address();
+        let address = generate_contract_address();
 
         let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
-            address.clone(),
+            address,
             "construct()",
             &[],
             "mint(bytes32,uint256)",
-            &[Token::FixedBytes(generate_address().to_vec()), amount.clone()]
+            &[Token::FixedBytes(generate_contract_address().to_vec()), amount.clone()]
         );
 
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
@@ -335,14 +308,14 @@ pub mod tests {
     #[test]
     fn test_transfer_erc20() {
         let (mut db, _dir) = create_test_db();
-        let address = generate_address();
-        let addr: Token = Token::FixedBytes(generate_address().to_vec());
+        let address = generate_contract_address();
+        let addr: Token = Token::FixedBytes(generate_contract_address().to_vec());
         let transfer_amount: Token = Token::Uint(8.into());
 
         let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
-            address.clone(),
+            address,
             "construct()",
             &[],
             "mint(bytes32,uint256)",
@@ -350,7 +323,7 @@ pub mod tests {
         );
 
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
-        let addr_to = Token::FixedBytes(generate_address().to_vec());
+        let addr_to = Token::FixedBytes(generate_contract_address().to_vec());
         let encrypted_callable = symmetric::encrypt(b"transfer(bytes32,bytes32,uint256)", &shared_key).unwrap();
         let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr, addr_to.clone(), transfer_amount.clone()]), &shared_key).unwrap();
 
@@ -389,16 +362,16 @@ pub mod tests {
     #[test]
     fn test_allow_and_transfer_erc20() {
         let (mut db, _dir) = create_test_db();
-        let address = generate_address();
-        let owner: Token = Token::FixedBytes(generate_address().to_vec());
-        let spender: Token = Token::FixedBytes(generate_address().to_vec());
-        let addr_to: Token = Token::FixedBytes(generate_address().to_vec());
+        let address = generate_contract_address();
+        let owner: Token = Token::FixedBytes(generate_contract_address().to_vec());
+        let spender: Token = Token::FixedBytes(generate_contract_address().to_vec());
+        let addr_to: Token = Token::FixedBytes(generate_contract_address().to_vec());
         let transfer_amount: Token = Token::Uint(12.into());
 
         let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
-            address.clone(),
+            address,
             "construct()",
             &[],
             "mint(bytes32,uint256)",
@@ -476,10 +449,10 @@ pub mod tests {
     fn test_eth_bridge(){
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, contract_code, _, _) = compile_deploy_execute(
+        let (_enclave, _contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/contract_with_eth_calls",
-            generate_address(),
+            generate_contract_address(),
             "construct()",
             &[],
             "test()",

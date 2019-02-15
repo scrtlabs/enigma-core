@@ -28,16 +28,23 @@ impl<T> LockExpectMutex<T> for SgxMutex<T> {
 }
 
 
-pub trait EthereumAddress<T> {
-    fn address(&self) -> T where T: Sized;
+pub trait EthereumAddress<T, P> {
+    fn address_string(&self) -> T where T: Sized;
+    fn address(&self) -> P where P: Sized;
 }
 
 
-impl EthereumAddress<String> for [u8; 64] {
+impl EthereumAddress<String, [u8; 20]> for [u8; 64] {
     // TODO: Maybe add a checksum address
-    fn address(&self) -> String {
+    fn address_string(&self) -> String {
         let mut result: String = String::from("0x");
         result.push_str(&self.keccak256()[12..32].to_hex());
+        result
+    }
+
+    fn address(&self) -> [u8; 20] {
+        let mut result = [0u8; 20];
+        result.copy_from_slice(&self.keccak256()[12..32]);
         result
     }
 }

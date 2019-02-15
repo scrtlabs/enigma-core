@@ -42,10 +42,10 @@ pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &Cont
 #[no_mangle]
 pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
                                          enc_delta: *const u8, delta_len: usize,
-                                         contract_id: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
+                                         contract_address: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
     let delta_index = ptr::read(_delta_index);
     let encrypted_delta = slice::from_raw_parts(enc_delta, delta_len);
-    let key = DeltaKey::new(*contract_id, Stype::Delta(delta_index));
+    let key = DeltaKey::new(*contract_address, Stype::Delta(delta_index));
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
         Ok(db) => db,
         Err(e) => {
@@ -85,7 +85,7 @@ pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &
             let state_len = state.len();
             *state_size = state_len;
             cache_id.write_uint::<BigEndian>(state_len as u64, mem::size_of_val(&state_len)).unwrap();
-            DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256().into(), vec![state]);
+            DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), vec![state]);
             EnclaveReturn::Success
         }
         Err(_) => EnclaveReturn::OcallDBError,
@@ -106,7 +106,7 @@ pub unsafe extern "C" fn ocall_get_state(db_ptr: *const RawPointer, addr: &Contr
     };
 
 
-    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256().into()) {
+    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
         Some(state) => {
             enigma_types::write_ptr(&state[0][..], state_ptr, state_size);
             EnclaveReturn::Success
@@ -159,7 +159,7 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(db_ptr: *const RawPointer, addr:
         },
         Err(_) => return EnclaveReturn::OcallDBError,
     };
-    DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256().into(), deltas_vec);
+    DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), deltas_vec);
     enigma_types::write_ptr(&sizes, res_ptr, res_len);
     EnclaveReturn::Success
 }
@@ -181,7 +181,7 @@ pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &Cont
     };
 
 
-    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256().into()) {
+    match DELTAS_CACHE.lock_expect("DeltaCache").remove(&cache_id.sha256()) {
         Some(deltas_vec) => {
             // The results here are flatten to one big array.
             // The Enclave needs to separate them back to the original.

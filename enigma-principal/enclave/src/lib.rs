@@ -6,6 +6,17 @@
 #![feature(tool_lints)]
 #![feature(try_from)]
 
+#[cfg(not(target_env = "sgx"))]
+#[macro_use]
+extern crate sgx_tstd as std;
+#[macro_use]
+extern crate sgx_tunittest;
+extern crate sgx_types;
+extern crate sgx_rand;
+extern crate sgx_trts;
+extern crate sgx_tse;
+extern crate sgx_tseal;
+
 extern crate enigma_tools_t;
 extern crate enigma_types;
 extern crate ethabi;
@@ -13,23 +24,12 @@ extern crate ethereum_types;
 extern crate hexutil;
 #[macro_use]
 extern crate lazy_static;
+
 extern crate rustc_hex as hex;
 extern crate secp256k1;
 extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
-extern crate sgx_rand;
-extern crate sgx_trts;
-extern crate sgx_tse;
-extern crate sgx_tseal;
-//#[cfg(not(target_env = "sgx"))]
-#[macro_use]
-extern crate sgx_tstd as std;
-extern crate sgx_tunittest;
-extern crate sgx_types;
-
-use sgx_types::*;
-use std::slice;
 extern crate enigma_crypto;
 
 use enigma_tools_t::common::utils_t::EthereumAddress;
@@ -46,12 +46,12 @@ mod ocalls_t;
 mod epoch_keeper_t;
 mod keys_keeper_t;
 
-lazy_static! { static ref SIGNINING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
+lazy_static! { static ref SIGNING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
 
 
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, real_report: &mut sgx_report_t) -> sgx_status_t {
-    quote_t::create_report_with_data(&target_info, real_report, &SIGNINING_KEY.get_pubkey().address().as_bytes())
+    quote_t::create_report_with_data(&target_info, real_report, &SIGNING_KEY.get_pubkey().address_string().as_bytes())
 }
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
@@ -70,7 +70,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 #[no_mangle]
 pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
-    pubkey.clone_from_slice(SIGNINING_KEY.get_pubkey().address().as_bytes());
+    pubkey.clone_from_slice(SIGNING_KEY.get_pubkey().address_string().as_bytes());
 }
 
 #[no_mangle]
