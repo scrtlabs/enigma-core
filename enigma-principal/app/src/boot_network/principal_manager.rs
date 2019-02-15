@@ -4,7 +4,7 @@ use boot_network::principal_utils::Principal;
 use boot_network::keys_provider_http::PrincipalHttpServer;
 use enigma_tools_u::attestation_service::service;
 use enigma_tools_u::esgx::equote::retry_quote;
-use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, EnigmaContract};
+use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, EnigmaContract, ContractQueries};
 use esgx;
 use failure::Error;
 use serde_derive::*;
@@ -185,6 +185,7 @@ mod test {
     use std::{env, thread, time};
     use web3::transports::Http;
     use web3::types::{Log, H256};
+    use web3::futures::Future;
     use web3::Web3;
     use std::path::Path;
 
@@ -217,13 +218,15 @@ mod test {
         Ok(principal)
     }
 
+    /// Not a standalone unit test, must be coordinated with the Enigma Contract tests
     #[test]
     fn test_set_worker_params() {
         let enclave = init_enclave_wrapper().unwrap();
         let eid = enclave.geteid();
         let principal = init_no_deploy(eid).expect("Cannot init the PrincipalManager");
         let gas_limit = 5999999;
-        principal.contract.get_active_workers(U256::from(1));
+        let num = principal.get_web3().eth().block_number().wait().unwrap();
+        let worker_params = principal.contract.get_active_workers(num).unwrap();
         assert_eq!(true, true);
     }
 

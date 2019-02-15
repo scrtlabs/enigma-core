@@ -51,13 +51,10 @@ pub fn load_contract_abi_bytecode<P: AsRef<Path>>(path: P) -> Result<(String, St
     Ok((abi, bytecode))
 }
 
-pub fn load_contract_abi<R: Read>(rdr: R) -> Result<String, Error> {
-    let data: Value = serde_json::from_reader(rdr)?;
-    if data.is_array() {
-        Ok(serde_json::to_string(&data)?)
-    } else {
-        Ok(serde_json::to_string(&data["abi"])?)
-    }
+pub fn load_contract_abi<P: AsRef<Path>>(path: P) -> Result<String, Error> {
+    let f = File::open(path)?;
+    let data: Value = serde_json::from_reader(f)?;
+    Ok(serde_json::to_string(&data["abi"])?)
 }
 
 // Important!! Best Practice is to have only one Web3 Instance.

@@ -38,7 +38,8 @@ impl EnigmaContract {
             Some(a) => a.parse()?,
             None => web3.eth().accounts().wait().unwrap()[0], // TODO: Do something with this unwrapping
         };
-        let (abi_json, _bytecode) = w3utils::load_contract_abi_bytecode(abi_path)?;
+        let abi_json = w3utils::load_contract_abi(abi_path)?;
+        println!("Loaded Enigma contract ABI: {}", abi_json);
         let w3_contract = Contract::from_json(web3.eth(), contract_address.parse()?, abi_json.as_bytes()).unwrap();
         Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, account })
     }
@@ -82,10 +83,6 @@ pub trait ContractFuncs<G> {
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
     fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<H256, Error>;
-
-    // getActiveWorkers
-    // input: block_number
-    fn get_active_workers(&self, block_number: U256) -> Result<InputWorkerParams, Error>;
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
@@ -107,26 +104,6 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
     }
 
     #[logfn(INFO)]
-    fn get_active_workers(&self, block_number: U256) -> Result<InputWorkerParams, Error> {
-        let worker_params = InputWorkerParams {
-            block_number: U256::from(1),
-            workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],
-            balances: vec![U256::from(1)],
-        };
-        let result = self.w3_contract.query("getActiveWorkers", (block_number), self.account, Options::default(), None);
-        let active_workers: (Vec<Address>, Vec<U256>) = result.wait().unwrap();
-        println!("The getActiveWorkers results: {:?}", active_workers);
-//        match
-//            .wait::<Result<(Vec<Address>, Vec<U256>), Error>>() {
-//            Ok(result) => {
-//               println!("The getActiveWorkers results: {:?}", result);
-//            },
-//            Err(e) => return Err(errors::Web3Error { message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
-//        };
-        Ok(worker_params)
-    }
-
-    #[logfn(INFO)]
     fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<H256, Error> {
         let mut opts: Options = Options::default();
         opts.gas = Some(gas.into());
@@ -137,5 +114,30 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
             Ok(tx) => Ok(tx),
             Err(e) => Err(errors::Web3Error { message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
         }
+    }
+}
+
+pub trait ContractQueries {
+    // getActiveWorkers
+    // input: block_number
+    fn get_active_workers(&self, block_number: U256) -> Result<InputWorkerParams, Error>;
+}
+
+impl ContractQueries for EnigmaContract {
+    #[logfn(INFO)]
+    fn get_active_workers(&self, block_number: U256) -> Result<InputWorkerParams, Error> {
+        let result: Result<(Vec<Address>, Vec<U256>), web3::contract::Error> = self.w3_contract.query("getActiveWorkers", (block_number), self.account, Options::default(), None).wait();
+        let worker_params = match result {
+            Ok(result) => {
+                InputWorkerParams {
+                    block_number,
+                    workers: result.0,
+                    balances: result.1,
+                }
+            }
+            Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getActiveWorkers: {:?}", e) }.into()),
+        };
+        println!("The InputWorkerParams: {:?}", worker_params);
+        Ok(worker_params)
     }
 }

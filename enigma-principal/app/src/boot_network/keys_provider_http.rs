@@ -98,14 +98,12 @@ impl PrincipalHttpServer {
             };
             Ok(body)
         });
-
         let server = ServerBuilder::new(io)
             .cors(DomainsValidation::AllowOnly(vec![AccessControlAllowOrigin::Null]))
             .start_http(&format!("0.0.0.0:{}", self.port).parse().unwrap())
             .expect("Unable to start RPC server");
-
-        server.wait();
         println!("JSON-RPC HTTP server listening on port: {}", self.port);
+        server.wait();
     }
 }
 
