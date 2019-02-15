@@ -23,7 +23,7 @@ impl FromBigint<bigint::H2048> for H2048 { fn from_bigint(b: bigint::H2048) -> S
 pub struct InputWorkerParams {
     pub block_number: U256,
     pub workers: Vec<Address>,
-    pub balances: Vec<U256>,
+    pub stakes: Vec<U256>,
 }
 
 impl Decodable for InputWorkerParams {
@@ -31,7 +31,7 @@ impl Decodable for InputWorkerParams {
         Ok(Self {
             block_number: U256::from_bigint(rlp.val_at(0)?),
             workers: rlp.list_at(1)?.iter().map(|a| H160::from_bigint(*a)).collect::<Vec<H160>>(),
-            balances: rlp.list_at(2)?.iter().map(|b| U256::from_bigint(*b)).collect::<Vec<U256>>(),
+            stakes: rlp.list_at(2)?.iter().map(|b| U256::from_bigint(*b)).collect::<Vec<U256>>(),
         })
     }
 }

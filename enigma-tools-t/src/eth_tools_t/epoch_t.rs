@@ -1,10 +1,9 @@
-use ethabi::{Address, Hash};
+use ethabi::{Address, Hash, Token, encode, Bytes};
 use std::vec::Vec;
 use eth_tools_t::keeper_types_t::InputWorkerParams;
 use ethereum_types::{H160, U256, H256, U64};
 use common::errors_t::EnclaveError;
 use bigint;
-use rlp::{Encodable, encode, RlpStream};
 use enigma_crypto::hash::Keccak256;
 
 pub trait IntoBigint<T> {
@@ -17,6 +16,10 @@ impl IntoBigint<bigint::H256> for H256 { fn bigint(self) -> bigint::H256 { bigin
 
 pub type EpochNonce = [u8; 32];
 
+pub trait PackedEncodable {
+    fn encode_packed(&self) -> Result<Bytes, EnclaveError>;
+}
+
 #[derive(Debug, Clone)]
 struct WorkerSelectionToken {
     pub seed: U256,
@@ -24,12 +27,14 @@ struct WorkerSelectionToken {
     pub nonce: U256,
 }
 
-impl Encodable for WorkerSelectionToken {
-    fn rlp_append(&self, s: &mut RlpStream) {
-        s.begin_list(3);
-        s.append(&self.seed.bigint());
-        s.append(&self.sc_addr.bigint());
-        s.append(&self.nonce.bigint());
+impl PackedEncodable for WorkerSelectionToken {
+    fn encode_packed(&self) -> Result<Bytes, EnclaveError> {
+        let tokens = vec![
+            Token::Uint(self.seed),
+            Token::FixedBytes(self.sc_addr.0.to_vec()),
+            Token::Uint(self.nonce),
+        ];
+        Ok(encode(&tokens))
     }
 }
 
@@ -37,7 +42,7 @@ impl Encodable for WorkerSelectionToken {
 pub struct Epoch {
     pub block_number: U256,
     pub workers: Vec<Address>,
-    pub balances: Vec<U256>,
+    pub stakes: Vec<U256>,
     pub nonce: U256,
     pub seed: U256,
 }
@@ -47,7 +52,7 @@ impl Epoch {
         Ok(Epoch {
             block_number: params.block_number,
             workers: params.workers,
-            balances: params.balances,
+            stakes: params.stakes,
             nonce: nonce,
             seed: seed,
         })
@@ -56,7 +61,7 @@ impl Epoch {
     pub fn get_selected_workers(&self, sc_addr: H256, group_size: Option<U64>) -> Result<Vec<Address>, EnclaveError> {
         let workers = self.workers.to_vec();
         let mut balance_sum: U256 = U256::from(0);
-        for balance in self.balances.clone() {
+        for balance in self.stakes.clone() {
             balance_sum = balance_sum + balance;
         }
         // Using the same type as the Enigma contract
@@ -65,12 +70,12 @@ impl Epoch {
         while {
             let token = WorkerSelectionToken { seed: self.seed, sc_addr, nonce };
             // This is equivalent to encodePacked in Solidity
-            let hash: [u8; 32] = encode(&token).keccak256().into();
+            let hash: [u8; 32] = token.encode_packed()?.keccak256().into();
             let mut rand_val: U256 = U256::from(hash) % balance_sum;
             println!("The initial random value: {:?}", rand_val);
             let mut selected_worker = self.workers[self.workers.len() - 1];
             for i in 0..self.workers.len() {
-                let result = rand_val.overflowing_sub(self.balances[i]);
+                let result = rand_val.overflowing_sub(self.stakes[i]);
                 if result.1 == true || result.0 == U256::from(0) {
                     selected_worker = self.workers[i];
                     break;
@@ -93,3 +98,14 @@ impl Epoch {
     }
 }
 
+impl PackedEncodable for Epoch {
+    fn encode_packed(&self) -> Result<Bytes, EnclaveError> {
+        let tokens = vec![
+            Token::Uint(self.seed),
+            Token::Uint(self.nonce),
+            Token::Array(self.workers.iter().map(|a| Token::Address(*a)).collect()),
+            Token::Array(self.stakes.iter().map(|s| Token::Uint(*s)).collect()),
+        ];
+        Ok(encode(&tokens))
+    }
+}

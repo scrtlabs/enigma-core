@@ -12,12 +12,14 @@ use std::vec::Vec;
 
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::eth_tools_t::epoch_t::{EpochNonce, Epoch};
+use enigma_tools_t::eth_tools_t::epoch_t::{EpochNonce, Epoch, PackedEncodable};
 use enigma_tools_t::eth_tools_t::keeper_types_t::{decode, InputWorkerParams};
 use std::path;
 use ocalls_t;
 use std::untrusted::fs;
 use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
+use enigma_crypto::hash::Keccak256;
+use enigma_tools_t::common::ToHex;
 
 use crate::SIGNING_KEY;
 
@@ -125,7 +127,11 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], rand_ou
 
     let seed_token = Token::Uint(rand_out[..].into());
     let seed = seed_token.to_uint().unwrap();
-    new_epoch(&mut guard, &worker_params, &nonce, &seed)?;
+    println!("Generated random seed: {:?}", seed);
+    let epoch = new_epoch(&mut guard, &worker_params, &nonce, &seed)?;
+    let msg = epoch.encode_packed()?;
+    let hash = msg.keccak256().to_hex();
+    println!("The message hash: {}", hash);
     Ok(())
 }
 
@@ -153,7 +159,7 @@ pub mod tests {
         let epoch = Epoch {
             block_number: U256::from(1),
             workers: vec![H160::from(0), H160::from(1), H160::from(2), H160::from(3)],
-            balances: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
+            stakes: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
             nonce: U256::from(0),
             seed: U256::from(1),
         };

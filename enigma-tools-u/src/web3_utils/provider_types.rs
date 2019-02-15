@@ -24,14 +24,14 @@ impl IntoBigint<bigint::B256> for Bytes { fn bigint(self) -> bigint::B256 { bigi
 pub struct InputWorkerParams {
     pub block_number: U256,
     pub workers: Vec<Address>,
-    pub balances: Vec<U256>,
+    pub stakes: Vec<U256>,
 }
 impl Encodable for InputWorkerParams {
     fn rlp_append(&self, s: &mut RlpStream) {
         s.begin_list(3);
         s.append(&self.block_number.bigint());
         s.append_list(&self.workers.iter().map(|a| a.bigint()).collect::<Vec<bigint::H160>>());
-        s.append_list(&self.balances.iter().map(|b| b.bigint()).collect::<Vec<bigint::U256>>());
+        s.append_list(&self.stakes.iter().map(|b| b.bigint()).collect::<Vec<bigint::U256>>());
     }
 }
 

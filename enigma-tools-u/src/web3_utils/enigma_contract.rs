@@ -132,7 +132,7 @@ impl ContractQueries for EnigmaContract {
                 InputWorkerParams {
                     block_number,
                     workers: result.0,
-                    balances: result.1,
+                    stakes: result.1,
                 }
             }
             Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getActiveWorkers: {:?}", e) }.into()),

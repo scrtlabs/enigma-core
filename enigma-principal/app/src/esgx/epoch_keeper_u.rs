@@ -79,20 +79,20 @@ pub mod tests {
         enclave
     }
 
-    pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams) -> (EpochSeed) {
+    pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t) -> (EpochSeed) {
+        let worker_params = InputWorkerParams{
+            block_number: U256::from(1),
+            workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],
+            stakes: vec![U256::from(1)]
+        };
         set_worker_params(eid, worker_params).unwrap()
     }
 
 
     #[test]
-    fn test_set_worker_params() {
+    fn test_set_mock_worker_params() {
         let enclave = init_enclave();
-        let worker_params = InputWorkerParams{
-            block_number: U256::from(1),
-            workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],
-            balances: vec![U256::from(1)]
-        };
-        let epoch_seed = set_mock_worker_params(enclave.geteid(), worker_params);
+        let epoch_seed = set_mock_worker_params(enclave.geteid());
         println!("Got epoch seed params: {:?}", epoch_seed);
         assert_eq!(epoch_seed.nonce, Uint::from(0));
 
