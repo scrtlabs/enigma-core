@@ -19,7 +19,7 @@ use ocalls_t;
 use std::untrusted::fs;
 use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
 
-use crate::SIGNINING_KEY;
+use crate::SIGNING_KEY;
 
 const INIT_NONCE: uint32_t = 0;
 const EPOCH_DIR: &str = "epoch";
@@ -120,7 +120,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], rand_ou
     // TODO: Check if needs to check the random is within the curve.
     rsgx_read_rand(&mut rand_out[..])?;
     // TODO: Sign on all the input worker params
-    let sig = SIGNINING_KEY.sign(&rand_out[..])?;
+    let sig = SIGNING_KEY.sign(&rand_out[..])?;
     sig_out.copy_from_slice(&sig[..]);
 
     let seed_token = Token::Uint(rand_out[..].into());

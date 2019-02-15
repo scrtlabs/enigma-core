@@ -1,4 +1,4 @@
-use crate::SIGNINING_KEY;
+use crate::SIGNING_KEY;
 
 use sgx_trts::trts::rsgx_read_rand;
 use std::string::ToString;
@@ -157,7 +157,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
     println!("The encrypted response bytes: {:?}", response_bytes);
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
-    let sig = SIGNINING_KEY.sign(&response_bytes[..])?;
+    let sig = SIGNING_KEY.sign(&response_bytes[..])?;
     sig_out.copy_from_slice(&sig[..]);
     // Drop the 4 before the public key
     pubkey_out.copy_from_slice(&my_keypair.get_pubkey());

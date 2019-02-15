@@ -32,6 +32,10 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate enigma_crypto;
 
+use sgx_types::sgx_target_info_t;
+use sgx_types::sgx_report_t;
+use sgx_types::sgx_status_t;
+
 use enigma_tools_t::common::utils_t::EthereumAddress;
 use enigma_crypto::asymmetric;
 use enigma_tools_t::quote_t;
@@ -41,6 +45,7 @@ use enigma_tools_t::storage_t;
 use crate::epoch_keeper_t::ecall_set_worker_params_internal;
 use crate::keys_keeper_t::ecall_get_enc_state_keys_internal;
 use std::ptr;
+use std::slice;
 
 mod ocalls_t;
 mod epoch_keeper_t;

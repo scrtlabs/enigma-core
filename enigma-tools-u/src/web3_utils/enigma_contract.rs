@@ -97,7 +97,7 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
         opts.gas = Some(gas.into());
         // call the register function
         let sig = signature.as_bytes().to_vec();
-        println!("Calling the registed fn with signer: {:?}, report: {:?}, sig: {:?}", signer_addr, report.to_vec(), sig);
+//        println!("Calling the registed fn with signer: {:?}, report: {:?}, sig: {:?}", signer_addr, report.to_vec(), sig);
         match self.w3_contract.call("register", (signer_addr, report.to_vec(), sig), self.account, opts).wait() {
             Ok(tx) => Ok(tx),
             Err(e) => {
