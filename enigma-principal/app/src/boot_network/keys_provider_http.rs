@@ -75,10 +75,10 @@ impl PrincipalHttpServer {
         PrincipalHttpServer { eid, port: port.to_string() }
     }
 
-    fn get_state_keys_internal(request: StateKeyRequest, eid: &Arc<AtomicU64>) -> Result<String, Error> {
+    fn get_state_keys_internal(request: StateKeyRequest, eid: &Arc<AtomicU64>) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
         let response = get_enc_state_keys(eid.load(Ordering::SeqCst), request)?;
-        let response_data = serde_json::to_string_pretty(&response)?;
+        let response_data = serde_json::to_value(&response)?;
         Ok(response_data)
     }
 
@@ -96,7 +96,7 @@ impl PrincipalHttpServer {
                 Ok(body) => body,
                 Err(err) => return Err(ServerError { code: ErrorCode::InternalError, message: format!("Unable to get keys: {:?}", err), data: None }),
             };
-            Ok(Value::String(body))
+            Ok(body)
         });
 
         let server = ServerBuilder::new(io)
