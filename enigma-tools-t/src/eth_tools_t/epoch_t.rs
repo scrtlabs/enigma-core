@@ -1,23 +1,19 @@
-use ethabi::{Address, Hash, Token, encode, Bytes};
+use ethabi::{Address, Bytes, encode, Hash, Token};
+use ethereum_types::{H160, H256, U256, U64};
 use std::vec::Vec;
-use eth_tools_t::keeper_types_t::InputWorkerParams;
-use ethereum_types::{H160, U256, H256, U64};
+
 use common::errors_t::EnclaveError;
-use bigint;
 use enigma_crypto::hash::Keccak256;
+use eth_tools_t::keeper_types_t::InputWorkerParams;
+
+pub type EpochNonce = [u8; 32];
 
 pub trait IntoBigint<T> {
     fn bigint(self) -> T;
 }
 
-impl IntoBigint<bigint::U256> for U256 { fn bigint(self) -> bigint::U256 { bigint::U256(self.0) } }
-
-impl IntoBigint<bigint::H256> for H256 { fn bigint(self) -> bigint::H256 { bigint::H256(self.0) } }
-
-pub type EpochNonce = [u8; 32];
-
-pub trait PackedEncodable {
-    fn encode_packed(&self) -> Result<Bytes, EnclaveError>;
+pub trait RawEncodable {
+    fn raw_encode(&self) -> Result<Bytes, EnclaveError>;
 }
 
 #[derive(Debug, Clone)]
@@ -27,8 +23,9 @@ struct WorkerSelectionToken {
     pub nonce: U256,
 }
 
-impl PackedEncodable for WorkerSelectionToken {
-    fn encode_packed(&self) -> Result<Bytes, EnclaveError> {
+impl RawEncodable for WorkerSelectionToken {
+    /// Encode the WorkerSelectionToken as Ethereum ABI parameters
+    fn raw_encode(&self) -> Result<Bytes, EnclaveError> {
         let tokens = vec![
             Token::Uint(self.seed),
             Token::FixedBytes(self.sc_addr.0.to_vec()),
@@ -58,6 +55,7 @@ impl Epoch {
         })
     }
 
+    /// Run the worker selection algorithm against the current epoch
     pub fn get_selected_workers(&self, sc_addr: H256, group_size: Option<U64>) -> Result<Vec<Address>, EnclaveError> {
         let workers = self.workers.to_vec();
         let mut balance_sum: U256 = U256::from(0);
@@ -70,7 +68,7 @@ impl Epoch {
         while {
             let token = WorkerSelectionToken { seed: self.seed, sc_addr, nonce };
             // This is equivalent to encodePacked in Solidity
-            let hash: [u8; 32] = token.encode_packed()?.keccak256().into();
+            let hash: [u8; 32] = token.raw_encode()?.keccak256().into();
             let mut rand_val: U256 = U256::from(hash) % balance_sum;
             println!("The initial random value: {:?}", rand_val);
             let mut selected_worker = self.workers[self.workers.len() - 1];
@@ -98,8 +96,9 @@ impl Epoch {
     }
 }
 
-impl PackedEncodable for Epoch {
-    fn encode_packed(&self) -> Result<Bytes, EnclaveError> {
+impl RawEncodable for Epoch {
+    /// Encode the Epoch as Ethereum ABI parameters
+    fn raw_encode(&self) -> Result<Bytes, EnclaveError> {
         let tokens = vec![
             Token::Uint(self.seed),
             Token::Uint(self.nonce),

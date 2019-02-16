@@ -7,7 +7,7 @@ use std::sync::Arc;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
 use web3::transports::{EventLoopHandle, Http};
-use web3::types::{Address, H160, U256, H256};
+use web3::types::{Address, H160, U256, H256, Bytes};
 use web3::Web3;
 use std::str;
 use web3_utils::provider_types::InputWorkerParams;
@@ -82,7 +82,7 @@ pub trait ContractFuncs<G> {
 
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<H256, Error>;
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G) -> Result<H256, Error>;
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
@@ -103,17 +103,16 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
         }
     }
 
-    #[logfn(INFO)]
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<H256, Error> {
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G) -> Result<H256, Error> {
         let mut opts: Options = Options::default();
         opts.gas = Some(gas.into());
-        let seed: U256 = _seed.into();
-        match self.w3_contract
-            .call("setWorkersParams", (seed, _sig.to_vec()), self.account, opts)
+        let tx = match self.w3_contract
+            .call("setWorkersParams", (block_number, seed, sig.0), self.account, opts)
             .wait() {
-            Ok(tx) => Ok(tx),
-            Err(e) => Err(errors::Web3Error { message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
-        }
+            Ok(tx) => tx,
+            Err(e) => return Err(errors::Web3Error { message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
+        };
+        Ok(tx)
     }
 }
 
@@ -137,7 +136,6 @@ impl ContractQueries for EnigmaContract {
             }
             Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getActiveWorkers: {:?}", e) }.into()),
         };
-        println!("The InputWorkerParams: {:?}", worker_params);
         Ok(worker_params)
     }
 }

@@ -1,5 +1,7 @@
 use structopt::StructOpt;
 use url::Url;
+use std::env;
+use std::path::PathBuf;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
@@ -7,6 +9,18 @@ pub struct Opt {
     /// Run info mode and shutdown. (Not actually running the node)
     #[structopt(short = "i", long = "info")]
     pub info: bool,
+
+    /// Output the signing address only
+    #[structopt(short = "s", long = "write-sign-address")]
+    pub sign_address: Option<String>,
+
+    /// Run the Register procedure and shutdown
+    #[structopt(short = "r", long = "register")]
+    pub register: bool,
+
+    /// Run the Set Worker Params procedure and shutdown
+    #[structopt(short = "sw", long = "set-worker-params")]
+    pub set_worker_params: bool,
 
     /// Optional: Deploy the Enigma contract related infrastructure
     #[structopt(short = "d", long = "deploy")]
@@ -72,7 +86,10 @@ pub fn print_logo() {
 pub fn print_info(sign_key: &str) {
     print_logo();
     yellow!("<>------------------------------------------<>\n");
-    green!("--info                                 => Print the signing key and help.\n");
+    green!("--info                                 => Print the signing address and help.\n");
+    green!("--write-sign-address <path>            => Write the signing address to the specified file.\n");
+    green!("--register                             => Run the Register procedure and shutdown.\n");
+    green!("--set-worker-params                    => Run the Set Worker Params procedure and shutdown.\n");
     green!("--deploy                               => Optional, deploy the Enigma contract.\n");
     green!("--network                              => Currently ignored, use a custom network (use config file instead).\n");
     green!("--mine <speed>                         => Optional, simulate new blocks, speed = seconds interval.\n");

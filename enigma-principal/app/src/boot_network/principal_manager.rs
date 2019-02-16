@@ -15,12 +15,15 @@ use std::io::prelude::*;
 use std::sync::Arc;
 use std::thread;
 use web3::transports::Http;
-use web3::types::{Address, U256};
+use web3::types::{Address, U256, H256};
 use web3::Web3;
+use web3::futures::Future;
 use boot_network::epoch_provider::EpochProvider;
+use esgx::epoch_keeper_u::set_worker_params;
+use enigma_tools_u::web3_utils::provider_types::EpochSeed;
 
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
     pub enigma_contract_path: String,
     pub enigma_contract_remote_path: String,
@@ -44,11 +47,38 @@ impl PrincipalConfig {
     pub fn set_ethereum_url(&mut self, ethereum_url: String) { self.url = ethereum_url; }
 }
 
-pub struct PrincipalManager {
+pub struct EnclaveManager {
     pub config: PrincipalConfig,
     as_service: service::AttestationService,
-    pub contract: Arc<EnigmaContract>,
     pub eid: sgx_enclave_id_t,
+}
+
+pub struct PrincipalManager {
+    pub config: PrincipalConfig,
+    pub contract: Arc<EnigmaContract>,
+    pub enclave_manager: EnclaveManager,
+}
+
+impl EnclaveManager {
+    pub fn new(config: PrincipalConfig, eid: sgx_enclave_id_t) -> Result<Self, Error> {
+        let as_service = service::AttestationService::new(&config.attestation_service_url);
+        Ok(EnclaveManager { config, as_service, eid })
+    }
+
+    pub fn get_quote(&self) -> Result<String, Error> { Ok(retry_quote(self.eid, &self.config.spid, 18)?) }
+
+    pub fn get_report(&self, quote: &str) -> Result<(Vec<u8>, String, service::ASResponse), Error> {
+        let (rlp_encoded, as_response) = self.as_service.rlp_encode_registration_params(quote)?;
+        let signature = as_response.result.signature.clone();
+        Ok((rlp_encoded, signature, as_response))
+    }
+
+    pub fn get_signing_address(&self) -> Result<String, Error> {
+        let mut signing_address = esgx::equote::get_register_signing_address(self.eid)?;
+        // remove 0x
+        signing_address = signing_address[2..].to_string();
+        Ok(signing_address)
+    }
 }
 
 impl PrincipalManager {
@@ -69,13 +99,10 @@ impl PrincipalManager {
 // General interface of a Sampler == The entity that manages the principal node logic.
 pub trait Sampler {
     /// load with config from file
-    fn new(config_path: &str, contract: Arc<EnigmaContract>, eid: sgx_enclave_id_t) -> Result<Self, Error>
+    fn new(config: PrincipalConfig, contract: Arc<EnigmaContract>, enclave_manager: EnclaveManager) -> Result<Self, Error>
         where Self: Sized;
 
-    /// load with config passed from the caller (for mutation purposes)
-    fn new_delegated(config: PrincipalConfig, contract: Arc<EnigmaContract>, eid: sgx_enclave_id_t) -> Self;
-
-    fn get_contract_address(&self) -> Address;
+    fn get_eid(&self) -> sgx_enclave_id_t;
 
     fn get_quote(&self) -> Result<String, Error>;
 
@@ -83,69 +110,87 @@ pub trait Sampler {
 
     fn get_signing_address(&self) -> Result<String, Error>;
 
+    fn get_contract_address(&self) -> Address;
+
     fn get_account_address(&self) -> Address;
 
     fn get_network_url(&self) -> String;
+
+    fn get_block_number(&self) -> Result<U256, Error>;
+
+    fn register<G: Into<U256>>(&self, gas_limit: G) -> Result<(H256), Error>;
+
+    fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G) -> Result<(H256), Error>;
 
     /// after initiation, this will run the principal node and block.
     fn run<G: Into<U256>>(&self, gas: G) -> Result<(), Error>;
 }
 
 impl Sampler for PrincipalManager {
-    fn new(config_path: &str, contract: Arc<EnigmaContract>, eid: sgx_enclave_id_t) -> Result<Self, Error> {
-        let config = PrincipalManager::load_config(config_path)?;
-        Ok(Self::new_delegated(config, contract, eid))
+    fn new(config: PrincipalConfig, contract: Arc<EnigmaContract>, enclave_manager: EnclaveManager) -> Result<Self, Error> {
+        Ok(PrincipalManager { config, contract, enclave_manager })
     }
 
-    fn new_delegated(config: PrincipalConfig, contract: Arc<EnigmaContract>, eid: sgx_enclave_id_t) -> Self {
-        let as_service = service::AttestationService::new(&config.attestation_service_url);
-        PrincipalManager { eid, config, as_service, contract }
+    fn get_eid(&self) -> sgx_enclave_id_t {
+        self.enclave_manager.eid
     }
 
-    fn get_contract_address(&self) -> Address { self.contract.address() }
-
-    fn get_quote(&self) -> Result<String, Error> { Ok(retry_quote(self.eid, &self.config.spid, 18)?) }
+    fn get_quote(&self) -> Result<String, Error> {
+        Ok(self.enclave_manager.get_quote()?)
+    }
 
     fn get_report(&self, quote: &str) -> Result<(Vec<u8>, String, service::ASResponse), Error> {
-        let (rlp_encoded, as_response) = self.as_service.rlp_encode_registration_params(quote)?;
-        let signature = as_response.result.signature.clone();
-        Ok((rlp_encoded, signature, as_response))
+        Ok(self.enclave_manager.get_report(quote)?)
     }
 
     fn get_signing_address(&self) -> Result<String, Error> {
-        let mut signing_address = esgx::equote::get_register_signing_address(self.eid)?;
-        // remove 0x
-        signing_address = signing_address[2..].to_string();
-        Ok(signing_address)
+        Ok(self.enclave_manager.get_signing_address()?)
     }
+    fn get_contract_address(&self) -> Address { self.contract.address() }
 
     fn get_account_address(&self) -> Address { self.contract.account.clone() }
 
     fn get_network_url(&self) -> String { self.config.url.clone() }
 
-    fn run<G: Into<U256>>(&self, gas_limit: G) -> Result<(), Error> {
+    fn get_block_number(&self) -> Result<U256, Error> {
+        let block_number = self.get_web3().eth().block_number().wait().unwrap();
+        Ok(block_number)
+    }
+
+    fn register<G: Into<U256>>(&self, gas_limit: G) -> Result<(H256), Error> {
         // get quote
         let quote = self.get_quote()?;
         // get report
         let (rlp_encoded, signature, _) = self.get_report(&quote)?;
+        // register worker
+        let signer = self.get_signing_address()?;
+        let tx = self.contract.register(&signer, &rlp_encoded, &signature, gas_limit)?;
+        println!("Registered worker with tx: {:?}", tx);
+        Ok(tx)
+    }
+
+    fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G) -> Result<(H256), Error> {
+        let worker_params = self.contract.get_active_workers(block_number)?;
+        println!("The active workers: {:?}", worker_params);
+        let epoch_seed = set_worker_params(self.get_eid(), worker_params)?;
+        println!("Calling setWorkersParams with EpochSeed: {:?}", epoch_seed);
+        let tx = self.contract.set_workers_params(block_number, epoch_seed.seed, epoch_seed.sig, gas_limit)?;
+        println!("The setWorkersParams tx: {:?}", tx);
+        Ok(tx)
+    }
+
+    fn run<G: Into<U256>>(&self, gas_limit: G) -> Result<(), Error> {
+        let gas_limit: U256 = gas_limit.into();
+        self.register(gas_limit)?;
         // get enigma contract
         let enigma_contract = &self.contract;
-//        let enigma_contract = &self.contract;
-        let gas_limit: U256 = gas_limit.into();
-        // register worker
-        //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
-        let signer = self.get_signing_address()?;
-        println!("Registering Principal node with signing address = {}", signer);
-        let tx = enigma_contract.register(&signer, &rlp_encoded, &signature, gas_limit)?;
-        println!("Registered worker with tx: {:?}", tx);
-
         // Start the WorkerParameterized Web3 log filter
-        let eid = Arc::new(AtomicU64::new(self.eid));
-        let em = Arc::new(EpochProvider::new(Arc::clone(&eid), self.contract.clone()));
-        thread::spawn(move || {
-            println!("Starting the worker parameters watcher in child thread");
-            em.filter_worker_params();
-        });
+        let eid = Arc::new(AtomicU64::new(self.get_eid()));
+//        let em = Arc::new(EpochProvider::new(Arc::clone(&eid), self.contract.clone()));
+//        thread::spawn(move || {
+//            println!("Starting the worker parameters watcher in child thread");
+//            em.filter_worker_params();
+//        });
 
         // Start the JSON-RPC Server
         let port = self.config.http_port.clone();
@@ -158,7 +203,7 @@ impl Sampler for PrincipalManager {
         // watch blocks
         let polling_interval = self.config.polling_interval;
         let epoch_size = self.config.epoch_size;
-        enigma_contract.watch_blocks(epoch_size, polling_interval, self.eid, gas_limit, self.config.max_epochs);
+        enigma_contract.watch_blocks(epoch_size, polling_interval, self.get_eid(), gas_limit, self.config.max_epochs);
         Ok(())
     }
 }
@@ -184,10 +229,10 @@ mod test {
     use std::sync::Arc;
     use std::{env, thread, time};
     use web3::transports::Http;
-    use web3::types::{Log, H256};
-    use web3::futures::Future;
+    use web3::types::Log;
     use web3::Web3;
     use std::path::Path;
+    use std::process::Command;
 
     /// This function is important to enable testing both on the CI server and local.
     /// On the CI Side:
@@ -206,6 +251,10 @@ mod test {
     pub fn init_no_deploy(eid: u64) -> Result<PrincipalManager, Error> {
         let config_path = "../app/tests/principal_node/config/principal_test_config.json";
         let mut config = PrincipalManager::load_config(config_path)?;
+        let enclave_manager = EnclaveManager::new(config.clone(), eid)?;
+        println!("The Principal node signer address: {}", enclave_manager.get_signing_address().unwrap());
+        let _ = Command::new("/root/src/enigma-principal/app/wait.sh").status();
+
         let contract = Arc::new(
             EnigmaContract::from_deployed(&config.enigma_contract_address,
                                           Path::new(&config.enigma_contract_path),
@@ -213,7 +262,7 @@ mod test {
         );
         let gas_limit = 5_999_999;
         config.max_epochs = None;
-        let principal: PrincipalManager = PrincipalManager::new_delegated(config, contract, eid);
+        let principal: PrincipalManager = PrincipalManager::new(config, contract, enclave_manager);
         println!("Connected to the Enigma contract with account: {:?}", principal.get_account_address());
         Ok(principal)
     }
@@ -221,12 +270,14 @@ mod test {
     /// Not a standalone unit test, must be coordinated with the Enigma Contract tests
     #[test]
     fn test_set_worker_params() {
+        let gas_limit: U256 = 5999999.into();
         let enclave = init_enclave_wrapper().unwrap();
         let eid = enclave.geteid();
-        let principal = init_no_deploy(eid).expect("Cannot init the PrincipalManager");
-        let gas_limit = 5999999;
-        let num = principal.get_web3().eth().block_number().wait().unwrap();
-        let worker_params = principal.contract.get_active_workers(num).unwrap();
+        let principal = init_no_deploy(eid).unwrap();
+        principal.register(gas_limit).unwrap();
+
+        let block_number = principal.get_web3().eth().block_number().wait().unwrap();
+        principal.set_worker_params(block_number, gas_limit)?;
         assert_eq!(true, true);
     }
 
