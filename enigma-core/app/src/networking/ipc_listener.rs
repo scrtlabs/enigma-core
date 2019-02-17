@@ -249,7 +249,7 @@ pub(self) mod handling {
 
     #[logfn(INFO)]
     pub fn ptt_response(db: &mut DB, response: &PrincipalResponse, eid: sgx_enclave_id_t) -> ResponseResult {
-        let msg = response.0.from_hex()?;
+        let msg = response.response.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
         let res = km_u::ptt_build_state(db, eid)?;
         let result: Vec<_> = res

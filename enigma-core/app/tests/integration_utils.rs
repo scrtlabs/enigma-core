@@ -94,7 +94,7 @@ pub fn get_ptt_req_msg(addrs: &[String]) -> Value {
 }
 
 pub fn get_ptt_res_msg(response: &[u8]) -> Value {
-    json!({"id" : &generate_job_id(), "type" : "PTTResponse", "response": response.to_hex()})
+    json!({"id" : &generate_job_id(), "type" : "PTTResponse", "input": {"response": response.to_hex() }})
 }
 
 pub fn get_deploy_msg(pre_code: &str, args: &str, callable: &str, usr_pubkey: &str, gas_limit: u64, addr: &str) -> Value {

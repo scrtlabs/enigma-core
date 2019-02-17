@@ -142,8 +142,9 @@ pub struct IpcGetDeltas {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename = "response")]
-pub struct PrincipalResponse (pub String);
+pub struct PrincipalResponse {
+    pub response: String,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
