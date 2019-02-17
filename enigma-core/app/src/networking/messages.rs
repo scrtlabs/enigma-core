@@ -8,23 +8,23 @@ type Status = i8;
 pub const FAILED: Status = -1;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IpcMessage {
+pub struct IpcMessageRequest {
     pub id: String,
     #[serde(flatten)]
-    pub kind: IpcMessageKind
+    pub request: IpcRequest
 }
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(untagged)]
-pub enum IpcMessageKind {
-    IpcResponse(IpcResponse),
-    IpcRequest(IpcRequest),
+pub struct IpcMessageResponse {
+    pub id: String,
+    #[serde(flatten)]
+    pub response: IpcResponse
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum IpcResponse {
     GetRegistrationParams { #[serde(flatten)] result: IpcResults },
-    IdentityChallenge { nonce: String, signature: IpcIdentityChallenge },
     GetTip { result: IpcDelta },
     GetTips { result: IpcResults },
     GetAllTips { result: IpcResults },
@@ -46,6 +46,7 @@ pub enum IpcResponse {
 #[serde(rename_all = "camelCase", rename = "result")]
 pub enum IpcResults {
     Errors(Vec<IpcStatusResult>),
+    #[serde(rename = "result")]
     Request { request: String, #[serde(rename = "workerSig")] sig: String },
     Addresses(Vec<String>),
     Delta(String),
@@ -91,7 +92,6 @@ pub enum IpcResults {
 #[serde(tag = "type")]
 pub enum IpcRequest {
     GetRegistrationParams,
-    IdentityChallenge { nonce: String },
     GetTip { input: String },
     GetTips { input: Vec<String> },
     GetAllTips,
@@ -123,12 +123,6 @@ pub struct IpcTask {
     pub gas_limit: u64,
     #[serde(rename = "contractAddress")]
     pub address: String,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IpcIdentityChallenge {
-    pub nonce: String,
-    pub signature: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -167,16 +161,14 @@ impl std::ops::Deref for Addresses {
     }
 }
 
-
-impl IpcMessage {
-    pub fn from_response(res: IpcResponse, id: String) -> Self {
-        let kind = IpcMessageKind::IpcResponse(res);
-        Self { id, kind }
+impl IpcMessageResponse {
+    pub fn from_response(response: IpcResponse, id: String) -> Self {
+        Self { id, response }
     }
-
-    pub fn from_request(req: IpcRequest, id: String) -> Self {
-        let kind = IpcMessageKind::IpcRequest(req);
-        Self { id, kind }
+}
+impl IpcMessageRequest {
+    pub fn from_request(request: IpcRequest, id: String) -> Self {
+        Self { id, request }
     }
 }
 
@@ -192,23 +184,6 @@ impl IpcDelta {
     }
 }
 
-
-impl IpcMessage {
-    pub fn unwrap_request(self) -> IpcRequest {
-        match self.kind {
-            IpcMessageKind::IpcRequest(val) => val,
-            IpcMessageKind::IpcResponse(_) => panic!("called `IpcMessage::unwrap_request()` on a `IpcResponse` value"),
-        }
-    }
-
-    pub fn unwrap_response(self) -> IpcResponse {
-        match self.kind {
-            IpcMessageKind::IpcResponse(val) => val,
-            IpcMessageKind::IpcRequest(_) => panic!("called `IpcMessage::unwrap_response()` on a `IpcRequest` value"),
-        }
-    }
-}
-
 impl From<Delta> for IpcDelta {
     fn from(delta: Delta) -> Self {
         let value = delta.value.to_hex();
@@ -218,18 +193,16 @@ impl From<Delta> for IpcDelta {
     }
 }
 
-impl From<Message> for IpcMessage {
+impl From<Message> for IpcMessageRequest {
     fn from(msg: Message) -> Self {
         let msg_str = msg.as_str().unwrap();
-        println!("got: {:?}", msg_str);
         let req: Self = serde_json::from_str(msg_str).expect(msg_str);
         req
     }
 }
 
-impl Into<Message> for IpcMessage {
+impl Into<Message> for IpcMessageResponse {
     fn into(self) -> Message {
-        println!("respond: {:?}", serde_json::to_string(&self).unwrap());
         let msg = serde_json::to_vec(&self).unwrap();
         Message::from_slice(&msg)
     }

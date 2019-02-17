@@ -318,7 +318,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     pre_execution_data.push(Box::new(*exe_code_hash));
     let pre_execution_state = execution::get_state(db_ptr, address)?;
 
-    let (decrypted_args, decrypted_callable, types, function_name, key) = decrypt_inputs(callable, args, user_key)?;
+    let (decrypted_args, _decrypted_callable, types, function_name, key) = decrypt_inputs(callable, args, user_key)?;
 
     let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone())?;
 
@@ -504,7 +504,7 @@ pub mod tests {
         let mut failures = Vec::new();
         rsgx_unit_test_start();
 
-        /// The reason I had to make our own tests is because baidu's unittest lib supports only static functions that get no inputs.
+        // The reason I had to make our own tests is because baidu's unittest lib supports only static functions that get no inputs.
         core_unitests(&mut ctr, &mut failures, test_full_sealing_storage, "test_full_sealing_storage" );
 //        core_unitests(&mut ctr, &mut failures,  test_ecall_evm_signning, "test_ecall_evm_signning" );
         core_unitests(&mut ctr, &mut failures, test_encrypt_state, "test_encrypt_state" );

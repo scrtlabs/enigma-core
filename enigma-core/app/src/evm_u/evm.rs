@@ -117,12 +117,11 @@ pub mod tests {
         };
 
         let mut lines = BufReader::new(file).lines();
-        let result = evm::EvmInput { data: lines.next().unwrap().unwrap(), code: lines.next().unwrap().unwrap() };
-        result
+        evm::EvmInput { data: lines.next().unwrap().unwrap(), code: lines.next().unwrap().unwrap() }
     }
 
     fn init_enclave() -> SgxEnclave {
-        let enclave = match esgx::general::init_enclave_wrapper() {
+        match esgx::general::init_enclave_wrapper() {
             Ok(r) => {
                 println!("[+] Init Enclave Successful {}!", r.geteid());
                 r
@@ -130,8 +129,7 @@ pub mod tests {
             Err(x) => {
                 panic!("[-] Init Enclave Failed {}!", x.as_str());
             }
-        };
-        enclave
+        }
     }
 
     #[test]

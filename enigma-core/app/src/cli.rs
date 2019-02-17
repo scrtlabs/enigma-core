@@ -3,7 +3,7 @@ use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 #[structopt(name = "Enigma Core", about = "Enigma Core CLI commands.")]
-pub(crate) struct Opt {
+pub struct Opt {
     /// Increase verbosity of messages (up to 5 -vvvvv)
     #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
     pub verbose: u8,
