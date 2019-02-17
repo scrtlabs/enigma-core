@@ -128,7 +128,7 @@ pub fn get_msg_format_update_contract(addr: &str, bytecode: &str) -> Value {
 }
 
 pub fn get_update_deltas_msg(_input: &[(String, u64, String)]) -> Value {
-    let input: Vec<Value> = _input.iter().map(|(addr, key, data)| json!({"address": addr, "key": key, "delta": data})).collect();
+    let input: Vec<Value> = _input.iter().map(|(addr, key, data)| json!({"address": addr, "key": key, "data": data})).collect();
     json!({"id": &generate_job_id(), "type": "UpdateDeltas", "deltas": input})
 }
 
