@@ -263,7 +263,7 @@ mod test {
         let gas_limit = 5_999_999;
         config.max_epochs = None;
         let principal: PrincipalManager = PrincipalManager::new(config, contract, enclave_manager);
-        println!("Connected to the Enigma contract with account: {:?}", principal.get_account_address());
+        println!("Connected to the Enigma contract: {:?} with account: {:?}", &config.enigma_contract_address, principal.get_account_address());
         Ok(principal)
     }
 

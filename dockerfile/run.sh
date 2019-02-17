@@ -8,4 +8,4 @@ docker ps -a | awk '{ print $1,$2 }' | grep enigma-core | awk '{print $1 }' | xa
 
 echo "Running the Docker container..."
 echo -e "Mapping local $SRC to container's /root/src/\n"
-docker run --net="host" -it -v "$SRC":/root/src:rw -v ~/.enigma:/root/.enigma:rw --device /dev/isgx enigma-core
+docker run --net="host" -it -v "$SRC":/root/src:rw -v ~/.enigma:/root/.enigma:rw --device /dev/isgx --name enigma-core enigma-core

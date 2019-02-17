@@ -27,7 +27,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
         let mut file = File::create(opt.sign_address.unwrap())?;
         file.write_all(sign_key.as_bytes())?;
     } else {
-        cli::options::print_logo();
+//        cli::options::print_logo();
 
         // deploy the contracts Enigma,EnigmaToken (not deployed yet)
         if opt.deploy {
@@ -71,8 +71,12 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             println!("[Mode:] run node NO DEPLOY.");
             /* step1 : build the config of the principal node   */
             // optional : set time limit for the principal node
+            let contract_address = match opt.contract_address {
+                Some(addr) => addr,
+                None => principal_config.enigma_contract_address.clone(),
+            };
             let enigma_contract = Arc::new(
-                EnigmaContract::from_deployed(&principal_config.enigma_contract_address,
+                EnigmaContract::from_deployed(&contract_address,
                                               Path::new(&principal_config.enigma_contract_path),
                                               Some(&principal_config.account_address),
                                               &principal_config.url,
@@ -84,7 +88,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             principal_config.max_epochs = ttl;
 
             let principal: PrincipalManager = PrincipalManager::new(principal_config, enigma_contract, enclave_manager)?;
-            println!("Connected to the Enigma contract with account: {:?}", principal.get_account_address());
+            println!("Connected to the Enigma contract: {:?} with account: {:?}", &contract_address, principal.get_account_address());
 
             /* step2 optional - run miner to simulate blocks */
             let join_handle = if opt.mine > 0 {

@@ -22,6 +22,10 @@ pub struct Opt {
     #[structopt(short = "sw", long = "set-worker-params")]
     pub set_worker_params: bool,
 
+    ///Optional: The Enigma contract address, use the config if not provided
+    #[structopt(short = "c", long = "contract-address")]
+    pub contract_address: Option<String>,
+
     /// Optional: Deploy the Enigma contract related infrastructure
     #[structopt(short = "d", long = "deploy")]
     pub deploy: bool,
@@ -90,6 +94,7 @@ pub fn print_info(sign_key: &str) {
     green!("--write-sign-address <path>            => Write the signing address to the specified file.\n");
     green!("--register                             => Run the Register procedure and shutdown.\n");
     green!("--set-worker-params                    => Run the Set Worker Params procedure and shutdown.\n");
+    green!("--contract-address                     => The Enigma contract address, use the config if not provided.\n");
     green!("--deploy                               => Optional, deploy the Enigma contract.\n");
     green!("--network                              => Currently ignored, use a custom network (use config file instead).\n");
     green!("--mine <speed>                         => Optional, simulate new blocks, speed = seconds interval.\n");
