@@ -9,9 +9,9 @@ pipeline:
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-core && RUSTFLAGS=-Awarnings make
       - cd app && RUSTFLAGS=-Awarnings cargo test
-    volumes:
-      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
-      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
+#    volumes:
+#      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
+#      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
   principal:
     group: tests
@@ -24,9 +24,9 @@ pipeline:
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-principal && RUSTFLAGS=-Awarnings make
       - cd app && RUSTFLAGS=-Awarnings cargo test
-    volumes:
-      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
-      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
+#    volumes:
+#      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
+#      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
   tools_u:
     group: tests
@@ -36,9 +36,9 @@ pipeline:
       - export NODE_URL="http://ganache:8545"
       - cd enigma-tools-u
       - RUSTFLAGS=-Awarnings cargo test
-    volumes:
-      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
-      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
+#    volumes:
+#      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
+#      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
   enigma_crypto:
     group: tests
@@ -47,9 +47,9 @@ pipeline:
       - . /root/.cargo/env
       - cd enigma-crypto
       - RUSTFLAGS=-Awarnings cargo test
-    volumes:
-      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
-      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
+#    volumes:
+#      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
+#      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
 services:
   ganache:
