@@ -7,12 +7,11 @@ extern crate rmp_serde;
 extern crate enigma_crypto;
 extern crate futures;
 
-use futures::Future;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::Command;
-use enigma_types::{ContractAddress, StateKey};
+pub use enigma_types::{ContractAddress, StateKey};
 use enigma_crypto::{KeyPair, symmetric, rand};
 use enigma_crypto::hash::{Sha256, Keccak256};
 use serde_json::{*, Value};
@@ -48,10 +47,10 @@ pub fn get_fake_state_key(contract_address: ContractAddress) -> [u8; 32] {
     contract_address.keccak256().sha256().into()
 }
 
-pub fn make_encrypted_response(req: &Value) -> Value {
+pub fn make_encrypted_response(req: &Value, addresses: Vec<ContractAddress>) -> Value {
     // Making the response
-    let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
-    let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|addr| (addr, get_fake_state_key(addr))).collect();
+    assert!(req["data"]["Request"].is_null()); // Just makes sure that {data:{Request}} Exists.
+    let _response_data: Vec<(ContractAddress, StateKey)> = addresses.into_iter().map(|addr| (addr, get_fake_state_key(addr))).collect();
 
     let mut response_data = Vec::new();
     _response_data.serialize(&mut Serializer::new(&mut response_data)).unwrap();
