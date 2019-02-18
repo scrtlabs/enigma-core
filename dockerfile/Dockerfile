@@ -16,7 +16,7 @@ RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
     rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
 
 
-# clone the rust-sgx-sdk baidu sdk v1.0.0
+# clone the rust-sgx-sdk baidu sdk v1.0.4
 RUN git clone --depth 1  -b v1.0.4 https://github.com/baidu/rust-sgx-sdk.git  sgx
 
 

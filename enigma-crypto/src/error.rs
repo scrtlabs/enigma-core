@@ -26,14 +26,14 @@ pub enum CryptoError {
     #[fail(display = "Failed Encrypting")]
     EncryptionError,
 
-    #[fail(display = "Signing the message failed: {:?}", hashed_msg)]
+    #[fail(display = "Signing the message failed, msg hash: {:?}", hashed_msg)]
     SigningError { hashed_msg: [u8; 32] },
 
     #[cfg(feature = "std")]
-    #[fail(display = "Failed Generating a: {}", err)]
+    #[fail(display = "Failed Generating a random. rand Error: {:?}", err)]
     RandomError { err: rand_std::Error },
 
     #[cfg(feature = "sgx")]
-    #[fail(display = "Failed Generating a: {}", err)]
+    #[fail(display = "Failed Generating a random.  SGX Error: {:?}", err)]
     RandomError { err: sgx_types::sgx_status_t },
 }
