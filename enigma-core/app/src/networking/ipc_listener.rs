@@ -48,7 +48,7 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::DeploySecretContract { input } => handling::deploy_contract(db, input, eid),
             IpcRequest::ComputeTask { input } => handling::compute_task(db, input, eid),
             IpcRequest::GetPTTRequest { input } => handling::get_ptt_req(&input, eid),
-            IpcRequest::PTTResponse { response } => handling::ptt_response(db, &response, eid),
+            IpcRequest::PTTResponse { input } => handling::ptt_response(db, &input, eid),
         };
         let msg = IpcMessageResponse::from_response(response_msg.unwrap_or_error(), id);
         responses.push_back(msg.into());
@@ -248,8 +248,8 @@ pub(self) mod handling {
     }
 
     #[logfn(INFO)]
-    pub fn ptt_response(db: &mut DB, response: &str, eid: sgx_enclave_id_t) -> ResponseResult {
-        let msg = response.from_hex()?;
+    pub fn ptt_response(db: &mut DB, response: &PrincipalResponse, eid: sgx_enclave_id_t) -> ResponseResult {
+        let msg = response.response.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
         let res = km_u::ptt_build_state(db, eid)?;
         let result: Vec<_> = res

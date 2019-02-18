@@ -251,7 +251,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
 fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String, DhKey), EnclaveError>{
     let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
-        .ok_or(CryptoError::KeyError { key_type: "DH Key".to_string(), err: "Missing".to_string() })?;
+        .ok_or(CryptoError::MissingKeyError { key_type: "DH Key" })?;
 
     let decrypted_callable = decrypt_callable(callable, &inputs_key)?;
     let decrypted_args = decrypt_args(&args, &inputs_key)?;

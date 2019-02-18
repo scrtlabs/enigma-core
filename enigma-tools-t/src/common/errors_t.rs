@@ -115,9 +115,8 @@ impl Into<EnclaveReturn> for EnclaveError {
             EvmError { .. } => EnclaveReturn::EVMError,
             MessagingError { .. } => EnclaveReturn::MessagingError,
             CryptoError{err} => match err {
-                IoError { .. } => EnclaveReturn::Other,
                 RandomError { .. } => EnclaveReturn::SgxError,
-                DerivingKeyError { .. } | KeyError { .. }  => EnclaveReturn::KeysError,
+                DerivingKeyError { .. } | KeyError { .. } | MissingKeyError { .. } => EnclaveReturn::KeysError,
                 DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption => EnclaveReturn::EncryptionError,
             }
         }

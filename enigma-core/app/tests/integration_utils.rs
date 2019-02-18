@@ -67,8 +67,11 @@ pub fn is_hex(msg: &str) -> bool {
 }
 
 pub fn conn_and_call_ipc(msg: &str, port: &'static str) -> Value {
+    const TIMEOUT: i32 = 30_000; // Socket timeout - 30 seconds.
     let context = zmq::Context::new();
     let requester = context.socket(zmq::REQ).unwrap();
+    requester.set_rcvtimeo(TIMEOUT).unwrap();
+    requester.set_sndtimeo(TIMEOUT).unwrap();
     assert!(requester.connect(&format!("tcp://localhost:{}", port)).is_ok());
 
     requester.send(msg, 0).unwrap();
@@ -94,7 +97,7 @@ pub fn get_ptt_req_msg(addrs: &[String]) -> Value {
 }
 
 pub fn get_ptt_res_msg(response: &[u8]) -> Value {
-    json!({"id" : &generate_job_id(), "type" : "PTTResponse", "response": response.to_hex()})
+    json!({"id" : &generate_job_id(), "type" : "PTTResponse", "input": {"response": response.to_hex() }})
 }
 
 pub fn get_deploy_msg(pre_code: &str, args: &str, callable: &str, usr_pubkey: &str, gas_limit: u64, addr: &str) -> Value {

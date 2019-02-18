@@ -105,7 +105,7 @@ pub enum IpcRequest {
     DeploySecretContract { input: IpcTask},
     ComputeTask { input: IpcTask },
     GetPTTRequest { input: Addresses },
-    PTTResponse {  response: String },
+    PTTResponse {  input: PrincipalResponse },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -148,6 +148,11 @@ pub struct IpcGetDeltas {
     pub address: String,
     pub from: u32,
     pub to: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PrincipalResponse {
+    pub response: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
