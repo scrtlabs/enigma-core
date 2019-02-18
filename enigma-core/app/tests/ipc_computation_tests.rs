@@ -67,7 +67,7 @@ fn test_execute_on_existing_contract_no_construct() {
     let (deployed_res, _old_addr) = full_erc20_deployment(port, None);
     let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
     let deployed_delta = deployed_res["result"]["delta"].as_object().unwrap();
-    let deployed_data: String = serde_json::from_value(deployed_delta["delta"].clone()).unwrap();
+    let deployed_data: String = serde_json::from_value(deployed_delta["data"].clone()).unwrap();
 
     let amount_before = Token::Uint(60.into());
     let to_addr = Token::FixedBytes(generate_contract_address().to_vec());
@@ -75,7 +75,7 @@ fn test_execute_on_existing_contract_no_construct() {
     let callable  = "mint(bytes32,uint256)";
     let (_res_mint, _) = contract_compute(port, _old_addr, &args, callable);
     let mint_delta = _res_mint["result"]["delta"].as_object().unwrap();
-    let computed_data: String = serde_json::from_value(mint_delta["delta"].clone()).unwrap();
+    let computed_data: String = serde_json::from_value(mint_delta["data"].clone()).unwrap();
 
     let new_addr = generate_contract_address();
     let _msg = get_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
@@ -118,7 +118,7 @@ fn test_execute_on_existing_contract_with_constructor() {
     let (deployed_res, _old_addr) = full_simple_deployment(port);
     let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
     let deployed_delta = deployed_res["result"]["delta"].as_object().unwrap();
-    let deployed_data = deployed_delta["delta"].as_str().unwrap();
+    let deployed_data = deployed_delta["data"].as_str().unwrap();
 
     // done this execution in order to check if the new worker would be able to use data stored in the state
     let a = Token::Uint(1051.into());
@@ -127,7 +127,7 @@ fn test_execute_on_existing_contract_with_constructor() {
     let callable  = "addition(uint256,uint256)";
     let (_res_add, _) = contract_compute(port, _old_addr, &args, callable);
     let add_delta = _res_add["result"].as_object().unwrap()["delta"].as_object().unwrap();
-    let computed_data: String = serde_json::from_value(add_delta["delta"].clone()).unwrap();
+    let computed_data: String = serde_json::from_value(add_delta["data"].clone()).unwrap();
 
     let new_addr = generate_contract_address();
     let _msg = get_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);

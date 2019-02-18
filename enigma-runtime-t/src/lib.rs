@@ -156,51 +156,12 @@ impl Runtime {
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
         }
     }
-    /// args:
-    /// * `value` - value holder: the start address of value in memory
-    /// * `value_len` - the length of value holder
-    ///
-    /// Copy memory starting address 0 of length 'value_len' to `value` and to `self.result.result`
-    pub fn from_memory(&mut self, args: RuntimeArgs) -> Result<()> {
-        let value: u32 = args.nth_checked(0).unwrap();
-        let value_len: i32 = args.nth_checked(1).unwrap();
 
-        let mut buf = Vec::with_capacity(value_len as usize);
-        for _ in 0..value_len {
-            buf.push(0);
-        }
-
-        match self.memory.get_into(0, &mut buf[..]) {
-            Ok(()) => {
-                match self.memory.set(value, &buf[..]) {
-                    Ok(()) => {
-                        self.result.result = match self.memory.get(0, value_len as usize) {
-                            Ok(v) => v,
-                            Err(e) => return Err(WasmError::Memory(format!("{}", e))),
-                        };
-                    }
-                    Err(e) => return Err(WasmError::Memory(format!("{}", e))),
-                }
-                Ok(())
-            }
-            Err(e) => return Err(WasmError::Memory(format!("{}", e))),
-        }
-    }
-
-    /// args:
-    /// * `key` - the start address of key in memory
-    /// * `key_len` - the length of key
-    ///
-    /// Read `key` from the memory, then read from the state the value under the `key`
-    /// and copy it to the memory at address 0.
-    pub fn read_state (&mut self, args: RuntimeArgs) -> Result<i32> {
+    pub fn read_state_len (&mut self, args: RuntimeArgs) -> Result<i32> {
         // TODO: Handle the error here, should we return len=0?;
         let key = args.nth_checked(0);
         let key_len: u32 = args.nth_checked(1).unwrap();
-        let mut buf = Vec::with_capacity(key_len as usize);
-        for _ in 0..key_len {
-            buf.push(0);
-        }
+        let mut buf = vec![0u8; key_len as usize];
         match self.memory.get_into(key.unwrap(), &mut buf[..]) {
             Ok(()) => (),
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
@@ -208,8 +169,33 @@ impl Runtime {
         let key1 = str::from_utf8(&buf)?;
         let value_vec =
             serde_json::to_vec(&self.post_execution_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
-        self.memory.set(0, &value_vec).unwrap(); // TODO: Impl From so we could use `?`
         Ok( value_vec.len() as i32 )
+    }
+
+
+    /// args:
+    /// * `key` - the start address of key in memory
+    /// * `key_len` - the length of key
+    ///
+    /// Read `key` from the memory, then read from the state the value under the `key`
+    /// and copy it to the memory at address 0.
+    pub fn read_state (&mut self, args: RuntimeArgs) -> Result<()> {
+        // TODO: Handle the error here, should we return len=0?;
+        let key = args.nth_checked(0);
+        let key_len: u32 = args.nth_checked(1).unwrap();
+        let value_holder: u32 = args.nth_checked(2).unwrap();
+
+        let mut buf = vec![0u8; key_len as usize];
+        match self.memory.get_into(key.unwrap(), &mut buf[..]) {
+            Ok(()) => (),
+            Err(e) => return Err(WasmError::Memory(format!("{}", e))),
+        }
+
+        let key1 = str::from_utf8(&buf)?;
+        let value_vec =
+            serde_json::to_vec(&self.post_execution_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
+        self.memory.set(value_holder, &value_vec).unwrap(); // TODO: Impl From so we could use `?`
+        Ok(())
     }
 
     /// args:
@@ -225,21 +211,13 @@ impl Runtime {
         let value: u32 = args.nth_checked(2).unwrap();
         let value_len: u32 = args.nth_checked(3).unwrap();
 
-        let mut buf = Vec::with_capacity(key_len as usize);
-        for _ in 0..key_len {
-            buf.push(0);
-        }
-
+        let mut buf = vec![0u8; key_len as usize];
         match self.memory.get_into(key.unwrap(), &mut buf[..]) {
             Ok(v) => v,
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
         }
 
-        let mut val = Vec::with_capacity(value_len as usize);
-        for _ in 0..value_len {
-            val.push(0);
-        }
-
+        let mut val = vec![0u8; value_len as usize];
         match self.memory.get_into(value, &mut val[..]) {
             Ok(v) => v,
             Err(e) => return Err(WasmError::Memory(format!("{}", e))),
@@ -300,11 +278,7 @@ impl Runtime {
         let ptr: u32 = args.nth_checked(0)?;
         let len: u32 = args.nth_checked(1)?;
 
-        let mut buf = Vec::with_capacity(len as usize);
-        for _ in 0..len {
-            buf.push(0);
-        }
-
+        let mut buf = vec![0u8; len as usize];
         match rsgx_read_rand(&mut buf[..]) {
             Ok(_) => {
                 match self.memory.set(ptr, &buf[..]) {
@@ -384,15 +358,14 @@ mod ext_impl {
                     Runtime::write_state(self, args)?;
                     Ok(None)
                 }
-                eng_resolver::ids::READ_STATE_FUNC => {
-                    let res = Runtime::read_state(self, args)?;
+                eng_resolver::ids::READ_STATE_LEN_FUNC => {
+                    let res = Runtime::read_state_len(self, args)?;
                     Ok(Some(RuntimeValue::I32(res)))
                 }
-                eng_resolver::ids::FROM_MEM_FUNC => {
-                    Runtime::from_memory(self, args)?;
+                eng_resolver::ids::READ_STATE_FUNC => {
+                    Runtime::read_state(self, args)?;
                     Ok(None)
                 }
-
                 eng_resolver::ids::EPRINT_FUNC => {
                     Runtime::eprint(self, args)?;
                     Ok(None)

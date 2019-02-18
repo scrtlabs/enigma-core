@@ -10,7 +10,6 @@ use std::convert::TryInto;
 use failure::Error;
 use sgx_types::*;
 
-
 extern "C" {
     fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
                     bytecode: *const u8, bytecode_len: usize,
@@ -102,8 +101,7 @@ pub mod tests {
     use enigma_types::{ContractAddress, DhKey, PubKey};
     use enigma_crypto::symmetric;
     use sgx_types::*;
-    use std::str::from_utf8;
-    use wasm_u::{WasmResult, wasm::{rustc_hex::ToHex}};
+    use wasm_u::{WasmResult};
 
     pub const GAS_LIMIT: u64 = 100_000_000;
 
@@ -162,7 +160,7 @@ pub mod tests {
     fn test_print_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (_enclave, _, result, shared_key) = compile_deploy_execute(
+        let (enclave, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
@@ -171,14 +169,13 @@ pub mod tests {
             "print_test(uint256,uint256)",
             &[Token::Uint(17.into()), Token::Uint(22.into())]
         );
-        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), "22");
     }
 
     #[test]
     fn test_write_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (_enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
@@ -188,32 +185,33 @@ pub mod tests {
             &[]
         );
 
-        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), "\"157\"");
+        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Bytes], &encoded_output).unwrap())[0];
+        assert_eq!(&(decoded_output.clone().to_bytes().unwrap())[..], b"157");
     }
 
     // address is defined in our protocol as ethereum's H256/bytes32
     #[test]
     fn test_single_address() {
         let (mut db, _dir) = create_test_db();
-        let addr = Token::FixedBytes(generate_contract_address().to_vec());
-
-        let (_enclave, _, result, shared_key) = compile_deploy_execute(
+        let addr = generate_contract_address();
+        let (_, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
             "construct(uint)",
             &[Token::Uint(100.into())],
             "check_address(bytes32)",
-            &[addr.clone()]
+            &[Token::FixedBytes(addr.to_vec())]
         );
 
-        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), format!("{:?}",addr.to_fixed_bytes().unwrap().to_hex()));
+        assert_eq!(symmetric::decrypt(&result.output, &shared_key).unwrap(), *addr);
     }
 
     #[test]
     fn test_rand_u8() {
         let (mut db, _dir) = create_test_db();
-        let (_enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
@@ -223,21 +221,23 @@ pub mod tests {
             &[]
         );
 
-        let colors = vec!["\"green\"", "\"yellow\"", "\"red\"", "\"blue\"", "\"white\"", "\"black\"", "\"orange\"", "\"purple\""];
-        let res_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
-        let res_str = from_utf8(&res_output).unwrap();
-        let res = match colors.into_iter().find(|&x|{x==res_str}) {
+        let colors: Vec<&[u8]> = vec![b"green", b"yellow", b"red", b"blue", b"white", b"black", b"orange", b"purple"];
+        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Bytes], &encoded_output).unwrap())[0];
+        let output = decoded_output.clone().to_bytes().unwrap();
+        let res = match colors.into_iter().find(|x|{x==&&output[..]}) {
             Some(color) => color,
-            None => "test_failed"
+            None => b"test_failed"
         };
-        assert_eq!(res_str, res);
+
+        assert_eq!(output, res);
     }
 
     #[test]
     fn test_shuffling() {
         let (mut db, _dir) = create_test_db();
 
-        let (_enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
@@ -255,19 +255,23 @@ pub mod tests {
     #[test]
     fn test_multiple_addresses() {
         let (mut db, _dir) = create_test_db();
-        let addr2 = Token::FixedBytes(generate_contract_address().to_vec());
-
-        let (_enclave, _, result, shared_key) = compile_deploy_execute(
+        let addr1 = generate_contract_address();
+        let addr2 = generate_contract_address();
+        let addresses = [Token::FixedBytes(addr1.to_vec()), Token::FixedBytes(addr2.to_vec())];
+        let (_, _, result, shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
             "construct(uint)",
             &[Token::Uint(1025.into())],
             "check_addresses(bytes32,bytes32)",
-            &[Token::FixedBytes(generate_contract_address().to_vec()), addr2.clone()]
+            &addresses
         );
 
-        assert_eq!(from_utf8(&symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap(), format!("{:?}",addr2.to_fixed_bytes().unwrap().to_hex()));
+        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Array(Box::new(ethabi::ParamType::FixedBytes(32)))], &encoded_output).unwrap())[0];
+        let expected_output = Token::Array(addresses.to_vec());
+        assert_eq!(decoded_output,&expected_output);
     }
 
     #[test]
@@ -449,7 +453,7 @@ pub mod tests {
     fn test_eth_bridge(){
         let (mut db, _dir) = create_test_db();
 
-        let (_enclave, _contract_code, _, _) = compile_deploy_execute(
+        compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/contract_with_eth_calls",
             generate_contract_address(),
