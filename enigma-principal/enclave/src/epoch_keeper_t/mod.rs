@@ -130,7 +130,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], rand_ou
     let msg = epoch.raw_encode()?;
     let hash = msg.keccak256();
     println!("Signing msg hash {} with signer address {}", hash.to_hex(), SIGNING_KEY.get_pubkey().address_string());
-    let sig = SIGNING_KEY.sign(&hash.to_vec())?;
+    let sig = SIGNING_KEY.sign(hash.as_ref())?;
     sig_out.copy_from_slice(&sig[..]);
     println!("Signed the message hash: 0x{}", hash.to_hex());
     Ok(())

@@ -25,7 +25,6 @@ enclave {
         public EnclaveReturn ecall_get_enc_state_keys([in, size=msg_len] const uint8_t* msg, size_t msg_len,
                                         [in, size=65] uint8_t* sig,
                                         [out, size=100000] uint8_t* enc_response_out, [out] uint64_t* enc_response_len_out,
-                                        [out, size=64] uint8_t* pubkey_out,
                                         [out, size=65] uint8_t* sig_out);
     };
     untrusted {

@@ -44,7 +44,6 @@ pub struct StateKeyRequest {
 pub struct StateKeyResponse {
     pub data: StringWrapper,
     pub sig: StringWrapper,
-    pub pubkey: StringWrapper,
 }
 
 impl From<Vec<u8>> for StringWrapper {

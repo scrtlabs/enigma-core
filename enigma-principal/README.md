@@ -23,13 +23,12 @@ The encryption method relies on a DH key exchange between the Principal node and
 **Parameters**
 
 - `data` (String) - The HEX string of a serialized KM [Message](https://github.com/enigmampc/enigma-core-internal/blob/develop/enigma-tools-t/src/km_primitives.rs) struct. The Request data contains a list of secret contract addresses (`Vec<ContractAddress>`).
-- `sig` (String) - The HEX string of the signature of the hash of the serialized KM Message (`msg.to_message()`). This allows the Principal node to recover the worker's signer address. 
+- `sig` (String) - The signature of the keccak256 hash of the serialized KM Message (`msg.to_message()`). This allows the Principal node to recover the worker's signer address. 
 
 **Returns**
 
 - `data` (String) - The HEX string of the encrypted KM Message Response. The Response data contains a list of secret contract address / state key tuples (`Vec<(ContractAddress, StateKey)>`).
-- `sig`: (String)
-- `pubKey` (String):
+- `sig`: (String) - The HEX string of the 
 
 **Example**
 
@@ -43,8 +42,7 @@ curl -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "id":1, "method"
 	"id": 1,
 	"result": {
 	    "data": "0061d93b5412c0c99c3c7867db13c4e13e51292bd52565d002ecf845bb0cfd8adfa5459173364ea8aff3fe24054cca88581f6c3c5e928097b9d4d47fce12ae47",
-	    "sig": "",
-	    "pubkey": ""
+	    "sig": ""
 	}
 }
 ```

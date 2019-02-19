@@ -10,7 +10,7 @@ extern {
                                 msg: *const u8, msg_len: usize,
                                 sig: &[u8; 65],
                                 enc_response_out: *mut u8, enc_response_len_out: &mut usize,
-                                pubkey_out: &mut [u8; 64], sig_out: &mut [u8; 65]) -> sgx_status_t;
+                                sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
 
 const MAX_ENC_RESPONSE_LEN: usize = 100_000;
@@ -25,7 +25,6 @@ const MAX_ENC_RESPONSE_LEN: usize = 100_000;
 pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Result<StateKeyResponse, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
-    let mut pubkey_out: [u8; 64] = [0; 64];
     let mut enc_response = vec![0u8; MAX_ENC_RESPONSE_LEN];
     let enc_response_slice = enc_response.as_mut_slice();
     let mut enc_response_len_out: usize = 0;
@@ -40,7 +39,6 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Re
             &request.sig.into(),
             enc_response_slice.as_mut_ptr() as *mut u8,
             &mut enc_response_len_out,
-            &mut pubkey_out,
             &mut sig_out,
         )
     };
@@ -51,7 +49,6 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Re
     Ok(StateKeyResponse {
         data: StringWrapper::from(enc_response_out),
         sig: StringWrapper::from(sig_out),
-        pubkey: StringWrapper::from(pubkey_out),
     })
 }
 
