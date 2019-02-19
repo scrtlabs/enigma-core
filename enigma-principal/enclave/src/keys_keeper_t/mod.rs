@@ -156,7 +156,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
     let response = response_msg.encrypt_with_nonce(&derived_key, Some(iv))?;
     // TODO: The bytes don't seem to change between request.
     let response_bytes = response.to_message()?;
-    println!("The encrypted response bytes: {:?}", response_bytes);
+    println!("The partially encrypted response: {:?}", response_bytes.to_hex());
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
     let hash = response_bytes.clone().keccak256();
