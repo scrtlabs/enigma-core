@@ -2,6 +2,7 @@ use failure::Fail;
 use arrayvec::ArrayVec;
 
 #[derive(Debug, Fail)]
+#[cfg_attr(feature = "sgx", derive(Clone))]
 pub enum CryptoError {
     #[fail(display = "Failed to derive a key with ECDH: self: {:?}, other: {:?}", self_key, other_key)]
     DerivingKeyError { self_key: ArrayVec<[u8; 64]>, other_key: ArrayVec<[u8; 64]> },
