@@ -5,7 +5,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
 use failure::Error;
-use rustc_hex::ToHex;
 use sgx_types::sgx_enclave_id_t;
 use structopt::StructOpt;
 
@@ -18,7 +17,7 @@ pub use esgx::general::ocall_get_home;
 
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     let opt = cli::options::Opt::from_args();
-    let config = deploy_scripts::load_config(opt.deploy_config.as_str())?;
+    let _config = deploy_scripts::load_config(opt.deploy_config.as_str())?;
     let mut principal_config = PrincipalManager::load_config(opt.principal_config.as_str())?;
     let enclave_manager = EnclaveManager::new(principal_config.clone(), eid)?;
     let sign_key = enclave_manager.get_signing_address()?;
@@ -104,12 +103,8 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
                 principal.register(gas_limit)?;
             } else if opt.set_worker_params {
                 let block_number = principal.get_block_number()?;
-                let epoch_provider = EpochProvider{
-                    contract: principal.contract.clone(),
-                    last_block_number: None,
-                    eid: Arc::new(AtomicU64::new(eid)),
-
-                };
+                let eid_safe = Arc::new(AtomicU64::new(eid));
+                let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone())?;
                 epoch_provider.set_worker_params(block_number, gas_limit)?;
             } else {
                 principal.run(gas_limit).unwrap();

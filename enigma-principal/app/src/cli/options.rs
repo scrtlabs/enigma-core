@@ -1,7 +1,5 @@
 use structopt::StructOpt;
 use url::Url;
-use std::env;
-use std::path::PathBuf;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]

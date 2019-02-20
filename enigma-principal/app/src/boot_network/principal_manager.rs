@@ -19,10 +19,8 @@ use boot_network::keys_provider_http::PrincipalHttpServer;
 use boot_network::principal_utils::Principal;
 use enigma_tools_u::attestation_service::service;
 use enigma_tools_u::esgx::equote::retry_quote;
-use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
-use enigma_tools_u::web3_utils::provider_types::EpochSeed;
+use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, EnigmaContract};
 use esgx;
-use esgx::epoch_keeper_u::set_worker_params;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
@@ -40,12 +38,6 @@ pub struct PrincipalConfig {
     pub spid: String,
     pub attestation_service_url: String,
     pub http_port: String,
-}
-
-impl PrincipalConfig {
-    pub fn set_enigma_contract_address(&mut self, new_address: String) { self.enigma_contract_address = new_address; }
-    pub fn set_accounts_address(&mut self, new_account: String) { self.account_address = new_account; }
-    pub fn set_ethereum_url(&mut self, ethereum_url: String) { self.url = ethereum_url; }
 }
 
 pub struct EnclaveManager {
@@ -175,7 +167,7 @@ impl Sampler for PrincipalManager {
         let enigma_contract = &self.contract;
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<AtomicU64> =  Arc::new(AtomicU64::new(self.get_eid()));
-        let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone()));
+        let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone())?);
         let child_provider = Arc::clone(&epoch_provider);
         thread::spawn(move || {
             println!("Starting the worker parameters watcher in child thread");
@@ -228,10 +220,10 @@ mod test {
     use super::*;
 
     /// This function is important to enable testing both on the CI server and local.
-        /// On the CI Side:
-        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-        /// The default is set to ganache cli "http://localhost:8545"
+                        /// On the CI Side:
+                        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+                        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+                        /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:8545")) }
 
     /// helps in assertion to check if a random event was indeed broadcast.
@@ -272,7 +264,7 @@ mod test {
         let block_number = principal.get_web3().eth().block_number().wait().unwrap();
         let epoch_provider = EpochProvider{
             contract: principal.contract.clone(),
-            last_block_number: None,
+            block_marker: None,
             eid: eid.clone()
         };
         principal.set_worker_params(block_number, gas_limit)?;

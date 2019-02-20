@@ -54,7 +54,11 @@ impl EventWrapper {
                 kind: ParamType::Uint(256),
                 indexed: false,
             }, EventParam {
-                name: "blockNumber".to_string(),
+                name: "firstBlockNumber".to_string(),
+                kind: ParamType::Uint(256),
+                indexed: false,
+            }, EventParam {
+                name: "inclusionBlockNumber".to_string(),
                 kind: ParamType::Uint(256),
                 indexed: false,
             }, EventParam {
@@ -62,7 +66,7 @@ impl EventWrapper {
                 kind: ParamType::Array(Box::new(ParamType::Address)),
                 indexed: false,
             }, EventParam {
-                name: "balances".to_string(),
+                name: "stakes".to_string(),
                 kind: ParamType::Array(Box::new(ParamType::Uint(256))),
                 indexed: false,
             }, EventParam {

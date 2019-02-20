@@ -1,7 +1,6 @@
-use std::sync::atomic::AtomicU64;
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use web3::types::{Bytes, H256, U256};
+use web3::types::{Bytes, U256};
 
 use common_u::errors::EnclaveFailError;
 use enigma_tools_u::web3_utils::provider_types::{ encode, EpochSeed, InputWorkerParams};
@@ -28,7 +27,6 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams
     let mut sig_out: [u8; 65] = [0; 65];
     // Serialize the receipt into RLP
     let worker_params_rlp = encode(&worker_params);
-    let mut sig_out: [u8; 65] = [0; 65];
     let status = unsafe {
         ecall_set_worker_params(
             eid,
