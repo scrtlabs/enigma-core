@@ -13,9 +13,7 @@ use web3::transports::Http;
 use web3::types::{Address, H256, U256};
 
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
-
-
-const ACTIVE_EPOCH_CODE: &str = "ACTIVE_EPOCH";
+use boot_network::epoch_provider::EpochProvider;
 
 
 // this trait should extend the EnigmaContract into Principal specific functions.
@@ -23,12 +21,7 @@ pub trait Principal {
     fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error>
         where Self: Sized;
 
-//    fn set_worker_params<G: Into<U256>>(&self, eid: sgx_enclave_id_t, gas_limit: G) -> CallFuture<H256, <Http as Transport>::Out>;
-
-//    fn set_worker_params_internal<G: Into<U256>>(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
-//                                                 -> CallFuture<H256, <Http as Transport>::Out>;
-
-    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
+    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
                                    max_epochs: Option<usize>);
 }
 
@@ -37,33 +30,7 @@ impl Principal for EnigmaContract {
         Ok(Self::from_deployed(address, path, Some(account), url)?)
     }
 
-    // set (seed,signature(seed)) into the enigma smart contract
-//    fn set_worker_params<G: Into<U256>>(&self, eid: sgx_enclave_id_t, gas_limit: G) -> CallFuture<H256, <Http as Transport>::Out> {
-//        Self::set_worker_params_internal(&self.w3_contract, &self.account, eid, gas_limit)
-//    }
-
-//    fn set_worker_params_internal<G: Into<U256>>(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
-//                                                 -> CallFuture<H256, <Http as Transport>::Out> {
-//        // get seed,signature
-//        println!("Generating epoch seed in the enclave");
-//        // TODO: update with new contract
-////        let epoch_seed: EpochSeed = match epoch_keeper_u::set_worker_params(eid) {
-////            Ok(res) => res,
-////            Err(err) => {
-////                eprintln!("{:?}", err);
-////                panic!(format!("{:?}", err))
-////            }
-////        };
-////        println!("[---\u{25B6} seed: {}, nonce: {} \u{25C0}---]", epoch_seed.seed, epoch_seed.nonce);
-////        // set gas options for the tx
-////        let mut options = Options::default();
-////        options.gas = Some(gas_limit.into());
-////        // set random seed
-////        contract.call("setWorkersParams", (epoch_seed.seed, epoch_seed.sig.0), account.clone(), options)
-//    }
-
-
-    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
+    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
                                    max_epochs: Option<usize>) {
         // Make Arcs to support passing the refrence to multiple futures.
         let prev_epoch = Arc::new(AtomicUsize::new(0));
@@ -84,10 +51,14 @@ impl Principal for EnigmaContract {
             let curr_block = num.low_u64() as usize;
             let prev_block_ref = prev_epoch.load(Ordering::Relaxed);
             println!("[\u{1F50A} ] Blocks @ previous: {}, current: {}, next: {} [\u{1F50A} ]", prev_block_ref, curr_block, (prev_block_ref + epoch_size));
-//                // Account for the fact that starting the app does not restart the chain
+            //TODO: Account for the fact that starting the app does not restart the chain
             if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
                 prev_epoch.swap(curr_block, Ordering::Relaxed);
                 println!("New epoch found");
+                match epoch_provider.set_worker_params(num, gas_limit) {
+                    Ok(tx) => println!("Setting workers params with tx: {:?}", tx),
+                    Err(err) => println!("Unable to set workers params: {:?}", err),
+                }
             } else {
                 println!("Epoch still active");
             }

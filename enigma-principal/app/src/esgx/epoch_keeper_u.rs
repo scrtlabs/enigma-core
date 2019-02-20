@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicU64;
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, H256, U256};

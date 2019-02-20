@@ -74,7 +74,7 @@ impl PrincipalHttpServer {
         PrincipalHttpServer { eid, port: port.to_string() }
     }
 
-    fn get_state_keys_internal(request: StateKeyRequest, eid: &Arc<AtomicU64>) -> Result<Value, Error> {
+    fn get_state_keys_internal(request: StateKeyRequest, eid: &AtomicU64) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
         let response = get_enc_state_keys(eid.load(Ordering::SeqCst), request)?;
         let response_data = serde_json::to_value(&response)?;
@@ -88,7 +88,7 @@ impl PrincipalHttpServer {
     ///
     pub fn start(&self) {
         let mut io = IoHandler::default();
-        let eid = Arc::clone(&self.eid);
+        let eid = self.eid.clone();
         io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
             let request = params.parse::<StateKeyRequest>()?;
             let body = match PrincipalHttpServer::get_state_keys_internal(request, &eid) {

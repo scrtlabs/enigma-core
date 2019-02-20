@@ -1,18 +1,20 @@
+use std::fs::File;
+use std::io::prelude::*;
+use std::path::Path;
+use std::sync::Arc;
+use std::sync::atomic::AtomicU64;
+
 use failure::Error;
+use rustc_hex::ToHex;
 use sgx_types::sgx_enclave_id_t;
 use structopt::StructOpt;
 
 use boot_network::deploy_scripts;
-use boot_network::principal_manager::{self, PrincipalManager, Sampler, EnclaveManager};
+use boot_network::epoch_provider::EpochProvider;
+use boot_network::principal_manager::{self, EnclaveManager, PrincipalManager, Sampler};
 use cli;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
-use rustc_hex::ToHex;
-use std::path::Path;
-use std::fs::File;
-use std::io::prelude::*;
-
 pub use esgx::general::ocall_get_home;
-use std::sync::Arc;
 
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     let opt = cli::options::Opt::from_args();
@@ -102,7 +104,13 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
                 principal.register(gas_limit)?;
             } else if opt.set_worker_params {
                 let block_number = principal.get_block_number()?;
-                principal.set_worker_params(block_number, gas_limit)?;
+                let epoch_provider = EpochProvider{
+                    contract: principal.contract.clone(),
+                    last_block_number: None,
+                    eid: Arc::new(AtomicU64::new(eid)),
+
+                };
+                epoch_provider.set_worker_params(block_number, gas_limit)?;
             } else {
                 principal.run(gas_limit).unwrap();
             }

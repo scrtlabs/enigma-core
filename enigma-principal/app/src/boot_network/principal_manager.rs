@@ -1,27 +1,28 @@
+use std::fs::File;
+use std::io::prelude::*;
+use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
-use boot_network::deploy_scripts;
-use boot_network::principal_utils::Principal;
-use boot_network::keys_provider_http::PrincipalHttpServer;
-use enigma_tools_u::attestation_service::service;
-use enigma_tools_u::esgx::equote::retry_quote;
-use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, EnigmaContract, ContractQueries};
-use esgx;
+use std::thread;
+
 use failure::Error;
 use serde_derive::*;
 use serde_json;
 use sgx_types::sgx_enclave_id_t;
-use std::fs::File;
-use std::io::prelude::*;
-use std::sync::Arc;
-use std::thread;
-use web3::transports::Http;
-use web3::types::{Address, U256, H256};
-use web3::Web3;
 use web3::futures::Future;
-use boot_network::epoch_provider::EpochProvider;
-use esgx::epoch_keeper_u::set_worker_params;
-use enigma_tools_u::web3_utils::provider_types::EpochSeed;
+use web3::transports::Http;
+use web3::types::{Address, H256, U256};
+use web3::Web3;
 
+use boot_network::deploy_scripts;
+use boot_network::epoch_provider::EpochProvider;
+use boot_network::keys_provider_http::PrincipalHttpServer;
+use boot_network::principal_utils::Principal;
+use enigma_tools_u::attestation_service::service;
+use enigma_tools_u::esgx::equote::retry_quote;
+use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
+use enigma_tools_u::web3_utils::provider_types::EpochSeed;
+use esgx;
+use esgx::epoch_keeper_u::set_worker_params;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
@@ -120,8 +121,6 @@ pub trait Sampler {
 
     fn register<G: Into<U256>>(&self, gas_limit: G) -> Result<(H256), Error>;
 
-    fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G) -> Result<(H256), Error>;
-
     /// after initiation, this will run the principal node and block.
     fn run<G: Into<U256>>(&self, gas: G) -> Result<(), Error>;
 }
@@ -169,28 +168,19 @@ impl Sampler for PrincipalManager {
         Ok(tx)
     }
 
-    fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G) -> Result<(H256), Error> {
-        let worker_params = self.contract.get_active_workers(block_number)?;
-        println!("The active workers: {:?}", worker_params);
-        let epoch_seed = set_worker_params(self.get_eid(), worker_params)?;
-        println!("Calling setWorkersParams with EpochSeed: {:?}", epoch_seed);
-        let tx = self.contract.set_workers_params(block_number, epoch_seed.seed, epoch_seed.sig, gas_limit)?;
-        println!("The setWorkersParams tx: {:?}", tx);
-        Ok(tx)
-    }
-
     fn run<G: Into<U256>>(&self, gas_limit: G) -> Result<(), Error> {
         let gas_limit: U256 = gas_limit.into();
         self.register(gas_limit)?;
         // get enigma contract
         let enigma_contract = &self.contract;
         // Start the WorkerParameterized Web3 log filter
-        let eid = Arc::new(AtomicU64::new(self.get_eid()));
-//        let em = Arc::new(EpochProvider::new(Arc::clone(&eid), self.contract.clone()));
-//        thread::spawn(move || {
-//            println!("Starting the worker parameters watcher in child thread");
-//            em.filter_worker_params();
-//        });
+        let eid: Arc<AtomicU64> =  Arc::new(AtomicU64::new(self.get_eid()));
+        let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone()));
+        let child_provider = Arc::clone(&epoch_provider);
+        thread::spawn(move || {
+            println!("Starting the worker parameters watcher in child thread");
+            child_provider.filter_worker_params();
+        });
 
         // Start the JSON-RPC Server
         let port = self.config.http_port.clone();
@@ -203,7 +193,7 @@ impl Sampler for PrincipalManager {
         // watch blocks
         let polling_interval = self.config.polling_interval;
         let epoch_size = self.config.epoch_size;
-        enigma_contract.watch_blocks(epoch_size, polling_interval, self.get_eid(), gas_limit, self.config.max_epochs);
+        enigma_contract.watch_blocks(epoch_size, polling_interval, epoch_provider, gas_limit, self.config.max_epochs);
         Ok(())
     }
 }
@@ -219,26 +209,29 @@ pub fn run_miner(account: Address, w3: Arc<Web3<Http>>, interval: u64) -> thread
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use std::{env, thread, time};
+    use std::path::Path;
+    use std::process::Command;
+    use std::sync::Arc;
+
+    use rustc_hex::ToHex;
+    use web3::transports::Http;
+    use web3::types::Log;
+    use web3::Web3;
+
     use boot_network::deploy_scripts;
     use enigma_crypto::hash::Keccak256;
     use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
     use enigma_tools_u::web3_utils::w3utils;
     use esgx::general::init_enclave_wrapper;
-    use rustc_hex::ToHex;
-    use std::sync::Arc;
-    use std::{env, thread, time};
-    use web3::transports::Http;
-    use web3::types::Log;
-    use web3::Web3;
-    use std::path::Path;
-    use std::process::Command;
+
+    use super::*;
 
     /// This function is important to enable testing both on the CI server and local.
-    /// On the CI Side:
-    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-    /// The default is set to ganache cli "http://localhost:8545"
+        /// On the CI Side:
+        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+        /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:8545")) }
 
     /// helps in assertion to check if a random event was indeed broadcast.
@@ -277,6 +270,11 @@ mod test {
         principal.register(gas_limit).unwrap();
 
         let block_number = principal.get_web3().eth().block_number().wait().unwrap();
+        let epoch_provider = EpochProvider{
+            contract: principal.contract.clone(),
+            last_block_number: None,
+            eid: eid.clone()
+        };
         principal.set_worker_params(block_number, gas_limit)?;
         assert_eq!(true, true);
     }
