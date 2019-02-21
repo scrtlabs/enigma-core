@@ -1,8 +1,8 @@
 use bigint;
 pub use rlp::{Encodable, encode, decode, RlpStream};
-use web3::types::{Block, Bytes, H160, H2048, H256, H64, Log, TransactionReceipt, U256, Address};
-use enigma_crypto::hash::Keccak256;
+use web3::types::{Bytes, H160, H2048, H256, H64, U256, Address};
 use ethabi::{Event, EventParam, ParamType};
+use web3_utils::keeper_types_u::{InputWorkerParams};
 
 pub trait IntoBigint<T> {
     fn bigint(self) -> T;
@@ -20,12 +20,6 @@ impl IntoBigint<bigint::H2048> for H2048 { fn bigint(self) -> bigint::H2048 { bi
 
 impl IntoBigint<bigint::B256> for Bytes { fn bigint(self) -> bigint::B256 { bigint::B256::new(&self.0) } }
 
-#[derive(Debug, Clone)]
-pub struct InputWorkerParams {
-    pub block_number: U256,
-    pub workers: Vec<Address>,
-    pub stakes: Vec<U256>,
-}
 impl Encodable for InputWorkerParams {
     fn rlp_append(&self, s: &mut RlpStream) {
         s.begin_list(3);

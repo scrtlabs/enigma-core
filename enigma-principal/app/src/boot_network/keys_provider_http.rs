@@ -1,6 +1,6 @@
 use std::string::ToString;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 
 use failure::Error;
 use jsonrpc_http_server::cors::AccessControlAllowOrigin;
@@ -11,6 +11,8 @@ use rustc_hex::FromHex;
 use rustc_hex::ToHex;
 
 use esgx::keys_keeper_u::get_enc_state_keys;
+use boot_network::epoch_provider::EpochProvider;
+use sgx_types::sgx_enclave_id_t;
 
 const METHOD_GET_STATE_KEYS: &str = "get_state_keys";
 
@@ -65,18 +67,18 @@ impl From<[u8; 64]> for StringWrapper {
 }
 
 pub struct PrincipalHttpServer {
-    eid: Arc<AtomicU64>,
+    epoch_provider: Arc<EpochProvider>,
     pub port: String,
 }
 
 impl PrincipalHttpServer {
-    pub fn new(eid: Arc<AtomicU64>, port: &str) -> PrincipalHttpServer {
-        PrincipalHttpServer { eid, port: port.to_string() }
+    pub fn new(epoch_provider: Arc<EpochProvider>, port: &str) -> PrincipalHttpServer {
+        PrincipalHttpServer { epoch_provider, port: port.to_string() }
     }
 
-    fn get_state_keys_internal(request: StateKeyRequest, eid: &AtomicU64) -> Result<Value, Error> {
+    fn get_state_keys_internal(request: StateKeyRequest, eid: sgx_enclave_id_t) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
-        let response = get_enc_state_keys(eid.load(Ordering::SeqCst), request)?;
+        let response = get_enc_state_keys(eid, request)?;
         let response_data = serde_json::to_value(&response)?;
         Ok(response_data)
     }
@@ -88,10 +90,11 @@ impl PrincipalHttpServer {
     ///
     pub fn start(&self) {
         let mut io = IoHandler::default();
-        let eid = self.eid.clone();
+        let child_eid = Arc::clone(&self.epoch_provider.eid);
         io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
             let request = params.parse::<StateKeyRequest>()?;
-            let body = match PrincipalHttpServer::get_state_keys_internal(request, &eid) {
+            let eid = child_eid.load(Ordering::SeqCst);
+            let body = match PrincipalHttpServer::get_state_keys_internal(request, eid) {
                 Ok(body) => body,
                 Err(err) => return Err(ServerError { code: ErrorCode::InternalError, message: format!("Unable to get keys: {:?}", err), data: None }),
             };

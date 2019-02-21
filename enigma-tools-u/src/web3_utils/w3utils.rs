@@ -17,7 +17,6 @@ use crate::common_u::errors;
 use serde_json;
 use serde_json::Value;
 use std::fs::File;
-use std::io::prelude::*;
 use std::path::Path;
 use std::sync::Arc;
 use enigma_crypto::hash::Keccak256;

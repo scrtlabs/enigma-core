@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::PathBuf;
@@ -11,24 +12,33 @@ use failure::Error;
 // general
 use web3::futures::Future;
 use web3::futures::stream::Stream;
-use web3::types::{FilterBuilder, H256, U256};
+use web3::types::{FilterBuilder, H256, U256, Address};
 
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
+use enigma_tools_u::web3_utils::keeper_types_u::InputWorkerParams;
 use enigma_tools_u::web3_utils::provider_types::EventWrapper;
 use esgx::epoch_keeper_u::set_worker_params;
 use esgx::general::{ENCLAVE_DIR, storage_dir};
+use std::sync::{Mutex, MutexGuard};
+
+pub struct SelectedWorkers {
+    pub sc_address: H256,
+    pub worker: Address,
+}
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
     pub block_marker: Arc<AtomicU64>,
     pub eid: Arc<AtomicU64>,
+    pub selected_workers: Arc<Vec<SelectedWorkers>>,
 }
 
 impl EpochProvider {
     pub fn new(eid: Arc<AtomicU64>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
         let block_marker_abi = Self::read_block_marker()?;
         let block_marker = Arc::new(AtomicU64::new(block_marker_abi.low_u64()));
-        Ok(Self { contract, block_marker, eid })
+        let selected_workers: Arc<Vec<SelectedWorkers>> = Arc::new(Vec::new());
+        Ok(Self { contract, block_marker, eid, selected_workers })
     }
 
     fn get_marker_file_path() -> PathBuf {
@@ -36,6 +46,12 @@ impl EpochProvider {
         path.join(ENCLAVE_DIR);
         path.push("epoch-marker.dat");
         path
+    }
+
+    pub fn reset_block_marker(self: Arc<Self>) -> Result<(), Error> {
+        self.block_marker.swap(0, Ordering::Relaxed);
+        Self::write_block_marker(U256::from(0))?;
+        Ok(())
     }
 
     fn read_block_marker() -> Result<U256, Error> {
@@ -80,19 +96,42 @@ impl EpochProvider {
     ///    the enclave operator from tempering with worker parameters in order to modify the
     ///    result of the worker selection.
     pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G) -> Result<(H256), Error> {
-        let worker_params = self.contract.get_active_workers(block_number)?;
+        let worker_params: InputWorkerParams = self.contract.get_active_workers(block_number)?;
         println!("The active workers: {:?}", worker_params);
-        let epoch_seed = set_worker_params(self.eid.load(Ordering::SeqCst), worker_params)?;
+        let epoch_seed = set_worker_params(self.eid.load(Ordering::SeqCst), worker_params.clone())?;
         println!("Calling setWorkersParams with EpochSeed: {:?}", epoch_seed);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
-        let tx = self.contract.set_workers_params(block_number, epoch_seed.seed, epoch_seed.sig, gas_limit)?;
+        let tx = self.contract.set_workers_params(block_number, epoch_seed.seed.clone(), epoch_seed.sig, gas_limit)?;
+        println!("Caching selected workers");
+        self.cache_selected_workers(worker_params, epoch_seed.seed)?;
         println!("The setWorkersParams tx: {:?}", tx);
         Ok(tx)
     }
 
+    pub fn cache_selected_workers(&self, worker_params: InputWorkerParams, seed: U256) -> Result<(), Error> {
+        let contract_count = self.contract.count_secret_contracts()?;
+        println!("The secret contract count: {:?}", contract_count);
+        let addrs = self.contract.get_secret_contract_addresses(U256::from(0), contract_count)?;
+        println!("The secret contract addresses: {:?}", addrs);
+        let mut selected_workers: Vec<SelectedWorkers> = Vec::new();
+        for sc_address in addrs {
+            println!("Getting the selected worker for: {:?}", sc_address);
+            match worker_params.get_selected_worker(sc_address.clone(), seed.clone())? {
+                Some(worker) => {
+                    println!("Found selected worker: {:?} not found for contract: {:?}", worker, sc_address);
+                    selected_workers.push(SelectedWorkers { sc_address, worker });
+                }
+                None => {
+                    println!("Selected worker not found for contract: {:?}", sc_address);
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// Store the epoch marker (first block number of the new epoch) for each
     /// WorkerParametized event emitted by the Enigma contract.
-    pub fn filter_worker_params(self: Arc<Self>) {
+    pub fn filter_worker_params(&self) {
         let event = EventWrapper::workers_parameterized();
         let event_sig = event.0.signature();
         // Filter for Hello event in our contract
@@ -120,7 +159,7 @@ impl EpochProvider {
                         let block_number_inner = block_number.low_u64();
                         self.block_marker.swap(block_number_inner, Ordering::Relaxed);
                         match Self::write_block_marker(block_number) {
-                            Ok(ref mut _res) => println!("Stored the WorkerParameterized block number: {:?}", block_number),
+                            Ok(_) => println!("Stored the WorkerParameterized block number: {:?}", block_number),
                             Err(err) => eprintln!("Unable to store the block marker: {:?}", err), //TODO: consider panicking here
                         };
                         Ok(())
@@ -140,9 +179,9 @@ mod test {
     use super::*;
 
     /// This function is important to enable testing both on the CI server and local.
-                    /// On the CI Side:
-                    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-                    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-                    /// The default is set to ganache cli "http://localhost:8545"
+                        /// On the CI Side:
+                        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+                        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+                        /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:9545")) }
 }

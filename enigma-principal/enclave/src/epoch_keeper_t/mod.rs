@@ -12,8 +12,8 @@ use std::vec::Vec;
 
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::eth_tools_t::epoch_t::{EpochNonce, Epoch, RawEncodable};
-use enigma_tools_t::eth_tools_t::keeper_types_t::{decode, InputWorkerParams};
+use enigma_tools_t::eth_tools_t::epoch_t::{EpochNonce, Epoch};
+use enigma_tools_t::eth_tools_t::keeper_types_t::{decode, InputWorkerParams, RawEncodable};
 use std::path;
 use ocalls_t;
 use std::untrusted::fs;
@@ -95,7 +95,11 @@ fn new_epoch(guard: &mut SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>, worke
     save_sealed_document(&marker_path, &sealed_log_in)?;
     println!("Sealed the epoch marker: {:?}", marker_path);
 
-    let epoch = Epoch::new(worker_params.clone(), nonce.clone(), seed.clone())?;
+    let epoch = Epoch {
+        nonce: nonce.clone(),
+        seed: seed.clone(),
+        worker_params: worker_params.clone(),
+    };
     //TODO: seal the epoch
     println!("Storing epoch: {:?}", epoch);
     match guard.insert(nonce.clone(), epoch.clone()) {
@@ -147,7 +151,7 @@ pub(crate) fn ecall_get_epoch_workers_internal(sc_addr: Hash, block_number: Opti
         }
     };
     println!("Running worker selection using Epoch: {:?}", epoch);
-    let workers = epoch.get_selected_workers(sc_addr, None)?;
+    let workers = epoch.get_selected_worker(sc_addr)?;
     Ok(workers)
 }
 
@@ -157,16 +161,19 @@ pub mod tests {
 
     //noinspection RsTypeCheck
     pub fn test_get_epoch_workers_internal() {
-        let epoch = Epoch {
+        let worker_params = InputWorkerParams {
             block_number: U256::from(1),
             workers: vec![H160::from(0), H160::from(1), H160::from(2), H160::from(3)],
             stakes: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
+        };
+        let epoch = Epoch {
             nonce: U256::from(0),
             seed: U256::from(1),
+            worker_params,
         };
         println!("The epoch: {:?}", epoch);
         let sc_addr = H256::from(1);
-        let workers = epoch.get_selected_workers(sc_addr, None).unwrap();
+        let workers = epoch.get_selected_worker(sc_addr).unwrap();
         println!("The selected workers: {:?}", workers);
     }
 }

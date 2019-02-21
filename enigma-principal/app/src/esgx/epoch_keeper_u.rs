@@ -3,7 +3,8 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, U256};
 
 use common_u::errors::EnclaveFailError;
-use enigma_tools_u::web3_utils::provider_types::{ encode, EpochSeed, InputWorkerParams};
+use enigma_tools_u::web3_utils::provider_types::{ encode, EpochSeed, Encodable};
+use enigma_tools_u::web3_utils::keeper_types_u::InputWorkerParams;
 use enigma_types::EnclaveReturn;
 
 extern {
