@@ -16,7 +16,6 @@ use eng_wasm::String;
 use eng_wasm::from_utf8;
 use hex::ToHex;
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 
 static TOTAL_SUPPLY: &str = "total_supply";
 
@@ -77,7 +76,7 @@ impl Erc20Interface for Contract {
 
         // update the user object and write to the state
         user_addr.balance = user_addr.balance + tokens.as_u64();
-        write_state!(&addr.to_hex() => user_addr, TOTAL_SUPPLY => (total_supply + tokens.as_u64()));
+        write_state!(&addr.to_hex() => user_addr, TOTAL_SUPPLY => total_supply + tokens.as_u64());
     }
 
     #[no_mangle]
@@ -145,7 +144,7 @@ impl Erc20Interface for Contract {
         // update the objects and write to the state
         to_user.balance = to_user.balance + tokens.as_u64();
         owner_user.balance = owner_user.balance - tokens.as_u64();
-        owner_user.approved.insert(spender.to_hex(),(allowed_balance - tokens.as_u64()));
+        owner_user.approved.insert(spender.to_hex(),allowed_balance - tokens.as_u64());
         write_state!(&owner.to_hex() => owner_user, &to.to_hex() => to_user);
     }
 }
