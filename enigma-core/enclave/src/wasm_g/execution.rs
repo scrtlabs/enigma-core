@@ -103,17 +103,9 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
 
     let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types);
 
-    match instance.invoke_export("call", &[], &mut runtime) {
-        Ok(_v) => {
-            let result = runtime.into_result()?;
-            Ok(result)
-        }
-        Err(e) => {
-            let a: EnclaveError = e.into();
-            println!("Error in execution of secret contract function: {}", &a);
-            Err(a)
-        }
-    }
+    instance.invoke_export("call", &[], &mut runtime)?;
+    let result = runtime.into_result()?;
+    Ok(result)
 }
 
 pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
