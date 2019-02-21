@@ -137,7 +137,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                            db_ptr,
                            result);
     if let Err(ref mut e) = internal_result.clone() {
-        println!("Error in execution of smart contract function {}", e);
+        println!("Error in execution of smart contract function: {}", e);
         sign_if_error(&pre_execution_data, e, result);
     }
     internal_result.into()
@@ -168,7 +168,7 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
     let mut pre_execution_data = vec![];
     let internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, *gas_limit, db_ptr, result);
     if let Err(ref mut e) = internal_result.clone() {
-        println!("Error in deployment of smart contract {}", e);
+        println!("Error in deployment of smart contract: {}", e);
         sign_if_error(&pre_execution_data, e, result);
     }
     internal_result.into()

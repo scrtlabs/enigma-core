@@ -134,7 +134,6 @@ pub mod tests {
     use enigma_runtime_t::data::{ContractState, DeltasInterface};
     use enigma_crypto::hash::Sha256;
     use std::string::ToString;
-    use std::vec::Vec;
 
     pub fn test_execute_contract() {
         let addr = b"enigma".sha256();
