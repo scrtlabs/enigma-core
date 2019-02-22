@@ -1,8 +1,12 @@
+use std::collections::HashMap;
+
 use bigint;
-pub use rlp::{Encodable, encode, decode, RlpStream};
-use web3::types::{Bytes, H160, H2048, H256, H64, U256, Address};
 use ethabi::{Event, EventParam, ParamType};
-use web3_utils::keeper_types_u::{InputWorkerParams};
+use failure::Error;
+pub use rlp::{decode, Encodable, encode, RlpStream};
+use web3::types::{Address, Bytes, H160, H2048, H256, H64, U256};
+
+use web3_utils::keeper_types_u::InputWorkerParams;
 
 pub trait IntoBigint<T> {
     fn bigint(self) -> T;
@@ -29,19 +33,56 @@ impl Encodable for InputWorkerParams {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct EpochSeed {
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ConfirmedEpochState {
+    pub selected_workers: HashMap<H256, Address>,
+    pub block_number: U256,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct EpochMarker {
     pub seed: U256,
     pub sig: Bytes,
     pub nonce: U256,
+    pub confirmed_state: Option<ConfirmedEpochState>,
+}
+
+impl EpochMarker {
+    pub fn new(seed: U256, sig: Bytes, nonce: U256) -> Self {
+        Self { seed, sig, nonce, confirmed_state: None }
+    }
+
+    /// Build a local mapping of smart contract address => selected worker for the epoch
+    pub fn confirm(&mut self, worker_params: &InputWorkerParams, sc_addresses: Vec<H256>) -> Result<(), Error> {
+        println!("Confimed epoch with worker params: {:?}", worker_params);
+        let block_number = worker_params.block_number.clone();
+        let mut selected_workers: HashMap<H256, Address> = HashMap::new();
+        for sc_address in sc_addresses {
+            println!("Getting the selected worker for: {:?}", sc_address);
+            match worker_params.get_selected_worker(sc_address.clone(), self.seed.clone())? {
+                Some(worker) => {
+                    println!("Found selected worker: {:?} not found for contract: {:?}", worker, sc_address);
+                    match selected_workers.insert(sc_address, worker) {
+                        Some(prev) => println!("Selected worker inserted after: {:?}", prev),
+                        None => println!("First selected worker inserted"),
+                    }
+                }
+                None => {
+                    println!("Selected worker not found for contract: {:?}", sc_address);
+                }
+            }
+        }
+        self.confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone)]
-pub struct EventWrapper(pub Event);
+pub struct WorkersParameterizedEvent(pub Event);
 
-impl EventWrapper {
-    pub fn workers_parameterized() -> Self {
-        EventWrapper(Event {
+impl WorkersParameterizedEvent {
+    pub fn new() -> Self {
+        WorkersParameterizedEvent(Event {
             name: "WorkersParameterized".to_string(),
             inputs: vec![EventParam {
                 name: "seed".to_string(),

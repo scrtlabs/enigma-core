@@ -7,7 +7,7 @@ use std::sync::Arc;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
 use web3::transports::{EventLoopHandle, Http};
-use web3::types::{Address, H160, U256, H256, Bytes};
+use web3::types::{Address, H160, U256, H256, Bytes, TransactionReceipt};
 use web3::Web3;
 use std::str;
 use web3_utils::keeper_types_u::InputWorkerParams;
@@ -83,7 +83,7 @@ pub trait ContractFuncs<G> {
 
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
-    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G) -> Result<H256, Error>;
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G) -> Result<TransactionReceipt, Error>;
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
@@ -106,15 +106,15 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
     }
 
 //    #[logfn(INFO)]
-    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G) -> Result<H256, Error> {
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G) -> Result<TransactionReceipt, Error> {
         let mut opts: Options = Options::default();
         opts.gas = Some(gas.into());
-        let call = self.w3_contract.call("setWorkersParams", (block_number, seed, sig.0), self.account, opts);
-        let tx = match call.wait() {
+        let call = self.w3_contract.call_with_confirmations("setWorkersParams", (block_number, seed, sig.0), self.account, opts, 1);
+        let receipt = match call.wait() {
             Ok(tx) => tx,
             Err(e) => return Err(errors::Web3Error { message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
         };
-        Ok(tx)
+        Ok(receipt)
     }
 }
 
@@ -152,7 +152,7 @@ impl ContractQueries for EnigmaContract {
         Ok(addrs)
     }
 
-    #[logfn(INFO)]
+//    #[logfn(INFO)]
     fn get_active_workers(&self, block_number: U256) -> Result<InputWorkerParams, Error> {
         let result: Result<(Vec<Address>, Vec<U256>), web3::contract::Error> = self.w3_contract.query("getActiveWorkers", (block_number), self.account, Options::default(), None).wait();
         let worker_params = match result {

@@ -9,6 +9,7 @@ use web3::types::U256;
 
 use boot_network::epoch_provider::EpochProvider;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
+use enigma_tools_u::web3_utils::provider_types::EpochMarker;
 
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
@@ -30,19 +31,22 @@ impl Principal for EnigmaContract {
         let max_epochs = max_epochs.unwrap_or(0);
         let mut epoch_counter = 0;
         loop {
-            let num = self.web3.eth().block_number().wait().unwrap();
-            let curr_block = num.low_u64() as usize;
-            let prev_block_ref = epoch_provider.block_marker.load(Ordering::Relaxed) as usize;
+            let block_number = self.web3.eth().block_number().wait().unwrap();
+            let curr_block = block_number.low_u64() as usize;
+            let prev_block = match epoch_provider.get_marker() {
+                Ok(marker) => {
+                    match marker.confirmed_state {
+                        Some(state) => state.block_number,
+                        None => U256::from(0),
+                    }
+                }
+                Err(_) => U256::from(0),
+            };
+            let prev_block_ref = prev_block.low_u64() as usize;
             println!("[\u{1F50A} ] Blocks @ previous: {}, current: {}, next: {} [\u{1F50A} ]", prev_block_ref, curr_block, (prev_block_ref + epoch_size));
             if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
                 println!("[\u{263C} ] New epoch found [\u{263C} ]");
-                match epoch_provider.set_worker_params(num, gas_limit) {
-                    Ok(tx) => {
-                        // TODO: Does this wait for the tx to be mined?
-                        println!("Setting workers params with tx: {:?}", tx);
-                    }
-                    Err(err) => println!("Unable to set workers params: {:?}", err),
-                }
+                epoch_provider.set_worker_params(block_number, gas_limit).expect("Unable to set worker params. Please recover manually.");
             } else {
                 println!("[\u{23f3} ] Epoch still active [\u{23f3} ]");
             }

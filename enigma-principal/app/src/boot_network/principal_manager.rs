@@ -168,11 +168,11 @@ impl Sampler for PrincipalManager {
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<AtomicU64> =  Arc::new(AtomicU64::new(self.get_eid()));
         let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone())?);
-        let filter_ep = Arc::clone(&epoch_provider);
-        thread::spawn(move || {
-            println!("Starting the worker parameters watcher in child thread");
-            filter_ep.filter_worker_params();
-        });
+//        let filter_ep = Arc::clone(&epoch_provider);
+//        thread::spawn(move || {
+//            println!("Starting the worker parameters watcher in child thread");
+//            filter_ep.filter_worker_params();
+//        });
 
         // Start the JSON-RPC Server
         let port = self.config.http_port.clone();
@@ -265,7 +265,7 @@ mod test {
         let block_number = principal.get_web3().eth().block_number().wait().unwrap();
         let eid_safe = Arc::new(AtomicU64::new(eid));
         let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone()).unwrap();
-        epoch_provider.reset_block_marker().unwrap();
+        epoch_provider.reset_epoch_marker().unwrap();
         principal.set_worker_params(block_number, gas_limit)?;
         assert_eq!(true, true);
     }

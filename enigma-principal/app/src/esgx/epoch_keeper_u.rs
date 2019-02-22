@@ -3,8 +3,8 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, U256};
 
 use common_u::errors::EnclaveFailError;
-use enigma_tools_u::web3_utils::provider_types::{ encode, EpochSeed, Encodable};
 use enigma_tools_u::web3_utils::keeper_types_u::InputWorkerParams;
+use enigma_tools_u::web3_utils::provider_types::{Encodable, encode, EpochMarker};
 use enigma_types::EnclaveReturn;
 
 extern {
@@ -14,14 +14,14 @@ extern {
                                sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
 
-/// Returns an EpochSeed object 32 bytes signed random seed and an incremented account nonce.
+/// Returns an EpochMarker object 32 bytes signed random seed and an incremented account nonce.
 /// # Examples
 /// ```
 /// let enclave = esgx::general::init_enclave().unwrap();
 /// let worker_params = web3.get_worker_params(block_number);
 /// let sig = set_worker_params(enclave.geteid(), worker_params).unwrap();
 /// ```
-pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams) -> Result<EpochSeed, Error> {
+pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams) -> Result<EpochMarker, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut nonce_out: [u8; 32] = [0; 32];
     let mut rand_out: [u8; 32] = [0; 32];
@@ -42,11 +42,10 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: retval, status }.into());
     }
-    Ok(EpochSeed {
-        seed: U256::from_big_endian(&rand_out),
-        nonce: U256::from_big_endian(&nonce_out),
-        sig: Bytes(sig_out.to_vec())
-    })
+    let seed = U256::from_big_endian(&rand_out);
+    let sig = Bytes(sig_out.to_vec());
+    let nonce = U256::from_big_endian(&nonce_out);
+    Ok(EpochMarker::new(seed, sig, nonce))
 }
 
 #[cfg(test)]
@@ -56,7 +55,8 @@ pub mod tests {
     use ethabi::Uint;
     use rustc_hex::ToHex;
     use sgx_urts::SgxEnclave;
-    use web3::types::{Bytes, Address};
+    use web3::types::{Address, Bytes};
+
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
@@ -74,11 +74,11 @@ pub mod tests {
         enclave
     }
 
-    pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t) -> (EpochSeed) {
-        let worker_params = InputWorkerParams{
+    pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t) -> (EpochMarker) {
+        let worker_params = InputWorkerParams {
             block_number: U256::from(1),
             workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],
-            stakes: vec![U256::from(1)]
+            stakes: vec![U256::from(1)],
         };
         set_worker_params(eid, worker_params).unwrap()
     }
