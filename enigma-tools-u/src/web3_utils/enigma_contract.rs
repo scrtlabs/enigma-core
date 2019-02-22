@@ -109,7 +109,7 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
     fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G) -> Result<TransactionReceipt, Error> {
         let mut opts: Options = Options::default();
         opts.gas = Some(gas.into());
-        let call = self.w3_contract.call_with_confirmations("setWorkersParams", (block_number, seed, sig.0), self.account, opts, 1);
+        let call = self.w3_contract.call_with_confirmations("setWorkersParams", (block_number, seed, sig.0), self.account, opts, 0);
         let receipt = match call.wait() {
             Ok(tx) => tx,
             Err(e) => return Err(errors::Web3Error { message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),

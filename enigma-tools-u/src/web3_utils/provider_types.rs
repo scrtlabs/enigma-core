@@ -61,7 +61,7 @@ impl EpochMarker {
             println!("Getting the selected worker for: {:?}", sc_address);
             match worker_params.get_selected_worker(sc_address.clone(), self.seed.clone())? {
                 Some(worker) => {
-                    println!("Found selected worker: {:?} not found for contract: {:?}", worker, sc_address);
+                    println!("Found selected worker: {:?} for contract: {:?}", worker, sc_address);
                     match selected_workers.insert(sc_address, worker) {
                         Some(prev) => println!("Selected worker inserted after: {:?}", prev),
                         None => println!("First selected worker inserted"),
