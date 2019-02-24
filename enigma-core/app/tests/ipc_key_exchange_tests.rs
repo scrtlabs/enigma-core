@@ -4,7 +4,7 @@ pub extern crate cross_test_utils;
 extern crate rustc_hex as hex;
 
 use integration_utils::{conn_and_call_ipc, is_hex, run_core, run_ptt_round,
-                        set_ptt_req_msg, ParsedMessage, parse_packed_msg};
+                        get_ptt_req_msg, ParsedMessage, parse_packed_msg};
 use self::cross_test_utils::{generate_contract_address};
 use self::app::serde_json;
 use app::serde_json::*;
@@ -16,11 +16,11 @@ fn test_get_ptt_request() {
     run_core(port);
 
     let addresses: Vec<String> = vec![generate_contract_address().to_hex(), generate_contract_address().to_hex()];
-    let msg = set_ptt_req_msg(&addresses.clone());
+    let msg = get_ptt_req_msg(&addresses.clone());
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
 
-    let packed_msg = v["result"].as_object().unwrap()["request"].as_str().unwrap();
-    let result_sig = v["result"].as_object().unwrap()["workerSig"].as_str().unwrap();
+    let packed_msg = v["result"]["request"].as_str().unwrap();
+    let result_sig = v["result"]["workerSig"].as_str().unwrap();
     let unpacked_msg: ParsedMessage = ParsedMessage::from_value(&parse_packed_msg(packed_msg));
 
     assert_eq!(addresses.len(), unpacked_msg.data.len());

@@ -1,10 +1,7 @@
 use crate::error::CryptoError;
-use secp256k1::{self, PublicKey, SecretKey, SharedSecret, RecoveryId, Signature};
-use crate::localstd::string::ToString;
-use crate::localstd::format;
-use crate::{rand, hash::{self, Keccak256}};
-use enigma_types::DhKey;
-use rustc_hex::ToHex;
+use secp256k1::{PublicKey, SecretKey, SharedSecret,  RecoveryId, Signature};
+use crate::hash::{self, Keccak256};
+use enigma_types::{DhKey, PubKey};
 
 #[derive(Debug)]
 pub struct KeyPair {
@@ -13,7 +10,9 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
+    #[cfg(any(feature = "sgx", feature = "std"))]
     pub fn new() -> Result<KeyPair, CryptoError> {
+        use crate::rand;
         loop {
             let mut me: [u8; 32] = [0; 32];
             rand::random(&mut me)?;
@@ -26,22 +25,22 @@ impl KeyPair {
 
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, CryptoError> {
         let privkey = SecretKey::parse(&privkey)
-            .map_err(|e| CryptoError::KeyError { key_type: "Private Key".to_string(), err: format!("{:?}", e) })?;
+            .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
         let pubkey = PublicKey::from_secret_key(&privkey);
 
         Ok(KeyPair { privkey, pubkey })
     }
 
-    pub fn derive_key(&self, _pubarr: &[u8; 64]) -> Result<DhKey, CryptoError> {
+    pub fn derive_key(&self, _pubarr: &PubKey) -> Result<DhKey, CryptoError> {
         let mut pubarr: [u8; 65] = [0; 65];
         pubarr[0] = 4;
         pubarr[1..].copy_from_slice(&_pubarr[..]);
 
         let pubkey = PublicKey::parse(&pubarr)
-            .map_err(|e| CryptoError::KeyError { key_type: "Private Key".to_string(), err: format!("{:?}", e) })?;
+            .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
 
         let shared = SharedSecret::new(&pubkey, &self.privkey)
-            .map_err(|_| CryptoError::DerivingKeyError { self_key: self.get_pubkey().to_hex(), other_key: _pubarr.to_hex() })?;
+            .map_err(|_| CryptoError::DerivingKeyError { self_key: self.get_pubkey().into(), other_key: (*_pubarr).into() })?;
 
         let mut result = [0u8; 32];
         result.copy_from_slice(shared.as_ref());
@@ -57,11 +56,11 @@ impl KeyPair {
     /// See More:
     ///     `https://tools.ietf.org/html/rfc5480#section-2.2`
     ///     `https://docs.rs/libsecp256k1/0.1.13/src/secp256k1/lib.rs.html#146`
-    pub fn get_pubkey(&self) -> [u8; 64] {
+    pub fn get_pubkey(&self) -> PubKey {
         KeyPair::pubkey_object_to_pubkey(&self.pubkey)
     }
 
-    fn pubkey_object_to_pubkey(key: &PublicKey) -> [u8; 64] {
+    fn pubkey_object_to_pubkey(key: &PublicKey) -> PubKey {
         let mut sliced_pubkey: [u8; 64] = [0; 64];
         sliced_pubkey.clone_from_slice(&key.serialize()[1..65]);
         sliced_pubkey
@@ -86,7 +85,7 @@ impl KeyPair {
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
 
         let (sig, recovery) = secp256k1::sign(&message_to_sign, &self.privkey)
-            .map_err(|_| CryptoError::SigningError { msg: message.to_hex() })?;
+            .map_err(|_| CryptoError::SigningError { hashed_msg: *hashed_msg })?;
 
         let v: u8 = recovery.into();
         let mut returnvalue = [0u8; 65];
@@ -128,8 +127,9 @@ impl KeyPair {
     /// let msg2 = b"this";
     /// let sig = keys.sign_multiple(&[msg, msg2]).unwrap();
     /// ```
+    #[cfg(any(feature = "sgx", feature = "std"))]
     pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], CryptoError> {
-        let ready = hash::prepare_hash_multiple(messages);
+        let ready = crate::hash::prepare_hash_multiple(messages);
         self.sign(&ready)
     }
 }

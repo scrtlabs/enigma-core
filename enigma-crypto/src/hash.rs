@@ -1,5 +1,3 @@
-use ring::digest;
-use crate::localstd::{vec::Vec, mem};
 use tiny_keccak::Keccak;
 use enigma_types::Hash256;
 
@@ -14,7 +12,9 @@ use enigma_types::Hash256;
 /// let msg2 = b"this";
 /// let ready = hash::prepare_hash_multiple(&[msg, msg2]);
 /// ```
-pub fn prepare_hash_multiple(messages: &[&[u8]]) -> Vec<u8> {
+#[cfg(any(feature = "sgx", feature = "std"))]
+pub fn prepare_hash_multiple(messages: &[&[u8]]) -> crate::localstd::vec::Vec<u8> {
+    use crate::localstd::{vec::Vec, mem};
     let mut res = Vec::with_capacity(messages.len() * mem::size_of::<usize>());
     for msg in messages {
         let len = msg.len().to_be_bytes();
@@ -45,9 +45,11 @@ impl Keccak256<Hash256> for [u8] {
 
 impl Sha256<Hash256> for [u8] {
     fn sha256(&self) -> Hash256 {
+        use sha2::{self, Digest};
+        let mut hasher = sha2::Sha256::new();
+        hasher.input(&self);
         let mut result = Hash256::default();
-        let hash = digest::digest(&digest::SHA256, self);
-        result.copy_from_slice(hash.as_ref());
+        result.copy_from_slice(&hasher.result());
         result
     }
 }

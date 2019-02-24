@@ -1,13 +1,21 @@
 use failure::Fail;
-use crate::localstd::string::String;
-use crate::localstd::io;
+use arrayvec::ArrayVec;
+
 #[derive(Debug, Fail)]
 pub enum CryptoError {
-    #[fail(display = "Failed to derive a key with ECDH: self: {}, other: {}", self_key, other_key)]
-    DerivingKeyError { self_key: String, other_key: String },
+    #[fail(display = "Failed to derive a key with ECDH: self: {:?}, other: {:?}", self_key, other_key)]
+    DerivingKeyError { self_key: ArrayVec<[u8; 64]>, other_key: ArrayVec<[u8; 64]> },
 
-    #[fail(display = "The {} Isn't valid, err: {}", key_type, err)]
-    KeyError { key_type: String, err: String },
+    #[cfg(feature = "asymmetric")]
+    #[fail(display = "The {} Isn't valid, err: {:?}", key_type, err)]
+    KeyError { key_type: &'static str, err: Option<secp256k1::Error> },
+
+    #[fail(display = "The following key is missing: {}", key_type)]
+    MissingKeyError { key_type: &'static str },
+
+    #[cfg(not(feature = "asymmetric"))]
+    #[fail(display = "The {} Isn't valid, err: {:?}", key_type, err)]
+    KeyError { key_type: &'static str, err: Option<()> },
 
     #[fail(display = "Failed Decrypting")]
     DecryptionError,
@@ -18,8 +26,8 @@ pub enum CryptoError {
     #[fail(display = "Failed Encrypting")]
     EncryptionError,
 
-    #[fail(display = "Signing the message failed: {}", msg)]
-    SigningError { msg: String },
+    #[fail(display = "Signing the message failed, msg hash: {:?}", hashed_msg)]
+    SigningError { hashed_msg: [u8; 32] },
 
     #[fail(display = "Parsing the signature failed: {}", msg)]
     ParsingError { msg: String },
@@ -27,15 +35,11 @@ pub enum CryptoError {
     #[fail(display = "Recovering the pubkey failed: {}", msg)]
     RecoveryError { msg: String },
 
-    #[fail(display = "Failed Generating a: {}", err)]
-    RandomError { err: String },
+    #[cfg(feature = "std")]
+    #[fail(display = "Failed Generating a random. rand Error: {:?}", err)]
+    RandomError { err: rand_std::Error },
 
-    #[fail(display = "IO Failure: {:?}", err)]
-    IoError { err: io::Error },
-}
-
-impl From<io::Error> for CryptoError {
-    fn from(err: io::Error) -> Self {
-        CryptoError::IoError { err }
-    }
+    #[cfg(feature = "sgx")]
+    #[fail(display = "Failed Generating a random.  SGX Error: {:?}", err)]
+    RandomError { err: sgx_types::sgx_status_t },
 }

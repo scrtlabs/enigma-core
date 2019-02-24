@@ -48,7 +48,7 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::DeploySecretContract { input } => handling::deploy_contract(db, input, eid),
             IpcRequest::ComputeTask { input } => handling::compute_task(db, input, eid),
             IpcRequest::GetPTTRequest { input } => handling::get_ptt_req(&input, eid),
-            IpcRequest::PTTResponse { response } => handling::ptt_response(db, &response, eid),
+            IpcRequest::PTTResponse { input } => handling::ptt_response(db, &input, eid),
         };
         let msg = IpcMessageResponse::from_response(response_msg.unwrap_or_error(), id);
         responses.push_back(msg.into());
@@ -110,14 +110,14 @@ pub(self) mod handling {
         let (tip_key, tip_data) = db.get_tip::<DeltaKey>(&address)?;
 
         let key = tip_key.key_type.unwrap_delta();
-        let delta = IpcDelta { address: None, key, delta: Some(tip_data.to_hex()) };
+        let delta = IpcDelta { contract_address: None, key, data: Some(tip_data.to_hex()) };
         Ok(IpcResponse::GetTip { result: delta })
     }
 
     #[logfn(INFO)]
     pub fn get_tips(db: &DB, input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
-        let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data.clone()).unwrap()).collect();
+        let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data).unwrap()).collect();
         let tips = db.get_tips::<DeltaKey>(&addresses)?;
         for (key, data) in tips {
             let delta = IpcDelta::from_delta_key(key, &data)?;
@@ -145,7 +145,7 @@ pub(self) mod handling {
 
     #[logfn(INFO)]
     pub fn get_delta(db: &DB, input: IpcDelta) -> ResponseResult {
-        let address = input.address.ok_or(P2PErr { cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?;
+        let address = input.contract_address.ok_or(P2PErr { cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?;
         let address = ContractAddress::from_hex(&address)?;
         let delta_key = DeltaKey::new(address, Stype::Delta(input.key));
         let delta = db.get_delta(delta_key)?;
@@ -195,10 +195,10 @@ pub(self) mod handling {
         let mut tuples = Vec::with_capacity(deltas.len());
 
         for delta in deltas.into_iter() {
-            let address = delta.address.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Address Missing".to_string() })?;
+            let address = delta.contract_address.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Address Missing".to_string() })?;
             let address = ContractAddress::from_hex(&address)?;
             let data =
-                delta.delta.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Delta Data Missing".to_string() })?.from_hex()?;
+                delta.data.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Delta Data Missing".to_string() })?.from_hex()?;
             let delta_key = DeltaKey::new(address, Stype::Delta(delta.key));
             tuples.push((delta_key, data));
         }
@@ -248,8 +248,8 @@ pub(self) mod handling {
     }
 
     #[logfn(INFO)]
-    pub fn ptt_response(db: &mut DB, response: &str, eid: sgx_enclave_id_t) -> ResponseResult {
-        let msg = response.from_hex()?;
+    pub fn ptt_response(db: &mut DB, response: &PrincipalResponse, eid: sgx_enclave_id_t) -> ResponseResult {
+        let msg = response.response.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
         let res = km_u::ptt_build_state(db, eid)?;
         let result: Vec<_> = res
@@ -288,6 +288,8 @@ pub(self) mod handling {
             used_gas: result.used_gas,
             output: result.output.to_hex(), // TODO: Return output
             delta: result.delta.into(),
+            ethereum_address: result.eth_contract_addr.to_hex(),
+            ethereum_payload: result.eth_payload.to_hex(),
             signature: result.signature.to_hex(),
         };
         Ok( IpcResponse::DeploySecretContract { result } )
@@ -319,6 +321,8 @@ pub(self) mod handling {
             used_gas: result.used_gas,
             output: result.output.to_hex(),
             delta: result.delta.into(),
+            ethereum_address: result.eth_contract_addr.to_hex(),
+            ethereum_payload: result.eth_payload.to_hex(),
             signature: result.signature.to_hex(),
         };
 

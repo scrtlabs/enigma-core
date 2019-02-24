@@ -3,7 +3,6 @@ use crate::error::CryptoError;
 use ring::aead::{self, Nonce, Aad};
 use crate::localstd::borrow::ToOwned;
 use crate::localstd::option::Option;
-use crate::localstd::string::ToString;
 use crate::localstd::vec::Vec;
 use crate::localstd::vec;
 use crate::rand;
@@ -25,7 +24,7 @@ pub fn encrypt_with_nonce(message: &[u8], key: &SymmetricKey, _iv: Option<IV>) -
         }
     };
     let aes_encrypt = aead::SealingKey::new(&AES_MODE, key)
-        .map_err(|_| CryptoError::KeyError{ key_type: "Encryption".to_string(), err: Default::default() })?;
+        .map_err(|_| CryptoError::KeyError{ key_type: "Encryption", err: None })?;
 
     let mut in_out = message.to_owned();
     let tag_size = AES_MODE.tag_len();
@@ -47,7 +46,7 @@ pub fn decrypt(cipheriv: &[u8], key: &SymmetricKey) -> Result<Vec<u8>, CryptoErr
         return Err(CryptoError::ImproperEncryption);
     }
     let aes_decrypt = aead::OpeningKey::new(&AES_MODE, key)
-        .map_err(|_| CryptoError::KeyError { key_type: "Decryption".to_string(), err: Default::default() })?;
+        .map_err(|_| CryptoError::KeyError { key_type: "Decryption", err: None })?;
 
     let (ciphertext, iv) = cipheriv.split_at(cipheriv.len()-12);
     let nonce = aead::Nonce::try_assume_unique_for_key(&iv).unwrap(); // This Cannot fail because split_at promises that iv.len()==12

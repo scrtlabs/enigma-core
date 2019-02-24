@@ -66,6 +66,10 @@ pub enum IpcResults {
         used_gas: u64,
         output: String,
         delta: IpcDelta,
+        #[serde(rename = "ethereumAddress")]
+        ethereum_address: String,
+        #[serde(rename = "ethereumPayload")]
+        ethereum_payload: String,
         signature: String,
     },
     #[serde(rename = "result")]
@@ -76,6 +80,10 @@ pub enum IpcResults {
         used_gas: u64,
         output: String,
         delta: IpcDelta,
+        #[serde(rename = "ethereumAddress")]
+        ethereum_address: String,
+        #[serde(rename = "ethereumPayload")]
+        ethereum_payload: String,
         signature: String,
     }
 }
@@ -97,7 +105,7 @@ pub enum IpcRequest {
     DeploySecretContract { input: IpcTask},
     ComputeTask { input: IpcTask },
     GetPTTRequest { input: Addresses },
-    PTTResponse {  response: String },
+    PTTResponse {  input: PrincipalResponse },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -128,10 +136,11 @@ pub struct IpcStatusResult {
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct IpcDelta {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub address: Option<String>,
+    #[serde(rename = "address")]
+    pub contract_address: Option<String>,
     pub key: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub delta: Option<String>,
+    pub data: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -139,6 +148,11 @@ pub struct IpcGetDeltas {
     pub address: String,
     pub from: u32,
     pub to: u32,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct PrincipalResponse {
+    pub response: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -168,7 +182,7 @@ impl IpcMessageRequest {
 impl IpcDelta {
     pub fn from_delta_key(k: DeltaKey, v: &[u8]) -> Result<Self, Error> {
         if let Stype::Delta(indx) = k.key_type {
-            Ok( IpcDelta { address: Some(k.contract_address.to_hex()), key: indx, delta: Some(v.to_hex()) } )
+            Ok( IpcDelta { contract_address: Some(k.contract_address.to_hex()), key: indx, data: Some(v.to_hex()) } )
         } else {
             bail!("This isn't a delta")
         }
@@ -177,11 +191,10 @@ impl IpcDelta {
 
 impl From<Delta> for IpcDelta {
     fn from(delta: Delta) -> Self {
-        let address = delta.key.contract_address.to_hex();
         let value = delta.value.to_hex();
         let key = delta.key.key_type.unwrap_delta();
 
-        IpcDelta { address: Some(address), key, delta: Some(value) }
+        IpcDelta { contract_address: None, key, data: Some(value) }
     }
 }
 

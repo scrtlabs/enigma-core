@@ -28,8 +28,8 @@ pub use eng_pwasm_abi::types::*;
 pub mod external {
     extern "C" {
         pub fn write_state (key: *const u8, key_len: u32, value: *const u8, value_len: u32);
-        pub fn read_state (key: *const u8, key_len: u32) -> i32;
-        pub fn from_memory(result: *const u8, result_len: i32);
+        pub fn read_state_len (key: *const u8, key_len: u32) -> i32;
+        pub fn read_state (key: *const u8, key_len: u32, value_holder: *const u8);
         pub fn eprint(str_ptr: *const u8, str_len: u32);
         pub fn fetch_function_name_length() -> i32;
         pub fn fetch_function_name(name_holder: *const u8);
@@ -66,9 +66,9 @@ pub fn write<T>(key: &str, _value: T) where T: serde::Serialize {
 
 /// Read from state
 pub fn read<T>(key: &str) -> Option<T> where for<'de> T: serde::Deserialize<'de> {
-    let val_len = unsafe { external::read_state(key.as_ptr(), key.len() as u32) };
+    let val_len = unsafe { external::read_state_len(key.as_ptr(), key.len() as u32) };
     let value_holder: Vec<u8> = iter::repeat(0).take(val_len as usize).collect();
-    unsafe { external::from_memory(value_holder.as_ptr(), val_len) };
+    unsafe { external::read_state(key.as_ptr(), key.len() as u32, value_holder.as_ptr()) };
     let value: Value = serde_json::from_slice(&value_holder).map_err(|_| print("failed unwrapping from_slice in read_state")).expect("read_state failed");
     if value.is_null() {
         return None;
