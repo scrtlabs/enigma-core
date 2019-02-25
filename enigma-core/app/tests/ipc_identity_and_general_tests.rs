@@ -84,7 +84,7 @@ fn test_wrong_arguments() {
     let callable  = "mint(bytes32,bytes32)";
     let (_val, _) = contract_compute(port, _address, &args, callable);
     let accepted_err =  _val["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "EnclaveFailError { err: WasmError, status: SGX_SUCCESS }");
+    assert_eq!(accepted_err, "EnclaveFailError { err: WasmCodeExecutionError, status: SGX_SUCCESS }");
 }
 
 #[test]
@@ -93,5 +93,5 @@ fn test_out_of_gas() {
     run_core(port);
     let (_val,_) = full_erc20_deployment(port, Some(2));
     let accepted_err =  _val["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "EnclaveFailError { err: WasmError, status: SGX_SUCCESS }");
+    assert_eq!(accepted_err, "EnclaveFailError { err: GasLimitError, status: SGX_SUCCESS }");
 }

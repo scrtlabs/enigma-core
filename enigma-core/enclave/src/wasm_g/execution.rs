@@ -79,8 +79,10 @@ fn create_module(code: &[u8]) -> Result<Box<Module>, EnclaveError> {
     let deserialized_module = elements::Module::deserialize(&mut cursor)?;
     if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
         // According to WebAssembly spec, internal memory is hidden from embedder and should not
-        // be interacted with. So we disable this kind of modules at decoding level.
-        return Err(EnclaveError::ExecutionError { code: "".to_string(), err: "Malformed wasm module: internal memory".to_string() });
+        // be interacted with. So parity disable this kind of modules at decoding level.
+        return Err(EnclaveError::WasmModuleError {
+            code: "creation of WASM module".to_string(),
+            err: "Malformed wasm module: internal memory".to_string() });
     }
     let wasm_costs = WasmCosts::default();
     let contract_module = pwasm_utils::inject_gas_counter(deserialized_module, &gas_rules(&wasm_costs))?;
@@ -101,17 +103,9 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
 
     let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types);
 
-    match instance.invoke_export("call", &[], &mut runtime) {
-        Ok(_v) => {
-            let result = runtime.into_result()?;
-            Ok(result)
-        }
-        Err(e) => {
-            println!("Error in invocation of the external function: {}", e);
-            // TODO: @moria This is not always deployment.
-            Err(EnclaveError::ExecutionError { code: "deployment code".to_string(), err: e.to_string() })
-        }
-    }
+    instance.invoke_export("call", &[], &mut runtime)?;
+    let result = runtime.into_result()?;
+    Ok(result)
 }
 
 pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
@@ -140,7 +134,6 @@ pub mod tests {
     use enigma_runtime_t::data::{ContractState, DeltasInterface};
     use enigma_crypto::hash::Sha256;
     use std::string::ToString;
-    use std::vec::Vec;
 
     pub fn test_execute_contract() {
         let addr = b"enigma".sha256();
