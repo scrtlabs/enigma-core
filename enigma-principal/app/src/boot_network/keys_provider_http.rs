@@ -14,7 +14,7 @@ use esgx::keys_keeper_u::get_enc_state_keys;
 use boot_network::epoch_provider::EpochProvider;
 use sgx_types::sgx_enclave_id_t;
 
-const METHOD_GET_STATE_KEYS: &str = "get_state_keys";
+const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StringWrapper(pub String);

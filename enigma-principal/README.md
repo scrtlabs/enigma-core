@@ -11,7 +11,7 @@ This module implements a [JSON-RPC 2.0](https://www.jsonrpc.org/specification_)-
 
 This module implements the following methods:
 
-## get_state_keys
+## getStateKeys
 
 Requests the private secret contract state keys. Only the worker node assigned to a given contract for the current epoch
 is authorized to make this request. The Principal node's enclave keeps a sealed list of active worker for 
