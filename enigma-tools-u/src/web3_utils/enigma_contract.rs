@@ -1,7 +1,7 @@
 use crate::common_u::errors;
 use crate::web3_utils::w3utils;
 use failure::Error;
-use hex::ToHex;
+use hex::{ToHex,FromHex};
 use std::path::Path;
 use std::sync::Arc;
 use web3::contract::{Contract, Options};
@@ -94,8 +94,10 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
         let mut opts = Options::default();
         opts.gas = Some(gas.into());
         // call the register function
-        let sig = signature.as_bytes().to_vec();
-        let call = self.w3_contract.call("register", (signer_addr, report.to_vec(), sig), self.account, opts);
+        println!("The report signature: {:?}", signature);
+        let sig = signature.from_hex()?;
+        println!("The report signature bytes: {:?}", sig.to_hex());
+        let call = self.w3_contract.call("register", (signer_addr, report.to_vec(), sig.to_vec()), self.account, opts);
         let tx = match call.wait() {
             Ok(tx) => tx,
             Err(e) => {
