@@ -1,6 +1,6 @@
 use crate::error::CryptoError;
 use secp256k1::{PublicKey, SecretKey, SharedSecret,  RecoveryId, Signature};
-use crate::hash::{self, Keccak256};
+use crate::hash::Keccak256;
 use enigma_types::{DhKey, PubKey};
 
 #[derive(Debug)]
@@ -102,17 +102,30 @@ impl KeyPair {
     /// let keys = KeyPair::new().unwrap();
     /// let msg = b"Sign this";
     /// let sig = keys.sign(msg).unwrap();
-    /// let recovered_pubkey = keys.recover(msg, sig).unwrap();
+    /// let recovered_pubkey = KeyPair::recover(msg, sig).unwrap();
     /// ```
-    pub fn recover(&self, message: &[u8], sig: [u8;65]) -> Result<[u8; 64], CryptoError> {
+    pub fn recover(message: &[u8], sig: [u8;65]) -> Result<[u8; 64], CryptoError> {
         let recovery = RecoveryId::parse(sig[64] -27)
-            .map_err(|_| CryptoError::ParsingError { msg: message.to_hex() })?;
+            .map_err(|_| {
+                let mut err_sig = [0u8; 64];
+                err_sig.copy_from_slice(&sig[..64]);
+                CryptoError::ParsingError { sig: err_sig.into(), recovery: sig[64] }
+            })?;
         let signature = Signature::parse_slice(&sig[..64])
-            .map_err(|_| CryptoError::ParsingError { msg: message.to_hex() })?;
+            .map_err(|_| {
+                let mut err_sig = [0u8; 64];
+                err_sig.copy_from_slice(&sig[..64]);
+                CryptoError::ParsingError { sig: err_sig.into(), recovery: sig[64] }
+            })?;
         let hashed_msg = message.keccak256();
         let signed_message = secp256k1::Message::parse(&hashed_msg);
         let recovered_pub = secp256k1::recover(&signed_message, &signature, &recovery)
-            .map_err(|_| CryptoError::RecoveryError { msg: message.to_hex() })?;
+            .map_err(|_|
+                         {
+                             let mut err_sig = [0u8; 64];
+                             err_sig.copy_from_slice(&signature.serialize());
+                             CryptoError::RecoveryError { sig: err_sig.into(), recovery: recovery.into() }
+                         })?;
         Ok(KeyPair::pubkey_object_to_pubkey(&recovered_pub))
     }
 
@@ -156,7 +169,7 @@ mod tests {
         let k1 = KeyPair::new().unwrap();
         let msg = b"EnigmaMPC";
         let sig = k1.sign(msg).unwrap();
-        let recover_pub = k1.recover(msg, sig).unwrap();
+        let recover_pub = KeyPair::recover(msg, sig).unwrap();
         assert_eq!(&k1.get_pubkey()[..], &recover_pub[..]);
     }
 

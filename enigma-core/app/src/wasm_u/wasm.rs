@@ -91,7 +91,7 @@ pub mod tests {
     extern crate ethabi;
     extern crate cross_test_utils;
 
-    use self::cross_test_utils::{generate_contract_address, get_bytecode_from_path};
+    use self::cross_test_utils::{generate_contract_address, sign_message, generate_user_address, get_bytecode_from_path};
     use crate::esgx::general::init_enclave_wrapper;
     use crate::km_u::tests::exchange_keys;
     use crate::km_u::tests::instantiate_encryption_key;
@@ -99,7 +99,7 @@ pub mod tests {
     use crate::wasm_u::wasm;
     use self::ethabi::{Token};
     use enigma_types::{ContractAddress, DhKey, PubKey};
-    use enigma_crypto::symmetric;
+    use enigma_crypto::{symmetric, KeyPair};
     use sgx_types::*;
     use wasm_u::{WasmResult};
 
@@ -160,7 +160,7 @@ pub mod tests {
     fn test_print_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (enclave, _, result, shared_key) = compile_deploy_execute(
+        let (_enclave, _, _result, _shared_key) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),
@@ -287,7 +287,7 @@ pub mod tests {
             "construct()",
             &[],
             "mint(bytes32,uint256)",
-            &[Token::FixedBytes(generate_contract_address().to_vec()), amount.clone()]
+            &[Token::FixedBytes(generate_user_address().0.to_vec()), amount.clone()]
         );
 
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
@@ -313,9 +313,9 @@ pub mod tests {
     fn test_transfer_erc20() {
         let (mut db, _dir) = create_test_db();
         let address = generate_contract_address();
-        let addr: Token = Token::FixedBytes(generate_contract_address().to_vec());
-        let transfer_amount: Token = Token::Uint(8.into());
-
+        let (user_addr, addr_keys) = generate_user_address();
+        let addr: Token = Token::FixedBytes(user_addr.to_vec());
+        let transfer_amount: u64 = 8;
         let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
@@ -325,11 +325,12 @@ pub mod tests {
             "mint(bytes32,uint256)",
             &[addr.clone(), Token::Uint(17.into())]
         );
-
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
-        let addr_to = Token::FixedBytes(generate_contract_address().to_vec());
-        let encrypted_callable = symmetric::encrypt(b"transfer(bytes32,bytes32,uint256)", &shared_key).unwrap();
-        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr, addr_to.clone(), transfer_amount.clone()]), &shared_key).unwrap();
+        let addr_to = generate_user_address().0;
+        let the_sig = sign_message(addr_keys, addr_to, transfer_amount).to_vec();
+        let sig = Token::Bytes(the_sig);
+        let encrypted_callable = symmetric::encrypt(b"transfer(bytes32,bytes32,uint256, bytes)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr, Token::FixedBytes(addr_to.to_vec()), Token::Uint(transfer_amount.into()), sig]), &shared_key).unwrap();
 
         wasm::execute(
             &mut db,
@@ -344,7 +345,7 @@ pub mod tests {
 
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let encrypted_callable = symmetric::encrypt(b"balance_of(bytes32)", &shared_key).unwrap();
-        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[addr_to]), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::FixedBytes(addr_to.to_vec())]), &shared_key).unwrap();
 
         let result_balance = wasm::execute(
             &mut db,
@@ -360,7 +361,7 @@ pub mod tests {
         let result_balance_decrypted = symmetric::decrypt(&result_balance.output, &shared_key).unwrap();
 
         let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &result_balance_decrypted).unwrap().pop().unwrap();
-        assert_eq!(res, transfer_amount);
+        assert_eq!(res, Token::Uint(transfer_amount.into()));
     }
 
     #[test]

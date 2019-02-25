@@ -29,11 +29,11 @@ pub enum CryptoError {
     #[fail(display = "Signing the message failed, msg hash: {:?}", hashed_msg)]
     SigningError { hashed_msg: [u8; 32] },
 
-    #[fail(display = "Parsing the signature failed: {}", msg)]
-    ParsingError { msg: String },
+    #[fail(display = "Parsing the signature failed, sig: {:?}\nrecovery: {:?}", sig, recovery)]
+    ParsingError { sig:  ArrayVec<[u8; 64]>, recovery: u8 },
 
-    #[fail(display = "Recovering the pubkey failed: {}", msg)]
-    RecoveryError { msg: String },
+#[fail(display = "Recovering the pubkey failed using the sig: {:?} and recovery id: {:?}", sig, recovery)]
+    RecoveryError { sig: ArrayVec<[u8; 64]>, recovery: u8},
 
     #[cfg(feature = "std")]
     #[fail(display = "Failed Generating a random. rand Error: {:?}", err)]

@@ -1,11 +1,13 @@
 #![no_std]
 #![feature(proc_macro_gen)]
 #![feature(proc_macro_non_items)]
-
+#![feature(int_to_from_bytes)]
 
 extern crate eng_wasm;
 extern crate eng_wasm_derive;
 extern crate rustc_hex as hex;
+extern crate enigma_crypto;
+extern crate enigma_types;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
@@ -17,6 +19,8 @@ use eng_wasm::from_utf8;
 use hex::ToHex;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
+use enigma_crypto::{KeyPair, hash::Keccak256};
+use enigma_types::UserAddress;
 
 static TOTAL_SUPPLY: &str = "total_supply";
 
@@ -32,7 +36,7 @@ pub trait Erc20Interface{
     fn allowance(owner: H256, spender: H256) -> U256;
     /// transfer tokens from 'from' address to the 'to' address.
     /// the function panics if the 'from' address does not have enough tokens.
-    fn transfer(from: H256, to: H256, tokens: U256);
+    fn transfer(from: H256, to: H256, tokens: U256, sig: Vec<u8>);
     /// approve the 'spender' address to spend 'tokens' from the 'owner's address balance.
     /// the function panics if the 'owner' address does not have enough tokens.
     fn approve(token_owner: H256, spender: H256, tokens: U256);
@@ -63,6 +67,19 @@ impl Contract {
             None => User { balance: 0, approved: HashMap::new() },
         }
     }
+
+    fn verify(from: H256, to: H256, amount: U256, sig: Vec<u8>) -> bool {
+
+        let mut msg = to.0.to_vec();
+        msg.extend_from_slice(&amount.as_u64().to_be_bytes());
+        let mut new_sig: [u8; 65] = [0u8; 65];
+        new_sig.copy_from_slice(&sig[..65]);
+//        eprint!("we are here: {:?}\n\n{:?}",msg, sig);
+        let accepted_pubkey = KeyPair::recover(&msg, new_sig);
+//        eprint!("from: {:?} \naccepted: {:?}", UserAddress::from(from.0), accepted_pubkey.keccak256());
+////        UserAddress::from(from.0) == accepted_pubkey.keccak256()
+        true
+    }
 }
 
 impl Erc20Interface for Contract {
@@ -77,7 +94,7 @@ impl Erc20Interface for Contract {
 
         // update the user object and write to the state
         user_addr.balance = user_addr.balance + tokens.as_u64();
-        write_state!(&addr.to_hex() => user_addr, TOTAL_SUPPLY => (total_supply + tokens.as_u64()));
+        write_state!(&addr.to_hex() => user_addr, TOTAL_SUPPLY => total_supply + tokens.as_u64());
     }
 
     #[no_mangle]
@@ -104,7 +121,8 @@ impl Erc20Interface for Contract {
     }
 
     #[no_mangle]
-    fn transfer(from: H256, to: H256, tokens: U256) {
+    fn transfer(from: H256, to: H256, tokens: U256, sig: Vec<u8>) {
+        Self::verify(from.clone(), to.clone(), tokens, sig);
         let mut from_user : User = Self::get_user(from);
 
         // panic if the 'from' address does not have enough tokens.
@@ -145,7 +163,7 @@ impl Erc20Interface for Contract {
         // update the objects and write to the state
         to_user.balance = to_user.balance + tokens.as_u64();
         owner_user.balance = owner_user.balance - tokens.as_u64();
-        owner_user.approved.insert(spender.to_hex(),(allowed_balance - tokens.as_u64()));
+        owner_user.approved.insert(spender.to_hex(),allowed_balance - tokens.as_u64());
         write_state!(&owner.to_hex() => owner_user, &to.to_hex() => to_user);
     }
 }
