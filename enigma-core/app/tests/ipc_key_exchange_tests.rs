@@ -20,7 +20,7 @@ fn test_get_ptt_request() {
     let packed_msg = v["result"]["request"].as_str().unwrap();
     let result_sig = v["result"]["workerSig"].as_str().unwrap();
     let msg = parse_packed_msg(packed_msg);
-    assert_eq!("Request", msg["data"]);
+    assert!(msg["data"]["Request"].is_null());
     assert_eq!(msg["pubkey"].as_array().unwrap().len(), 64);
     assert!(is_hex(result_sig));
 }

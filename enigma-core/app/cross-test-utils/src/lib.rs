@@ -49,7 +49,9 @@ pub fn get_fake_state_key(contract_address: ContractAddress) -> [u8; 32] {
 
 pub fn make_encrypted_response(req: &Value, addresses: Vec<ContractAddress>) -> Value {
     // Making the response
-    assert!(req["data"]["Request"].is_null()); // Just makes sure that {data:{Request}} Exists.
+    if !req["data"]["Request"].is_null() { // Just makes sure that {data:{Request}} Exists.
+        assert_eq!(serde_json::from_value::<Vec<ContractAddress>>(req["data"]["Request"].clone()).unwrap(), addresses);
+    }
     let _response_data: Vec<(ContractAddress, StateKey)> = addresses.into_iter().map(|addr| (addr, get_fake_state_key(addr))).collect();
 
     let mut response_data = Vec::new();

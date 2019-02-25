@@ -156,7 +156,7 @@ impl UserMessage {
 }
 
 pub mod tests {
-    use super::{PrincipalMessage, PrincipalMessageType, ContractAddress};
+    use super::{PrincipalMessage, PrincipalMessageType};
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
 
