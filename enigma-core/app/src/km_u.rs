@@ -185,19 +185,18 @@ pub mod tests {
     #[test]
     fn test_ptt_req() {
         let enclave = init_enclave_wrapper().unwrap();
-        let addresses: [ContractAddress; 3] = [[1u8; 32].into(), [2u8; 32].into(), [3u8; 32].into()];
-        let (msg, sig) = ptt_req(enclave.geteid(), &addresses).unwrap();
+        let (msg, sig) = ptt_req(enclave.geteid(), &[]).unwrap();
         assert_ne!(msg.len(), 0);
         assert_ne!(sig.to_vec(), vec![0u8; 64]);
     }
 
-    pub fn instantiate_encryption_key(addresses: &[ContractAddress], eid: sgx_enclave_id_t) {
-        let req = ptt_req(eid, &addresses).unwrap();
+    pub fn instantiate_encryption_key(addresses: Vec<ContractAddress>, eid: sgx_enclave_id_t) {
+        let req = ptt_req(eid, &[]).unwrap();
 
         let mut des = Deserializer::new(&req.0[..]);
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
-        let enc_response = make_encrypted_response(&req_val);
+        let enc_response = make_encrypted_response(&req_val, addresses);
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
@@ -217,7 +216,7 @@ pub mod tests {
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
 
         // Generating the response
-        let enc_response = make_encrypted_response(&req_val);
+        let enc_response = make_encrypted_response(&req_val, address.clone());
 
         let mut serialized_enc_response = Vec::new();
         enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();

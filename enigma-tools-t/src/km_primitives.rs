@@ -12,7 +12,7 @@ pub type MsgID = [u8; 12];
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum PrincipalMessageType {
     Response(Vec<(ContractAddress, StateKey)>),
-    Request(Vec<ContractAddress>),
+    Request(Option<Vec<ContractAddress>>),
     EncryptedResponse(Vec<u8>),
 }
 
@@ -156,10 +156,9 @@ impl UserMessage {
 }
 
 pub mod tests {
-    use super::{PrincipalMessage, PrincipalMessageType, ContractAddress};
+    use super::{PrincipalMessage, PrincipalMessageType};
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
-    use std::vec::Vec;
 
     pub fn test_to_message() {
         let res = get_request();
@@ -171,8 +170,7 @@ pub mod tests {
 
     pub fn test_from_message() {
         let msg = [132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 149, 220, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 220, 0, 32, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 220, 0, 32, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 220, 0, 32, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 220, 0, 32, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let address_vec: Vec<ContractAddress> = vec![[0u8; 32].into(), [1u8; 32].into(), [2u8; 32].into(), [3u8; 32].into(), [4u8; 32].into()];
-        let data = PrincipalMessageType::Request(address_vec);
+        let data = PrincipalMessageType::Request(None);
         let id = [75, 52, 85, 160, 254, 16, 9, 130, 50, 81, 252, 231];
         assert_eq!(PrincipalMessage::new_id(data, id, [0u8; 64]), PrincipalMessage::from_message(&msg[..]).unwrap());
     }
@@ -206,8 +204,7 @@ pub mod tests {
     }
 
     fn get_request() -> PrincipalMessage {
-        let address_vec: Vec<ContractAddress> = vec![[0u8; 32].into(), [1u8; 32].into(), [2u8; 32].into(), [3u8; 32].into(), [4u8; 32].into()];
-        let data = PrincipalMessageType::Request(address_vec);
+        let data = PrincipalMessageType::Request(None);
         let id = [75, 52, 85, 160, 254, 16, 9, 130, 50, 81, 252, 231];
 
         PrincipalMessage::new_id(data, id, [0u8; 64])

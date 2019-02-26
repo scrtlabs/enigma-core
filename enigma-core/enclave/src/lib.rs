@@ -128,7 +128,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 
     let mut pre_execution_data = vec![];
     // in order to view the specific error print out the result of the function
-    let mut internal_result = ecall_execute_internal(&mut pre_execution_data, bytecode,
+    let internal_result = ecall_execute_internal(&mut pre_execution_data, bytecode,
                            callable,
                            args,
                            &user_key,
@@ -136,7 +136,10 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                            *gas_limit,
                            db_ptr,
                            result);
-    sign_if_error(&pre_execution_data, &mut internal_result, result);
+    if let Err(ref mut e) = internal_result.clone() {
+        println!("Error in execution of smart contract function: {}", e);
+        sign_if_error(&pre_execution_data, e, result);
+    }
     internal_result.into()
 }
 
@@ -163,8 +166,11 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
     let bytecode = slice::from_raw_parts(bytecode, bytecode_len);
     let constructor = slice::from_raw_parts(constructor, constructor_len);
     let mut pre_execution_data = vec![];
-    let mut internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, *gas_limit, db_ptr, result);
-    sign_if_error(&pre_execution_data, &mut internal_result, result);
+    let internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, *gas_limit, db_ptr, result);
+    if let Err(ref mut e) = internal_result.clone() {
+        println!("Error in deployment of smart contract: {}", e);
+        sign_if_error(&pre_execution_data, e, result);
+    }
     internal_result.into()
 }
 
@@ -286,23 +292,21 @@ fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
     }
 }
 
-fn sign_if_error (pre_execution_data: &[Box<[u8]>], internal_result: &mut Result<(), EnclaveError>, result: &mut ExecuteResult) {
-    if let &mut Err(_) = internal_result{
-        // Signing: S(pre-execution data, usedGas, Failure)
-        let used_gas = result.used_gas.to_be_bytes();
-        let failure = [ResultStatus::Failure.into()];
-        let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
-        pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
-        to_sign.push(&used_gas);
-        to_sign.push(&failure);
-        let signature = SIGNING_KEY.sign_multiple(&to_sign);
-        match signature {
-            Ok(v) => {
-                result.signature = v;
-            }
-            Err(e) => {
-                *internal_result = Err(EnclaveError::CryptoError{err: e});
-            }
+fn sign_if_error (pre_execution_data: &[Box<[u8]>], internal_result: &mut EnclaveError, result: &mut ExecuteResult) {
+    // Signing: S(pre-execution data, usedGas, Failure)
+    let used_gas = result.used_gas.to_be_bytes();
+    let failure = [ResultStatus::Failure.into()];
+    let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
+    pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
+    to_sign.push(&used_gas);
+    to_sign.push(&failure);
+    let signature = SIGNING_KEY.sign_multiple(&to_sign);
+    match signature {
+        Ok(v) => {
+            result.signature = v;
+        }
+        Err(e) => {
+            *internal_result = EnclaveError::CryptoError{err: e};
         }
     }
 }

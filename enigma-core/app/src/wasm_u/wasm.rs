@@ -121,7 +121,7 @@ pub mod tests {
                               func: &str,
                               func_args: &[Token]) -> (sgx_urts::SgxEnclave, Box<[u8]>, WasmResult, DhKey) {
         let enclave = init_enclave_wrapper().unwrap();
-        instantiate_encryption_key(&[contract_address], enclave.geteid());
+        instantiate_encryption_key(vec![contract_address], enclave.geteid());
 
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let encrypted_construct = symmetric::encrypt(constructor.as_bytes(), &shared_key).unwrap();
@@ -160,7 +160,7 @@ pub mod tests {
     fn test_print_simple() {
         let (mut db, _dir) = create_test_db();
 
-        let (_enclave, _, _result, _shared_key) = compile_deploy_execute(
+        compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             generate_contract_address(),

@@ -17,7 +17,6 @@ use eng_wasm::String;
 use eng_wasm::from_utf8;
 use hex::ToHex;
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use enigma_crypto::{KeyPair, hash::Keccak256};
 use enigma_types::UserAddress;
 

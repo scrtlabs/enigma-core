@@ -10,7 +10,6 @@ use enigma_tools_t::common::LockExpectMutex;
 use enigma_crypto::{Encryption, CryptoError};
 use enigma_types::{ContractAddress, StateKey};
 use std::collections::HashMap;
-use std::string::ToString;
 use std::sync::SgxMutex;
 
 lazy_static! {

@@ -3,6 +3,7 @@ pub extern crate enigma_core_app as app;
 pub extern crate ethabi;
 extern crate rustc_hex as hex;
 extern crate cross_test_utils;
+extern crate enigma_types;
 
 use integration_utils::{conn_and_call_ipc, is_hex, run_core, get_msg_format_update_contract,
                         get_encryption_msg, full_simple_deployment, full_addition_compute, decrypt_output_to_uint,
@@ -92,7 +93,7 @@ fn test_execute_on_existing_contract_no_construct() {
 
     let msg = get_update_deltas_msg(&deltas[..]);
     let _update_deltas_res: Value = conn_and_call_ipc(&msg.to_string(), port);
-    let _res_b = run_ptt_round(port, &[new_addr.to_hex()]);
+    let _res_b = run_ptt_round(port, vec![new_addr]);
 
     let (res, _key) = contract_compute(port, new_addr.into(), &[], "total_supply()");
     let output: String = serde_json::from_value(res["result"]["output"].clone()).unwrap();
@@ -144,7 +145,7 @@ fn test_execute_on_existing_contract_with_constructor() {
     let msg = get_update_deltas_msg(&deltas);
     let _update_deltas_res: Value = conn_and_call_ipc(&msg.to_string(), port);
 
-    let _res_b = run_ptt_round(port, &[new_addr.to_hex()]);
+    let _res_b = run_ptt_round(port, vec![new_addr]);
 
     let (res, _key) = contract_compute(port, new_addr.into(), &[], "get_last_sum()");
     let output: String = serde_json::from_value(res["result"]["output"].clone()).unwrap();

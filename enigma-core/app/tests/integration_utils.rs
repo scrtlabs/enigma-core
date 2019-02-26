@@ -14,7 +14,7 @@ extern crate rand;
 extern crate tempfile;
 
 use self::cross_test_utils::{generate_contract_address, generate_user_address, make_encrypted_response,
-                             get_fake_state_key, get_bytecode_from_path};
+                             get_fake_state_key, get_bytecode_from_path, ContractAddress};
 use self::app::*;
 use self::futures::Future;
 use self::app::networking::*;
@@ -92,8 +92,8 @@ pub fn get_encryption_msg(user_pubkey: [u8; 64]) -> Value {
     json!({"id" : &generate_job_id(), "type" : "NewTaskEncryptionKey", "userPubKey": user_pubkey.to_hex()})
 }
 
-pub fn get_ptt_req_msg(addrs: &[String]) -> Value {
-    json!({"id" : &generate_job_id(), "type" : "GetPTTRequest", "input": addrs.to_vec()})
+pub fn get_ptt_req_msg() -> Value {
+    json!({"id" : &generate_job_id(), "type" : "GetPTTRequest"})
 }
 
 pub fn get_ptt_res_msg(response: &[u8]) -> Value {
@@ -135,54 +135,29 @@ pub fn get_update_deltas_msg(_input: &[(String, u64, String)]) -> Value {
     json!({"id": &generate_job_id(), "type": "UpdateDeltas", "deltas": input})
 }
 
-#[derive(Debug)]
-pub struct ParsedMessage {
-    prefix: String,
-    pub data: Vec<String>,
-    pub pub_key: Vec<u8>,
-    id: [u8; 12],
-}
-
-impl ParsedMessage {
-    pub fn from_value(msg: &Value) -> Self {
-        let prefix_bytes: Vec<u8> = serde_json::from_value(msg["prefix"].clone()).unwrap();
-        let prefix: String = std::str::from_utf8(&prefix_bytes[..]).unwrap().to_string();
-
-        let data_bytes: Vec<Vec<u8>> = serde_json::from_value(msg["data"]["Request"].clone()).unwrap();
-        let mut data: Vec<String> = Vec::new();
-        for a in data_bytes {
-            data.push(a.to_hex());
-        }
-        let pub_key: Vec<u8> = serde_json::from_value(msg["pubkey"].clone()).unwrap();
-        let id: [u8; 12] = serde_json::from_value(msg["id"].clone()).unwrap();
-
-        Self { prefix, data, pub_key, id }
-    }
-}
-
 pub fn parse_packed_msg(msg: &str) -> Value {
     let msg_bytes = msg.from_hex().unwrap();
     let mut _de = Deserializer::new(&msg_bytes[..]);
     Deserialize::deserialize(&mut Deserializer::new(&msg_bytes[..])).unwrap()
 }
 
-pub fn mock_principal_res(msg: &str) -> Vec<u8> {
+pub fn mock_principal_res(msg: &str, addrs: Vec<ContractAddress>) -> Vec<u8> {
     let unpacked_msg: Value = parse_packed_msg(msg);
-    let enc_response: Value = make_encrypted_response(&unpacked_msg);
+    let enc_response: Value = make_encrypted_response(&unpacked_msg, addrs);
 
     let mut serialized_enc_response = Vec::new();
     enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
     serialized_enc_response
 }
 
-pub fn run_ptt_round(port: &'static str, addrs: &[String]) -> Value {
+pub fn run_ptt_round(port: &'static str, addrs: Vec<ContractAddress>) -> Value {
 
     // set encrypted request message to send to the principal node
-    let msg_req = get_ptt_req_msg(&addrs);
+    let msg_req = get_ptt_req_msg();
     let req_val: Value = conn_and_call_ipc(&msg_req.to_string(), port);
     let packed_msg = req_val["result"]["request"].as_str().unwrap();
 
-    let enc_response = mock_principal_res(packed_msg);
+    let enc_response = mock_principal_res(packed_msg, addrs);
     let msg = get_ptt_res_msg(&enc_response);
     conn_and_call_ipc(&msg.to_string(), port)
 }
@@ -205,7 +180,7 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
 pub fn full_erc20_deployment(port: &'static str, gas_limit: Option<u64>) -> (Value, [u8; 32]) {
     // address generation and ptt
     let address = generate_contract_address();
-    let _ = run_ptt_round(port, &[address.to_hex()]);
+    let _ = run_ptt_round(port, vec![address]);
 
     // WUKE- get the arguments encryption key
     let (_shared_key, _user_pubkey) = produce_shared_key(port);
@@ -240,7 +215,7 @@ pub fn erc20_deployment_without_ptt_to_addr(port: &'static str, _address: &str) 
 pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
     // address generation and ptt
     let address = generate_contract_address();
-    let _ = run_ptt_round(port, &[address.to_hex()]);
+    let _ = run_ptt_round(port, vec![address]);
 
     // WUKE- get the arguments encryption key
     let (shared_key, user_pubkey) = produce_shared_key(port);

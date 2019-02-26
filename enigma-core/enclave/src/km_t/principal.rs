@@ -10,7 +10,6 @@ use enigma_tools_t::km_primitives::MsgID;
 use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
 use enigma_types::{ContractAddress, StateKey, RawPointer};
 use std::collections::HashMap;
-use std::string::ToString;
 use std::sync::SgxMutex;
 use std::u32;
 use std::vec::Vec;
@@ -21,7 +20,10 @@ lazy_static! {
 
 pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let keys = KeyPair::new()?;
-    let data = PrincipalMessageType::Request(addresses.to_vec());
+    let mut data = PrincipalMessageType::Request(None);
+    if !addresses.is_empty() {
+        data = PrincipalMessageType::Request(Some(addresses.to_vec()));
+    }
     let req = PrincipalMessage::new(data, keys.get_pubkey())?;
     let msg = req.to_message()?;
     *sig = SIGNING_KEY.sign(&msg[..])?;
@@ -146,6 +148,7 @@ pub mod tests {
     use enigma_crypto::asymmetric::KeyPair;
     use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
     use enigma_types::{ContractAddress, RawPointer};
+    use std::string::ToString;
 
 
     pub fn test_state_internal(db_ptr: *const RawPointer) {
