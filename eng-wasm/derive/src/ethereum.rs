@@ -1,6 +1,4 @@
-use internal_std::Vec;
-use internal_std::String;
-use internal_std::SliceConcatExt;
+use std::slice::SliceConcatExt;
 use tiny_keccak::Keccak;
 use ethabi::param_type::{Writer, ParamType};
 
@@ -17,7 +15,7 @@ fn fill_signature(name: &str, params: &[ParamType], result: &mut [u8]) {
         .collect::<Vec<String>>()
         .join(",");
 
-    let data: Vec<u8> = From::from(eformat!("{}({})", name, types).as_str());
+    let data: Vec<u8> = From::from(format!("{}({})", name, types).as_str());
 
     let mut sponge = Keccak::new_keccak256();
     sponge.update(&data);

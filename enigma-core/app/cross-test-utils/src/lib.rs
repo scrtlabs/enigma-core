@@ -29,7 +29,8 @@ pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
     dir.push(contract_path);
     let mut output = Command::new("cargo")
         .current_dir(&dir)
-        .args(&["build", "--release"])
+//        .args(&["build", "--release"]) # In real contract we should use --release
+        .args(&["build"])
         .spawn()
         .unwrap_or_else(|_| panic!("Failed compiling wasm contract: {:?}", &dir));
 

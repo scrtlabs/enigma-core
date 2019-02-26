@@ -1,7 +1,9 @@
 #![deny(unused_extern_crates)]
-
 #![feature(box_patterns)]
 #![recursion_limit="128"]
+#![feature(int_to_from_bytes)]
+#![feature(slice_concat_ext)]
+
 extern crate eng_wasm;
 extern crate proc_macro2;
 #[macro_use] extern crate quote;
@@ -9,11 +11,19 @@ extern crate proc_macro;
 #[macro_use]
 extern crate syn;
 extern crate ethabi;
+#[macro_use]
+extern crate failure;
+extern crate tiny_keccak;
+
+mod ethereum;
+mod errors;
 
 use eng_wasm::*;
+use errors::EngWasmError;
+use ethereum::short_signature;
+
 use std::fs::File;
 use std::string::ToString;
-//use std::io::prelude::*;
 use std::convert::*;
 use ethabi::{Contract, ParamType};
 
