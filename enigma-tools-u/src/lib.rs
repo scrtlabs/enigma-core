@@ -1,21 +1,18 @@
 #![crate_type = "lib"]
+#![warn(unused_extern_crates)]
 
 extern crate enigma_crypto;
 #[macro_use]
 extern crate failure;
 extern crate reqwest;
 extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
 extern crate base64;
-extern crate libc;
 extern crate openssl;
 extern crate rlp;
 extern crate rustc_hex as hex;
+#[macro_use]
 extern crate serde;
-extern crate tiny_keccak;
 // web3 utils
-extern crate ethabi;
 extern crate web3;
 // SGX Libraries
 extern crate sgx_types;

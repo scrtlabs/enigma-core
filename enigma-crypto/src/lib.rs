@@ -1,5 +1,6 @@
 #![feature(int_to_from_bytes)]
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
+#![deny(unused_extern_crates)]
 
 #[cfg(feature = "asymmetric")]
 pub mod asymmetric;

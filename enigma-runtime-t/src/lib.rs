@@ -1,4 +1,6 @@
 #![no_std]
+#![warn(unused_extern_crates)]
+
 
 /// Enigma runtime implementation
 #[macro_use]
@@ -7,14 +9,12 @@ extern crate sgx_types;
 extern crate sgx_trts;
 #[macro_use]
 extern crate serde_json;
-#[macro_use]
-extern crate serde_derive;
 extern crate enigma_tools_t;
 extern crate enigma_crypto;
 extern crate enigma_types;
-extern crate hexutil;
 extern crate json_patch;
 extern crate rmp_serde as rmps;
+#[macro_use]
 extern crate serde;
 extern crate wasmi;
 
