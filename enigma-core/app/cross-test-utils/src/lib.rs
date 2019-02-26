@@ -35,7 +35,7 @@ pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
         .unwrap_or_else(|_| panic!("Failed compiling wasm contract: {:?}", &dir));
 
     assert!(output.wait().unwrap().success());
-    dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
+    dir.push("target/wasm32-unknown-unknown/debug/contract.wasm");
 
     let mut f = File::open(&dir).unwrap_or_else(|_| panic!("Can't open the contract.wasm file: {:?}", &dir));
     let mut wasm_code = Vec::new();

@@ -292,7 +292,7 @@ fn generate_eth_functions(contract: &Contract) -> Result<Box<Vec<proc_macro2::To
                 let mut sink = eng_pwasm_abi::eth::Sink::new(#args_number);
                 #(sink.push(#args_names_copy);)*
                 sink.drain_to(&mut payload);
-                write_ethereum_bridge(payload, &self.addr);
+                write_ethereum_bridge(&payload, &self.addr);
             }
         }
     }).collect();
