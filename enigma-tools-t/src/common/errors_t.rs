@@ -55,11 +55,6 @@ impl From<EnclaveError> for WasmError {
     }
 }
 
-// This is for calling to from_utf8 in eng runtime
-impl From<str::Utf8Error> for WasmError {
-    fn from(err: str::Utf8Error) -> Self { WasmError::EngRuntime(err.to_string()) }
-}
-
 impl From<parity_wasm::elements::Error> for EnclaveError {
     fn from(err: parity_wasm::elements::Error) -> EnclaveError {
         EnclaveError::WasmModuleError { code: "deserialization into WASM module".to_string(), err: err.to_string() }

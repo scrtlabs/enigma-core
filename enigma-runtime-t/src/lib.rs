@@ -120,15 +120,23 @@ impl Runtime {
         Ok(())
     }
 
-    pub fn read_state_len (&mut self, args: RuntimeArgs) -> Result<i32> {
-        // TODO: Handle the error here, should we return len=0?;
-        let key = args.nth_checked(0)?;
-        let key_len: u32 = args.nth_checked(1)?;
+    fn read_state_key_from_memory(&self, args: &RuntimeArgs, arg_index: usize, arg_len_index: usize) -> Result<String>{
+        let key = args.nth_checked(arg_index)?;
+        let key_len: u32 = args.nth_checked(arg_len_index)?;
         let mut buf = vec![0u8; key_len as usize];
         self.memory.get_into(key, &mut buf[..])?;
-        let key1 = str::from_utf8(&buf)?;
+
+        // This should not fail if read/write from/to state is done properly through eng_wasm read!/write!
+        let key_str = str::from_utf8(&buf).unwrap_or_default();
+        Ok(key_str.to_string())
+    }
+
+    pub fn read_state_len (&self, args: RuntimeArgs) -> Result<i32> {
+        // TODO: Handle the error here, should we return len=0?;
+        let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value_vec =
-            serde_json::to_vec(&self.post_execution_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
+            serde_json::to_vec(&self.post_execution_state.json[&key]).
+                expect("Failed converting Value to vec in Runtime while reading state");
         Ok( value_vec.len() as i32 )
     }
 
@@ -141,16 +149,11 @@ impl Runtime {
     /// and copy it to the memory at address 0.
     pub fn read_state (&mut self, args: RuntimeArgs) -> Result<()> {
         // TODO: Handle the error here, should we return len=0?;
-        let key = args.nth_checked(0)?;
-        let key_len: u32 = args.nth_checked(1)?;
+        let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value_holder: u32 = args.nth_checked(2)?;
 
-        let mut buf = vec![0u8; key_len as usize];
-        self.memory.get_into(key, &mut buf[..])?;
-
-        let key1 = str::from_utf8(&buf)?;
         let value_vec =
-            serde_json::to_vec(&self.post_execution_state.json[key1]).expect("Failed converting Value to vec in Runtime while reading state");
+            serde_json::to_vec(&self.post_execution_state.json[key]).expect("Failed converting Value to vec in Runtime while reading state");
         self.memory.set(value_holder, &value_vec)?;
         Ok(())
     }
@@ -163,28 +166,23 @@ impl Runtime {
     ///
     /// Read `key` and `value` from memory, and write (key, value) pair to the state
     pub fn write_state (&mut self, args: RuntimeArgs) -> Result<()>{
-        let key = args.nth_checked(0)?;
-        let key_len: u32 = args.nth_checked(1)?;
+        let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value: u32 = args.nth_checked(2)?;
         let value_len: u32 = args.nth_checked(3)?;
-
-        let mut buf = vec![0u8; key_len as usize];
-        self.memory.get_into(key, &mut buf[..])?;
 
         let mut val = vec![0u8; value_len as usize];
         self.memory.get_into(value, &mut val[..])?;
 
-        let key1 = str::from_utf8(&buf)?;
         let value: serde_json::Value =
             serde_json::from_slice(&val).expect("Failed converting into Value while writing state in Runtime");
-        self.post_execution_state.write_key(key1, &value)?;
+        self.post_execution_state.write_key(&key, &value)?;
         Ok(())
     }
 
     /// args:
-    /// * `payload` - the start address of key in memory
-    /// * `payload_len` - the length of the key
-    /// * `address` - the start address of key in memory
+    /// * `payload` - the start address of payload in memory
+    /// * `payload_len` - the length of the payload
+    /// * `address` - the start address of address in memory
     ///
     /// Read `payload` and `address` from memory, and write it to result
     pub fn write_eth_bridge(&mut self, args: RuntimeArgs) -> Result<()> {
@@ -247,7 +245,8 @@ impl Runtime {
         let msg_ptr: u32 = args.nth_checked(0)?;
         let msg_len: u32 = args.nth_checked(1)?;
         let res = self.memory.get(msg_ptr, msg_len as usize)?;
-        let st = str::from_utf8(&res)?;
+        // This should not fail if printing is done properly through eng_wasm eprint!
+        let st = str::from_utf8(&res).unwrap_or_default();
         debug_println!("PRINT: {}", st);
         Ok(())
     }
