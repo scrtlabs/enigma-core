@@ -1,5 +1,8 @@
 #![no_std]
 #![feature(slice_concat_ext)]
+#![feature(int_to_from_bytes)]
+#![deny(unused_extern_crates)]
+
 /// Enigma implementation of bindings to the Enigma runtime.
 /// This crate should be used in contracts.
 #[macro_use]
@@ -15,7 +18,6 @@ pub extern crate eng_pwasm_abi;
 extern crate syn;
 extern crate tiny_keccak;
 extern crate ethabi;
-extern crate byteorder;
 
 pub use internal_std::*;
 pub use eng_wasm_errors::*;

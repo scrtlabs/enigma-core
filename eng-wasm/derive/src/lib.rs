@@ -1,3 +1,5 @@
+#![deny(unused_extern_crates)]
+
 #![feature(box_patterns)]
 #![recursion_limit="128"]
 extern crate eng_wasm;
@@ -6,7 +8,6 @@ extern crate proc_macro2;
 extern crate proc_macro;
 #[macro_use]
 extern crate syn;
-extern crate serde_json;
 extern crate ethabi;
 
 use eng_wasm::*;
