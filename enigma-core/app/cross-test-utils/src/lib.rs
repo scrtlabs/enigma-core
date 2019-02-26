@@ -34,7 +34,6 @@ pub fn generate_user_address() -> (UserAddress, KeyPair) {
 pub fn sign_message(key: KeyPair, address: UserAddress, amount: u64) -> [u8;65] {
     let mut msg = address.to_vec();
     msg.extend_from_slice(&amount.to_be_bytes());
-    println!("the msg before: {:?}", msg);
     key.sign(&msg).unwrap()
 }
 

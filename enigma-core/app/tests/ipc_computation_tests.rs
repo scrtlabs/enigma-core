@@ -7,7 +7,7 @@ extern crate cross_test_utils;
 use integration_utils::{conn_and_call_ipc, is_hex, run_core, get_msg_format_update_contract,
                         get_encryption_msg, full_simple_deployment, full_addition_compute, decrypt_output_to_uint,
                         send_update_contract, full_erc20_deployment, run_ptt_round, contract_compute, get_update_deltas_msg, decrypt_addr_delta, encrypt_addr_delta};
-use cross_test_utils::generate_contract_address;
+use cross_test_utils::{generate_contract_address, generate_user_address};
 use self::app::serde_json;
 use app::serde_json::*;
 use hex::{ToHex, FromHex};
@@ -70,7 +70,7 @@ fn test_execute_on_existing_contract_no_construct() {
     let deployed_data: String = serde_json::from_value(deployed_delta["data"].clone()).unwrap();
 
     let amount_before = Token::Uint(60.into());
-    let to_addr = Token::FixedBytes(generate_contract_address().to_vec());
+    let to_addr = Token::FixedBytes(generate_user_address().0.to_vec());
     let args = [to_addr, amount_before.clone()];
     let callable  = "mint(bytes32,uint256)";
     let (_res_mint, _) = contract_compute(port, _old_addr, &args, callable);
@@ -100,7 +100,7 @@ fn test_execute_on_existing_contract_no_construct() {
     assert_eq!(amount_before, accepted_amount);
 
     let amount = Token::Uint(100.into());
-    let to_addr = Token::FixedBytes(generate_contract_address().to_vec());
+    let to_addr = Token::FixedBytes(generate_user_address().0.to_vec());
     let args = [to_addr, amount.clone()];
     let callable  = "mint(bytes32,uint256)";
     let (_res_mint, _) = contract_compute(port, new_addr.into(), &args, callable);

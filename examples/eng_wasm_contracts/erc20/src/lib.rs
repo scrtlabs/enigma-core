@@ -9,7 +9,6 @@ extern crate rustc_hex as hex;
 extern crate enigma_crypto;
 extern crate enigma_types;
 #[macro_use]
-extern crate serde_derive;
 extern crate serde;
 
 use eng_wasm::*;
@@ -39,11 +38,11 @@ pub trait Erc20Interface{
     fn transfer(from: H256, to: H256, tokens: U256, sig: Vec<u8>);
     /// approve the 'spender' address to spend 'tokens' from the 'owner's address balance.
     /// the function panics if the 'owner' address does not have enough tokens.
-    fn approve(token_owner: H256, spender: H256, tokens: U256);
+    fn approve(token_owner: H256, spender: H256, tokens: U256, sig: Vec<u8>);
     /// 'spender' address transfers tokens on behalf of the owner address to the 'to' address.
     /// the function panics if the 'owner' address does not have enough tokens or the 'spender'
     /// address does not have enough tokens as well.
-    fn transfer_from(owner: H256, spender: H256, to: H256, tokens: U256);
+    fn transfer_from(owner: H256, spender: H256, to: H256, tokens: U256, sig: Vec<u8>);
 }
 
 /// User object holds all information of a user address
@@ -68,17 +67,16 @@ impl Contract {
         }
     }
 
+    /// verify if the address that is sending the tokens is the one who actually sent the transfer.
     fn verify(from: H256, to: H256, amount: U256, sig: Vec<u8>) -> bool {
-
         let mut msg = to.0.to_vec();
         msg.extend_from_slice(&amount.as_u64().to_be_bytes());
+
         let mut new_sig: [u8; 65] = [0u8; 65];
         new_sig.copy_from_slice(&sig[..65]);
-//        eprint!("we are here: {:?}\n\n{:?}",msg, sig);
-        let accepted_pubkey = KeyPair::recover(&msg, new_sig);
-//        eprint!("from: {:?} \naccepted: {:?}", UserAddress::from(from.0), accepted_pubkey.keccak256());
-////        UserAddress::from(from.0) == accepted_pubkey.keccak256()
-        true
+
+        let accepted_pubkey = KeyPair::recover(&msg, new_sig).unwrap();
+        UserAddress::from(from.0) == accepted_pubkey.keccak256()
     }
 }
 
@@ -122,7 +120,7 @@ impl Erc20Interface for Contract {
 
     #[no_mangle]
     fn transfer(from: H256, to: H256, tokens: U256, sig: Vec<u8>) {
-        Self::verify(from.clone(), to.clone(), tokens, sig);
+        assert!(Self::verify(from.clone(), to.clone(), tokens, sig));
         let mut from_user : User = Self::get_user(from);
 
         // panic if the 'from' address does not have enough tokens.
@@ -136,7 +134,8 @@ impl Erc20Interface for Contract {
     }
 
     #[no_mangle]
-    fn approve(token_owner: H256, spender: H256, tokens: U256){
+    fn approve(token_owner: H256, spender: H256, tokens: U256, sig: Vec<u8>){
+        assert!(Self::verify(token_owner.clone(), spender.clone(), tokens, sig));
         let mut owner_user : User = Self::get_user(token_owner);
         assert!(owner_user.balance >= tokens.as_u64(), "invalid action: owner does not have enough tokens");
 
@@ -146,7 +145,8 @@ impl Erc20Interface for Contract {
     }
 
     #[no_mangle]
-    fn transfer_from(owner: H256, spender: H256, to: H256, tokens: U256) {
+    fn transfer_from(owner: H256, spender: H256, to: H256, tokens: U256, sig: Vec<u8>) {
+        assert!(Self::verify(spender.clone(), to.clone(), tokens, sig));
         let mut owner_user : User = Self::get_user(owner);
         // panic if the owner does not own the amount of tokens
         assert!(owner_user.balance >= tokens.as_u64(), "invalid action: owner does not have enough tokens");
