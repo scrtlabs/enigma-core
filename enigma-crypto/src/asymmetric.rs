@@ -106,26 +106,13 @@ impl KeyPair {
     /// ```
     pub fn recover(message: &[u8], sig: [u8;65]) -> Result<[u8; 64], CryptoError> {
         let recovery = RecoveryId::parse(sig[64] -27)
-            .map_err(|_| {
-                let mut err_sig = [0u8; 64];
-                err_sig.copy_from_slice(&sig[..64]);
-                CryptoError::ParsingError { sig: err_sig.into(), recovery: sig[64] }
-            })?;
+            .map_err(|_| CryptoError::ParsingError { sig })?;
         let signature = Signature::parse_slice(&sig[..64])
-            .map_err(|_| {
-                let mut err_sig = [0u8; 64];
-                err_sig.copy_from_slice(&sig[..64]);
-                CryptoError::ParsingError { sig: err_sig.into(), recovery: sig[64] }
-            })?;
+            .map_err(|_| CryptoError::ParsingError { sig } )?;
         let hashed_msg = message.keccak256();
         let signed_message = secp256k1::Message::parse(&hashed_msg);
         let recovered_pub = secp256k1::recover(&signed_message, &signature, &recovery)
-            .map_err(|_|
-                         {
-                             let mut err_sig = [0u8; 64];
-                             err_sig.copy_from_slice(&signature.serialize());
-                             CryptoError::RecoveryError { sig: err_sig.into(), recovery: recovery.into() }
-                         })?;
+            .map_err(|_| CryptoError::RecoveryError { sig } )?;
         Ok(KeyPair::pubkey_object_to_pubkey(&recovered_pub))
     }
 

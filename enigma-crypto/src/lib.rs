@@ -22,6 +22,9 @@ use {
     std as localstd,
 };
 
+#[cfg(all(not(feature = "std"), not(feature = "sgx")))]
+extern crate core as localstd;
+
 pub use crate::error::CryptoError;
 
 #[cfg(feature = "asymmetric")]
