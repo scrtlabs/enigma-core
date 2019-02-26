@@ -236,10 +236,13 @@ pub(self) mod handling {
     }
 
     #[logfn(INFO)]
-    pub fn get_ptt_req(addresses: &Addresses, eid: sgx_enclave_id_t) -> ResponseResult {
-        let mut addresses_arr: Vec<ContractAddress> = Vec::with_capacity(addresses.len());
-        for a in addresses.iter() {
-            addresses_arr.push(ContractAddress::from_hex(a)?);
+    pub fn get_ptt_req(addresses: &Option<Addresses>, eid: sgx_enclave_id_t) -> ResponseResult {
+        let mut addresses_arr: Vec<ContractAddress> = Vec::new();
+        if let Some(addresses) = addresses {
+            addresses_arr.reserve_exact(addresses.len());
+            for a in addresses.iter() {
+                addresses_arr.push(ContractAddress::from_hex(a)?);
+            }
         }
         let (data, sig) = km_u::ptt_req(eid, &addresses_arr)?;
         let result = IpcResults::Request { request: data.to_hex(), sig: sig.to_hex() };

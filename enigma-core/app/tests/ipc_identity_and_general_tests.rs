@@ -45,7 +45,7 @@ fn test_compute_on_empty_address() {
     let port = "5576";
     run_core(port);
     let _address = generate_contract_address();
-    let _ = run_ptt_round(port, &[_address.to_hex()]);
+    let _ = run_ptt_round(port, vec![_address]);
     let args = [Token::FixedBytes(generate_contract_address().to_vec()), Token::Uint(100.into())];
     let callable  = "mint(bytes32,uint256)";
     let (_val,_) = contract_compute(port, _address.into(), &args, callable);
@@ -58,8 +58,8 @@ fn test_run_ptt_twice() {
     let port = "5577";
     run_core(port);
     let address = generate_contract_address();
-    let _val_first = run_ptt_round(port, &[address.to_hex()]);
-    let _val_second = run_ptt_round(port, &[address.to_hex()]);
+    let _val_first = run_ptt_round(port, vec![address]);
+    let _val_second = run_ptt_round(port, vec![address]);
     //todo what should we expect to happen?
 }
 
@@ -67,10 +67,10 @@ fn test_run_ptt_twice() {
 fn test_deploy_same_contract_twice() {
     let port = "5578";
     run_core(port);
-    let address = generate_contract_address().to_hex();
-    let _val_ptt = run_ptt_round(port, &[address.clone()]);
-    let _deploy_first = erc20_deployment_without_ptt_to_addr(port, &address.clone());
-    let _deploy_second = erc20_deployment_without_ptt_to_addr(port, &address);
+    let address = generate_contract_address();
+    let _val_ptt = run_ptt_round(port, vec![address]);
+    let _deploy_first = erc20_deployment_without_ptt_to_addr(port, &address.to_hex());
+    let _deploy_second = erc20_deployment_without_ptt_to_addr(port, &address.to_hex());
     let accepted_err =  _deploy_second["msg"].as_str().unwrap();
     assert_eq!(accepted_err, "DBErr { command: \"create\", kind: KeyExists }");
 }

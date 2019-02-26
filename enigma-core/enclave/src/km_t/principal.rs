@@ -20,7 +20,10 @@ lazy_static! {
 
 pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let keys = KeyPair::new()?;
-    let data = PrincipalMessageType::Request(addresses.to_vec());
+    let mut data = PrincipalMessageType::Request(None);
+    if !addresses.is_empty() {
+        data = PrincipalMessageType::Request(Some(addresses.to_vec()));
+    }
     let req = PrincipalMessage::new(data, keys.get_pubkey())?;
     let msg = req.to_message()?;
     *sig = SIGNING_KEY.sign(&msg[..])?;
