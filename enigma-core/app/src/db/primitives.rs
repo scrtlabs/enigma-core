@@ -1,4 +1,3 @@
-use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 use enigma_types::ContractAddress;
 use failure::Error;
 use hex::{FromHex, ToHex};
@@ -69,7 +68,7 @@ impl SplitKey for DeltaKey {
             Stype::Delta(num) => {
                 key.push(1); //type
                              // TODO: think of a better way to handle the possibility of error here.
-                key.write_u32::<BigEndian>(*num).unwrap();
+                key.extend_from_slice(&num.to_be_bytes());
             }
             Stype::State => key.push(2),    //type
             Stype::ByteCode => key.push(3), //type
@@ -79,7 +78,11 @@ impl SplitKey for DeltaKey {
 
     fn from_split(_hash: &str, _key_type: &[u8]) -> Result<Self, Error> {
         let key_type = match _key_type[0] {
-            1 => Stype::Delta(BigEndian::read_u32(&_key_type[1..])),
+            1 => {
+                let mut be_bytes = [0u8; 4];
+                be_bytes.copy_from_slice(&_key_type[1..]);
+                Stype::Delta(u32::from_be_bytes(be_bytes))
+            },
             2 => Stype::State,
             3 => Stype::ByteCode,
             _ => bail!("Failed parsing the Key, key does not contain a correct index"),

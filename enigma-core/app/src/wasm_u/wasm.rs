@@ -1,6 +1,4 @@
-extern crate sgx_types;
-extern crate sgx_urts;
-extern crate rustc_hex;
+
 
 use crate::common_u::errors::EnclaveFailError;
 use enigma_types::{ContractAddress, EnclaveReturn, ExecuteResult, PubKey, RawPointer, traits::SliceCPtr};
