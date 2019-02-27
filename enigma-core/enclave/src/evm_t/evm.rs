@@ -65,7 +65,7 @@ pub fn call_sputnikvm(code: &[u8], data: Vec<u8>) -> (u8, Vec<u8>) {
     //println!("VM returned: {:?}", vm.status());
     //println!("VM out: {:?}", vm.out().to_hex());
     for account in vm.accounts() {
-        println!("{:?}", account);
+        debugln!("{:?}", account);
     }
     let vm_status: u8 = match vm.status() {
         VMStatus::ExitedOk => EvmResult::SUCCESS as u8,

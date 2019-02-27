@@ -113,7 +113,7 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
                 };
                 match state.apply_delta(&patch) {
                     Err(e) => {
-                        println!("Failed applying delta: {:?}", e);
+                        debugln!("Failed applying delta: {:?}", e);
                         failed_contracts.push(*addrs);
                         continue 'contract;
                     }

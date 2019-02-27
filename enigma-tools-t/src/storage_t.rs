@@ -80,13 +80,13 @@ fn from_sealed_log<'a, T: Copy + ContiguousMemory>(sealed_log: *mut u8, sealed_l
 pub fn save_sealed_key(path: &str, sealed_key: &[u8]) {
     let opt = File::create(path);
     if opt.is_ok() {
-        println!("Created file => {} ", path);
+        debugln!("Created file => {} ", path);
         let mut file = opt.unwrap();
         let result = file.write_all(&sealed_key);
         if result.is_ok() {
-            println!("success writting to file! ");
+            debugln!("success writting to file! ");
         } else {
-            println!("error writting to file! ");
+            debugln!("error writting to file! ");
         }
     }
 }
@@ -94,13 +94,13 @@ pub fn save_sealed_key(path: &str, sealed_key: &[u8]) {
 pub fn load_sealed_key(path: &str, sealed_key: &mut [u8]) {
     let opt = File::open(path);
     if opt.is_ok() {
-        println!("Created file => {} ", path);
+        debugln!("Created file => {} ", path);
         let mut file = opt.unwrap();
         let result = file.read(sealed_key);
         if result.is_ok() {
-            println!("success writting to file! ");
+            debugln!("success writting to file! ");
         } else {
-            println!("error writting to file! ");
+            debugln!("error writting to file! ");
         }
     }
 }
@@ -118,12 +118,12 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
             match SecretKeyStorage::unseal_key(&mut sealed) {
                 // If the data is unsealed correctly return this KeyPair.
                 Some(unsealed_data) => {
-                    println!("Succeeded reading key from file");
+                    debugln!("Succeeded reading key from file");
                     return Ok(asymmetric::KeyPair::from_slice(&unsealed_data.data)?);
                 }
                 // If the data couldn't get unsealed remove the file.
                 None => {
-                    println!("Failed reading file, Removing");
+                    debugln!("Failed reading file, Removing");
                     remove_file(sealed_path);
                 }
             };

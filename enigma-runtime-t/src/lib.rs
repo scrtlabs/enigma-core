@@ -9,6 +9,7 @@ extern crate sgx_types;
 extern crate sgx_trts;
 #[macro_use]
 extern crate serde_json;
+#[macro_use]
 extern crate enigma_tools_t;
 extern crate enigma_crypto;
 extern crate enigma_types;
@@ -247,7 +248,7 @@ impl Runtime {
         let msg_len: u32 = args.nth_checked(1)?;
         let res = self.memory.get(msg_ptr, msg_len as usize)?;
         let st = str::from_utf8(&res)?;
-        println!("PRINT: {}", st);
+        debugln!("PRINT: {}", st);
         Ok(())
     }
 

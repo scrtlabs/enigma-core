@@ -19,7 +19,7 @@ pub fn create_report_with_data(target_info: &sgx_target_info_t, out_report: &mut
             sgx_status_t::SGX_SUCCESS
         }
         Err(r) => {
-            println!("[-] Enclave: error creating report");
+            debugln!("[-] Enclave: error creating report");
             r
         }
     };

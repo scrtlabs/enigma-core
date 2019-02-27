@@ -16,7 +16,7 @@ pub fn get_home_path() -> Result<path::PathBuf, EnclaveError> {
     let mut result_len: usize = 0;
     unsafe { ocall_get_home(home_slice.as_mut_ptr(), &mut result_len); }
     let home_str = str::from_utf8(&home_slice[..result_len])?;
-    println!("Back from Ocall: {}", &home_str);
+    debugln!("Back from Ocall: {}", &home_str);
 
     Ok(path::PathBuf::from(home_str))
 }
