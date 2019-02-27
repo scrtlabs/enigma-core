@@ -1,5 +1,8 @@
 #![no_std]
 #![feature(slice_concat_ext)]
+#![feature(int_to_from_bytes)]
+#![deny(unused_extern_crates)]
+
 /// Enigma implementation of bindings to the Enigma runtime.
 /// This crate should be used in contracts.
 #[macro_use]
@@ -7,21 +10,12 @@ extern crate serde_json;
 extern crate serde;
 #[macro_use]
 mod internal_std;
-mod eng_wasm_errors;
-mod ethereum;
 mod rand_wasm;
 pub extern crate eng_pwasm_abi;
-#[macro_use] pub extern crate failure;
-extern crate syn;
-extern crate tiny_keccak;
-extern crate ethabi;
-extern crate byteorder;
 
 pub use internal_std::*;
-pub use eng_wasm_errors::*;
 pub use rand_wasm::*;
 pub use serde_json::Value;
-pub use ethereum::short_signature;
 pub use eng_pwasm_abi::types::*;
 
 
@@ -76,7 +70,7 @@ pub fn read<T>(key: &str) -> Option<T> where for<'de> T: serde::Deserialize<'de>
     Some(serde_json::from_value(value.clone()).map_err(|_| print("failed unwrapping from_value in read_state")).expect("read_state failed"))
 }
 
-pub fn write_ethereum_bridge(payload: Vec<u8>, address: &[u8;20]){
+pub fn write_ethereum_bridge(payload: &[u8], address: &[u8;20]){
     unsafe {
         external::write_eth_bridge(payload.as_ptr(), payload.len() as u32, address.as_ptr())
     };

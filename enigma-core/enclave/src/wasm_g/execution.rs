@@ -99,7 +99,8 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
     let imports = ImportsBuilder::new().with_resolver("env", &instantiation_resolver);
 
     // Instantiate a module
-    let instance = ModuleInstance::new(module, &imports).expect("failed to instantiate wasm module").assert_no_start();
+    // TODO: Change the assert here: https://github.com/paritytech/wasmi/issues/172
+    let instance = ModuleInstance::new(module, &imports)?.assert_no_start();
 
     let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types);
 

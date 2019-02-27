@@ -1,6 +1,4 @@
-extern crate sgx_types;
-extern crate sgx_urts;
-extern crate rustc_hex;
+
 
 use crate::common_u::errors::EnclaveFailError;
 use enigma_types::{ContractAddress, EnclaveReturn, ExecuteResult, PubKey, RawPointer, traits::SliceCPtr};
@@ -109,8 +107,7 @@ pub mod tests {
         let wasm_code = get_bytecode_from_path(test_path);
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
 
-
-        wasm::deploy(db, eid, &wasm_code, constructor, args, &contract_address, &user_pubkey, 100_000).expect("Deploy Failed")
+        wasm::deploy(db, eid, &wasm_code, constructor, args, &contract_address, &user_pubkey, GAS_LIMIT).expect("Deploy Failed")
     }
 
     fn compile_deploy_execute(db: &mut DB,

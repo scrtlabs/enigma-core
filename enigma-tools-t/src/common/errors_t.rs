@@ -7,6 +7,7 @@ use enigma_crypto::CryptoError;
 use std::str;
 use std::string::{String, ToString};
 use wasmi::{self, TrapKind};
+use parity_wasm;
 
 // Error of WASM execution by wasmi or runtime
 #[derive(Debug)]

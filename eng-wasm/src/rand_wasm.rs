@@ -1,4 +1,3 @@
-use byteorder::{BigEndian, ByteOrder};
 //pub use pwasm_abi::types::*;
 use super::*;
 
@@ -36,7 +35,7 @@ impl RandTypes<u16> for Rand {
     fn gen() -> u16 {
         let mut r: [u8; 2] = [0u8; 2];
         Self::gen_slice(&mut r);
-        BigEndian::read_u16(&r)
+        u16::from_be_bytes(r)
     }
 }
 
@@ -44,7 +43,7 @@ impl RandTypes<u32> for Rand {
     fn gen() -> u32 {
         let mut r: [u8; 4] = [0u8; 4];
         Self::gen_slice(&mut r);
-        BigEndian::read_u32(&r)
+        u32::from_be_bytes(r)
     }
 }
 
@@ -52,6 +51,6 @@ impl RandTypes<u64> for Rand {
     fn gen() -> u64 {
         let mut r: [u8; 8] = [0u8; 8];
         Self::gen_slice(&mut r);
-        BigEndian::read_u64(&r)
+        u64::from_be_bytes(r)
     }
 }
