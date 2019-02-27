@@ -320,7 +320,9 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     pre_execution_data.push(Box::new(*exe_code_hash));
     let pre_execution_state = execution::get_state(db_ptr, address)?;
 
-    let (decrypted_args, _decrypted_callable, types, function_name, key) = decrypt_inputs(callable, args, user_key)?;
+    let (decrypted_args, _decrypted_callable, types, function_name, key) =
+        decrypt_inputs(callable, args, user_key).
+            map_err(|e| {EnclaveError::InputError{ message: format!("{}", e) }})?;
 
     let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone())?;
 
@@ -400,9 +402,10 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
     let pre_code_hash = bytecode.keccak256();
     let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[constructor, args, &pre_code_hash[..], user_key][..]).keccak256();
     pre_execution_data.push(Box::new(*inputs_hash));
-    let deploy_bytecode = build_constructor(bytecode)?;
 
-    let (decrypted_args, _, _types, _, _) = decrypt_inputs(constructor, args, user_key)?;
+    let deploy_bytecode = build_constructor(bytecode)?;
+    let (decrypted_args, _, _types, _, _) = decrypt_inputs(constructor, args, user_key).
+        map_err(|e| {EnclaveError::InputError{ message: format!("{}", e) }})?;
 
     let state = ContractState::new(address);
 
