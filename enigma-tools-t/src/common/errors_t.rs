@@ -13,7 +13,7 @@ use parity_wasm;
 #[derive(Debug)]
 pub enum WasmError {
     GasLimit,
-    EngRuntime(String),
+    WasmiError(wasmi::Error),
     EnclaveError(EnclaveError),
 }
 
@@ -25,7 +25,7 @@ impl ::std::fmt::Display for WasmError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
         match self {
             WasmError::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
-            WasmError::EngRuntime(ref s) => write!(f, "{}", s),
+            WasmError::WasmiError(ref e) => write!(f, "{}", e),
             WasmError::EnclaveError(ref e) => write!(f, "{}", e),
         }
     }
@@ -37,14 +37,14 @@ impl ::std::fmt::Display for WasmError {
 // memory manipulation function.
 impl From<wasmi::Error> for WasmError {
     fn from(e: wasmi::Error) -> Self {
-        WasmError::EngRuntime(format!("{}", e))
+        WasmError::WasmiError(e)
     }
 }
 
 // This is for extracting arguments in eng runtime
 // Implemented by wasmi in `nth_checked` function
 impl From<wasmi::Trap> for WasmError {
-    fn from(trap: wasmi::Trap) -> Self { WasmError::EngRuntime(format!("{}", trap)) }
+    fn from(trap: wasmi::Trap) -> Self { WasmError::WasmiError(wasmi::Error::Trap(trap)) }
 }
 
 // This is for any call from eng runtime to core function
@@ -83,7 +83,7 @@ impl From<wasmi::Error> for EnclaveError{
                         match (**t).downcast_ref::<WasmError>()
                             .expect("Failed to downcast to expected error type"){
                             WasmError::GasLimit => EnclaveError::GasLimitError,
-                            WasmError::EngRuntime(s) => EnclaveError::EngRuntimeError { err: format!("{}", s) },
+                            WasmError::WasmiError(e) => EnclaveError::WasmCodeExecutionError { err: format!("{}", e) },
                             WasmError::EnclaveError(err) => err.clone(),
                         }
                     },
@@ -123,9 +123,6 @@ pub enum EnclaveError {
 
     #[fail(display = "Error in execution of WASM code: {}", err)]
     WasmCodeExecutionError { err: String},
-
-    #[fail(display = "Error in Enigma runtime: {}", err)]
-    EngRuntimeError { err: String },
 
     #[fail(display = "Invocation resulted in gas limit violated")]
     GasLimitError,
@@ -204,7 +201,6 @@ impl Into<EnclaveReturn> for EnclaveError {
             }
             WasmCodeExecutionError { .. } => EnclaveReturn::WasmCodeExecutionError,
             GasLimitError => EnclaveReturn::GasLimitError,
-            EngRuntimeError { .. } => EnclaveReturn::EngRuntimeError,
         }
     }
 }
