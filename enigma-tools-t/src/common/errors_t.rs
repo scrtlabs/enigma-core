@@ -106,9 +106,6 @@ pub enum EnclaveError {
     #[fail(display = "Cryptography Error: {:?}", err)]
     CryptoError { err: CryptoError },
 
-    #[fail(display = "Preprocessor Error: {}", message)]
-    PreprocessorError { message: String },
-
     #[fail(display = "Input Error: {}", message)]
     InputError { message: String },
 
@@ -184,7 +181,7 @@ impl Into<EnclaveReturn> for EnclaveError {
         use self::EnclaveError::*;
         use self::CryptoError::*;
         match self {
-            InputError { .. } | PreprocessorError { .. } => EnclaveReturn::InputError,
+            InputError { .. } => EnclaveReturn::InputError,
             PermissionError { .. } => EnclaveReturn::PermissionError,
             SgxError { .. } => EnclaveReturn::SgxError,
             WasmModuleError { .. } => EnclaveReturn::WasmModuleError,
