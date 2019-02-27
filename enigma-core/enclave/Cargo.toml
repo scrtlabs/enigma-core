@@ -19,7 +19,7 @@ enigma-crypto = { path = "../../enigma-crypto", default-features = false, featur
 enigma-tools-t = { path = "../../enigma-tools-t" }
 enigma-runtime-t = { path = "../../enigma-runtime-t" }
 
-lazy_static = {version = "1.0", features = ["spin_no_std"] }
+lazy_static = {version = "=1.2.0", features = ["spin_no_std"] }
 etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
 
