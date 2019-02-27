@@ -24,7 +24,6 @@ pub enum EnclaveReturn {
     StateError,
     OcallError,
     OcallDBError,
-    Utf8Error,
     MessagingError,
     Other,
 //    Uninitialized,
@@ -153,7 +152,6 @@ impl fmt::Display for EnclaveReturn {
             StateError => "EnclaveReturn: StateError",
             OcallError => "EnclaveReturn: OcallError",
             OcallDBError => "EnclaveReturn: OcallDBError",
-            Utf8Error => "EnclaveReturn: Utf8Error",
             MessagingError => "EnclaveReturn: MessagingError",
             Other => "EnclaveReturn: Other",
         };
