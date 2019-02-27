@@ -41,13 +41,14 @@ pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
     dir.push(contract_path);
     let mut output = Command::new("cargo")
         .current_dir(&dir)
-//        .args(&["build", "--release"]) # In real contract we should use --release
-        .args(&["build"])
+        .args(&["build", "--release"]) // In real contract we should use --release
+//        .args(&["build"])
         .spawn()
         .unwrap_or_else(|_| panic!("Failed compiling wasm contract: {:?}", &dir));
 
     assert!(output.wait().unwrap().success());
-    dir.push("target/wasm32-unknown-unknown/debug/contract.wasm");
+//    dir.push("target/wasm32-unknown-unknown/debug/contract.wasm");
+    dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
 
     let mut f = File::open(&dir).unwrap_or_else(|_| panic!("Can't open the contract.wasm file: {:?}", &dir));
     let mut wasm_code = Vec::new();
