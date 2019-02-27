@@ -221,7 +221,7 @@ impl Runtime {
                 self.memory.set(ptr, &buf[..])?;
                 Ok(())
             },
-            Err(e) => Err(WasmError::EngRuntime(format!("{}", e))),
+            Err(e) => Err(EnclaveError::SgxError{ err: format!("{}", e), description: e.__description().to_string() })?
         }
     }
 
