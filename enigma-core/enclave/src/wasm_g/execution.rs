@@ -80,7 +80,7 @@ fn create_module(code: &[u8]) -> Result<Box<Module>, EnclaveError> {
     if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
         // According to WebAssembly spec, internal memory is hidden from embedder and should not
         // be interacted with. So parity disable this kind of modules at decoding level.
-        return Err(EnclaveError::WasmModuleError {
+        return Err(EnclaveError::WasmModuleCreationError {
             code: "creation of WASM module".to_string(),
             err: "Malformed wasm module: internal memory".to_string() });
     }
