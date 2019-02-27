@@ -13,7 +13,7 @@ extern crate dirs;
 extern crate rand;
 extern crate tempfile;
 
-use self::cross_test_utils::{generate_contract_address, make_encrypted_response,
+use self::cross_test_utils::{generate_contract_address, generate_user_address, make_encrypted_response,
                              get_fake_state_key, get_bytecode_from_path, ContractAddress};
 use self::app::*;
 use self::futures::Future;
@@ -292,7 +292,7 @@ pub fn decrypt_output_to_uint(output: &[u8], key: &[u8; 32]) -> Token {
 pub fn deploy_and_compute_few_contracts(port: &'static str) -> Vec<[u8; 32]> {
     let (_, _, contract_address_a): (_, _, [u8; 32]) = full_addition_compute(port, 56, 87);
     let (_, _, contract_address_b): (_, _ , [u8; 32]) = full_addition_compute(port, 75, 43);
-    let (_, _, contract_address_c): (_, _, [u8; 32]) = full_mint_compute(port, &generate_contract_address().into(), 500);
+    let (_, _, contract_address_c): (_, _, [u8; 32]) = full_mint_compute(port, &generate_user_address().0.into(), 500);
     vec![contract_address_a, contract_address_b, contract_address_c]
 }
 
