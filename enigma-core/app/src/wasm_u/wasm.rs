@@ -85,7 +85,7 @@ pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     extern crate ethabi;
     extern crate cross_test_utils;
 

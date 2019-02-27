@@ -147,7 +147,7 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
 
 
 
-
+#[cfg(debug_assertions)]
 pub mod tests {
     use storage_t::*;
     //use std::untrusted::fs::*;

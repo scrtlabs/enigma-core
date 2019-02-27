@@ -140,6 +140,7 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
     Ok(failed_contracts)
 }
 
+#[cfg(debug_assertions)]
 pub mod tests {
     use super::*;
     use enigma_runtime_t::data::IOInterface;

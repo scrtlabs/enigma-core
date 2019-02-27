@@ -130,6 +130,7 @@ pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<Con
     Ok(state)
 }
 
+#[cfg(debug_assertions)]
 pub mod tests {
 
     use enigma_runtime_t::data::{ContractState, DeltasInterface};
