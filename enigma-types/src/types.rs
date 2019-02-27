@@ -5,6 +5,7 @@ pub type SymmetricKey = [u8; 32];
 pub type StateKey = SymmetricKey;
 pub type DhKey = SymmetricKey;
 pub type ContractAddress = Hash256;
+pub type UserAddress = Hash256;
 pub type PubKey = [u8; 64];
 
 #[repr(C)]

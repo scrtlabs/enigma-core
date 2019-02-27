@@ -1,3 +1,4 @@
+#![feature(int_to_from_bytes)]
 extern crate enigma_types;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
@@ -11,7 +12,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::Command;
-pub use enigma_types::{ContractAddress, StateKey};
+pub use enigma_types::{ContractAddress, StateKey, Hash256, UserAddress};
 use enigma_crypto::{KeyPair, symmetric, rand};
 use enigma_crypto::hash::{Sha256, Keccak256};
 use serde_json::{*, Value};
@@ -22,6 +23,17 @@ pub fn generate_contract_address() -> ContractAddress {
     let mut address = ContractAddress::default();
     rand::random(address.as_mut()).unwrap();
     address
+}
+
+pub fn generate_user_address() -> (UserAddress, KeyPair) {
+    let keys = KeyPair::new().unwrap();
+    (keys.get_pubkey().keccak256(), keys)
+}
+
+pub fn sign_message(key: KeyPair, address: UserAddress, amount: u64) -> [u8;65] {
+    let mut msg = address.to_vec();
+    msg.extend_from_slice(&amount.to_be_bytes());
+    key.sign(&msg).unwrap()
 }
 
 pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
