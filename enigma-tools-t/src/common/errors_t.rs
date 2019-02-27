@@ -57,19 +57,19 @@ impl From<EnclaveError> for WasmError {
 
 impl From<parity_wasm::elements::Error> for EnclaveError {
     fn from(err: parity_wasm::elements::Error) -> EnclaveError {
-        EnclaveError::WasmModuleError { code: "deserialization into WASM module".to_string(), err: err.to_string() }
+        EnclaveError::WasmModuleCreationError { code: "deserialization into WASM module".to_string(), err: err.to_string() }
     }
 }
 
 impl From<parity_wasm::elements::Module> for EnclaveError {
     fn from(err: parity_wasm::elements::Module) -> EnclaveError {
-        EnclaveError::WasmModuleError { code: "injecting gas counter".to_string(), err: format!("{:?}", err) }
+        EnclaveError::WasmModuleCreationError { code: "injecting gas counter".to_string(), err: format!("{:?}", err) }
     }
 }
 
 impl From<wasm_utils::stack_height::Error> for EnclaveError {
     fn from(err: wasm_utils::stack_height::Error) -> EnclaveError {
-        EnclaveError::WasmModuleError { code: "injecting stack height limiter".to_string(), err: format!("{:?}", err) }
+        EnclaveError::WasmModuleCreationError { code: "injecting stack height limiter".to_string(), err: format!("{:?}", err) }
     }
 }
 
@@ -116,7 +116,7 @@ pub enum EnclaveError {
     SgxError { err: String, description: String },
 
     #[fail(display = "Error in execution of {}: {}", code, err)]
-    WasmModuleError { code: String, err: String },
+    WasmModuleCreationError { code: String, err: String },
 
     #[fail(display = "Error in execution of WASM code: {}", err)]
     WasmCodeExecutionError { err: String},
@@ -181,7 +181,7 @@ impl Into<EnclaveReturn> for EnclaveError {
             InputError { .. } => EnclaveReturn::InputError,
             PermissionError { .. } => EnclaveReturn::PermissionError,
             SgxError { .. } => EnclaveReturn::SgxError,
-            WasmModuleError { .. } => EnclaveReturn::WasmModuleError,
+            WasmModuleCreationError { .. } => EnclaveReturn::WasmModuleError,
             StateError { .. } => EnclaveReturn::StateError,
             OcallError { .. } => EnclaveReturn::OcallError,
             EvmError { .. } => EnclaveReturn::EVMError,
