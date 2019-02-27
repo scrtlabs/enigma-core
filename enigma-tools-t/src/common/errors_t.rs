@@ -133,9 +133,6 @@ pub enum EnclaveError {
     #[fail(display = "There's an error with the ocall: {}; {}", command, err)]
     OcallError { command: String, err: String },
 
-    #[fail(display = "UTF8 failure in a from_utf8: {}", err)]
-    Utf8Error { err: String },
-
     #[fail(display = "There's an error with the messaging: {}", err)]
     MessagingError { err: String },
 }
@@ -165,7 +162,7 @@ impl From<json_patch::PatchError> for EnclaveError {
 }
 
 impl From<str::Utf8Error> for EnclaveError {
-    fn from(err: str::Utf8Error) -> Self { EnclaveError::Utf8Error { err: format!("{:?}", err) } }
+    fn from(err: str::Utf8Error) -> Self { EnclaveError::InputError { message: format!("{:?}", err) } }
 }
 
 impl From<hexutil::ParseHexError> for EnclaveError {
@@ -187,7 +184,6 @@ impl Into<EnclaveReturn> for EnclaveError {
             WasmModuleError { .. } => EnclaveReturn::WasmModuleError,
             StateError { .. } => EnclaveReturn::StateError,
             OcallError { .. } => EnclaveReturn::OcallError,
-            Utf8Error { .. } => EnclaveReturn::Utf8Error,
             EvmError { .. } => EnclaveReturn::EVMError,
             MessagingError { .. } => EnclaveReturn::MessagingError,
             CryptoError{err} => match err {
