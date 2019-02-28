@@ -275,6 +275,25 @@ pub mod tests {
     }
 
     #[test]
+    fn test_construct_erc20() {
+        let (mut db, _dir) = create_test_db();
+        let total_supply = Token::Uint(1_000_000.into());
+        let (owner, _) = generate_user_address();
+
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/erc20",
+            generate_contract_address(),
+            "construct(bytes32,uint256)",
+            &[Token::FixedBytes(owner.to_vec()), total_supply.clone()],
+            "total_supply()",
+            &[]
+        );
+        let expected_total_supply: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap().pop().unwrap();
+        assert_eq!(total_supply, expected_total_supply);
+    }
+
+    #[test]
     fn test_mint_erc20() {
         let (mut db, _dir) = create_test_db();
         let total_supply = Token::Uint(1_000_000.into());
