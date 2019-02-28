@@ -7,7 +7,7 @@ pipeline:
     commands:
       - /opt/intel/libsgx-enclave-common/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
-      - cd enigma-core && RUSTFLAGS=-Awarnings make
+      - cd enigma-core && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
 #    volumes:
 #      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
@@ -22,7 +22,7 @@ pipeline:
       - export NODE_URL="http://ganache:8545"
       - /opt/intel/libsgx-enclave-common/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
-      - cd enigma-principal && RUSTFLAGS=-Awarnings make
+      - cd enigma-principal && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
 #    volumes:
 #      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git

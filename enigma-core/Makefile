@@ -149,7 +149,7 @@ compiler-rt:
 
 .PHONY: test
 test: all
-	@cd app && cargo test
+	@cd app && cargo test $(App_Rust_Flags)
 
 .PHONY: clean
 clean:

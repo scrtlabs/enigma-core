@@ -8,6 +8,7 @@
 #![feature(int_to_from_bytes)]
 #![warn(clippy::all)]
 #![allow(clippy::cast_ptr_alignment)] // TODO: Try to remove it when fixing the sealing
+#![warn(unused_extern_crates)]
 
 extern crate enigma_runtime_t;
 extern crate enigma_tools_t;
@@ -17,11 +18,7 @@ extern crate enigma_crypto;
 //#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
-extern crate sgx_rand;
 extern crate sgx_trts;
-extern crate sgx_tse;
-extern crate sgx_tseal;
-extern crate sgx_tunittest;
 extern crate sgx_types;
 
 #[macro_use]
@@ -34,10 +31,7 @@ extern crate error_chain;
 extern crate bigint;
 extern crate ethabi;
 extern crate hexutil;
-extern crate json_patch;
 extern crate parity_wasm;
-extern crate rlp;
-extern crate rustc_hex as hex;
 extern crate sputnikvm;
 extern crate sputnikvm_network_classic;
 extern crate wasmi;
@@ -486,10 +480,8 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 }
 
 pub mod tests {
-    extern crate enigma_tools_t;
     extern crate sgx_tstd as std;
     extern crate sgx_tunittest;
-    extern crate enigma_runtime_t;
 
     use crate::km_t::principal::tests::*;
     use crate::wasm_g::execution::tests::*;
@@ -497,7 +489,7 @@ pub mod tests {
     use enigma_runtime_t::ocalls_t::tests::*;
     use enigma_tools_t::km_primitives::tests::*;
     use enigma_tools_t::storage_t::tests::*;
-    use sgx_tunittest::*;
+    use self::sgx_tunittest::*;
     use std::{vec::Vec, string::String};
     use enigma_types::RawPointer;
     //    use crate::km_t::users::tests::*;

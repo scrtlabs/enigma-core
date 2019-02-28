@@ -1,4 +1,3 @@
-use byteorder::{BigEndian, WriteBytesExt};
 use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DB};
 use crate::esgx::general;
 use enigma_tools_u::common_u::LockExpectMutex;
@@ -6,7 +5,7 @@ use enigma_crypto::hash::Sha256;
 use enigma_types::{Hash256, ContractAddress, EnclaveReturn, RawPointer, traits::SliceCPtr};
 use lru_cache::LruCache;
 use std::sync::Mutex;
-use std::{mem, ptr, slice};
+use std::{ptr, slice};
 
 lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(500)); }
 
@@ -84,7 +83,7 @@ pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &
         Ok(state) => {
             let state_len = state.len();
             *state_size = state_len;
-            cache_id.write_uint::<BigEndian>(state_len as u64, mem::size_of_val(&state_len)).unwrap();
+            cache_id.extend_from_slice(&state_len.to_be_bytes());
             DELTAS_CACHE.lock_expect("DeltaCache").insert(cache_id.sha256(), vec![state]);
             EnclaveReturn::Success
         }
@@ -95,7 +94,7 @@ pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_state(db_ptr: *const RawPointer, addr: &ContractAddress, state_ptr: *mut u8, state_size: usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
-    cache_id.write_uint::<BigEndian>(state_size as u64, mem::size_of_val(&state_size)).unwrap();
+    cache_id.extend_from_slice(&state_size.to_be_bytes());
 
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
         Ok(db) => db,
@@ -142,8 +141,8 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(db_ptr: *const RawPointer, addr:
         return EnclaveReturn::OcallError;
     }
     let mut cache_id = addr.to_vec();
-    cache_id.write_u32::<BigEndian>(*start).unwrap();
-    cache_id.write_u32::<BigEndian>(*end).unwrap();
+    cache_id.extend_from_slice(&(*start).to_be_bytes());
+    cache_id.extend_from_slice(&(*end).to_be_bytes());
 
     let mut deltas_vec = Vec::with_capacity(len);
     let mut sizes = Vec::with_capacity(len);
@@ -169,8 +168,8 @@ pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &Cont
                                              start: *const u32, end: *const u32,
                                              res_ptr: *mut u8, res_len: usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
-    cache_id.write_u32::<BigEndian>(*start).unwrap();
-    cache_id.write_u32::<BigEndian>(*end).unwrap();
+    cache_id.extend_from_slice(&(*start).to_be_bytes());
+    cache_id.extend_from_slice(&(*end).to_be_bytes());
 
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
         Ok(db) => db,
