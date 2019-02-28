@@ -1,16 +1,19 @@
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::thread;
+use std::str;
 
 use failure::Error;
+use rustc_hex::FromHex;
 use serde_derive::*;
 use serde_json;
 use sgx_types::sgx_enclave_id_t;
 use web3::futures::Future;
 use web3::transports::Http;
-use web3::types::{Address, H256, U256};
+use web3::types::{Address, H160, H256, U256};
 use web3::Web3;
 
 use boot_network::deploy_scripts;
@@ -19,8 +22,9 @@ use boot_network::keys_provider_http::PrincipalHttpServer;
 use boot_network::principal_utils::Principal;
 use enigma_tools_u::attestation_service::service;
 use enigma_tools_u::esgx::equote::retry_quote;
-use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, EnigmaContract};
+use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, EnigmaContract, ContractQueries};
 use esgx;
+use esgx::general::{ENCLAVE_DIR, storage_dir};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
@@ -38,9 +42,17 @@ pub struct PrincipalConfig {
     pub spid: String,
     pub attestation_service_url: String,
     pub http_port: String,
+    pub confirmations: u64,
 }
 
-pub struct EnclaveManager {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegistrationParams {
+    pub signing_address: String,
+    pub report: String,
+    pub signature: String,
+}
+
+pub struct ReportManager {
     pub config: PrincipalConfig,
     as_service: service::AttestationService,
     pub eid: sgx_enclave_id_t,
@@ -49,21 +61,14 @@ pub struct EnclaveManager {
 pub struct PrincipalManager {
     pub config: PrincipalConfig,
     pub contract: Arc<EnigmaContract>,
-    pub enclave_manager: EnclaveManager,
+    pub report_manager: ReportManager,
+    pub eid: sgx_enclave_id_t,
 }
 
-impl EnclaveManager {
+impl ReportManager {
     pub fn new(config: PrincipalConfig, eid: sgx_enclave_id_t) -> Result<Self, Error> {
         let as_service = service::AttestationService::new(&config.attestation_service_url);
-        Ok(EnclaveManager { config, as_service, eid })
-    }
-
-    pub fn get_quote(&self) -> Result<String, Error> { Ok(retry_quote(self.eid, &self.config.spid, 18)?) }
-
-    pub fn get_report(&self, quote: &str) -> Result<(Vec<u8>, String, service::ASResponse), Error> {
-        let (rlp_encoded, as_response) = self.as_service.rlp_encode_registration_params(quote)?;
-        let signature = as_response.result.signature.clone();
-        Ok((rlp_encoded, signature, as_response))
+        Ok(ReportManager { config, as_service, eid })
     }
 
     pub fn get_signing_address(&self) -> Result<String, Error> {
@@ -71,6 +76,16 @@ impl EnclaveManager {
         // remove 0x
         signing_address = signing_address[2..].to_string();
         Ok(signing_address)
+    }
+
+    pub fn get_registration_params(&self) -> Result<RegistrationParams, Error> {
+        let signing_address = self.get_signing_address()?;
+        let enc_quote = retry_quote(self.eid, &self.config.spid, 18)?;
+
+        let response = self.as_service.get_report(&enc_quote)?;
+        let report = response.result.report_string;
+        let signature = response.result.signature;
+        Ok(RegistrationParams { signing_address, report, signature })
     }
 }
 
@@ -92,14 +107,8 @@ impl PrincipalManager {
 // General interface of a Sampler == The entity that manages the principal node logic.
 pub trait Sampler {
     /// load with config from file
-    fn new(config: PrincipalConfig, contract: Arc<EnigmaContract>, enclave_manager: EnclaveManager) -> Result<Self, Error>
+    fn new(config: PrincipalConfig, contract: Arc<EnigmaContract>, report_manager: ReportManager) -> Result<Self, Error>
         where Self: Sized;
-
-    fn get_eid(&self) -> sgx_enclave_id_t;
-
-    fn get_quote(&self) -> Result<String, Error>;
-
-    fn get_report(&self, quote: &str) -> Result<(Vec<u8>, String, service::ASResponse), Error>;
 
     fn get_signing_address(&self) -> Result<String, Error>;
 
@@ -111,32 +120,23 @@ pub trait Sampler {
 
     fn get_block_number(&self) -> Result<U256, Error>;
 
-    fn register<G: Into<U256>>(&self, gas_limit: G) -> Result<(H256), Error>;
+    fn register<G: Into<U256>>(&self, signing_address: String, gas_limit: G) -> Result<H256, Error>;
+
+    fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error>;
 
     /// after initiation, this will run the principal node and block.
     fn run<G: Into<U256>>(&self, gas: G) -> Result<(), Error>;
 }
 
 impl Sampler for PrincipalManager {
-    fn new(config: PrincipalConfig, contract: Arc<EnigmaContract>, enclave_manager: EnclaveManager) -> Result<Self, Error> {
-        Ok(PrincipalManager { config, contract, enclave_manager })
+    fn new(config: PrincipalConfig, contract: Arc<EnigmaContract>, report_manager: ReportManager) -> Result<Self, Error> {
+        let eid = report_manager.eid;
+//        let registration_params = report_manager.get_registration_params()?;
+        Ok(PrincipalManager { config, contract, report_manager, eid })
     }
 
-    fn get_eid(&self) -> sgx_enclave_id_t {
-        self.enclave_manager.eid
-    }
+    fn get_signing_address(&self) -> Result<String, Error> { Ok(self.report_manager.get_signing_address()?) }
 
-    fn get_quote(&self) -> Result<String, Error> {
-        Ok(self.enclave_manager.get_quote()?)
-    }
-
-    fn get_report(&self, quote: &str) -> Result<(Vec<u8>, String, service::ASResponse), Error> {
-        Ok(self.enclave_manager.get_report(quote)?)
-    }
-
-    fn get_signing_address(&self) -> Result<String, Error> {
-        Ok(self.enclave_manager.get_signing_address()?)
-    }
     fn get_contract_address(&self) -> Address { self.contract.address() }
 
     fn get_account_address(&self) -> Address { self.contract.account.clone() }
@@ -148,25 +148,34 @@ impl Sampler for PrincipalManager {
         Ok(block_number)
     }
 
-    fn register<G: Into<U256>>(&self, gas_limit: G) -> Result<(H256), Error> {
-        // get quote
-        let quote = self.get_quote()?;
-        // get report
-        let (rlp_encoded, signature, _) = self.get_report(&quote)?;
-        // register worker
-        let signer = self.get_signing_address()?;
-        let tx = self.contract.register(&signer, &rlp_encoded, &signature, gas_limit)?;
-        println!("Registered worker with tx: {:?}", tx);
+    fn register<G: Into<U256>>(&self, signing_address: String, gas_limit: G) -> Result<H256, Error> {
+        let registration_params = self.report_manager.get_registration_params()?;
+        let report = registration_params.report.clone();
+        let signature = registration_params.signature.clone();
+        let tx = self.contract.register(signing_address, report, signature, gas_limit)?;
         Ok(tx)
+    }
+
+    fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error> {
+        let signing_address = self.get_signing_address()?;
+        let enclave_signing_address: H160 = signing_address.parse()?;
+        let registered_signing_address = self.contract.get_signing_address()?;
+        if enclave_signing_address == registered_signing_address {
+            println!("Signing address already registered: {:?}", registered_signing_address);
+            Ok(None)
+        } else {
+            let tx = self.register(signing_address, gas_limit)?;
+            Ok(Some(tx))
+        }
     }
 
     fn run<G: Into<U256>>(&self, gas_limit: G) -> Result<(), Error> {
         let gas_limit: U256 = gas_limit.into();
-        self.register(gas_limit)?;
+        self.verify_identity_or_register(gas_limit)?;
         // get enigma contract
         let enigma_contract = &self.contract;
         // Start the WorkerParameterized Web3 log filter
-        let eid: Arc<AtomicU64> =  Arc::new(AtomicU64::new(self.get_eid()));
+        let eid: Arc<AtomicU64> = Arc::new(AtomicU64::new(self.eid));
         let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone())?);
 //        let filter_ep = Arc::clone(&epoch_provider);
 //        thread::spawn(move || {
@@ -221,10 +230,10 @@ mod test {
     use super::*;
 
     /// This function is important to enable testing both on the CI server and local.
-                        /// On the CI Side:
-                        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-                        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-                        /// The default is set to ganache cli "http://localhost:8545"
+                            /// On the CI Side:
+                            /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+                            /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+                            /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:8545")) }
 
     /// helps in assertion to check if a random event was indeed broadcast.
@@ -237,7 +246,7 @@ mod test {
     pub fn init_no_deploy(eid: u64) -> Result<PrincipalManager, Error> {
         let config_path = "../app/tests/principal_node/config/principal_test_config.json";
         let mut config = PrincipalManager::load_config(config_path)?;
-        let enclave_manager = EnclaveManager::new(config.clone(), eid)?;
+        let enclave_manager = ReportManager::new(config.clone(), eid)?;
         println!("The Principal node signer address: {}", enclave_manager.get_signing_address().unwrap());
         let _ = Command::new("/root/src/enigma-principal/app/wait.sh").status();
 
@@ -260,7 +269,7 @@ mod test {
         let enclave = init_enclave_wrapper().unwrap();
         let eid = enclave.geteid();
         let principal = init_no_deploy(eid).unwrap();
-        principal.register(gas_limit).unwrap();
+        principal.verify_identity_or_register(gas_limit).unwrap();
 
         let block_number = principal.get_web3().eth().block_number().wait().unwrap();
         let eid_safe = Arc::new(AtomicU64::new(eid));

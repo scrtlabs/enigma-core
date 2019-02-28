@@ -40,7 +40,7 @@ impl EpochProvider {
     fn get_marker_file_path() -> PathBuf {
         let mut path = storage_dir();
         path.join(ENCLAVE_DIR);
-        path.push("epoch-marker.dat");
+        path.push("epoch-marker.json");
         path
     }
 

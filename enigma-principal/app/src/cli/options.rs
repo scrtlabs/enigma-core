@@ -1,5 +1,6 @@
 use structopt::StructOpt;
 use url::Url;
+use boot_network::principal_manager::RegistrationParams;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
@@ -9,15 +10,15 @@ pub struct Opt {
     pub info: bool,
 
     /// Output the signing address only
-    #[structopt(short = "s", long = "write-sign-address")]
-    pub sign_address: Option<String>,
+    #[structopt(short = "w", long = "write-sign-address")]
+    pub sign_address: bool,
 
     /// Run the Register procedure and shutdown
     #[structopt(short = "r", long = "register")]
     pub register: bool,
 
     /// Run the Set Worker Params procedure and shutdown
-    #[structopt(short = "sw", long = "set-worker-params")]
+    #[structopt(short = "p", long = "set-worker-params")]
     pub set_worker_params: bool,
 
     ///Optional: The Enigma contract address, use the config if not provided
@@ -37,15 +38,15 @@ pub struct Opt {
     pub mine: usize,
 
     /// Optional: how many loops to perform (seconds) for the principal in time (TTL)
-    #[structopt(short = "ttl", long = "time-to-live", default_value = "0")]
+    #[structopt(short = "x", long = "time-to-live", default_value = "0")]
     pub time_to_live: usize,
 
     /// Optional: if --deploy then change default to custom config file
-    #[structopt(short = "dc", long = "deploy-config", default_value = "../app/tests/principal_node/config/deploy_config.json")]
+    #[structopt(short = "y", long = "deploy-config", default_value = "../app/tests/principal_node/config/deploy_config.json")]
     pub deploy_config: String,
 
     /// Optional: change the default principal node config
-    #[structopt(short = "pc", long = "principal-config", default_value = "../app/tests/principal_node/config/principal_test_config.json")]
+    #[structopt(short = "z", long = "principal-config", default_value = "../app/tests/principal_node/config/principal_test_config.json")]
     pub principal_config: String,
 }
 
@@ -85,11 +86,11 @@ pub fn print_logo() {
     );
     yellow!("<>------------------------------------------<>\n");
 }
-pub fn print_info(sign_key: &str) {
+pub fn print_info(signing_address: &str) {
     print_logo();
     yellow!("<>------------------------------------------<>\n");
     green!("--info                                 => Print the signing address and help.\n");
-    green!("--write-sign-address <path>            => Write the signing address to the specified file.\n");
+    green!("--write-sign-address                   => Write the signing address to ~/.enigma/principal-sign-addr.txt.\n");
     green!("--register                             => Run the Register procedure and shutdown.\n");
     green!("--set-worker-params                    => Run the Set Worker Params procedure and shutdown.\n");
     green!("--contract-address                     => The Enigma contract address, use the config if not provided.\n");
@@ -100,6 +101,6 @@ pub fn print_info(sign_key: &str) {
     green!("--deploy-config <path from current>    => Optional, if --deploy load deployment config from custom path.\n" );
     green!("--principal-config <path from current> => Optional, load the principal config from custom path.\n");
     yellow!("<>------------------------------------------<>\n");
-    red!("Enclave Signing address                => 0x{}\n", sign_key);
+    red!("Enclave Signing address                => 0x{}\n", signing_address);
     yellow!("<>------------------------------------------<>\n");
 }

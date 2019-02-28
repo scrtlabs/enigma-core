@@ -15,7 +15,7 @@ enigma-tools-t = {path = "../../enigma-tools-t"}
 enigma-types = { path = "../../enigma-types", default-features = false, features = ["sgx"] }
 enigma-crypto = { path = "../../enigma-crypto", default-features = false, features = ["sgx"] }
 
-lazy_static = {version = "1.0.1", features = ["spin_no_std"] }
+lazy_static = {version = "=1.2.0", features = ["spin_no_std"] }
 serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_derive = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

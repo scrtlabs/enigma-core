@@ -10,23 +10,30 @@ use structopt::StructOpt;
 
 use boot_network::deploy_scripts;
 use boot_network::epoch_provider::EpochProvider;
-use boot_network::principal_manager::{self, EnclaveManager, PrincipalManager, Sampler};
+use boot_network::principal_manager::{self, ReportManager, PrincipalManager, Sampler};
 use cli;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
+use serde_json;
 pub use esgx::general::ocall_get_home;
+use esgx::general::{ENCLAVE_DIR, storage_dir};
 
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     let opt = cli::options::Opt::from_args();
     let _config = deploy_scripts::load_config(opt.deploy_config.as_str())?;
     let mut principal_config = PrincipalManager::load_config(opt.principal_config.as_str())?;
-    let enclave_manager = EnclaveManager::new(principal_config.clone(), eid)?;
-    let sign_key = enclave_manager.get_signing_address()?;
+    let report_manager = ReportManager::new(principal_config.clone(), eid)?;
+    let signing_address = report_manager.get_signing_address()?;
 
     if opt.info {
-        cli::options::print_info(&sign_key);
-    } else if !opt.sign_address.is_none() {
-        let mut file = File::create(opt.sign_address.unwrap())?;
-        file.write_all(sign_key.as_bytes())?;
+        cli::options::print_info(&signing_address);
+    } else if opt.sign_address {
+        let mut path = storage_dir();
+        path.join(ENCLAVE_DIR);
+        path.push("principal-sign-addr.txt");
+        let mut file = File::create(path.clone())?;
+        let prefixed_signing_address = format!("0x{}", signing_address);
+        file.write_all(prefixed_signing_address.as_bytes())?;
+        println!("Wrote signing address: {:?} in file: {:?}", prefixed_signing_address, path);
     } else {
 //        cli::options::print_logo();
 
@@ -88,7 +95,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             let gas_limit = 5_999_999;
             principal_config.max_epochs = ttl;
 
-            let principal: PrincipalManager = PrincipalManager::new(principal_config, enigma_contract, enclave_manager)?;
+            let principal: PrincipalManager = PrincipalManager::new(principal_config, enigma_contract, report_manager)?;
             println!("Connected to the Enigma contract: {:?} with account: {:?}", &contract_address, principal.get_account_address());
 
             /* step2 optional - run miner to simulate blocks */
@@ -100,7 +107,10 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
 
             /* step3 : run the principal manager */
             if opt.register {
-                principal.register(gas_limit)?;
+                match principal.verify_identity_or_register(gas_limit)? {
+                    Some(tx) => println!("Registered Principal with tx: {:?}", tx),
+                    None => println!("Principal already registered"),
+                };
             } else if opt.set_worker_params {
                 let block_number = principal.get_block_number()?;
                 let eid_safe = Arc::new(AtomicU64::new(eid));
