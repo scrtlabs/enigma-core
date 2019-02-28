@@ -1,10 +1,10 @@
 #![feature(tool_lints)]
 #![warn(clippy::all)]
 #![feature(try_from)]
+#![feature(int_to_from_bytes)]
+#![warn(unused_extern_crates)]
 
-extern crate base64;
 extern crate dirs;
-extern crate reqwest;
 pub extern crate rocksdb;
 pub extern crate sgx_types;
 extern crate sgx_urts;
@@ -13,7 +13,6 @@ extern crate lazy_static;
 pub extern crate futures;
 extern crate rmp_serde;
 pub extern crate serde_json;
-extern crate tokio;
 extern crate tokio_zmq;
 extern crate zmq;
 #[macro_use]
@@ -22,10 +21,8 @@ extern crate enigma_tools_u;
 extern crate enigma_crypto;
 extern crate enigma_types;
 extern crate rustc_hex as hex;
-#[macro_use]
-extern crate serde_derive;
-extern crate byteorder;
 extern crate lru_cache;
+#[macro_use]
 extern crate serde;
 #[macro_use]
 pub extern crate log;

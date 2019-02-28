@@ -1,6 +1,4 @@
 #![allow(dead_code,unused_assignments,unused_variables)]
-extern crate sgx_types;
-extern crate sgx_urts;
 
 use sgx_types::*;
 

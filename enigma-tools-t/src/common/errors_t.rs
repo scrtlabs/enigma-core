@@ -7,8 +7,106 @@ use enigma_crypto::CryptoError;
 use std::str;
 use std::string::{String, ToString};
 use wasmi::{self, TrapKind};
+use parity_wasm;
 
-#[derive(Debug, Fail)]
+// Error of WASM execution by wasmi or runtime
+#[derive(Debug)]
+pub enum WasmError {
+    GasLimit,
+    EngRuntime(String),
+    EnclaveError(EnclaveError),
+}
+
+// Trait that allows to return custom error from execution of  wasmi
+impl wasmi::HostError for WasmError {}
+
+// Implementation of Display is required by wasmi::HostError
+impl ::std::fmt::Display for WasmError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
+        match self {
+            WasmError::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
+            WasmError::EngRuntime(ref s) => write!(f, "{}", s),
+            WasmError::EnclaveError(ref e) => write!(f, "{}", e),
+        }
+    }
+}
+
+// This is for call to wasmi functions from eng runtime
+// Here the wasmi::Error exact type is lost and the error description may be not so clear
+// It seems to be enough for now since the only wasmi functions called from eng runtime are:
+// memory manipulation function.
+impl From<wasmi::Error> for WasmError {
+    fn from(e: wasmi::Error) -> Self {
+        WasmError::EngRuntime(format!("{}", e))
+    }
+}
+
+// This is for extracting arguments in eng runtime
+// Implemented by wasmi in `nth_checked` function
+impl From<wasmi::Trap> for WasmError {
+    fn from(trap: wasmi::Trap) -> Self { WasmError::EngRuntime(format!("{}", trap)) }
+}
+
+// This is for any call from eng runtime to core function
+// The EnclaveError is converted to WasmError::EnclaveError to ve extracted later as is
+impl From<EnclaveError> for WasmError {
+    fn from(err: EnclaveError) -> Self {
+        WasmError::EnclaveError(err)
+    }
+}
+
+// This is for calling to from_utf8 in eng runtime
+impl From<str::Utf8Error> for WasmError {
+    fn from(err: str::Utf8Error) -> Self { WasmError::EngRuntime(err.to_string()) }
+}
+
+impl From<parity_wasm::elements::Error> for EnclaveError {
+    fn from(err: parity_wasm::elements::Error) -> EnclaveError {
+        EnclaveError::WasmModuleError { code: "deserialization into WASM module".to_string(), err: err.to_string() }
+    }
+}
+
+impl From<parity_wasm::elements::Module> for EnclaveError {
+    fn from(err: parity_wasm::elements::Module) -> EnclaveError {
+        EnclaveError::WasmModuleError { code: "injecting gas counter".to_string(), err: format!("{:?}", err) }
+    }
+}
+
+impl From<wasm_utils::stack_height::Error> for EnclaveError {
+    fn from(err: wasm_utils::stack_height::Error) -> EnclaveError {
+        EnclaveError::WasmModuleError { code: "injecting stack height limiter".to_string(), err: format!("{:?}", err) }
+    }
+}
+
+// This is for final conversion from the result of wasmi execution to core result
+impl From<wasmi::Error> for EnclaveError{
+    fn from(e: wasmi::Error) -> Self {
+        match e {
+            wasmi::Error::Trap(kind) => {
+                match kind.kind() {
+                    TrapKind::Host(t) => {
+                        match (**t).downcast_ref::<WasmError>()
+                            .expect("Failed to downcast to expected error type"){
+                            WasmError::GasLimit => EnclaveError::GasLimitError,
+                            WasmError::EngRuntime(s) => EnclaveError::EngRuntimeError { err: format!("{}", s) },
+                            WasmError::EnclaveError(err) => err.clone(),
+                        }
+                    },
+                    TrapKind::Unreachable => EnclaveError::WasmCodeExecutionError{ err: "unreachable".to_string() },
+                    TrapKind::MemoryAccessOutOfBounds => EnclaveError::WasmCodeExecutionError{ err: "memory access out of bounds".to_string() },
+                    TrapKind::TableAccessOutOfBounds | TrapKind::ElemUninitialized => EnclaveError::WasmCodeExecutionError{ err: "table access out of bounds".to_string() },
+                    TrapKind::DivisionByZero => EnclaveError::WasmCodeExecutionError{ err: "division by zero".to_string() },
+                    TrapKind::InvalidConversionToInt => EnclaveError::WasmCodeExecutionError{ err: "invalid conversion to int".to_string() },
+                    TrapKind::UnexpectedSignature => EnclaveError::WasmCodeExecutionError{ err: "unexpected signature".to_string() },
+                    TrapKind::StackOverflow => EnclaveError::WasmCodeExecutionError{ err: "stack overflow".to_string() },
+                }
+            }
+            _ => EnclaveError::WasmCodeExecutionError { err: e.to_string() }
+        }
+    }
+}
+
+#[derive(Debug, Fail, Clone)]
 pub enum EnclaveError {
     #[fail(display = "Cryptography Error: {:?}", err)]
     CryptoError { err: CryptoError },
@@ -26,7 +124,16 @@ pub enum EnclaveError {
     SgxError { err: String, description: String },
 
     #[fail(display = "Error in execution of {}: {}", code, err)]
-    ExecutionError { code: String, err: String },
+    WasmModuleError { code: String, err: String },
+
+    #[fail(display = "Error in execution of WASM code: {}", err)]
+    WasmCodeExecutionError { err: String},
+
+    #[fail(display = "Error in Enigma runtime: {}", err)]
+    EngRuntimeError { err: String },
+
+    #[fail(display = "Invocation resulted in gas limit violated")]
+    GasLimitError,
 
     #[fail(display = "Error in EVM:  {}", err)]
     EvmError { err: String },
@@ -74,29 +181,6 @@ impl From<json_patch::PatchError> for EnclaveError {
     fn from(err: json_patch::PatchError) -> EnclaveError { EnclaveError::StateError { err: format!("{}", err) } }
 }
 
-impl From<wasmi::Trap> for EnclaveError {
-    fn from(trap: wasmi::Trap) -> Self {
-        match *trap.kind() {
-            TrapKind::Unreachable => EnclaveError::ExecutionError { code: "".to_string(), err: "unreachable".to_string() },
-            TrapKind::MemoryAccessOutOfBounds => {
-                EnclaveError::ExecutionError { code: "".to_string(), err: "memory access out of bounds".to_string() }
-            }
-            TrapKind::TableAccessOutOfBounds | TrapKind::ElemUninitialized => {
-                EnclaveError::ExecutionError { code: "".to_string(), err: "table access out of bounds".to_string() }
-            }
-            TrapKind::DivisionByZero => EnclaveError::ExecutionError { code: "".to_string(), err: "division by zero".to_string() },
-            TrapKind::InvalidConversionToInt => {
-                EnclaveError::ExecutionError { code: "".to_string(), err: "invalid conversion to int".to_string() }
-            }
-            TrapKind::UnexpectedSignature => {
-                EnclaveError::ExecutionError { code: "".to_string(), err: "unexpected signature".to_string() }
-            }
-            TrapKind::StackOverflow => EnclaveError::ExecutionError { code: "".to_string(), err: "stack overflow".to_string() },
-            TrapKind::Host(_) => EnclaveError::ExecutionError { code: "".to_string(), err: trap.to_string() },
-        }
-    }
-}
-
 impl From<str::Utf8Error> for EnclaveError {
     fn from(err: str::Utf8Error) -> Self { EnclaveError::Utf8Error { err: format!("{:?}", err) } }
 }
@@ -105,6 +189,9 @@ impl From<hexutil::ParseHexError> for EnclaveError {
     fn from(err: hexutil::ParseHexError) -> Self { EnclaveError::InputError { message: format!("{:?}", err) } }
 }
 
+impl ResultToEnclaveReturn for EnclaveError {
+    fn into_enclave_return(self) -> EnclaveReturn { self.into() }
+}
 
 impl Into<EnclaveReturn> for EnclaveError {
     fn into(self) -> EnclaveReturn {
@@ -114,48 +201,24 @@ impl Into<EnclaveReturn> for EnclaveError {
             InputError { .. } | PreprocessorError { .. } => EnclaveReturn::InputError,
             PermissionError { .. } => EnclaveReturn::PermissionError,
             SgxError { .. } => EnclaveReturn::SgxError,
-            ExecutionError { .. } => EnclaveReturn::WasmError,
+            WasmModuleError { .. } => EnclaveReturn::WasmModuleError,
             StateError { .. } => EnclaveReturn::StateError,
             OcallError { .. } => EnclaveReturn::OcallError,
             Utf8Error { .. } => EnclaveReturn::Utf8Error,
             EvmError { .. } => EnclaveReturn::EVMError,
             MessagingError { .. } => EnclaveReturn::MessagingError,
             CryptoError{err} => match err {
-                IoError { .. } => EnclaveReturn::Other,
                 RandomError { .. } => EnclaveReturn::SgxError,
-                DerivingKeyError { .. } | KeyError { .. }  => EnclaveReturn::KeysError,
-                DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | RecoveringError { .. } |ImproperEncryption => EnclaveReturn::EncryptionError,
+                DerivingKeyError { .. } | KeyError { .. } | MissingKeyError { .. } => EnclaveReturn::KeysError,
+                DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption |
+                ParsingError { ..} | RecoveryError { .. } => EnclaveReturn::EncryptionError,
             }
+            WasmCodeExecutionError { .. } => EnclaveReturn::WasmCodeExecutionError,
+            GasLimitError => EnclaveReturn::GasLimitError,
+            EngRuntimeError { .. } => EnclaveReturn::EngRuntimeError,
             WorkerAuthError { .. } => EnclaveReturn::WorkerAuthError,
             KeyProvisionError { .. } => EnclaveReturn::KeyProvisionError,
         }
     }
 }
 
-impl ResultToEnclaveReturn for EnclaveError {
-    fn into_enclave_return(self) -> EnclaveReturn { self.into() }
-}
-
-impl From<parity_wasm::elements::Error> for EnclaveError {
-    fn from(err: parity_wasm::elements::Error) -> EnclaveError {
-        EnclaveError::ExecutionError { code: "parity_wasm".to_string(), err: err.to_string() }
-    }
-}
-
-impl From<parity_wasm::elements::Module> for EnclaveError {
-    fn from(_err: parity_wasm::elements::Module) -> EnclaveError {
-        EnclaveError::ExecutionError { code: "inject gas counter".to_string(), err: "".to_string() }
-    }
-}
-
-impl From<wasm_utils::stack_height::Error> for EnclaveError {
-    fn from(err: wasm_utils::stack_height::Error) -> EnclaveError {
-        EnclaveError::ExecutionError { code: "inject stack height limiter".to_string(), err: format!("{:?}", err) }
-    }
-}
-
-impl From<wasmi::Error> for EnclaveError {
-    fn from(err: wasmi::Error) -> EnclaveError {
-        EnclaveError::ExecutionError { code: "convert to wasm module".to_string(), err: format!("{:?}", err) }
-    }
-}

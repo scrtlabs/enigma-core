@@ -1,3 +1,4 @@
+#![feature(int_to_from_bytes)]
 extern crate enigma_types;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
@@ -7,12 +8,11 @@ extern crate rmp_serde;
 extern crate enigma_crypto;
 extern crate futures;
 
-use futures::Future;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::Command;
-use enigma_types::{ContractAddress, StateKey};
+pub use enigma_types::{ContractAddress, StateKey, Hash256, UserAddress};
 use enigma_crypto::{KeyPair, symmetric, rand};
 use enigma_crypto::hash::{Sha256, Keccak256};
 use serde_json::{*, Value};
@@ -25,16 +25,29 @@ pub fn generate_contract_address() -> ContractAddress {
     address
 }
 
+pub fn generate_user_address() -> (UserAddress, KeyPair) {
+    let keys = KeyPair::new().unwrap();
+    (keys.get_pubkey().keccak256(), keys)
+}
+
+pub fn sign_message(key: KeyPair, address: UserAddress, amount: u64) -> [u8;65] {
+    let mut msg = address.to_vec();
+    msg.extend_from_slice(&amount.to_be_bytes());
+    key.sign(&msg).unwrap()
+}
+
 pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
     let mut dir = PathBuf::new();
     dir.push(contract_path);
     let mut output = Command::new("cargo")
         .current_dir(&dir)
-        .args(&["build", "--release"])
+        .args(&["build", "--release"]) // In real contract we should use --release
+//        .args(&["build"])
         .spawn()
         .unwrap_or_else(|_| panic!("Failed compiling wasm contract: {:?}", &dir));
 
     assert!(output.wait().unwrap().success());
+//    dir.push("target/wasm32-unknown-unknown/debug/contract.wasm");
     dir.push("target/wasm32-unknown-unknown/release/contract.wasm");
 
     let mut f = File::open(&dir).unwrap_or_else(|_| panic!("Can't open the contract.wasm file: {:?}", &dir));
@@ -48,10 +61,12 @@ pub fn get_fake_state_key(contract_address: ContractAddress) -> [u8; 32] {
     contract_address.keccak256().sha256().into()
 }
 
-pub fn make_encrypted_response(req: &Value) -> Value {
+pub fn make_encrypted_response(req: &Value, addresses: Vec<ContractAddress>) -> Value {
     // Making the response
-    let req_data: Vec<ContractAddress> = serde_json::from_value(req["data"]["Request"].clone()).unwrap();
-    let _response_data: Vec<(ContractAddress, StateKey)> = req_data.into_iter().map(|addr| (addr, get_fake_state_key(addr))).collect();
+    if !req["data"]["Request"].is_null() { // Just makes sure that {data:{Request}} Exists.
+        assert_eq!(serde_json::from_value::<Vec<ContractAddress>>(req["data"]["Request"].clone()).unwrap(), addresses);
+    }
+    let _response_data: Vec<(ContractAddress, StateKey)> = addresses.into_iter().map(|addr| (addr, get_fake_state_key(addr))).collect();
 
     let mut response_data = Vec::new();
     _response_data.serialize(&mut Serializer::new(&mut response_data)).unwrap();

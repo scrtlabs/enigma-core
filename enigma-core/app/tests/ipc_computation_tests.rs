@@ -3,11 +3,12 @@ pub extern crate enigma_core_app as app;
 pub extern crate ethabi;
 extern crate rustc_hex as hex;
 extern crate cross_test_utils;
+extern crate enigma_types;
 
 use integration_utils::{conn_and_call_ipc, is_hex, run_core, get_msg_format_update_contract,
                         get_encryption_msg, full_simple_deployment, full_addition_compute, decrypt_output_to_uint,
                         send_update_contract, full_erc20_deployment, run_ptt_round, contract_compute, get_update_deltas_msg, decrypt_addr_delta, encrypt_addr_delta};
-use cross_test_utils::generate_contract_address;
+use cross_test_utils::{generate_contract_address, generate_user_address};
 use self::app::serde_json;
 use app::serde_json::*;
 use hex::{ToHex, FromHex};
@@ -67,15 +68,15 @@ fn test_execute_on_existing_contract_no_construct() {
     let (deployed_res, _old_addr) = full_erc20_deployment(port, None);
     let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
     let deployed_delta = deployed_res["result"]["delta"].as_object().unwrap();
-    let deployed_data: String = serde_json::from_value(deployed_delta["delta"].clone()).unwrap();
+    let deployed_data: String = serde_json::from_value(deployed_delta["data"].clone()).unwrap();
 
     let amount_before = Token::Uint(60.into());
-    let to_addr = Token::FixedBytes(generate_contract_address().to_vec());
+    let to_addr = Token::FixedBytes(generate_user_address().0.to_vec());
     let args = [to_addr, amount_before.clone()];
     let callable  = "mint(bytes32,uint256)";
     let (_res_mint, _) = contract_compute(port, _old_addr, &args, callable);
     let mint_delta = _res_mint["result"]["delta"].as_object().unwrap();
-    let computed_data: String = serde_json::from_value(mint_delta["delta"].clone()).unwrap();
+    let computed_data: String = serde_json::from_value(mint_delta["data"].clone()).unwrap();
 
     let new_addr = generate_contract_address();
     let _msg = get_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
@@ -92,7 +93,7 @@ fn test_execute_on_existing_contract_no_construct() {
 
     let msg = get_update_deltas_msg(&deltas[..]);
     let _update_deltas_res: Value = conn_and_call_ipc(&msg.to_string(), port);
-    let _res_b = run_ptt_round(port, &[new_addr.to_hex()]);
+    let _res_b = run_ptt_round(port, vec![new_addr]);
 
     let (res, _key) = contract_compute(port, new_addr.into(), &[], "total_supply()");
     let output: String = serde_json::from_value(res["result"]["output"].clone()).unwrap();
@@ -100,7 +101,7 @@ fn test_execute_on_existing_contract_no_construct() {
     assert_eq!(amount_before, accepted_amount);
 
     let amount = Token::Uint(100.into());
-    let to_addr = Token::FixedBytes(generate_contract_address().to_vec());
+    let to_addr = Token::FixedBytes(generate_user_address().0.to_vec());
     let args = [to_addr, amount.clone()];
     let callable  = "mint(bytes32,uint256)";
     let (_res_mint, _) = contract_compute(port, new_addr.into(), &args, callable);
@@ -118,7 +119,7 @@ fn test_execute_on_existing_contract_with_constructor() {
     let (deployed_res, _old_addr) = full_simple_deployment(port);
     let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
     let deployed_delta = deployed_res["result"]["delta"].as_object().unwrap();
-    let deployed_data = deployed_delta["delta"].as_str().unwrap();
+    let deployed_data = deployed_delta["data"].as_str().unwrap();
 
     // done this execution in order to check if the new worker would be able to use data stored in the state
     let a = Token::Uint(1051.into());
@@ -127,7 +128,7 @@ fn test_execute_on_existing_contract_with_constructor() {
     let callable  = "addition(uint256,uint256)";
     let (_res_add, _) = contract_compute(port, _old_addr, &args, callable);
     let add_delta = _res_add["result"].as_object().unwrap()["delta"].as_object().unwrap();
-    let computed_data: String = serde_json::from_value(add_delta["delta"].clone()).unwrap();
+    let computed_data: String = serde_json::from_value(add_delta["data"].clone()).unwrap();
 
     let new_addr = generate_contract_address();
     let _msg = get_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
@@ -144,7 +145,7 @@ fn test_execute_on_existing_contract_with_constructor() {
     let msg = get_update_deltas_msg(&deltas);
     let _update_deltas_res: Value = conn_and_call_ipc(&msg.to_string(), port);
 
-    let _res_b = run_ptt_round(port, &[new_addr.to_hex()]);
+    let _res_b = run_ptt_round(port, vec![new_addr]);
 
     let (res, _key) = contract_compute(port, new_addr.into(), &[], "get_last_sum()");
     let output: String = serde_json::from_value(res["result"]["output"].clone()).unwrap();

@@ -10,7 +10,6 @@ use enigma_tools_t::common::LockExpectMutex;
 use enigma_crypto::{Encryption, CryptoError};
 use enigma_types::{ContractAddress, StateKey};
 use std::collections::HashMap;
-use std::string::ToString;
 use std::sync::SgxMutex;
 
 lazy_static! {
@@ -21,7 +20,7 @@ pub fn encrypt_delta(del: StatePatch) -> Result<EncryptedPatch, EnclaveError> {
     let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
     let key = statekeys_guard
         .get(&del.contract_address)
-        .ok_or(CryptoError::KeyError { key_type: "State Key".to_string(), err: "Missing".to_string() })?;
+        .ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
     del.encrypt(&key)
 }
 
@@ -29,6 +28,6 @@ pub fn encrypt_state(state: ContractState) -> Result<EncryptedContractState<u8>,
     let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
     let key = statekeys_guard
         .get(&state.contract_address)
-        .ok_or(CryptoError::KeyError { key_type: "State Key".to_string(), err: "Missing".to_string() })?;
+        .ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
     state.encrypt(&key)
 }

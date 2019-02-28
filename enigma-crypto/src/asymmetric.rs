@@ -1,10 +1,7 @@
 use crate::error::CryptoError;
-use secp256k1::{self, PublicKey, SecretKey, SharedSecret};
-use crate::localstd::string::ToString;
-use crate::localstd::format;
-use crate::{rand, hash::{self, Keccak256}};
-use enigma_types::DhKey;
-use rustc_hex::ToHex;
+use secp256k1::{PublicKey, SecretKey, SharedSecret,  RecoveryId, Signature};
+use crate::hash::Keccak256;
+use enigma_types::{DhKey, PubKey};
 
 #[derive(Debug)]
 pub struct KeyPair {
@@ -13,7 +10,9 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
+    #[cfg(any(feature = "sgx", feature = "std"))]
     pub fn new() -> Result<KeyPair, CryptoError> {
+        use crate::rand;
         loop {
             let mut me: [u8; 32] = [0; 32];
             rand::random(&mut me)?;
@@ -48,22 +47,22 @@ impl KeyPair {
 
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, CryptoError> {
         let privkey = SecretKey::parse(&privkey)
-            .map_err(|e| CryptoError::KeyError { key_type: "Private Key".to_string(), err: format!("{:?}", e) })?;
+            .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
         let pubkey = PublicKey::from_secret_key(&privkey);
 
         Ok(KeyPair { privkey, pubkey })
     }
 
-    pub fn derive_key(&self, _pubarr: &[u8; 64]) -> Result<DhKey, CryptoError> {
+    pub fn derive_key(&self, _pubarr: &PubKey) -> Result<DhKey, CryptoError> {
         let mut pubarr: [u8; 65] = [0; 65];
         pubarr[0] = 4;
         pubarr[1..].copy_from_slice(&_pubarr[..]);
 
         let pubkey = PublicKey::parse(&pubarr)
-            .map_err(|e| CryptoError::KeyError { key_type: "Private Key".to_string(), err: format!("{:?}", e) })?;
+            .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
 
         let shared = SharedSecret::new(&pubkey, &self.privkey)
-            .map_err(|_| CryptoError::DerivingKeyError { self_key: self.get_pubkey().to_hex(), other_key: _pubarr.to_hex() })?;
+            .map_err(|_| CryptoError::DerivingKeyError { self_key: self.get_pubkey().into(), other_key: (*_pubarr).into() })?;
 
         let mut result = [0u8; 32];
         result.copy_from_slice(shared.as_ref());
@@ -79,9 +78,13 @@ impl KeyPair {
     /// See More:
     ///     `https://tools.ietf.org/html/rfc5480#section-2.2`
     ///     `https://docs.rs/libsecp256k1/0.1.13/src/secp256k1/lib.rs.html#146`
-    pub fn get_pubkey(&self) -> [u8; 64] {
+    pub fn get_pubkey(&self) -> PubKey {
+        KeyPair::pubkey_object_to_pubkey(&self.pubkey)
+    }
+
+    fn pubkey_object_to_pubkey(key: &PublicKey) -> PubKey {
         let mut sliced_pubkey: [u8; 64] = [0; 64];
-        sliced_pubkey.clone_from_slice(&self.pubkey.serialize()[1..65]);
+        sliced_pubkey.clone_from_slice(&key.serialize()[1..65]);
         sliced_pubkey
     }
 
@@ -104,13 +107,35 @@ impl KeyPair {
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
 
         let (sig, recovery) = secp256k1::sign(&message_to_sign, &self.privkey)
-            .map_err(|_| CryptoError::SigningError { msg: message.to_hex() })?;
+            .map_err(|_| CryptoError::SigningError { hashed_msg: *hashed_msg })?;
 
         let v: u8 = recovery.into();
         let mut returnvalue = [0u8; 65];
         returnvalue[..64].copy_from_slice(&sig.serialize());
         returnvalue[64] = v + 27;
         Ok(returnvalue)
+    }
+
+    /// Recover the pubkey using the message and it's signature.
+    /// # Examples
+    /// Simple Message recovering:
+    /// ```
+    /// use enigma_crypto::KeyPair;
+    /// let keys = KeyPair::new().unwrap();
+    /// let msg = b"Sign this";
+    /// let sig = keys.sign(msg).unwrap();
+    /// let recovered_pubkey = KeyPair::recover(msg, sig).unwrap();
+    /// ```
+    pub fn recover(message: &[u8], sig: [u8;65]) -> Result<[u8; 64], CryptoError> {
+        let recovery = RecoveryId::parse(sig[64] -27)
+            .map_err(|_| CryptoError::ParsingError { sig })?;
+        let signature = Signature::parse_slice(&sig[..64])
+            .map_err(|_| CryptoError::ParsingError { sig } )?;
+        let hashed_msg = message.keccak256();
+        let signed_message = secp256k1::Message::parse(&hashed_msg);
+        let recovered_pub = secp256k1::recover(&signed_message, &signature, &recovery)
+            .map_err(|_| CryptoError::RecoveryError { sig } )?;
+        Ok(KeyPair::pubkey_object_to_pubkey(&recovered_pub))
     }
 
     /// The same as sign() but for multiple arguments.
@@ -124,17 +149,19 @@ impl KeyPair {
     /// let msg2 = b"this";
     /// let sig = keys.sign_multiple(&[msg, msg2]).unwrap();
     /// ```
+    #[cfg(any(feature = "sgx", feature = "std"))]
     pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], CryptoError> {
-        let ready = hash::prepare_hash_multiple(messages);
+        let ready = crate::hash::prepare_hash_multiple(messages);
         self.sign(&ready)
     }
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use super::KeyPair;
 
-    pub fn test_signing() {
+    #[test]
+    fn test_signing() {
         let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
         let k1 = KeyPair::from_slice(&_priv).unwrap();
         let msg = b"EnigmaMPC";
@@ -145,7 +172,18 @@ pub mod tests {
         );
     }
 
-    pub fn test_ecdh() {
+    #[test]
+    fn test_recover() {
+        let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
+        let k1 = KeyPair::new().unwrap();
+        let msg = b"EnigmaMPC";
+        let sig = k1.sign(msg).unwrap();
+        let recover_pub = KeyPair::recover(msg, sig).unwrap();
+        assert_eq!(&k1.get_pubkey()[..], &recover_pub[..]);
+    }
+
+    #[test]
+    fn test_ecdh() {
         let _priv1: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
         let _priv2: [u8; 32] = [181, 71, 210, 141, 65, 214, 242, 119, 127, 212, 100, 4, 19, 131, 252, 56, 173, 224, 167, 158, 196, 65, 19, 33, 251, 198, 129, 58, 247, 127, 88, 162];
         let k1 = KeyPair::from_slice(&_priv1).unwrap();

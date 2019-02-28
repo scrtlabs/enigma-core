@@ -2,6 +2,8 @@
 #![crate_type = "lib"]
 #![feature(core_intrinsics)]
 #![feature(try_from)]
+#![warn(unused_extern_crates)]
+
 
 extern crate enigma_types;
 extern crate enigma_crypto;
@@ -11,11 +13,10 @@ extern crate sgx_tstd as std;
 #[macro_use]
 extern crate failure;
 extern crate json_patch;
-#[macro_use]
-extern crate serde_derive;
 extern crate parity_wasm;
 extern crate pwasm_utils;
 extern crate rmp_serde;
+#[macro_use]
 extern crate serde;
 extern crate serde_json;
 extern crate sgx_trts;

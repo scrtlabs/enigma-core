@@ -8,6 +8,7 @@
 #![feature(int_to_from_bytes)]
 #![warn(clippy::all)]
 #![allow(clippy::cast_ptr_alignment)] // TODO: Try to remove it when fixing the sealing
+#![warn(unused_extern_crates)]
 
 extern crate enigma_runtime_t;
 extern crate enigma_tools_t;
@@ -17,11 +18,7 @@ extern crate enigma_crypto;
 //#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
-extern crate sgx_rand;
 extern crate sgx_trts;
-extern crate sgx_tse;
-extern crate sgx_tseal;
-extern crate sgx_tunittest;
 extern crate sgx_types;
 
 #[macro_use]
@@ -34,10 +31,7 @@ extern crate error_chain;
 extern crate bigint;
 extern crate ethabi;
 extern crate hexutil;
-extern crate json_patch;
 extern crate parity_wasm;
-extern crate rlp;
-extern crate rustc_hex as hex;
 extern crate sputnikvm;
 extern crate sputnikvm_network_classic;
 extern crate wasmi;
@@ -128,7 +122,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
 
     let mut pre_execution_data = vec![];
     // in order to view the specific error print out the result of the function
-    let mut internal_result = ecall_execute_internal(&mut pre_execution_data, bytecode,
+    let internal_result = ecall_execute_internal(&mut pre_execution_data, bytecode,
                            callable,
                            args,
                            &user_key,
@@ -136,7 +130,10 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                            *gas_limit,
                            db_ptr,
                            result);
-    sign_if_error(&pre_execution_data, &mut internal_result, result);
+    if let Err(ref mut e) = internal_result.clone() {
+        println!("Error in execution of smart contract function: {}", e);
+        sign_if_error(&pre_execution_data, e, result);
+    }
     internal_result.into()
 }
 
@@ -163,8 +160,11 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
     let bytecode = slice::from_raw_parts(bytecode, bytecode_len);
     let constructor = slice::from_raw_parts(constructor, constructor_len);
     let mut pre_execution_data = vec![];
-    let mut internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, *gas_limit, db_ptr, result);
-    sign_if_error(&pre_execution_data, &mut internal_result, result);
+    let internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, *gas_limit, db_ptr, result);
+    if let Err(ref mut e) = internal_result.clone() {
+        println!("Error in deployment of smart contract: {}", e);
+        sign_if_error(&pre_execution_data, e, result);
+    }
     internal_result.into()
 }
 
@@ -251,7 +251,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
 fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String, DhKey), EnclaveError>{
     let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
-        .ok_or(CryptoError::KeyError { key_type: "DH Key".to_string(), err: "Missing".to_string() })?;
+        .ok_or(CryptoError::MissingKeyError { key_type: "DH Key" })?;
 
     let decrypted_callable = decrypt_callable(callable, &inputs_key)?;
     let decrypted_args = decrypt_args(&args, &inputs_key)?;
@@ -286,22 +286,21 @@ fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
     }
 }
 
-fn sign_if_error (pre_execution_data: &Vec<Box<[u8]>>, internal_result: &mut Result<(), EnclaveError>, result: &mut ExecuteResult) {
-    if let &mut Err(_) = internal_result{
-        // Signing: S(pre-execution data, usedGas, Failure)
-        let used_gas = result.used_gas.to_be_bytes();
-        let failure = [ResultStatus::Failure.into()];
-        let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
-        pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
-        to_sign.extend_from_slice(&[&used_gas[..], &failure]);
-        let signature = SIGNING_KEY.sign_multiple(&to_sign);
-        match signature {
-            Ok(v) => {
-                result.signature = v;
-            }
-            Err(e) => {
-                *internal_result = Err(EnclaveError::CryptoError{err: e});
-            }
+fn sign_if_error (pre_execution_data: &[Box<[u8]>], internal_result: &mut EnclaveError, result: &mut ExecuteResult) {
+    // Signing: S(pre-execution data, usedGas, Failure)
+    let used_gas = result.used_gas.to_be_bytes();
+    let failure = [ResultStatus::Failure.into()];
+    let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
+    pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
+    to_sign.push(&used_gas);
+    to_sign.push(&failure);
+    let signature = SIGNING_KEY.sign_multiple(&to_sign);
+    match signature {
+        Ok(v) => {
+            result.signature = v;
+        }
+        Err(e) => {
+            *internal_result = EnclaveError::CryptoError{err: e};
         }
     }
 }
@@ -481,10 +480,8 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 }
 
 pub mod tests {
-    extern crate enigma_tools_t;
     extern crate sgx_tstd as std;
     extern crate sgx_tunittest;
-    extern crate enigma_runtime_t;
 
     use crate::km_t::principal::tests::*;
     use crate::wasm_g::execution::tests::*;
@@ -492,7 +489,7 @@ pub mod tests {
     use enigma_runtime_t::ocalls_t::tests::*;
     use enigma_tools_t::km_primitives::tests::*;
     use enigma_tools_t::storage_t::tests::*;
-    use sgx_tunittest::*;
+    use self::sgx_tunittest::*;
     use std::{vec::Vec, string::String};
     use enigma_types::RawPointer;
     //    use crate::km_t::users::tests::*;

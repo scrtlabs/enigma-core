@@ -15,35 +15,28 @@ default = []
 
 [dependencies]
 enigma-types = { path = "../../enigma-types", default-features = false, features = ["sgx"] }
-enigma-crypto = { path = "../../enigma-crypto", default-features = false, features = ["sgx"] }
+enigma-crypto = { path = "../../enigma-crypto", default-features = false, features = ["sgx", "asymmetric"] }
 enigma-tools-t = { path = "../../enigma-tools-t" }
 enigma-runtime-t = { path = "../../enigma-runtime-t" }
 
 lazy_static = {version = "=1.2.0", features = ["spin_no_std"] }
-etcommon-rlp = {version = "0.2", default-features = false}
 etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
 
 pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", default-features = false }
 parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
-rustc-hex = { git = "https://github.com/enigmampc/rustc-hex.git", rev = "sgx-2.0.1-v1.0.4"}
 ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "sgx-v6.1.0", default-features = false}
 error-chain = { git = "https://github.com/enigmampc/error-chain.git", rev = "sgx-0.12.0", default-features = false }
-json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2-v1.0.4" }
 sputnikvm-network-classic = { git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-next", default-features = false }
-sputnikvm = {git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-next", default-features = false }
+sputnikvm = { git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-next", default-features = false }
 
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+#hashmap_core = "=0.1.9"
+wasmi = { git = "https://github.com/enigmampc/wasmi", default-features = false, features = ["core"] }
 hashmap_core = "=0.1.9"
-wasmi = { git = "https://github.com/enigmampc/wasmi", features = ["core"]}
+
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_tse = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_tdh = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_tservice = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_alloc = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_tseal = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_rand = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_tunittest = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

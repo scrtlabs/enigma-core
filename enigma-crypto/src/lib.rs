@@ -1,11 +1,16 @@
 #![feature(int_to_from_bytes)]
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
+#![deny(unused_extern_crates)]
 
+#[cfg(feature = "asymmetric")]
 pub mod asymmetric;
-pub mod symmetric;
+#[cfg(feature = "hash")]
 pub mod hash;
 pub mod error;
 pub mod rand;
+
+#[cfg(feature = "symmetric")]
+pub mod symmetric;
 
 #[cfg(feature = "sgx")]
 use {
@@ -13,13 +18,17 @@ use {
 };
 
 
-#[cfg(all(feature = "std"))]
+#[cfg(feature = "std")]
 use {
     std as localstd,
 };
 
+#[cfg(all(not(feature = "std"), not(feature = "sgx")))]
+extern crate core as localstd;
+
 pub use crate::error::CryptoError;
-pub use crate::rand::random;
+
+#[cfg(feature = "asymmetric")]
 pub use crate::asymmetric::KeyPair;
 
 
@@ -29,5 +38,4 @@ pub trait Encryption<T, E, R, N>
     fn encrypt_with_nonce(self, key: T, _iv: Option<N>) -> Result<R, E>;
     fn decrypt(enc: R, key: T) -> Result<Self, E>;
 }
-
 

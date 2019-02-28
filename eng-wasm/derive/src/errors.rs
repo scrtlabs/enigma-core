@@ -1,7 +1,6 @@
-use super::failure::Fail;
-use internal_std::String;
-use internal_std::ToString;
-use internal_std::io;
+use failure::Fail;
+use std::string::ToString;
+use std::io;
 use syn;
 
 #[derive(Debug, Fail)]
@@ -21,7 +20,7 @@ pub enum EngWasmError {
 }
 
 
-impl From<std::io::Error> for EngWasmError {
+impl From<io::Error> for EngWasmError {
     fn from(error: io::Error) -> Self {
         match error {
             _ => EngWasmError::IoError {error: error.to_string()},

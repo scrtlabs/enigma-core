@@ -5,13 +5,17 @@ pub type SymmetricKey = [u8; 32];
 pub type StateKey = SymmetricKey;
 pub type DhKey = SymmetricKey;
 pub type ContractAddress = Hash256;
+pub type UserAddress = Hash256;
 pub type PubKey = [u8; 64];
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnclaveReturn {
     Success,
-    WasmError,
+    WasmCodeExecutionError,
+    GasLimitError,
+    EngRuntimeError,
+    WasmModuleError,
     EVMError,
     KeysError,
     EncryptionError,
@@ -138,7 +142,10 @@ impl fmt::Display for EnclaveReturn {
         use self::EnclaveReturn::*;
         let p = match *self {
             Success => "EnclaveReturn: Success",
-            WasmError => "EnclaveReturn: WasmError",
+            WasmCodeExecutionError => "EnclaveReturn: WasmCodeExecutionError",
+            GasLimitError => "EnclaveReturn: GasLimitError",
+            EngRuntimeError => "EnclaveReturn: EngRuntimeError",
+            WasmModuleError => "EnclaveReturn: WasmModuleError",
             EVMError => "EnclaveReturn: EVMError",
             KeysError => "EnclaveReturn: KeysError",
             EncryptionError => "EnclaveReturn: EncryptionError",
