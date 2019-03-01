@@ -1,6 +1,5 @@
-use enigma_tools_u;
-
 use dirs;
+use enigma_tools_u;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::fs;
@@ -40,6 +39,7 @@ pub fn storage_dir() -> path::PathBuf {
     home_dir.join(ENCLAVE_DIR)
 }
 
+#[logfn(INFO)]
 pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     // Step 1: try to retrieve the launch token saved by last transaction
     //         if there is no token, then create a new one.
@@ -87,11 +87,11 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
         }
     };
     // Create the home/dir/.enigma folder for storage (Sealed, token , etc )
-    let token_file: path::PathBuf = storage_path.join(ENCLAVE_TOKEN);;
+    let token_file: path::PathBuf = storage_path.join(ENCLAVE_TOKEN);
 
     let (enclave, launch_token) = enigma_tools_u::esgx::init_enclave(&token_file, use_token, &ENCLAVE_FILE)?;
     // Step 3: save the launch token if it is updated
-    if use_token == true && launch_token.is_some() {
+    if use_token && launch_token.is_some() {
         // reopen the file with write capablity
         match fs::File::create(&token_file) {
             Ok(mut f) => match f.write_all(&launch_token.unwrap()) {

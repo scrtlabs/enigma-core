@@ -43,12 +43,12 @@ pub fn load_config(config_path: &str) -> Result<ScriptDeployConfig, Error> {
 }
 
 /// get the signer addr
-pub fn get_signing_address(eid: sgx_enclave_id_t) -> Result<String, Error> {
-    let eid = eid;
-    let mut signing_address = esgx::equote::get_register_signing_address(eid)?;
-    signing_address = signing_address[2..].to_string();
-    Ok(signing_address)
-}
+//pub fn get_signing_address(eid: sgx_enclave_id_t) -> Result<String, Error> {
+//    let eid = eid;
+//    let mut signing_address = esgx::equote::get_register_signing_address(eid)?;
+//    signing_address = signing_address[2..].to_string();
+//    Ok(signing_address)
+//}
 
 /// TESTING: deploy the dummy contract
 fn deploy_dummy_miner(w3: &Web3<Http>, deployer: &str) -> Result<Contract<Http>, Error> {

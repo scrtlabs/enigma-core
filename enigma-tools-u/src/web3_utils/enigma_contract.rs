@@ -43,7 +43,6 @@ impl EnigmaContract {
             None => web3.eth().accounts().wait().unwrap()[0], // TODO: Do something with this unwrapping
         };
         let abi_json = w3utils::load_contract_abi(abi_path)?;
-        println!("Loaded Enigma contract ABI: {}", abi_json);
         let w3_contract = Contract::from_json(web3.eth(), contract_address.parse()?, abi_json.as_bytes()).unwrap();
         Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, account })
     }

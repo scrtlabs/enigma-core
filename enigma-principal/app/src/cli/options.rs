@@ -9,6 +9,14 @@ pub struct Opt {
     #[structopt(short = "i", long = "info")]
     pub info: bool,
 
+    /// Increase verbosity of messages (up to 5 -vvvvv)
+    #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
+    pub verbose: u8,
+
+    /// Print the debugging directly to stdout
+    #[structopt(short = "o", long = "debug-stdout")]
+    pub debug_stdout: bool,
+
     /// Output the signing address only
     #[structopt(short = "w", long = "write-sign-address")]
     pub sign_address: bool,
@@ -90,6 +98,8 @@ pub fn print_info(signing_address: &str) {
     print_logo();
     yellow!("<>------------------------------------------<>\n");
     green!("--info                                 => Print the signing address and help.\n");
+    green!("--verbose                              => Verbosity of the log output.\n");
+    green!("--debug-stdout                              => Print the debugging directly to stdout.\n");
     green!("--write-sign-address                   => Write the signing address to ~/.enigma/principal-sign-addr.txt.\n");
     green!("--register                             => Run the Register procedure and shutdown.\n");
     green!("--set-worker-params                    => Run the Set Worker Params procedure and shutdown.\n");

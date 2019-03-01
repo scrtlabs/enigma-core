@@ -23,28 +23,6 @@ impl KeyPair {
         }
     }
 
-    pub fn recover(msg: &[u8], sig: &[u8; 65]) -> Result<[u8; 64], CryptoError> {
-        let sig_msg = secp256k1::Message::parse(&msg.keccak256());
-        let mut _sig_obj = [0u8; 64];
-        _sig_obj.copy_from_slice(&sig[..64]);
-        let sig_obj = secp256k1::Signature::parse(&_sig_obj);
-        let rec_id = match secp256k1::RecoveryId::parse(*sig.last().unwrap() - 27) {
-            Ok(id) => id,
-            Err(err) => return Err(CryptoError::RecoveringError {
-                msg: format!("Failed to generate RecoveryId {:?}", err),
-            })
-        };
-        let recovered_pubkey = match secp256k1::recover(&sig_msg, &sig_obj, &rec_id) {
-           Ok(pubkey) => pubkey,
-            Err(err) => return Err(CryptoError::RecoveringError {
-                msg: format!("Failed to recover PublicKey: {:?}", err),
-            })
-        };
-        let mut recovered = [0u8; 64];
-        recovered.copy_from_slice(&recovered_pubkey.serialize()[1..65]);
-        Ok(recovered)
-    }
-
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, CryptoError> {
         let privkey = SecretKey::parse(&privkey)
             .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
@@ -195,15 +173,5 @@ mod tests {
             shared1,
             [139, 184, 212, 39, 0, 146, 97, 243, 63, 65, 81, 130, 96, 208, 43, 150, 229, 90, 132, 202, 235, 168, 86, 59, 141, 19, 200, 38, 242, 55, 203, 15]
         );
-    }
-
-    pub fn test_recovering() {
-        let _priv: [u8; 32] = [205, 189, 133, 79, 16, 70, 59, 246, 123, 227, 66, 64, 244, 188, 188, 147, 233, 252, 213, 133, 44, 157, 173, 141, 50, 93, 40, 130, 44, 99, 43, 205];
-        let k1 = KeyPair::from_slice(&_priv).unwrap();
-        let signer_pubkey = k1.get_pubkey();
-        let msg = b"EnigmaMPC";
-        let sig = k1.sign(msg).unwrap();
-        let recovered_pubkey = KeyPair::recover(msg, &sig).unwrap();
-        assert_eq!(signer_pubkey.to_vec(), recovered_pubkey.to_vec());
     }
 }

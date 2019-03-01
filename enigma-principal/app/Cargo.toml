@@ -26,8 +26,11 @@ url = "1.7.1"
 tiny-keccak = "1.4.2"
 colour = "0.2.1"
 dirs = "1.0"
-web3 = { git = "https://github.com/tomusdrw/rust-web3.git" } #TODO: Change after a new version is released.
+web3 = { git = "https://github.com/tomusdrw/rust-web3.git", default-features = false, features=["http"]  }
 jsonrpc-http-server = "10.0"
+log = "0.4.6"
+log-derive = "0.2"
+simplelog = "0.5.3"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

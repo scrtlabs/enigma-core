@@ -272,6 +272,7 @@ mod test {
         //println!("report to be signed string => {}",as_response.result.report_string );
         // example on how to access some param inside ASResponse
         //println!("report isv enclave quote status  => {}",as_response.result.report.isvEnclaveQuoteStatus );
+        println!("The report results: {:?}", as_response.result);
         assert_eq!(true, as_response.result.validate);
         assert_eq!("2.0", as_response.jsonrpc);
     }

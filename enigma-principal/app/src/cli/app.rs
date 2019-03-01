@@ -14,7 +14,6 @@ use boot_network::principal_manager::{self, ReportManager, PrincipalManager, Sam
 use cli;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use serde_json;
-pub use esgx::general::ocall_get_home;
 use esgx::general::{ENCLAVE_DIR, storage_dir};
 
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {

@@ -7,7 +7,7 @@ use std::thread;
 use std::str;
 
 use failure::Error;
-use rustc_hex::FromHex;
+use rustc_hex::{FromHex, ToHex};
 use serde_derive::*;
 use serde_json;
 use sgx_types::sgx_enclave_id_t;
@@ -72,9 +72,8 @@ impl ReportManager {
     }
 
     pub fn get_signing_address(&self) -> Result<String, Error> {
-        let mut signing_address = esgx::equote::get_register_signing_address(self.eid)?;
-        // remove 0x
-        signing_address = signing_address[2..].to_string();
+        let _signing_address = esgx::equote::get_register_signing_address(self.eid)?;
+        let signing_address = _signing_address.to_vec().to_hex();
         Ok(signing_address)
     }
 

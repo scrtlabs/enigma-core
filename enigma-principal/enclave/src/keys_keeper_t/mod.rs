@@ -95,14 +95,21 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
     // TODO: Break up this function for better readability
     let msg = PrincipalMessage::from_message(&msg_bytes)?;
     let req_addrs: Vec<ContractAddress> = match msg.data.clone() {
-        PrincipalMessageType::Request(addrs) => addrs,
+        PrincipalMessageType::Request(addrs) => match addrs {
+            Some(addrs) => addrs,
+            None => {
+                return Err(EnclaveError::MessagingError {
+                    err: format!("Empty addresses: {:?}", msg_bytes),
+                });
+            }
+        },
         _ => {
             return Err(EnclaveError::MessagingError {
                 err: format!("Unable to deserialize message: {:?}", msg_bytes),
             });
         }
     };
-    let recovered = KeyPair::recover(&msg_bytes, &sig)?;
+    let recovered = KeyPair::recover(&msg_bytes, sig)?;
     println!("Recovered signer address from the message signature: {:?}", recovered.address());
 
     // TODO: Verify that the worker is selected for all addresses or throw
@@ -122,8 +129,10 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
     //Now we have keys for all addresses in cache
     for addr in req_addrs {
         match guard.get(&addr) {
-            Some(key) => {
-                response_data.push((addr, key.clone()));
+            Some(_key) => {
+                let mut key = [0; 32];
+                key.copy_from_slice(_key);
+                response_data.push((addr, key));
             }
             None => {
                 return Err(EnclaveError::KeyProvisionError {
@@ -179,7 +188,7 @@ pub mod tests {
         for (_i, addr) in data.iter().enumerate() {
             let mut a: Hash256 = [0u8; 32].into();
             a.copy_from_slice(addr);
-            sc_addrs.push( a);
+            sc_addrs.push(a);
         }
         let mut guard = STATE_KEY_STORE.lock_expect("State Key Store");
         let new_keys = new_state_keys(&mut guard, &sc_addrs).expect("Unable to store state keys");
