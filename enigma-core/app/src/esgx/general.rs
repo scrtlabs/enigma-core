@@ -57,22 +57,6 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
             println!("[+] Created new .enigma folder => {:?}", storage_path);
         }
     };
-    match fs::create_dir(&storage_path.join(EPOCH_DIR)) {
-        Err(why) => {
-            println!("[-] Create .enigma/epoch folder => {:?}", why.kind());
-        }
-        Ok(_) => {
-            println!("[+] Created new .enigma/epoch folder => {:?}", storage_path);
-        }
-    };
-    match fs::create_dir(&storage_path.join(STATE_KEYS_DIR)) {
-        Err(why) => {
-            println!("[-] Create .enigma/state-keys folder => {:?}", why.kind());
-        }
-        Ok(_) => {
-            println!("[+] Created new .enigma/state-keys folder => {:?}", storage_path);
-        }
-    };
     // Create the home/dir/.enigma folder for storage (Sealed, token , etc )
     let token_file: path::PathBuf = storage_path.join(ENCLAVE_TOKEN);
 
