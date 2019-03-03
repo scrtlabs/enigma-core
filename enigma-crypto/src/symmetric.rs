@@ -58,7 +58,7 @@ pub fn decrypt(cipheriv: &[u8], key: &SymmetricKey) -> Result<Vec<u8>, CryptoErr
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     use crate::rand;
     use rustc_hex::{ToHex, FromHex};
     use crate::hash::Sha256;

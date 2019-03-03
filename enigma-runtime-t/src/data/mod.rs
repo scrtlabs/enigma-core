@@ -16,6 +16,7 @@ pub trait DeltasInterface<E, T> {
     fn generate_delta_and_update_state(old: &Self, new: &mut Self) -> Result<T, E> where Self: Sized;
 }
 
+#[cfg(debug_assertions)]
 pub mod tests {
     use crate::data::*;
     use enigma_crypto::hash::Sha256;

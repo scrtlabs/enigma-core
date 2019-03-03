@@ -3,7 +3,6 @@
 #![feature(core_intrinsics)]
 #![warn(unused_extern_crates)]
 
-
 extern crate enigma_types;
 extern crate enigma_crypto;
 
@@ -27,6 +26,10 @@ extern crate bigint;
 extern crate hexutil;
 extern crate rlp;
 extern crate wasmi;
+
+#[macro_use]
+pub mod macros;
+
 pub mod build_arguments_g;
 pub mod common;
 pub mod km_primitives;
