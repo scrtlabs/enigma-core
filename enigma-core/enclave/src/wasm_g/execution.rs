@@ -94,7 +94,7 @@ fn create_module(code: &[u8]) -> Result<Box<Module>, EnclaveError> {
 
 fn execute(module: &Module, gas_limit: u64, state: ContractState,
            function_name: String, types: String, params: Vec<u8>) -> Result<RuntimeResult, EnclaveError> {
-    let instantiation_resolver = eng_resolver::ImportResolver::with_limit(64);
+    let instantiation_resolver = eng_resolver::ImportResolver::with_limit(128);
 
     let imports = ImportsBuilder::new().with_resolver("env", &instantiation_resolver);
 
