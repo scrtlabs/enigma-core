@@ -248,7 +248,7 @@ impl Runtime {
         let msg_len: u32 = args.nth_checked(1)?;
         let res = self.memory.get(msg_ptr, msg_len as usize)?;
         let st = str::from_utf8(&res)?;
-        debugln!("PRINT: {}", st);
+        debug_println!("PRINT: {}", st);
         Ok(())
     }
 

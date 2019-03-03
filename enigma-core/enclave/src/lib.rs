@@ -132,7 +132,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                            db_ptr,
                            result);
     if let Err(ref mut e) = internal_result.clone() {
-        debugln!("Error in execution of smart contract function: {}", e);
+        debug_println!("Error in execution of smart contract function: {}", e);
         sign_if_error(&pre_execution_data, e, result);
     }
     internal_result.into()
@@ -163,7 +163,7 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
     let mut pre_execution_data = vec![];
     let internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, *gas_limit, db_ptr, result);
     if let Err(ref mut e) = internal_result.clone() {
-        debugln!("Error in deployment of smart contract: {}", e);
+        debug_println!("Error in deployment of smart contract: {}", e);
         sign_if_error(&pre_execution_data, e, result);
     }
     internal_result.into()
@@ -232,7 +232,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
         callback_data = create_callback(&mut res.1, callback_slice)?;
         *signature = SIGNING_KEY.sign_multiple(&[&callable_args[..], &callback_data, &bytecode])?;
     } else {
-        debugln!("Callback cannot be empty");
+        debug_println!("Callback cannot be empty");
         return Err(EnclaveError::InputError { message: "Callback cannot be empty".to_string() });
     }
 
@@ -243,7 +243,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
             Ok(())
         }
         _ => {
-            debugln!("Error in EVM execution");
+            debug_println!("Error in EVM execution");
             Err(EnclaveError::EvmError { err: "Error in EVM execution".to_string() })
         }
     }
@@ -546,13 +546,13 @@ pub mod tests {
             *ncases = *ncases + 1;
             match std::panic::catch_unwind (|| { f(); } ).is_ok() {
                 true => {
-                    debugln!("{} {} ... {}!",
+                    debug_println!("{} {} ... {}!",
                          "testing",
                          name,
                          "\x1B[1;32mok\x1B[0m");
                 },
                 false => {
-                    debugln!("{} {} ... {}!",
+                    debug_println!("{} {} ... {}!",
                          "testing",
                          name,
                          "\x1B[1;31mfailed\x1B[0m");
