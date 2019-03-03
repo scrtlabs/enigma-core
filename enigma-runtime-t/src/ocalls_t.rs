@@ -112,6 +112,7 @@ pub fn get_deltas(db_ptr: *const RawPointer, contract_address: ContractAddress, 
 }
 
 
+#[cfg(debug_assertions)]
 pub mod tests {
     use super::{get_deltas, get_state, save_delta, save_state, EncryptedContractState, EncryptedPatch};
     use crate::data::ContractState;

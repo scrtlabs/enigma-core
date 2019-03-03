@@ -97,7 +97,7 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> Result<EvmRespo
 }
 
 #[cfg(test)]
-pub mod tests {
+mod tests {
     #![allow(dead_code, unused_assignments, unused_variables)]
     use super::EvmRequest;
     use esgx;

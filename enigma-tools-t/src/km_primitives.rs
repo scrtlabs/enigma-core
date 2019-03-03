@@ -156,6 +156,7 @@ impl UserMessage {
     }
 }
 
+#[cfg(debug_assertions)]
 pub mod tests {
     use super::{PrincipalMessage, PrincipalMessageType};
     use enigma_crypto::hash::Sha256;
