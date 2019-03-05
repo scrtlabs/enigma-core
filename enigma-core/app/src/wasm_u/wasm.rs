@@ -272,19 +272,45 @@ mod tests {
     }
 
     #[test]
+    fn test_construct_erc20() {
+        let (mut db, _dir) = create_test_db();
+        let total_supply = Token::Uint(1_000_000.into());
+        let (owner, _) = generate_user_address();
+
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/erc20",
+            generate_contract_address(),
+            "construct(bytes32,uint256)",
+            &[Token::FixedBytes(owner.to_vec()), total_supply.clone()],
+            "total_supply()",
+            &[]
+        );
+        let expected_total_supply: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output, &shared_key).unwrap()).unwrap().pop().unwrap();
+        assert_eq!(total_supply, expected_total_supply);
+    }
+
+    #[test]
     fn test_mint_erc20() {
         let (mut db, _dir) = create_test_db();
-        let amount: Token = Token::Uint(50.into());
+        let total_supply = Token::Uint(1_000_000.into());
+        let (owner, owner_keys) = generate_user_address();
+        let addr_to = generate_user_address().0;
+        let amount: u64 = 50;
         let address = generate_contract_address();
+
+        let the_sig = sign_message(owner_keys, addr_to, amount).to_vec();
+        let sig = Token::Bytes(the_sig);
 
         let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
             address,
-            "construct()",
-            &[],
-            "mint(bytes32,uint256)",
-            &[Token::FixedBytes(generate_user_address().0.to_vec()), amount.clone()]
+            "construct(bytes32,uint256)",
+            &[Token::FixedBytes(owner.to_vec()), total_supply.clone()],
+            "mint(bytes32,bytes32,uint256,bytes)",
+            &[Token::FixedBytes(owner.to_vec()), Token::FixedBytes(addr_to.to_vec()),
+                       Token::Uint(amount.into()), sig]
         );
 
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
@@ -302,45 +328,31 @@ mod tests {
         ).expect("Execution failed");
 
         // deserialization of result
-        let res: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
-        assert_eq!(res, amount);
+        let expected_total_supply: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
+        let accepted_total_supply = Token::Uint((total_supply.to_uint().unwrap().as_u64() + amount).into());
+        assert_eq!(expected_total_supply, accepted_total_supply);
     }
 
     #[test]
     fn test_transfer_erc20() {
         let (mut db, _dir) = create_test_db();
         let address = generate_contract_address();
-        let (user_addr, addr_keys) = generate_user_address();
-        let addr: Token = Token::FixedBytes(user_addr.to_vec());
+        let total_supply = Token::Uint(1_000_000.into());
+        let (owner, owner_keys) = generate_user_address();
+        let addr_to = generate_user_address().0;
+        let transfer_amount: u64 = 10_000;
+        let the_sig = sign_message(owner_keys, addr_to, transfer_amount).to_vec();
+        let sig = Token::Bytes(the_sig);
 
         let (enclave, contract_code, _, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
             address,
-            "construct()",
-            &[],
-            "mint(bytes32,uint256)",
-            &[addr.clone(), Token::Uint(17.into())]
+            "construct(bytes32,uint256)",
+            &[Token::FixedBytes(owner.to_vec()), total_supply.clone()],
+            "transfer(bytes32,bytes32,uint256, bytes)",
+            &[Token::FixedBytes(owner.to_vec()), Token::FixedBytes(addr_to.to_vec()), Token::Uint(transfer_amount.into()), sig]
         );
-        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
-        let addr_to = generate_user_address().0;
-        let transfer_amount: u64 = 8;
-        let the_sig = sign_message(addr_keys, addr_to, transfer_amount).to_vec();
-        let sig = Token::Bytes(the_sig);
-        let encrypted_callable = symmetric::encrypt(b"transfer(bytes32,bytes32,uint256, bytes)", &shared_key).unwrap();
-        let args = [addr, Token::FixedBytes(addr_to.to_vec()), Token::Uint(transfer_amount.into()), sig];
-        let encrypted_args = symmetric::encrypt(&ethabi::encode(&args), &shared_key).unwrap();
-
-        wasm::execute(
-            &mut db,
-            enclave.geteid(),
-            &contract_code,
-            &encrypted_callable,
-            &encrypted_args,
-            &keys.get_pubkey(),
-            &address,
-            GAS_LIMIT
-        ).expect("Execution failed");
 
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let encrypted_callable = symmetric::encrypt(b"balance_of(bytes32)", &shared_key).unwrap();
@@ -367,8 +379,13 @@ mod tests {
     fn test_allow_and_transfer_erc20() {
         let (mut db, _dir) = create_test_db();
         let address = generate_contract_address();
+        let total_supply = Token::Uint(1_000_000.into());
         let (owner, owner_keys) = generate_user_address();
+
         let (spender, spender_keys) = generate_user_address();
+        let the_sig = sign_message(owner_keys, spender, 20).to_vec();
+        let sig = Token::Bytes(the_sig);
+
         let addr_to = generate_user_address().0;
         let transfer_amount: u64 = 12;
 
@@ -376,31 +393,13 @@ mod tests {
             &mut db,
             "../../examples/eng_wasm_contracts/erc20",
             address,
-            "construct()",
-            &[],
-            "mint(bytes32,uint256)",
-            &[Token::FixedBytes(owner.to_vec()), Token::Uint(40.into())]
-
+            "construct(bytes32,uint256)",
+            &[Token::FixedBytes(owner.to_vec()), total_supply.clone()],
+            "approve(bytes32,bytes32,uint256,bytes)",
+            &[Token::FixedBytes(owner.to_vec()), Token::FixedBytes(spender.to_vec()), Token::Uint(20.into()), sig]
         );
-        let eid = enclave.geteid();
-        let (keys, shared_key, _, _) = exchange_keys(eid);
-        let the_sig = sign_message(owner_keys, spender, 20).to_vec();
-        let sig = Token::Bytes(the_sig);
-        let encrypted_callable = symmetric::encrypt(b"approve(bytes32,bytes32,uint256,bytes)", &shared_key).unwrap();
-        let args = [Token::FixedBytes(owner.to_vec()), Token::FixedBytes(spender.to_vec()), Token::Uint(20.into()), sig];
-        let encrypted_args = symmetric::encrypt(&ethabi::encode(&args), &shared_key).unwrap();
-        wasm::execute(
-            &mut db,
-            eid,
-            &contract_code,
-            &encrypted_callable,
-            &encrypted_args,
-            &keys.get_pubkey(),
-            &address,
-            GAS_LIMIT
-        ).expect("Execution failed");
 
-        let (keys, shared_key, _, _) = exchange_keys(eid);
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let sig = sign_message(spender_keys, addr_to, transfer_amount).to_vec();
         let encrypted_callable = symmetric::encrypt(b"transfer_from(bytes32,bytes32,bytes32,uint256,bytes)", &shared_key).unwrap();
         let args = [Token::FixedBytes(owner.to_vec()), Token::FixedBytes(spender.to_vec()),
@@ -409,7 +408,7 @@ mod tests {
 
         wasm::execute(
             &mut db,
-            eid,
+            enclave.geteid(),
             &contract_code,
             &encrypted_callable,
             &encrypted_args,
@@ -418,12 +417,12 @@ mod tests {
             GAS_LIMIT
         ).expect("Execution failed");
 
-        let (keys, shared_key, _, _) = exchange_keys(eid);
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let encrypted_callable = symmetric::encrypt(b"balance_of(bytes32)", &shared_key).unwrap();
         let encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::FixedBytes(addr_to.to_vec())]), &shared_key).unwrap();
         let result_balance = wasm::execute(
             &mut db,
-            eid,
+            enclave.geteid(),
             &contract_code,
             &encrypted_callable,
             &encrypted_args,
@@ -434,13 +433,13 @@ mod tests {
 
         let result_balance_decrypted = symmetric::decrypt(&result_balance.output, &shared_key).unwrap();
 
-        let (keys, shared_key, _, _) = exchange_keys(eid);
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let encrypted_callable = symmetric::encrypt(b"allowance(bytes32,bytes32)", &shared_key).unwrap();
         let args = [Token::FixedBytes(owner.to_vec()), Token::FixedBytes(spender.to_vec())];
         let encrypted_args = symmetric::encrypt(&ethabi::encode(&args), &shared_key).unwrap();
         let result_allowance = wasm::execute(
             &mut db,
-            eid,
+            enclave.geteid(),
             &contract_code,
             &encrypted_callable,
             &encrypted_args,

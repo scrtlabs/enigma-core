@@ -10,6 +10,7 @@ use cross_test_utils::generate_contract_address;
 use rustc_hex::ToHex;
 use ethabi::Token;
 use app::serde_json::*;
+use cross_test_utils::generate_user_address;
 
 #[test]
 fn test_registration_params() {
@@ -91,7 +92,7 @@ fn test_wrong_arguments() {
 fn test_out_of_gas() {
     let port = "5580";
     run_core(port);
-    let (_val,_) = full_erc20_deployment(port, Some(2));
+    let (_val,_) = full_erc20_deployment(port, generate_user_address().0, None,Some(2));
     let accepted_err =  _val["msg"].as_str().unwrap();
     assert_eq!(accepted_err, "EnclaveFailError { err: GasLimitError, status: SGX_SUCCESS }");
 }

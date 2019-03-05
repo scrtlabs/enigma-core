@@ -15,17 +15,19 @@ use eng_wasm::*;
 use eng_wasm_derive::pub_interface;
 use eng_wasm::String;
 use eng_wasm::from_utf8;
-use hex::ToHex;
+use hex::{FromHex, ToHex};
 use std::collections::HashMap;
 use enigma_crypto::{KeyPair, hash::Keccak256};
 use enigma_types::UserAddress;
 
 static TOTAL_SUPPLY: &str = "total_supply";
+static CONTRACT_OWNER: &str = "owner";
 
 #[pub_interface]
 pub trait Erc20Interface{
+    fn construct(contract_owner: H256, total_supply: U256);
     /// creates new tokens and sends to the specified address
-    fn mint(addr: H256, tokens: U256);
+    fn mint(owner: H256, addr: H256, tokens: U256, sig: Vec<u8>);
     /// get the total_supply
     fn total_supply() -> U256;
     /// get the balance of the specified address
@@ -67,22 +69,37 @@ impl Contract {
     }
 
     /// verify if the address that is sending the tokens is the one who actually sent the transfer.
-    fn verify(from: H256, to: H256, amount: U256, sig: Vec<u8>) -> bool {
-        let mut msg = to.0.to_vec();
+    fn verify(signer: H256, addr: H256, amount: U256, sig: Vec<u8>) -> bool {
+        let mut msg = addr.0.to_vec();
         msg.extend_from_slice(&amount.as_u64().to_be_bytes());
 
         let mut new_sig: [u8; 65] = [0u8; 65];
         new_sig.copy_from_slice(&sig[..65]);
 
         let accepted_pubkey = KeyPair::recover(&msg, new_sig).unwrap();
-        UserAddress::from(from.0) == accepted_pubkey.keccak256()
+        UserAddress::from(signer.0) == accepted_pubkey.keccak256()
     }
 }
 
 impl Erc20Interface for Contract {
 
     #[no_mangle]
-    fn mint(addr: H256, tokens: U256) {
+    fn construct(contract_owner: H256, total_supply: U256) {
+        let mut owner_addr = Self::get_user(contract_owner);
+        owner_addr.balance = total_supply.as_u64();
+        write_state!(TOTAL_SUPPLY => total_supply.as_u64(),
+                     CONTRACT_OWNER => contract_owner.to_hex(),
+                     &contract_owner.to_hex() => owner_addr
+                     );
+    }
+
+    #[no_mangle]
+    fn mint(owner: H256, addr: H256, tokens: U256, sig: Vec<u8>) {
+        // verify the owner is the one who is minting.
+        let contract_owner: String= read_state!(CONTRACT_OWNER).unwrap();
+        assert_eq!(owner.0.to_vec(), contract_owner.from_hex().unwrap());
+        assert!(Self::verify(owner.clone(), addr.clone(), tokens, sig));
+
         let total_supply: u64 = match read_state!(TOTAL_SUPPLY) {
             Some(amount) => amount,
             None => 0,
