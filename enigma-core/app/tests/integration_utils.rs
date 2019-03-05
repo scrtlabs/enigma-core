@@ -14,7 +14,8 @@ extern crate rand;
 extern crate tempfile;
 
 use self::cross_test_utils::{generate_contract_address, generate_user_address, make_encrypted_response,
-                             get_fake_state_key, get_bytecode_from_path, ContractAddress};
+                             get_fake_state_key, get_bytecode_from_path, ContractAddress,
+                             ERC20UserAddress, sign_message};
 use self::app::*;
 use self::futures::Future;
 use self::app::networking::*;
@@ -177,7 +178,7 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
     (shared_key, keys.get_pubkey())
 }
 
-pub fn full_erc20_deployment(port: &'static str, gas_limit: Option<u64>) -> (Value, [u8; 32]) {
+pub fn full_erc20_deployment(port: &'static str, owner: ERC20UserAddress, total_supply: Option<u64>, gas_limit: Option<u64>) -> (Value, [u8; 32]) {
     // address generation and ptt
     let address = generate_contract_address();
     let _ = run_ptt_round(port, vec![address]);
@@ -185,9 +186,10 @@ pub fn full_erc20_deployment(port: &'static str, gas_limit: Option<u64>) -> (Val
     // WUKE- get the arguments encryption key
     let (_shared_key, _user_pubkey) = produce_shared_key(port);
 
+    let total_supply = Token::Uint(total_supply.unwrap_or(1_000_000).into());
     let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/erc20");
-    let fn_deploy = "construct()";
-    let args_deploy = [];
+    let fn_deploy = "construct(bytes32,uint256)";
+    let args_deploy = [Token::FixedBytes(owner.to_vec()), total_supply.clone()];
     let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, _shared_key);
     let gas_limit = gas_limit.unwrap_or(100_000_000);
 
@@ -202,8 +204,9 @@ pub fn erc20_deployment_without_ptt_to_addr(port: &'static str, _address: &str) 
     let (shared_key, user_pubkey) = produce_shared_key(port);
 
     let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/erc20");
-    let fn_deploy = "construct()";
-    let args_deploy = [];
+    let (owner, _) = generate_user_address();
+    let fn_deploy = "construct(bytes32,uint256)";
+    let args_deploy = [Token::FixedBytes(owner.to_vec()), Token::Uint(1_000_000.into())];
     let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, shared_key);
     let gas_limit = 100_000_000;
 
@@ -241,10 +244,13 @@ pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8
     (result, key, contract_addr)
 }
 
-pub fn full_mint_compute(port: &'static str,  user_addr: &[u8; 32], amount: u64) -> (Value,  [u8;32], [u8; 32]) {
-    let (_, contract_addr): (_, [u8; 32]) = full_erc20_deployment(port, None);
-    let args = [Token::FixedBytes(user_addr.to_vec()), Token::Uint(amount.into())];
-    let callable  = "mint(bytes32,uint256)";
+pub fn full_mint_compute(port: &'static str,  user_addr: ERC20UserAddress, amount: u64) -> (Value,  [u8;32], [u8; 32]) {
+    let (owner, owner_keys) = generate_user_address();
+    let (_, contract_addr): (_, [u8; 32]) = full_erc20_deployment(port, owner,None,None);
+
+    let sig = sign_message(owner_keys, user_addr, amount).to_vec();
+    let args = [Token::FixedBytes(owner.to_vec()), Token::FixedBytes(user_addr.to_vec()), Token::Uint(amount.into()), Token::Bytes(sig)];
+    let callable  = "mint(bytes32,bytes32,uint256,bytes)";
     let (result, key) = contract_compute(port, contract_addr, &args, callable);
     (result, key, contract_addr)
 }
@@ -292,7 +298,7 @@ pub fn decrypt_output_to_uint(output: &[u8], key: &[u8; 32]) -> Token {
 pub fn deploy_and_compute_few_contracts(port: &'static str) -> Vec<[u8; 32]> {
     let (_, _, contract_address_a): (_, _, [u8; 32]) = full_addition_compute(port, 56, 87);
     let (_, _, contract_address_b): (_, _ , [u8; 32]) = full_addition_compute(port, 75, 43);
-    let (_, _, contract_address_c): (_, _, [u8; 32]) = full_mint_compute(port, &generate_user_address().0.into(), 500);
+    let (_, _, contract_address_c): (_, _, [u8; 32]) = full_mint_compute(port, generate_user_address().0.into(), 500);
     vec![contract_address_a, contract_address_b, contract_address_c]
 }
 

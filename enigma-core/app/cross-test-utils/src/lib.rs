@@ -24,7 +24,7 @@ pub fn generate_contract_address() -> ContractAddress {
     rand::random(address.as_mut()).unwrap();
     address
 }
-type ERC20UserAddress = Hash256;
+pub type ERC20UserAddress = Hash256;
 pub fn generate_user_address() -> (ERC20UserAddress, KeyPair) {
     let keys = KeyPair::new().unwrap();
     (keys.get_pubkey().keccak256(), keys)
