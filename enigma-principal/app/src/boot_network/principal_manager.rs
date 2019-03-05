@@ -80,15 +80,16 @@ impl ReportManager {
     #[logfn(DEBUG)]
     pub fn get_registration_params(&self) -> Result<RegistrationParams, Error> {
         let signing_address = self.get_signing_address()?;
+        let sim_mode = option_env!("SGX_MODE").unwrap_or_default();
+        println!("Using SGX_MODE: {:?}", sim_mode);
+        println!("Fetching quote with SPID: {:?}", self.config.spid);
         let enc_quote = retry_quote(self.eid, &self.config.spid, 18)?;
 
         let report: String;
         let signature: String;
-//        if option_env!("SGX_MODE").unwrap_or_default() == "SW" { // Software Mode
-        if "pez" == "SW" { // Software Mode
-            println!("Simulation mode, using quote as report");
-            let quote = enc_quote.from_hex()?;
-            report = str::from_utf8(&quote)?.to_string();
+        if sim_mode == "SW" { // Software Mode
+            println!("Simulation mode, using quote as report: {}", &enc_quote);
+            report = enc_quote;
             signature = String::new();
         } else { // Hardware Mode
             println!("Hardware mode, fetching report from the Attestation Service");
