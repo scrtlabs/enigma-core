@@ -311,12 +311,14 @@ pub fn eth_contract(args: proc_macro::TokenStream, input: proc_macro::TokenStrea
     let it: Vec<proc_macro2::TokenStream> = *generate_eth_functions(&contract).unwrap();
 
     let result = quote! {
-        struct #struct_name{
-            addr: [u8;20],
+        struct #struct_name {
+            addr: Address,
         }
         impl EthContract{
             fn new(addr_str: /*Address*/&str) -> Self {
-                EthContract{addr: From::from(Address::from(addr_str.as_bytes()))}
+                use core::str::FromStr;
+                let addr = Address::from_str(&addr_str[2..]).expect("Failed converting the address from hex");
+                EthContract{ addr }
             }
              #(#it)*
         }
