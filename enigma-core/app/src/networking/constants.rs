@@ -39,7 +39,7 @@ pub const CLIENT_CONNECTION_STR_TST: &str = "tcp://localhost:5552";
 // isan's SPID
 //pub const SPID: &'static str = "3DDB338BD52EE314B01F1E4E1E84E8AA";
 // Elichai's SPID
-pub const SPID: &str = "1601F95C39B9EA307FEAABB901ADC3EE";
+pub const SPID: &str = "B0335FD3BC1CCA8F804EB98A6420592D";
 
 // the attestation service end-point
 pub const ATTESTATION_SERVICE_URL: &str = "https://sgx.enigma.co/api";
