@@ -42,7 +42,7 @@ mod test {
         // produce a quote
         // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
         // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0
-        let spid = String::from("1601F95C39B9EA307FEAABB901ADC3EE"); // Elichai's SPID
+        let spid = String::from("B0335FD3BC1CCA8F804EB98A6420592D"); // Elichai's SPID
         let tested_encoded_quote = match retry_quote(enclave.geteid(), &spid, 18) {
             Ok(encoded_quote) => encoded_quote,
             Err(e) => {
