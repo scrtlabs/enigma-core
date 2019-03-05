@@ -22,19 +22,21 @@ use enigma_tools_u::web3_utils::keeper_types_u::InputWorkerParams;
 use enigma_tools_u::web3_utils::provider_types::{ConfirmedEpochState, EpochMarker, WorkersParameterizedEvent};
 use esgx::epoch_keeper_u::set_worker_params;
 use esgx::general::{ENCLAVE_DIR, storage_dir};
+use boot_network::principal_manager::PrincipalConfig;
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
     pub epoch_marker: Arc<Mutex<Option<EpochMarker>>>,
     pub eid: Arc<AtomicU64>,
+    pub config: PrincipalConfig,
 }
 
 impl EpochProvider {
-    pub fn new(eid: Arc<AtomicU64>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
+    pub fn new(eid: Arc<AtomicU64>, contract: Arc<EnigmaContract>, config: PrincipalConfig) -> Result<EpochProvider, Error> {
         let epoch_marker_val = Self::read_epoch_marker()?;
         println!("Initializing EpochProvider with EpochMarker: {:?}", epoch_marker_val);
         let epoch_marker = Arc::new(Mutex::new(epoch_marker_val));
-        Ok(Self { contract, epoch_marker, eid })
+        Ok(Self { contract, epoch_marker, eid, config })
     }
 
     fn get_marker_file_path() -> PathBuf {
@@ -158,7 +160,7 @@ impl EpochProvider {
         let epoch_marker = &mut set_worker_params(self.eid.load(Ordering::SeqCst), worker_params.clone())?;
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_marker.seed, epoch_marker.sig);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
-        let receipt = self.contract.set_workers_params(block_number, epoch_marker.seed.clone(), epoch_marker.sig.clone(), gas_limit)?;
+        let receipt = self.contract.set_workers_params(block_number, epoch_marker.seed.clone(), epoch_marker.sig.clone(), gas_limit, self.config.confirmations as usize)?;
         self.parse_worker_parameterized(&receipt)?;
         println!("Caching selected workers");
         self.confirm_epoch(epoch_marker, worker_params)?;
