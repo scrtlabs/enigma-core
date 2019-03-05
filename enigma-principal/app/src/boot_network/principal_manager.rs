@@ -77,13 +77,25 @@ impl ReportManager {
         Ok(signing_address)
     }
 
+    #[logfn(DEBUG)]
     pub fn get_registration_params(&self) -> Result<RegistrationParams, Error> {
         let signing_address = self.get_signing_address()?;
         let enc_quote = retry_quote(self.eid, &self.config.spid, 18)?;
 
-        let response = self.as_service.get_report(&enc_quote)?;
-        let report = response.result.report_string;
-        let signature = response.result.signature;
+        let report: String;
+        let signature: String;
+//        if option_env!("SGX_MODE").unwrap_or_default() == "SW" { // Software Mode
+        if "pez" == "SW" { // Software Mode
+            println!("Simulation mode, using quote as report");
+            let quote = enc_quote.from_hex()?;
+            report = str::from_utf8(&quote)?.to_string();
+            signature = String::new();
+        } else { // Hardware Mode
+            println!("Hardware mode, fetching report from the Attestation Service");
+            let response = self.as_service.get_report(&enc_quote)?;
+            report = response.result.report_string;
+            signature = response.result.signature;
+        }
         Ok(RegistrationParams { signing_address, report, signature })
     }
 }
@@ -151,8 +163,8 @@ impl Sampler for PrincipalManager {
         let registration_params = self.report_manager.get_registration_params()?;
         let report = registration_params.report.clone();
         let signature = registration_params.signature.clone();
-        let tx = self.contract.register(signing_address, report, signature, gas_limit)?;
-        Ok(tx)
+        let receipt = self.contract.register(signing_address, report, signature, gas_limit, self.config.confirmations as usize)?;
+        Ok(receipt.transaction_hash)
     }
 
     fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error> {
@@ -175,7 +187,7 @@ impl Sampler for PrincipalManager {
         let enigma_contract = &self.contract;
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<AtomicU64> = Arc::new(AtomicU64::new(self.eid));
-        let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone())?);
+        let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone(), self.config.clone())?);
 //        let filter_ep = Arc::clone(&epoch_provider);
 //        thread::spawn(move || {
 //            println!("Starting the worker parameters watcher in child thread");
