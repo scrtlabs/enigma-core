@@ -31,7 +31,6 @@ sputnikvm-network-classic = { git = "https://github.com/enigmampc/sputnikvm.git"
 sputnikvm = { git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-next", default-features = false }
 
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-#hashmap_core = "=0.1.9"
 wasmi = { git = "https://github.com/enigmampc/wasmi", default-features = false, features = ["core"] }
 hashmap_core = "=0.1.9"
 

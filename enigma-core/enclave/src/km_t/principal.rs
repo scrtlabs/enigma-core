@@ -113,7 +113,7 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
                 };
                 match state.apply_delta(&patch) {
                     Err(e) => {
-                        println!("Failed applying delta: {:?}", e);
+                        debug_println!("Failed applying delta: {:?}", e);
                         failed_contracts.push(*addrs);
                         continue 'contract;
                     }
@@ -140,6 +140,7 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
     Ok(failed_contracts)
 }
 
+#[cfg(debug_assertions)]
 pub mod tests {
     use super::*;
     use enigma_runtime_t::data::IOInterface;

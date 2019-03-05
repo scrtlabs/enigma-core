@@ -4,7 +4,6 @@
 #![feature(try_from)]
 #![warn(unused_extern_crates)]
 
-
 extern crate enigma_types;
 extern crate enigma_crypto;
 
@@ -30,6 +29,10 @@ extern crate rlp;
 extern crate ethabi;
 extern crate ethereum_types;
 extern crate wasmi;
+
+#[macro_use]
+pub mod macros;
+
 pub mod build_arguments_g;
 pub mod common;
 pub mod km_primitives;
