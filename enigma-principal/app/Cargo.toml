@@ -31,6 +31,7 @@ jsonrpc-http-server = "10.0"
 log = "0.4.6"
 log-derive = "0.2"
 simplelog = "0.5.3"
+unicase = "=2.2.0"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }

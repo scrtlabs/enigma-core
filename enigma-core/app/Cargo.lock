@@ -525,7 +525,8 @@ dependencies = [
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "sgx_types 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "sgx_urts 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
- "web3 0.5.2 (git+https://github.com/tomusdrw/rust-web3.git)",
+ "unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "web3 0.6.0 (git+https://github.com/tomusdrw/rust-web3.git)",
 ]
 
 [[package]]
@@ -1067,7 +1068,7 @@ name = "mime"
 version = "0.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "unicase 2.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -2195,7 +2196,7 @@ dependencies = [
 
 [[package]]
 name = "unicase"
-version = "2.3.0"
+version = "2.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "version_check 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2287,8 +2288,8 @@ dependencies = [
 
 [[package]]
 name = "web3"
-version = "0.5.2"
-source = "git+https://github.com/tomusdrw/rust-web3.git#fc68ec1a9486938af6cd2f4c670cba37912f8fc6"
+version = "0.6.0"
+source = "git+https://github.com/tomusdrw/rust-web3.git#c7f3118090983b0b078892368440b8bc3fff88cd"
 dependencies = [
  "arrayvec 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2630,7 +2631,7 @@ dependencies = [
 "checksum ucd-util 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "535c204ee4d8434478593480b8f86ab45ec9aae0e83c568ca81abf0fd0e88f86"
 "checksum uint 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "754ba11732b9161b94c41798e5197e5e75388d012f760c42adb5000353e98646"
 "checksum unicase 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7f4765f83163b74f957c797ad9253caf97f103fb064d3999aea9568d09fc8a33"
-"checksum unicase 2.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "41d17211f887da8e4a70a45b9536f26fc5de166b81e2d5d80de4a17fd22553bd"
+"checksum unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9d3218ea14b4edcaccfa0df0a64a3792a2c32cc706f1b336e48867f9d3147f90"
 "checksum unicode-bidi 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "49f2bd0c6468a8230e1db229cff8029217cf623c767ea5d60bfbd42729ea54d5"
 "checksum unicode-normalization 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "141339a08b982d942be2ca06ff8b076563cbe223d1befd5450716790d44e2426"
 "checksum unicode-segmentation 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "aa6024fc12ddfd1c6dbc14a80fa2324d4568849869b779f6bd37e5e4c03344d1"
@@ -2644,7 +2645,7 @@ dependencies = [
 "checksum vec_map 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "05c78687fb1a80548ae3250346c3db86a80a7cdd77bda190189f2d0a0987c81a"
 "checksum version_check 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "914b1a6776c4c929a602fafd8bc742e06365d4bcbe48c30f9cca5824f70dc9dd"
 "checksum want 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "797464475f30ddb8830cc529aaaae648d581f99e2036a928877dfde027ddf6b3"
-"checksum web3 0.5.2 (git+https://github.com/tomusdrw/rust-web3.git)" = "<none>"
+"checksum web3 0.6.0 (git+https://github.com/tomusdrw/rust-web3.git)" = "<none>"
 "checksum which 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "e84a603e7e0b1ce1aa1ee2b109c7be00155ce52df5081590d1ffb93f4f515cb2"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)" = "92c1eb33641e276cfa214a0522acad57be5c56b10cb348b3c5117db75f3ac4b0"

@@ -25,6 +25,7 @@ log-derive = "0.2.0"
 web3 = { git = "https://github.com/tomusdrw/rust-web3.git", default-features = false, features=["http"] }
 ethabi = "6.1.0"
 ethereum-types = "0.4"
+unicase = "=2.2.0"
 
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
