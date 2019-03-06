@@ -522,6 +522,7 @@ dependencies = [
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "sgx_types 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "sgx_urts 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
+ "unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "web3 0.5.2 (git+https://github.com/tomusdrw/rust-web3.git)",
 ]
 
