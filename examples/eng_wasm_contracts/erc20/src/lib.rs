@@ -89,13 +89,13 @@ impl Contract {
 impl Erc20Interface for Contract {
 
     #[no_mangle]
-    fn construct(contract_owner: H256, total_supply: U256) {
-        let mut owner_addr = Self::get_user(contract_owner);
-        owner_addr.balance = total_supply;
-        let contract_owner_str: String = contract_owner.to_hex();
+    fn construct(owner_of_the_contract: H256, total_supply: U256) {
+        let mut user_addr = Self::get_user(owner_of_the_contract);
+        user_addr.balance = total_supply;
+        let user_addr_str: String = owner_of_the_contract.to_hex();
         write_state!(TOTAL_SUPPLY => total_supply,
-                     CONTRACT_OWNER => contract_owner,
-                     &contract_owner_str => owner_addr
+                     CONTRACT_OWNER => owner_of_the_contract,
+                     &user_addr_str => user_addr
         );
     }
 
