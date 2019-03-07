@@ -121,6 +121,7 @@ pub fn load_sealed_document(path: &PathBuf, sealed_document: &mut [u8]) -> Resul
     Ok(())
 }
 
+#[cfg(debug_assertions)]
 pub mod tests {
     use super::*;
     //use std::untrusted::fs::*;

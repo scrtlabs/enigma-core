@@ -188,7 +188,7 @@ impl Sampler for PrincipalManager {
         let enigma_contract = &self.contract;
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<AtomicU64> = Arc::new(AtomicU64::new(self.eid));
-        let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone(), self.config.clone())?);
+        let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone())?);
 //        let filter_ep = Arc::clone(&epoch_provider);
 //        thread::spawn(move || {
 //            println!("Starting the worker parameters watcher in child thread");
@@ -207,7 +207,7 @@ impl Sampler for PrincipalManager {
         // watch blocks
         let polling_interval = self.config.polling_interval;
         let epoch_size = self.config.epoch_size;
-        enigma_contract.watch_blocks(epoch_size, polling_interval, epoch_provider, gas_limit, self.config.max_epochs);
+        enigma_contract.watch_blocks(epoch_size, polling_interval, epoch_provider, gas_limit, self.config.confirmations as usize, self.config.max_epochs);
         Ok(())
     }
 }
@@ -255,9 +255,14 @@ mod test {
         Ok(logs)
     }
 
-    pub fn init_no_deploy(eid: u64) -> Result<PrincipalManager, Error> {
+    pub fn get_config() -> Result<PrincipalConfig, Error> {
         let config_path = "../app/tests/principal_node/config/principal_test_config.json";
         let mut config = PrincipalManager::load_config(config_path)?;
+        Ok(config)
+    }
+
+    pub fn init_no_deploy(eid: u64) -> Result<PrincipalManager, Error> {
+        let mut config = get_config()?;
         let enclave_manager = ReportManager::new(config.clone(), eid)?;
         println!("The Principal node signer address: {}", enclave_manager.get_signing_address().unwrap());
         let _ = Command::new("/root/src/enigma-principal/app/wait.sh").status();
@@ -269,7 +274,7 @@ mod test {
         );
         let gas_limit = 5_999_999;
         config.max_epochs = None;
-        let principal: PrincipalManager = PrincipalManager::new(config, contract, enclave_manager);
+        let principal: PrincipalManager = PrincipalManager::new(config.clone(), contract, enclave_manager).unwrap();
         println!("Connected to the Enigma contract: {:?} with account: {:?}", &config.enigma_contract_address, principal.get_account_address());
         Ok(principal)
     }
@@ -287,7 +292,7 @@ mod test {
         let eid_safe = Arc::new(AtomicU64::new(eid));
         let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone()).unwrap();
         epoch_provider.reset_epoch_marker().unwrap();
-        principal.set_worker_params(block_number, gas_limit)?;
+        epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();
         assert_eq!(true, true);
     }
 
@@ -306,60 +311,56 @@ mod test {
 
         let eid = enclave.geteid();
         // load the config
-        let deploy_config = "../app/tests/principal_node/config/deploy_config.json";
-        let mut config = deploy_scripts::load_config(deploy_config).unwrap();
-        // modify to dynamic address
-        //        config.set_accounts_address(deployer);
-        config.set_ethereum_url(get_node_url());
-
-        let signer_addr = deploy_scripts::get_signing_address(eid).unwrap();
-        // deploy all contracts. (Enigma & EnigmaToken)
-        let enigma_contract = Arc::new(EnigmaContract::deploy_contract(&config.enigma_token_contract_path,
-                                                                       &config.enigma_contract_path,
-                                                                       &config.url,
-                                                                       None,
-                                                                       &signer_addr).expect("cannot deploy Enigma,EnigmaToken"));
-
-        let account = enigma_contract.account.clone();
-
-        // run simulated miner
-        run_miner(account, Arc::clone(&enigma_contract.web3), 1);
-
-        let principal_config = "../app/tests/principal_node/config/principal_test_config.json";
-        let mut the_config = PrincipalManager::load_config(principal_config).unwrap();
-        the_config.set_accounts_address(account.to_hex());
-        the_config.set_enigma_contract_address(enigma_contract.address().to_hex());
-        the_config.set_ethereum_url(get_node_url());
-
-        // run event filter in the background
-        let event_name = "WorkersParameterized(uint256,address[],bool)";
-        let w3 = Arc::clone(&enigma_contract.web3);
-        let child = thread::spawn(move || {
-            let mut counter = 0;
-            loop {
-                counter += 1;
-                let logs = filter_random(&Arc::clone(&w3), None, &event_name).expect("err filtering random");
-                // the test: if events recieved >2 (more than 2 emitts of random)
-                // assert topic (keccack(event_name))
-                if logs.len() >= 2 {
-//                    println!("FOUND 2 LOGS!!!! {:?}", logs);
-                    for log in logs.iter() {
-                        let expected_topic = event_name.as_bytes().keccak256();
-                        assert!(log.topics[0].contains(&H256::from_slice(&*expected_topic)));
-                    }
-                    break;
-                }
-                thread::sleep(time::Duration::from_secs(1));
-                let max_time = 30;
-                if counter > max_time {
-                    panic!("test failed, more than {} seconds without events", max_time)
-                }
-            }
-        });
-
-        // run principal
-        let principal = PrincipalManager::new_delegated(the_config, enigma_contract, eid);
-        principal.run(5999999).unwrap();
-        child.join().unwrap();
+//        let deploy_config = "../app/tests/principal_node/config/deploy_config.json";
+//        let mut config = deploy_scripts::load_config(deploy_config).unwrap();
+//        // modify to dynamic address
+//        //        config.set_accounts_address(deployer);
+//        config.set_ethereum_url(get_node_url());
+//
+//        let signer_addr = deploy_scripts::get_signing_address(eid).unwrap();
+//        // deploy all contracts. (Enigma & EnigmaToken)
+//        let enigma_contract = Arc::new(EnigmaContract::deploy_contract(&config.enigma_token_contract_path,
+//                                                                       &config.enigma_contract_path,
+//                                                                       &config.url,
+//                                                                       None,
+//                                                                       &signer_addr).expect("cannot deploy Enigma,EnigmaToken"));
+//
+//        let account = enigma_contract.account.clone();
+//
+//        // run simulated miner
+//        run_miner(account, Arc::clone(&enigma_contract.web3), 1);
+//
+//        let principal_config = get_config().unwrap();
+//
+//        // run event filter in the background
+//        let event_name = "WorkersParameterized(uint256,address[],bool)";
+//        let w3 = Arc::clone(&enigma_contract.web3);
+//        let child = thread::spawn(move || {
+//            let mut counter = 0;
+//            loop {
+//                counter += 1;
+//                let logs = filter_random(&Arc::clone(&w3), None, &event_name).expect("err filtering random");
+//                // the test: if events recieved >2 (more than 2 emitts of random)
+//                // assert topic (keccack(event_name))
+//                if logs.len() >= 2 {
+////                    println!("FOUND 2 LOGS!!!! {:?}", logs);
+//                    for log in logs.iter() {
+//                        let expected_topic = event_name.as_bytes().keccak256();
+//                        assert!(log.topics[0].contains(&H256::from_slice(&*expected_topic)));
+//                    }
+//                    break;
+//                }
+//                thread::sleep(time::Duration::from_secs(1));
+//                let max_time = 30;
+//                if counter > max_time {
+//                    panic!("test failed, more than {} seconds without events", max_time)
+//                }
+//            }
+//        });
+//
+//        // run principal
+//        let principal = PrincipalManager::new_delegated(the_config, enigma_contract, eid);
+//        principal.run(5999999).unwrap();
+//        child.join().unwrap();
     }
 }

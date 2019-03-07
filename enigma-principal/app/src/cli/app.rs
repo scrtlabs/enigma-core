@@ -113,8 +113,8 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             } else if opt.set_worker_params {
                 let block_number = principal.get_block_number()?;
                 let eid_safe = Arc::new(AtomicU64::new(eid));
-                let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone(), principal_config.clone())?;
-                let tx = epoch_provider.set_worker_params(block_number, gas_limit)?;
+                let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone())?;
+                let tx = epoch_provider.set_worker_params(block_number, gas_limit, principal_config.confirmations as usize)?;
                 println!("The setWorkersParams tx: {:?}", tx);
             } else {
                 principal.run(gas_limit).unwrap();

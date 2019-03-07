@@ -17,7 +17,7 @@ pub trait Principal {
         where Self: Sized;
 
     fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
-                                   max_epochs: Option<usize>);
+                                   confirmations: usize, max_epochs: Option<usize>);
 }
 
 impl Principal for EnigmaContract {
@@ -26,7 +26,7 @@ impl Principal for EnigmaContract {
     }
 
     fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
-                                   max_epochs: Option<usize>) {
+                                   confirmations: usize, max_epochs: Option<usize>) {
         let gas_limit: U256 = gas_limit.into();
         let max_epochs = max_epochs.unwrap_or(0);
         let mut epoch_counter = 0;
@@ -46,7 +46,7 @@ impl Principal for EnigmaContract {
             println!("[\u{1F50A} ] Blocks @ previous: {}, current: {}, next: {} [\u{1F50A} ]", prev_block_ref, curr_block, (prev_block_ref + epoch_size));
             if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
                 println!("[\u{263C} ] New epoch found [\u{263C} ]");
-                epoch_provider.set_worker_params(block_number, gas_limit).expect("Unable to set worker params. Please recover manually.");
+                epoch_provider.set_worker_params(block_number, gas_limit, confirmations).expect("Unable to set worker params. Please recover manually.");
             } else {
                 println!("[\u{23f3} ] Epoch still active [\u{23f3} ]");
             }

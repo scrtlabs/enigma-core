@@ -7,14 +7,69 @@ use jsonrpc_http_server::cors::AccessControlAllowOrigin;
 use jsonrpc_http_server::DomainsValidation;
 use jsonrpc_http_server::jsonrpc_core::{Error as ServerError, ErrorCode, IoHandler, Params, Value};
 use jsonrpc_http_server::ServerBuilder;
+use rmp_serde::{Deserializer, Serializer};
 use rustc_hex::FromHex;
 use rustc_hex::ToHex;
-
-use esgx::keys_keeper_u::get_enc_state_keys;
-use boot_network::epoch_provider::EpochProvider;
+use serde::{Deserialize, Serialize};
 use sgx_types::sgx_enclave_id_t;
 
+use boot_network::epoch_provider::EpochProvider;
+use enigma_types::{ContractAddress, StateKey};
+use esgx::keys_keeper_u::get_enc_state_keys;
+
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub enum PrincipalMessageType {
+    Request(Option<Vec<ContractAddress>>),
+}
+
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+pub struct PrincipalMessage {
+    prefix: [u8; 14],
+    pub data: PrincipalMessageType,
+    pubkey: Vec<u8>,
+    id: [u8; 12],
+}
+
+pub struct PrincipalMessageTranslator {
+    pub request: Vec<u8>,
+    principal_message: PrincipalMessage,
+}
+
+impl PrincipalMessageTranslator {
+    pub fn new(request: Vec<u8>) -> Result<Self, Error> {
+        let principal_message = PrincipalMessageTranslator::deserialize(&request)?;
+        Ok(PrincipalMessageTranslator { request, principal_message })
+    }
+
+    pub fn deserialize(msg: &[u8]) -> Result<PrincipalMessage, Error> {
+        let mut des = Deserializer::new(&msg[..]);
+        let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
+        println!("The deserialized message: {:?}", res);
+        let msg: PrincipalMessage = serde_json::from_value(res).unwrap();
+        Ok(msg)
+    }
+
+    pub fn get_data(&self) -> Result<Option<Vec<ContractAddress>>, Error> {
+        let data = match self.principal_message.data.clone() {
+            PrincipalMessageType::Request(data) => data,
+            _ => bail!("Invalid Principal message request"),
+        };
+        Ok(data)
+    }
+
+    pub fn insert_contract_addresses(&self, addrs: Vec<ContractAddress>) -> Result<Vec<u8>, Error> {
+        let mut buf = Vec::new();
+        let mut principal_message = self.principal_message.clone();
+        let val = match serde_json::to_value(principal_message) {
+            Ok(val) => val,
+            Err(err) => bail!("Cannot serialize modified Principal message: {:?}", err),
+        };
+        val.serialize(&mut Serializer::new(&mut buf))?;
+        Ok(buf)
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StringWrapper(pub String);
@@ -113,8 +168,24 @@ impl PrincipalHttpServer {
 
 #[cfg(test)]
 mod test {
+    use rustc_hex::FromHex;
+    use boot_network::keys_provider_http::{PrincipalHttpServer, PrincipalMessageTranslator};
+    use enigma_types::ContractAddress;
+
     #[test]
-    pub fn request_state_key() {
-        println!("requesting the state key from the Principal");
+    pub fn test_decode_message() {
+        let msg = vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let processor = PrincipalMessageTranslator::new(msg).unwrap();
+        let data = processor.get_data().unwrap();
+        println!("The decoded Principal request: {:?}", data);
+    }
+
+    #[test]
+    pub fn test_insert_secret_contract_addresses() {
+        let msg = vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let processor = PrincipalMessageTranslator::new(msg).unwrap();
+        let addrs: Vec<ContractAddress> = vec![[0u8; 32].into(), [1u8; 32].into(), [2u8; 32].into()];
+        let out_msg = processor.insert_contract_addresses(addrs).unwrap();
+        println!("The Principal message request with addresses: {:?}", out_msg);
     }
 }

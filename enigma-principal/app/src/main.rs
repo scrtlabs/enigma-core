@@ -32,6 +32,7 @@ extern crate tiny_keccak;
 extern crate tokio_core;
 extern crate url;
 extern crate web3;
+extern crate rmp_serde;
 
 use simplelog::CombinedLogger;
 use structopt::StructOpt;

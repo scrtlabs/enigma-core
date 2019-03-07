@@ -105,17 +105,17 @@ mod test {
         let enclave = init_enclave_wrapper().unwrap();
         let eid = enclave.geteid();
         // load the config
-        let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
-        let mut config = deploy_scripts::load_config(deploy_config).unwrap();
-        // modify to dynamic address
-        config.set_ethereum_url(get_node_url());
+//        let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
+//        let mut config = deploy_scripts::load_config(deploy_config).unwrap();
+//        // modify to dynamic address
+//        config.set_ethereum_url(get_node_url());
         // deploy all contracts.
-        let signer_addr = get_signing_address(eid).unwrap();
-        let _enigma_contract = EnigmaContract::deploy_contract(Path::new(&config.enigma_token_contract_path),
-                                                               Path::new(&config.enigma_contract_path),
-                                                               &get_node_url(),
-                                                               None,
-                                                               &signer_addr).unwrap();
+//        let signer_addr = get_signing_address(eid).unwrap();
+//        let _enigma_contract = EnigmaContract::deploy_contract(Path::new(&config.enigma_token_contract_path),
+//                                                               Path::new(&config.enigma_contract_path),
+//                                                               &get_node_url(),
+//                                                               None,
+//                                                               &signer_addr).unwrap();
     }
 
 }

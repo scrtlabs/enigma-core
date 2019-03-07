@@ -28,15 +28,14 @@ pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
     pub epoch_marker: Arc<Mutex<Option<EpochMarker>>>,
     pub eid: Arc<AtomicU64>,
-    pub config: PrincipalConfig,
 }
 
 impl EpochProvider {
-    pub fn new(eid: Arc<AtomicU64>, contract: Arc<EnigmaContract>, config: PrincipalConfig) -> Result<EpochProvider, Error> {
+    pub fn new(eid: Arc<AtomicU64>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
         let epoch_marker_val = Self::read_epoch_marker()?;
         println!("Initializing EpochProvider with EpochMarker: {:?}", epoch_marker_val);
         let epoch_marker = Arc::new(Mutex::new(epoch_marker_val));
-        Ok(Self { contract, epoch_marker, eid, config })
+        Ok(Self { contract, epoch_marker, eid })
     }
 
     fn get_marker_file_path() -> PathBuf {
@@ -154,13 +153,13 @@ impl EpochProvider {
     ///  - The list of active worker parameters does not match the sealed epoch data. This prevents
     ///    the enclave operator from tempering with worker parameters in order to modify the
     ///    result of the worker selection.
-    pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G) -> Result<(H256), Error> {
+    pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<(H256), Error> {
         let worker_params: InputWorkerParams = self.contract.get_active_workers(block_number)?;
         println!("The active workers: {:?}", worker_params);
         let epoch_marker = &mut set_worker_params(self.eid.load(Ordering::SeqCst), worker_params.clone())?;
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_marker.seed, epoch_marker.sig);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
-        let receipt = self.contract.set_workers_params(block_number, epoch_marker.seed.clone(), epoch_marker.sig.clone(), gas_limit, self.config.confirmations as usize)?;
+        let receipt = self.contract.set_workers_params(block_number, epoch_marker.seed.clone(), epoch_marker.sig.clone(), gas_limit, confirmations)?;
         self.parse_worker_parameterized(&receipt)?;
         println!("Caching selected workers");
         self.confirm_epoch(epoch_marker, worker_params)?;

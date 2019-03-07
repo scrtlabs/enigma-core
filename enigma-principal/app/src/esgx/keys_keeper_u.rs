@@ -60,7 +60,7 @@ pub mod tests {
 
     use esgx::epoch_keeper_u::tests::set_mock_worker_params;
     use esgx::general::init_enclave_wrapper;
-    use enigma_tools_u::web3_utils::provider_types::InputWorkerParams;
+    use enigma_tools_u::web3_utils::keeper_types_u::InputWorkerParams;
     use web3::types::{Bytes, H256, U256, Address};
 
     use super::*;
