@@ -17,66 +17,66 @@ use web3::futures::Future;
 use web3::futures::stream::Stream;
 use web3::types::{Address, FilterBuilder, H256, TransactionReceipt, U256};
 
+use boot_network::principal_manager::PrincipalConfig;
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
-use enigma_tools_u::web3_utils::keeper_types_u::InputWorkerParams;
-use enigma_tools_u::web3_utils::provider_types::{ConfirmedEpochState, EpochMarker, WorkersParameterizedEvent};
+use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
 use esgx::epoch_keeper_u::set_worker_params;
 use esgx::general::{ENCLAVE_DIR, storage_dir};
-use boot_network::principal_manager::PrincipalConfig;
+use keys_u::keeper_types_u::InputWorkerParams;
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
-    pub epoch_marker: Arc<Mutex<Option<EpochMarker>>>,
+    pub epoch_state: Arc<Mutex<Option<EpochState>>>,
     pub eid: Arc<AtomicU64>,
 }
 
 impl EpochProvider {
     pub fn new(eid: Arc<AtomicU64>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
-        let epoch_marker_val = Self::read_epoch_marker()?;
-        println!("Initializing EpochProvider with EpochMarker: {:?}", epoch_marker_val);
-        let epoch_marker = Arc::new(Mutex::new(epoch_marker_val));
-        Ok(Self { contract, epoch_marker, eid })
+        let epoch_state_val = Self::read_epoch_state()?;
+        println!("Initializing EpochProvider with EpochState: {:?}", epoch_state_val);
+        let epoch_state = Arc::new(Mutex::new(epoch_state_val));
+        Ok(Self { contract, epoch_state, eid })
     }
 
-    fn get_marker_file_path() -> PathBuf {
+    fn get_state_file_path() -> PathBuf {
         let mut path = storage_dir();
         path.join(ENCLAVE_DIR);
-        path.push("epoch-marker.json");
+        path.push("epoch-state.json");
         path
     }
 
-    pub fn reset_epoch_marker(&self) -> Result<(), Error> {
-        self.set_epoch_marker(None)?;
+    pub fn reset_epoch_state(&self) -> Result<(), Error> {
+        self.set_epoch_state(None)?;
         Ok(())
     }
 
-    fn read_epoch_marker() -> Result<Option<EpochMarker>, Error> {
-        let epoch_marker = match File::open(Self::get_marker_file_path()) {
+    fn read_epoch_state() -> Result<Option<EpochState>, Error> {
+        let epoch_state = match File::open(Self::get_state_file_path()) {
             Ok(mut f) => {
                 let mut data = String::new();
                 f.read_to_string(&mut data)?;
-                let epoch_marker: Option<EpochMarker> = match serde_json::from_str(&data) {
+                let epoch_state: Option<EpochState> = match serde_json::from_str(&data) {
                     Ok(value) => Some(value),
                     Err(err) => {
-                        eprintln!("Unable to read block marker file: {:?}", err);
+                        eprintln!("Unable to read block state file: {:?}", err);
                         None
                     }
                 };
-                epoch_marker
+                epoch_state
             }
             Err(_) => {
-                println!("No existing epoch marker, starting with block 0");
+                println!("No existing epoch state, starting with block 0");
                 None
             }
         };
-        Ok(epoch_marker)
+        Ok(epoch_state)
     }
 
-    fn write_epoch_marker(epoch_marker: Option<EpochMarker>) -> Result<(), Error> {
-        let path = Self::get_marker_file_path();
-        if epoch_marker.is_some() {
+    fn write_epoch_state(epoch_state: Option<EpochState>) -> Result<(), Error> {
+        let path = Self::get_state_file_path();
+        if epoch_state.is_some() {
             let mut file = File::create(path)?;
-            let contents = serde_json::to_string(&epoch_marker.unwrap())?;
+            let contents = serde_json::to_string(&epoch_state.unwrap())?;
             file.write_all(contents.as_bytes())?;
         } else {
             fs::remove_file(path)?;
@@ -96,29 +96,29 @@ impl EpochProvider {
         Ok(result)
     }
 
-    pub fn get_marker(&self) -> Result<EpochMarker, Error> {
-        let guard = match self.epoch_marker.try_lock() {
+    pub fn get_state(&self) -> Result<EpochState, Error> {
+        let guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
             Err(_) => bail!("Unable to lock Epoch Marker Mutex."),
         };
-        let epoch_marker = match guard.deref() {
-            Some(epoch_marker) => epoch_marker.clone(),
-            None => bail!("Epoch Marker not set."),
+        let epoch_state = match guard.deref() {
+            Some(epoch_state) => epoch_state.clone(),
+            None => bail!("EpochState not set."),
         };
         mem::drop(guard);
-        Ok(epoch_marker)
+        Ok(epoch_state)
     }
 
-    fn set_epoch_marker(&self, epoch_marker: Option<EpochMarker>) -> Result<(), Error> {
-        println!("Replacing EpochMaker mutex: {:?}", epoch_marker);
-        let mut guard = match self.epoch_marker.try_lock() {
+    fn set_epoch_state(&self, epoch_state: Option<EpochState>) -> Result<(), Error> {
+        println!("Replacing EpochMaker mutex: {:?}", epoch_state);
+        let mut guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
             Err(_) => bail!("Unable to lock Epoch Marker Mutex"),
         };
-        let prev = mem::replace(&mut *guard, epoch_marker.clone());
-        println!("Replaced EpochMaker: {:?} with: {:?}", prev, epoch_marker);
+        let prev = mem::replace(&mut *guard, epoch_state.clone());
+        println!("Replaced EpochMaker: {:?} with: {:?}", prev, epoch_state);
         mem::drop(guard);
-        match Self::write_epoch_marker(epoch_marker) {
+        match Self::write_epoch_state(epoch_state) {
             Ok(_) => println!("Stored the Epoch Marker to disk"),
             Err(err) => bail!(err),
         };
@@ -126,12 +126,12 @@ impl EpochProvider {
     }
 
     pub fn get_confirmed(&self) -> Result<ConfirmedEpochState, Error> {
-        let guard = match self.epoch_marker.try_lock() {
+        let guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
             Err(_) => bail!("Unable to lock Epoch Marker Mutex."),
         };
         let confirmed_state = match guard.deref() {
-            Some(epoch_marker) => match &epoch_marker.confirmed_state {
+            Some(epoch_state) => match &epoch_state.confirmed_state {
                 Some(confirmed_state) => confirmed_state.clone(),
                 None => bail!("Epoch Marker not confirmed yet."),
             },
@@ -153,32 +153,39 @@ impl EpochProvider {
     ///  - The list of active worker parameters does not match the sealed epoch data. This prevents
     ///    the enclave operator from tempering with worker parameters in order to modify the
     ///    result of the worker selection.
+    #[logfn(DEBUG)]
     pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<(H256), Error> {
-        let worker_params: InputWorkerParams = self.contract.get_active_workers(block_number)?;
+        let result = self.contract.get_active_workers(block_number)?;
+        let worker_params: InputWorkerParams = InputWorkerParams {
+            block_number,
+            workers: result.0,
+            stakes: result.1,
+        };
         println!("The active workers: {:?}", worker_params);
-        let epoch_marker = &mut set_worker_params(self.eid.load(Ordering::SeqCst), worker_params.clone())?;
-        println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_marker.seed, epoch_marker.sig);
+        let epoch_state = &mut set_worker_params(self.eid.load(Ordering::SeqCst), worker_params.clone())?;
+        println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
-        let receipt = self.contract.set_workers_params(block_number, epoch_marker.seed.clone(), epoch_marker.sig.clone(), gas_limit, confirmations)?;
+        let receipt = self.contract.set_workers_params(block_number, epoch_state.seed.clone(), epoch_state.sig.clone(), gas_limit, confirmations)?;
         self.parse_worker_parameterized(&receipt)?;
         println!("Caching selected workers");
-        self.confirm_epoch(epoch_marker, worker_params)?;
+        self.confirm_epoch(epoch_state, worker_params)?;
         println!("Got the receipt: {:?}", receipt);
-        self.set_epoch_marker(Some(epoch_marker.clone()));
+        self.set_epoch_state(Some(epoch_state.clone()));
         Ok(receipt.transaction_hash)
     }
 
     /// Build a local mapping of smart contract address => selected worker for the epoch
-    pub fn confirm_epoch(&self, epoch_marker: &mut EpochMarker, worker_params: InputWorkerParams) -> Result<(), Error> {
+    #[logfn(DEBUG)]
+    pub fn confirm_epoch(&self, epoch_state: &mut EpochState, worker_params: InputWorkerParams) -> Result<(), Error> {
         let contract_count = self.contract.count_secret_contracts()?;
         println!("The secret contract count: {:?}", contract_count);
         let sc_addresses = self.contract.get_secret_contract_addresses(U256::from(0), contract_count)?;
         println!("The secret contract addresses: {:?}", sc_addresses);
-        epoch_marker.confirm(&worker_params, sc_addresses)?;
+        epoch_state.confirm(&worker_params, sc_addresses)?;
         Ok(())
     }
 
-    /// Store the epoch marker (first block number of the new epoch) for each
+    /// Store the epoch state (first block number of the new epoch) for each
     /// WorkerParametized event emitted by the Enigma contract.
     /// Not in use, this approach has no obvious benefit compared to just waiting for the tx on the main thread.
     /// Consider in context of a possible future optimization
@@ -229,9 +236,9 @@ mod test {
     use super::*;
 
     /// This function is important to enable testing both on the CI server and local.
-                                    /// On the CI Side:
-                                    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-                                    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-                                    /// The default is set to ganache cli "http://localhost:8545"
+                                        /// On the CI Side:
+                                        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+                                        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+                                        /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:9545")) }
 }

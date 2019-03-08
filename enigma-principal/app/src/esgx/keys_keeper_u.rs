@@ -4,10 +4,13 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors::EnclaveFailError;
 use enigma_types::EnclaveReturn;
+use ethereum_types::H256;
+use ethabi::{Token, encode};
 
 extern {
     fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
                                 msg: *const u8, msg_len: usize,
+                                addrs: *const u8, addrs_len: usize,
                                 sig: &[u8; 65],
                                 enc_response_out: *mut u8, enc_response_len_out: &mut usize,
                                 sig_out: &mut [u8; 65]) -> sgx_status_t;
@@ -22,7 +25,7 @@ const MAX_ENC_RESPONSE_LEN: usize = 100_000;
 /// let enclave = esgx::general::init_enclave().unwrap();
 /// let response: EpochSeed = get_enc_state_keys(enclave.geteid(), request).unwrap();
 /// ```
-pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Result<StateKeyResponse, Error> {
+pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_addrs: Option<Vec<H256>>) -> Result<StateKeyResponse, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
     let mut enc_response = vec![0u8; MAX_ENC_RESPONSE_LEN];
@@ -30,12 +33,21 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest) -> Re
     let mut enc_response_len_out: usize = 0;
 
     let msg_bytes: Vec<u8> = request.data.into();
+    let addrs_bytes: Vec<u8> = match epoch_addrs {
+        Some(addrs) => {
+            let tokens: Vec<Token> = addrs.iter().map(|a| Token::FixedBytes(a.0.to_vec())).collect();
+            encode(&tokens)
+        }
+        None => vec![0],
+    };
     let status = unsafe {
         ecall_get_enc_state_keys(
             eid,
             &mut retval,
             msg_bytes.as_ptr() as *const u8,
             msg_bytes.len(),
+            addrs_bytes.as_ptr() as *const u8,
+            addrs_bytes.len(),
             &request.sig.into(),
             enc_response_slice.as_mut_ptr() as *mut u8,
             &mut enc_response_len_out,
@@ -60,7 +72,7 @@ pub mod tests {
 
     use esgx::epoch_keeper_u::tests::set_mock_worker_params;
     use esgx::general::init_enclave_wrapper;
-    use enigma_tools_u::web3_utils::keeper_types_u::InputWorkerParams;
+    use keys_u::keeper_types_u::InputWorkerParams;
     use web3::types::{Bytes, H256, U256, Address};
 
     use super::*;
@@ -95,7 +107,7 @@ pub mod tests {
         println!("The mock sig: {:?}", sig);
 
         let request = StateKeyRequest { data: msg, sig: sig };
-        let response = get_enc_state_keys(enclave.geteid(), request).unwrap();
+        let response = get_enc_state_keys(enclave.geteid(), request, None).unwrap();
         println!("Got response: {:?}", response);
         enclave.destroy();
     }

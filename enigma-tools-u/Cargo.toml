@@ -24,7 +24,6 @@ log-derive = "0.2.0"
 # Add more transport layers via features if needed.
 web3 = { git = "https://github.com/tomusdrw/rust-web3.git", default-features = false, features=["http"] }
 ethabi = "6.1.0"
-ethereum-types = "0.4"
 unicase = "=2.2.0"
 
 

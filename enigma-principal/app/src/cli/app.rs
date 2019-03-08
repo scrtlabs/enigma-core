@@ -9,7 +9,7 @@ use sgx_types::sgx_enclave_id_t;
 use structopt::StructOpt;
 
 use boot_network::deploy_scripts;
-use boot_network::epoch_provider::EpochProvider;
+use epoch_u::epoch_provider::EpochProvider;
 use boot_network::principal_manager::{self, ReportManager, PrincipalManager, Sampler};
 use cli;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;

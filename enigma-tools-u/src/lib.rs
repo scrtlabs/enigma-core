@@ -22,7 +22,6 @@ extern crate sgx_urts;
 extern crate log;
 #[macro_use]
 extern crate log_derive;
-extern crate ethereum_types;
 extern crate ethabi;
 
 pub mod attestation_service;

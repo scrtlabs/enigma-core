@@ -5,7 +5,7 @@ use ethereum_types::{H160, H256, H64, U256, U64};
 pub use rlp::{Decodable, decode, DecoderError, UntrustedRlp};
 use std::vec::Vec;
 
-use common::errors_t::EnclaveError;
+use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_crypto::hash::Keccak256;
 
 pub trait FromBigint<T>: Sized {
@@ -54,9 +54,13 @@ pub struct InputWorkerParams {
 
 impl InputWorkerParams {
     /// Run the worker selection algorithm against the current epoch
-    pub fn get_selected_worker(&self, sc_addr: H256, seed: U256) -> Result<Vec<Address>, EnclaveError> {
+    pub fn get_selected_worker(&self, sc_addr: H256, seed: U256) -> Result<Option<Address>, EnclaveError> {
         let worker = self.get_selected_workers(sc_addr, seed, None)?;
-        Ok(worker)
+        if worker.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(worker[0].clone()))
+        }
     }
 
     fn get_selected_workers(&self, sc_addr: H256, seed: U256, group_size: Option<U64>) -> Result<Vec<Address>, EnclaveError> {
@@ -74,7 +78,7 @@ impl InputWorkerParams {
             let hash: [u8; 32] = token.raw_encode()?.keccak256().into();
             let mut rand_val: U256 = U256::from(hash) % balance_sum;
             println!("The initial random value: {:?}", rand_val);
-            let mut selected_worker = self.workers[self.workers.len() - 1];
+            let mut selected_worker = self.workers[self.workers.len() - 1].clone();
             for i in 0..self.workers.len() {
                 let result = rand_val.overflowing_sub(self.stakes[i]);
                 if result.1 == true || result.0 == U256::from(0) {

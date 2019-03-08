@@ -1,9 +1,9 @@
-use ethabi::{Address, Bytes, encode, Hash, Token};
+use ethabi::{Bytes, encode, Hash, Token};
 use ethereum_types::{H160, H256, U256};
 use std::vec::Vec;
 
-use common::errors_t::EnclaveError;
-use eth_tools_t::keeper_types_t::{InputWorkerParams, RawEncodable};
+use enigma_tools_t::common::errors_t::EnclaveError;
+use keys_keeper_t::keeper_types_t::{InputWorkerParams, RawEncodable};
 
 pub type EpochNonce = [u8; 32];
 
@@ -19,8 +19,15 @@ pub struct Epoch {
 }
 
 impl Epoch {
-    pub fn get_selected_worker(&self, sc_addr: H256) -> Result<Vec<Address>, EnclaveError> {
-        let worker = self.worker_params.get_selected_worker(sc_addr, self.seed)?;
+    pub fn get_selected_worker(&self, sc_addr: H256) -> Result<H160, EnclaveError> {
+        let worker = match self.worker_params.get_selected_worker(sc_addr, self.seed)? {
+            Some(worker) => worker,
+            None => {
+                return Err(EnclaveError::WorkerAuthError {
+                    err: format!("Worker selection return nothing.")
+                });
+            }
+        };
         Ok(worker)
     }
 }

@@ -10,9 +10,6 @@ use web3::transports::{EventLoopHandle, Http};
 use web3::types::{Address, Bytes, H160, H256, TransactionReceipt, U256};
 use web3::Web3;
 
-use web3_utils::keeper_types_u::InputWorkerParams;
-use web3_utils::provider_types::Encodable;
-
 use crate::common_u::errors;
 use crate::web3_utils::w3utils;
 
@@ -130,7 +127,7 @@ pub trait ContractQueries {
 
     // getActiveWorkers
     // input: block_number
-    fn get_active_workers(&self, block_number: U256) -> Result<InputWorkerParams, Error>;
+    fn get_active_workers(&self, block_number: U256) -> Result<(Vec<H160>, Vec<U256>), Error>;
 
     // countSecretContracts
     fn count_secret_contracts(&self) -> Result<U256, Error>;
@@ -173,16 +170,10 @@ impl ContractQueries for EnigmaContract {
     }
 
     #[logfn(INFO)]
-    fn get_active_workers(&self, block_number: U256) -> Result<InputWorkerParams, Error> {
+    fn get_active_workers(&self, block_number: U256) -> Result<(Vec<H160>, Vec<U256>), Error> {
         let result: Result<(Vec<Address>, Vec<U256>), web3::contract::Error> = self.w3_contract.query("getActiveWorkers", (block_number), self.account, Options::default(), None).wait();
         let worker_params = match result {
-            Ok(result) => {
-                InputWorkerParams {
-                    block_number,
-                    workers: result.0,
-                    stakes: result.1,
-                }
-            }
+            Ok(result) => result,
             Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getActiveWorkers: {:?}", e) }.into()),
         };
         Ok(worker_params)

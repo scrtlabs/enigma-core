@@ -4,25 +4,27 @@ use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
 use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
+use std::path;
 use std::str;
 use std::string::ToString;
 use std::sync::SgxMutex;
 use std::sync::SgxMutexGuard;
+use std::untrusted::fs;
 use std::vec::Vec;
 
-use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::eth_tools_t::epoch_t::{EpochNonce, Epoch};
-use enigma_tools_t::eth_tools_t::keeper_types_t::{decode, InputWorkerParams, RawEncodable};
-use std::path;
-use ocalls_t;
-use std::untrusted::fs;
-use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
 use enigma_crypto::hash::Keccak256;
-use enigma_tools_t::common::ToHex;
+use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::EthereumAddress;
+use enigma_tools_t::common::ToHex;
+use enigma_tools_t::common::utils_t::LockExpectMutex;
+use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
+use epoch_keeper_t::epoch_t::{Epoch, EpochNonce};
+use keys_keeper_t::keeper_types_t::{decode, InputWorkerParams, RawEncodable};
+use ocalls_t;
 
 use crate::SIGNING_KEY;
+
+pub mod epoch_t;
 
 const INIT_NONCE: uint32_t = 0;
 const EPOCH_DIR: &str = "epoch";
@@ -140,7 +142,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], rand_ou
     Ok(())
 }
 
-pub(crate) fn ecall_get_epoch_workers_internal(sc_addr: Hash, block_number: Option<Uint>) -> Result<(Vec<Address>), EnclaveError> {
+pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: Hash, block_number: Option<Uint>) -> Result<Address, EnclaveError> {
     let guard = EPOCH.lock_expect("Epoch");
     let epoch = match get_epoch(&guard, block_number)? {
         Some(epoch) => epoch,
@@ -151,13 +153,14 @@ pub(crate) fn ecall_get_epoch_workers_internal(sc_addr: Hash, block_number: Opti
         }
     };
     println!("Running worker selection using Epoch: {:?}", epoch);
-    let workers = epoch.get_selected_worker(sc_addr)?;
-    Ok(workers)
+    let worker = epoch.get_selected_worker(sc_addr)?;
+    Ok(worker)
 }
 
 pub mod tests {
+    use ethereum_types::{H160, U256};
+
     use super::*;
-    use ethereum_types::{U256, H160};
 
     //noinspection RsTypeCheck
     pub fn test_get_epoch_workers_internal() {

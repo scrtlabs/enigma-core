@@ -7,9 +7,9 @@ use failure::Error;
 use web3::futures::Future;
 use web3::types::U256;
 
-use boot_network::epoch_provider::EpochProvider;
+use epoch_u::epoch_provider::EpochProvider;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
-use enigma_tools_u::web3_utils::provider_types::EpochMarker;
+use epoch_u::epoch_types::EpochState;
 
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
@@ -33,9 +33,9 @@ impl Principal for EnigmaContract {
         loop {
             let block_number = self.web3.eth().block_number().wait().unwrap();
             let curr_block = block_number.low_u64() as usize;
-            let prev_block = match epoch_provider.get_marker() {
-                Ok(marker) => {
-                    match marker.confirmed_state {
+            let prev_block = match epoch_provider.get_state() {
+                Ok(state) => {
+                    match state.confirmed_state {
                         Some(state) => state.block_number,
                         None => U256::from(0),
                     }

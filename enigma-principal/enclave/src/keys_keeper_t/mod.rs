@@ -1,20 +1,24 @@
-use crate::SIGNING_KEY;
-
 use sgx_trts::trts::rsgx_read_rand;
+use std::{collections::hash_map::RandomState, collections::HashMap, sync::SgxMutex, sync::SgxMutexGuard, vec::Vec};
+use std::path;
 use std::string::ToString;
-use enigma_tools_t::common::errors_t::EnclaveError;
-use crate::epoch_keeper_t::ecall_get_epoch_workers_internal;
+
 use enigma_crypto::asymmetric::KeyPair;
 use enigma_crypto::Encryption;
-use enigma_tools_t::common::{EthereumAddress, ToHex};
-use enigma_tools_t::km_primitives::{PrincipalMessageType, PrincipalMessage};
-use enigma_types::{StateKey, ContractAddress, Hash256};
-use ocalls_t;
-use std::path;
-use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
-use enigma_tools_t::common::utils_t::LockExpectMutex;
-use std::{sync::SgxMutex, sync::SgxMutexGuard, vec::Vec, collections::HashMap, collections::hash_map::RandomState};
 use enigma_crypto::hash::Keccak256;
+use enigma_tools_t::common::{EthereumAddress, ToHex};
+use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::utils_t::LockExpectMutex;
+use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
+use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
+use enigma_types::{ContractAddress, Hash256, StateKey};
+use ocalls_t;
+use ethabi::{decode, Token, ParamType};
+
+use crate::epoch_keeper_t::ecall_get_epoch_worker_internal;
+use crate::SIGNING_KEY;
+
+pub mod keeper_types_t;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
@@ -37,7 +41,11 @@ fn get_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, R
     let mut results: Vec<Option<StateKey>> = Vec::new();
     for addr in sc_addrs {
         let mut key: Option<StateKey> = match guard.get(addr) {
-            Some(key) => Some(key.clone()),
+            Some(key) => {
+                let mut buf: StateKey = [0; 32];
+                buf.copy_from_slice(&key[..]);
+                Some(buf)
+            }
             None => None,
         };
         if key.is_none() {
@@ -91,35 +99,18 @@ fn new_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, R
     Ok(results)
 }
 
-pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
-    // TODO: Break up this function for better readability
-    let msg = PrincipalMessage::from_message(&msg_bytes)?;
-    let req_addrs: Vec<ContractAddress> = match msg.data.clone() {
-        PrincipalMessageType::Request(addrs) => match addrs {
-            Some(addrs) => addrs,
-            None => {
-                return Err(EnclaveError::MessagingError {
-                    err: format!("Empty addresses: {:?}", msg_bytes),
-                });
-            }
-        },
-        _ => {
-            return Err(EnclaveError::MessagingError {
-                err: format!("Unable to deserialize message: {:?}", msg_bytes),
-            });
-        }
-    };
-    let recovered = KeyPair::recover(&msg_bytes, sig)?;
-    println!("Recovered signer address from the message signature: {:?}", recovered.address());
-
-    // TODO: Verify that the worker is selected for all addresses or throw
+fn build_stake_keys_response(_sc_addrs: Option<Vec<ContractAddress>>) -> Result<Vec<(ContractAddress, StateKey)>, EnclaveError> {
     let mut response_data: Vec<(ContractAddress, StateKey)> = Vec::new();
+    if _sc_addrs.is_none() {
+        return Ok(response_data);
+    }
+    let sc_addrs = _sc_addrs.unwrap();
     let mut guard = STATE_KEY_STORE.lock_expect("State Key Store");
-    let keys = get_state_keys(&mut guard, &req_addrs)?;
+    let keys = get_state_keys(&mut guard, &sc_addrs)?;
     let mut new_addrs: Vec<ContractAddress> = Vec::new();
     for (i, key) in keys.iter().enumerate() {
         if key.is_none() {
-            new_addrs.push(req_addrs[i]);
+            new_addrs.push(sc_addrs[i]);
         }
     }
     if !new_addrs.is_empty() {
@@ -127,7 +118,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
         new_state_keys(&mut guard, &new_addrs)?;
     }
     //Now we have keys for all addresses in cache
-    for addr in req_addrs {
+    for addr in sc_addrs {
         match guard.get(&addr) {
             Some(_key) => {
                 let mut key = [0; 32];
@@ -141,6 +132,47 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
             }
         }
     }
+    Ok(response_data)
+}
+
+pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes: Vec<u8>, sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
+    let msg = PrincipalMessage::from_message(&msg_bytes)?;
+    let sc_addrs: Option<Vec<ContractAddress>> = match msg.data.clone() {
+        PrincipalMessageType::Request(addrs) => match addrs {
+            Some(addrs) => Some(addrs),
+            None => {
+                let sc_addrs;
+                if addrs_bytes == vec![0] {
+                    sc_addrs = None;
+                } else {
+                    let tokens = match decode(&vec![ParamType::FixedBytes(256)], &addrs_bytes) {
+                        Ok(tokens) => tokens,
+                        Err(err) => {
+                            return Err(EnclaveError::MessagingError {
+                                err: format!("Unable to deserialize contract addresses: {:?}", addrs_bytes),
+                            });
+                        }
+                    };
+                    sc_addrs = Some(tokens.into_iter().map(|t| {
+                        let mut sc_addr: ContractAddress = Hash256::from([0; 32]);
+                        sc_addr.copy_from_slice(&t.to_fixed_bytes().unwrap());
+                        sc_addr
+                    }).collect());
+                }
+                sc_addrs
+            }
+        },
+        _ => {
+            return Err(EnclaveError::MessagingError {
+                err: format!("Unable to deserialize message: {:?}", msg_bytes),
+            });
+        }
+    };
+    let recovered = KeyPair::recover(&msg_bytes, sig)?;
+    println!("Recovered signer address from the message signature: {:?}", recovered.address());
+    // TODO: Verify that the worker is selected for all addresses or throw
+    let response_data = build_stake_keys_response(sc_addrs)?;
+
     // Generate the encryption key material
     let mut rand_num: [u8; 1072] = [0; 1072];
     rsgx_read_rand(&mut rand_num)?;
@@ -175,8 +207,9 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, sig: [u8; 65
 }
 
 pub mod tests {
-    use super::*;
     use enigma_tools_t::common::FromHex;
+
+    use super::*;
 
     //noinspection RsTypeCheck
     pub fn test_state_keys_storage() {

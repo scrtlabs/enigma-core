@@ -3,8 +3,8 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, U256};
 
 use common_u::errors::EnclaveFailError;
-use enigma_tools_u::web3_utils::keeper_types_u::InputWorkerParams;
-use enigma_tools_u::web3_utils::provider_types::{Encodable, encode, EpochMarker};
+use keys_u::keeper_types_u::InputWorkerParams;
+use epoch_u::epoch_types::{Encodable, encode, EpochState};
 use enigma_types::EnclaveReturn;
 
 extern {
@@ -14,14 +14,14 @@ extern {
                                sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
 
-/// Returns an EpochMarker object 32 bytes signed random seed and an incremented account nonce.
+/// Returns an EpochState object 32 bytes signed random seed and an incremented account nonce.
 /// # Examples
 /// ```
 /// let enclave = esgx::general::init_enclave().unwrap();
 /// let worker_params = web3.get_worker_params(block_number);
 /// let sig = set_worker_params(enclave.geteid(), worker_params).unwrap();
 /// ```
-pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams) -> Result<EpochMarker, Error> {
+pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams) -> Result<EpochState, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut nonce_out: [u8; 32] = [0; 32];
     let mut rand_out: [u8; 32] = [0; 32];
@@ -45,7 +45,7 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams
     let seed = U256::from_big_endian(&rand_out);
     let sig = Bytes(sig_out.to_vec());
     let nonce = U256::from_big_endian(&nonce_out);
-    Ok(EpochMarker::new(seed, sig, nonce))
+    Ok(EpochState::new(seed, sig, nonce))
 }
 
 #[cfg(test)]
@@ -74,7 +74,7 @@ pub mod tests {
         enclave
     }
 
-    pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t) -> (EpochMarker) {
+    pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t) -> (EpochState) {
         let worker_params = InputWorkerParams {
             block_number: U256::from(1),
             workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],

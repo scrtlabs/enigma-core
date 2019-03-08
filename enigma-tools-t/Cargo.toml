@@ -14,8 +14,6 @@ failure = { version = "0.1", default-features = false, features = ["derive"] }
 etcommon-rlp = {version = "0.2", default-features = false}
 etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
-ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "sgx-v6.1.0", default-features = false}
-ethereum-types = { git = "https://github.com/enigmampc/primitives.git", rev = "sgx-v0.4.0", default-features = false}
 
 parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
 pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", default-features = false }

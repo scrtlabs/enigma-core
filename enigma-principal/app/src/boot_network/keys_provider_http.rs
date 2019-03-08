@@ -7,69 +7,19 @@ use jsonrpc_http_server::cors::AccessControlAllowOrigin;
 use jsonrpc_http_server::DomainsValidation;
 use jsonrpc_http_server::jsonrpc_core::{Error as ServerError, ErrorCode, IoHandler, Params, Value};
 use jsonrpc_http_server::ServerBuilder;
-use rmp_serde::{Deserializer, Serializer};
-use rustc_hex::FromHex;
-use rustc_hex::ToHex;
+use rustc_hex::{FromHex, ToHex};
 use serde::{Deserialize, Serialize};
 use sgx_types::sgx_enclave_id_t;
 
-use boot_network::epoch_provider::EpochProvider;
+use epoch_u::epoch_provider::EpochProvider;
 use enigma_types::{ContractAddress, StateKey};
 use esgx::keys_keeper_u::get_enc_state_keys;
+use ethereum_types::H256;
+use keys_u::km_reader::PrincipalMessageReader;
+use epoch_u::epoch_types::EpochState;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub enum PrincipalMessageType {
-    Request(Option<Vec<ContractAddress>>),
-}
-
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
-pub struct PrincipalMessage {
-    prefix: [u8; 14],
-    pub data: PrincipalMessageType,
-    pubkey: Vec<u8>,
-    id: [u8; 12],
-}
-
-pub struct PrincipalMessageTranslator {
-    pub request: Vec<u8>,
-    principal_message: PrincipalMessage,
-}
-
-impl PrincipalMessageTranslator {
-    pub fn new(request: Vec<u8>) -> Result<Self, Error> {
-        let principal_message = PrincipalMessageTranslator::deserialize(&request)?;
-        Ok(PrincipalMessageTranslator { request, principal_message })
-    }
-
-    pub fn deserialize(msg: &[u8]) -> Result<PrincipalMessage, Error> {
-        let mut des = Deserializer::new(&msg[..]);
-        let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
-        println!("The deserialized message: {:?}", res);
-        let msg: PrincipalMessage = serde_json::from_value(res).unwrap();
-        Ok(msg)
-    }
-
-    pub fn get_data(&self) -> Result<Option<Vec<ContractAddress>>, Error> {
-        let data = match self.principal_message.data.clone() {
-            PrincipalMessageType::Request(data) => data,
-            _ => bail!("Invalid Principal message request"),
-        };
-        Ok(data)
-    }
-
-    pub fn insert_contract_addresses(&self, addrs: Vec<ContractAddress>) -> Result<Vec<u8>, Error> {
-        let mut buf = Vec::new();
-        let mut principal_message = self.principal_message.clone();
-        let val = match serde_json::to_value(principal_message) {
-            Ok(val) => val,
-            Err(err) => bail!("Cannot serialize modified Principal message: {:?}", err),
-        };
-        val.serialize(&mut Serializer::new(&mut buf))?;
-        Ok(buf)
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StringWrapper(pub String);
@@ -131,9 +81,28 @@ impl PrincipalHttpServer {
         PrincipalHttpServer { epoch_provider, port: port.to_string() }
     }
 
-    fn get_state_keys_internal(request: StateKeyRequest, eid: sgx_enclave_id_t) -> Result<Value, Error> {
+    fn find_epoch_contract_addresses(reader: PrincipalMessageReader, sig: [u8; 65], epoch_state: EpochState) -> Result<Vec<H256>, Error> {
+        let worker = reader.get_signing_address(sig)?;
+        let addrs = epoch_state.get_contract_addresses(&worker)?;
+        Ok(addrs)
+    }
+
+    fn get_state_keys_internal(epoch_provider: Arc<EpochProvider>, request: StateKeyRequest, eid: sgx_enclave_id_t) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
-        let response = get_enc_state_keys(eid, request)?;
+        let reader = PrincipalMessageReader::new(request.data.clone().into())?;
+        let addrs = reader.get_contract_addresses()?;
+        let response = match addrs {
+            Some(addrs) => {
+                println!("Found addresses in message: {:?}", addrs);
+                get_enc_state_keys(eid, request, None)?
+            }
+            None => {
+                println!("No addresses in message, reading from epoch state...");
+                let epoch_state = epoch_provider.get_state()?;
+                let epoch_addrs = Self::find_epoch_contract_addresses(reader, request.sig.clone().into(), epoch_state)?;
+                get_enc_state_keys(eid, request, Some(epoch_addrs))?
+            }
+        };
         let response_data = serde_json::to_value(&response)?;
         Ok(response_data)
     }
@@ -145,11 +114,12 @@ impl PrincipalHttpServer {
     ///
     pub fn start(&self) {
         let mut io = IoHandler::default();
-        let child_eid = Arc::clone(&self.epoch_provider.eid);
+        let epoch_provider = Arc::clone(&self.epoch_provider);
         io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
+            let epoch_provider = epoch_provider.clone();
             let request = params.parse::<StateKeyRequest>()?;
-            let eid = child_eid.load(Ordering::SeqCst);
-            let body = match PrincipalHttpServer::get_state_keys_internal(request, eid) {
+            let eid = epoch_provider.eid.load(Ordering::SeqCst);
+            let body = match Self::get_state_keys_internal(epoch_provider, request, eid) {
                 Ok(body) => body,
                 Err(err) => return Err(ServerError { code: ErrorCode::InternalError, message: format!("Unable to get keys: {:?}", err), data: None }),
             };
@@ -168,24 +138,30 @@ impl PrincipalHttpServer {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use keys_u::km_reader::test::{sign_message, WORKER_SIGN_ADDRESS};
+    use std::collections::HashMap;
+    use ethereum_types::{H160, U256};
+    use web3::types::Bytes;
+    use epoch_u::epoch_types::ConfirmedEpochState;
     use rustc_hex::FromHex;
-    use boot_network::keys_provider_http::{PrincipalHttpServer, PrincipalMessageTranslator};
-    use enigma_types::ContractAddress;
 
     #[test]
-    pub fn test_decode_message() {
+    pub fn test_find_epoch_contract_addresses() {
         let msg = vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let processor = PrincipalMessageTranslator::new(msg).unwrap();
-        let data = processor.get_data().unwrap();
-        println!("The decoded Principal request: {:?}", data);
-    }
-
-    #[test]
-    pub fn test_insert_secret_contract_addresses() {
-        let msg = vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let processor = PrincipalMessageTranslator::new(msg).unwrap();
-        let addrs: Vec<ContractAddress> = vec![[0u8; 32].into(), [1u8; 32].into(), [2u8; 32].into()];
-        let out_msg = processor.insert_contract_addresses(addrs).unwrap();
-        println!("The Principal message request with addresses: {:?}", out_msg);
+        let sig = sign_message(&msg).unwrap();
+        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(sig.to_vec().to_hex()) };
+        let reader = PrincipalMessageReader::new(request.data.clone().into()).unwrap();
+        let mut selected_workers: HashMap<H256, H160> = HashMap::new();
+        selected_workers.insert(H256([0; 32]), H160(WORKER_SIGN_ADDRESS));
+        let block_number = U256::from(1);
+        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+        let seed = U256::from(1);
+        let sig = Bytes::from(sig.to_vec());
+        let nonce = U256::from(0);
+        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        let results = PrincipalHttpServer::find_epoch_contract_addresses(reader, request.sig.into(), epoch_state).unwrap();
+        println!("Found contract addresses: {:?}", results);
+        assert_eq!(results, vec![H256([0; 32])])
     }
 }

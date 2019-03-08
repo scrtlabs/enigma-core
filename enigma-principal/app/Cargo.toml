@@ -10,6 +10,7 @@ enigma-tools-u = {path = "../../enigma-tools-u"}
 enigma-crypto = { path = "../../enigma-crypto" }
 
 ethabi = "6.0.1"
+ethereum-types = "0.4"
 base64 = "0.10.0"
 libc = "0.2.41"
 etcommon-rlp = "0.2"

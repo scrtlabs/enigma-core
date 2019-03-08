@@ -31,6 +31,8 @@ extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
 extern crate enigma_crypto;
+extern crate bigint;
+extern crate rlp;
 
 use sgx_types::sgx_target_info_t;
 use sgx_types::sgx_report_t;
@@ -93,11 +95,13 @@ pub unsafe extern "C" fn ecall_set_worker_params(worker_params_rlp: *const u8, w
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize, sig: &[u8; 65],
+pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize,
+                                                  addrs: *const u8, addrs_len: usize, sig: &[u8; 65],
                                                   enc_response_out: *mut u8, enc_response_len: &mut usize,
                                                   sig_out: &mut [u8; 65]) -> EnclaveReturn {
     let msg_bytes = slice::from_raw_parts(msg, msg_len).to_vec();
-    let response = match ecall_get_enc_state_keys_internal(msg_bytes, sig.clone(), sig_out) {
+    let addrs_bytes = slice::from_raw_parts(addrs, addrs_len).to_vec();
+    let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, sig.clone(), sig_out) {
         Ok(response) => response,
         Err(err) => return err.into(),
     };

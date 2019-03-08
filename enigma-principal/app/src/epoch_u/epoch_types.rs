@@ -6,7 +6,8 @@ use failure::Error;
 pub use rlp::{decode, Encodable, encode, RlpStream};
 use web3::types::{Address, Bytes, H160, H2048, H256, H64, U256};
 
-use web3_utils::keeper_types_u::InputWorkerParams;
+use keys_u::keeper_types_u::InputWorkerParams;
+use std::clone::Clone;
 
 pub trait IntoBigint<T> {
     fn bigint(self) -> T;
@@ -35,19 +36,19 @@ impl Encodable for InputWorkerParams {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ConfirmedEpochState {
-    pub selected_workers: HashMap<H256, Address>,
+    pub selected_workers: HashMap<H256, H160>,
     pub block_number: U256,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct EpochMarker {
+pub struct EpochState {
     pub seed: U256,
     pub sig: Bytes,
     pub nonce: U256,
     pub confirmed_state: Option<ConfirmedEpochState>,
 }
 
-impl EpochMarker {
+impl EpochState {
     pub fn new(seed: U256, sig: Bytes, nonce: U256) -> Self {
         Self { seed, sig, nonce, confirmed_state: None }
     }
@@ -74,6 +75,23 @@ impl EpochMarker {
         }
         self.confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
         Ok(())
+    }
+
+    /// Get the contract address that the worker is selected to work on during this epoch
+    pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<H256>, Error> {
+        let addrs = match self.confirmed_state.clone() {
+            Some(state) => {
+                let mut addrs: Vec<H256> = Vec::new();
+                for (addr, account) in state.selected_workers {
+                   if account == *worker {
+                       addrs.push(addr.clone());
+                   }
+                }
+                addrs
+            },
+            None => bail!("Cannot get contract addresses until the EpochState is confirmed."),
+        };
+        Ok(addrs)
     }
 }
 

@@ -33,6 +33,7 @@ extern crate tokio_core;
 extern crate url;
 extern crate web3;
 extern crate rmp_serde;
+extern crate ethereum_types;
 
 use simplelog::CombinedLogger;
 use structopt::StructOpt;
@@ -45,6 +46,8 @@ mod cli;
 mod common_u;
 mod esgx;
 mod logging;
+mod epoch_u;
+mod keys_u;
 
 pub use esgx::general::ocall_get_home;
 

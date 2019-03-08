@@ -59,7 +59,7 @@ impl InputWorkerParams {
         if worker.is_empty() {
             Ok(None)
         } else {
-            Ok(Some(worker[0]))
+            Ok(Some(worker[0].clone()))
         }
     }
 
@@ -78,7 +78,7 @@ impl InputWorkerParams {
             let hash: [u8; 32] = token.raw_encode()?.keccak256().into();
             let mut rand_val: U256 = U256::from(hash) % balance_sum;
             println!("The initial random value: {:?}", rand_val);
-            let mut selected_worker = self.workers[self.workers.len() - 1];
+            let mut selected_worker = self.workers[self.workers.len() - 1].clone();
             for i in 0..self.workers.len() {
                 let result = rand_val.overflowing_sub(self.stakes[i]);
                 if result.1 == true || result.0 == U256::from(0) {

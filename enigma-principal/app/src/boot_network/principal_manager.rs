@@ -17,7 +17,7 @@ use web3::types::{Address, H160, H256, U256};
 use web3::Web3;
 
 use boot_network::deploy_scripts;
-use boot_network::epoch_provider::EpochProvider;
+use epoch_u::epoch_provider::EpochProvider;
 use boot_network::keys_provider_http::PrincipalHttpServer;
 use boot_network::principal_utils::Principal;
 use enigma_tools_u::attestation_service::service;
@@ -291,7 +291,7 @@ mod test {
         let block_number = principal.get_web3().eth().block_number().wait().unwrap();
         let eid_safe = Arc::new(AtomicU64::new(eid));
         let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone()).unwrap();
-        epoch_provider.reset_epoch_marker().unwrap();
+        epoch_provider.reset_epoch_state().unwrap();
         epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();
         assert_eq!(true, true);
     }
