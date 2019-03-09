@@ -31,6 +31,7 @@ impl PrincipalMessageReader {
         Ok(PrincipalMessageReader { request, principal_message })
     }
 
+    #[logfn(DEBUG)]
     fn deserialize(msg: &[u8]) -> Result<PrincipalMessage, Error> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
@@ -39,6 +40,7 @@ impl PrincipalMessageReader {
         Ok(msg)
     }
 
+    #[logfn(DEBUG)]
     pub fn get_signing_address(&self, sig: [u8; 65]) -> Result<H160, Error> {
         let recovered = KeyPair::recover(&self.request, sig)?;
         let mut buf = [0u8; 20];

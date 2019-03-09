@@ -50,6 +50,7 @@ impl EpochProvider {
         Ok(())
     }
 
+    #[logfn(DEBUG)]
     fn read_epoch_state() -> Result<Option<EpochState>, Error> {
         let epoch_state = match File::open(Self::get_state_file_path()) {
             Ok(mut f) => {
@@ -84,6 +85,7 @@ impl EpochProvider {
         Ok(())
     }
 
+    #[logfn(DEBUG)]
     fn parse_worker_parameterized(&self, receipt: &TransactionReceipt) -> Result<(Log), Error> {
         let log = receipt.logs[0].clone();
         let raw_log = RawLog { topics: log.topics, data: log.data.0 };
@@ -109,6 +111,7 @@ impl EpochProvider {
         Ok(epoch_state)
     }
 
+    #[logfn(DEBUG)]
     fn set_epoch_state(&self, epoch_state: Option<EpochState>) -> Result<(), Error> {
         println!("Replacing EpochMaker mutex: {:?}", epoch_state);
         let mut guard = match self.epoch_state.try_lock() {

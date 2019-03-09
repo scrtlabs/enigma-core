@@ -168,6 +168,7 @@ impl Sampler for PrincipalManager {
         Ok(receipt.transaction_hash)
     }
 
+    #[logfn(DEBUG)]
     fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error> {
         let signing_address = self.get_signing_address()?;
         let enclave_signing_address: H160 = signing_address.parse()?;
@@ -181,6 +182,7 @@ impl Sampler for PrincipalManager {
         }
     }
 
+    #[logfn(INFO)]
     fn run<G: Into<U256>>(&self, gas_limit: G) -> Result<(), Error> {
         let gas_limit: U256 = gas_limit.into();
         self.verify_identity_or_register(gas_limit)?;
@@ -189,11 +191,6 @@ impl Sampler for PrincipalManager {
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<AtomicU64> = Arc::new(AtomicU64::new(self.eid));
         let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone())?);
-//        let filter_ep = Arc::clone(&epoch_provider);
-//        thread::spawn(move || {
-//            println!("Starting the worker parameters watcher in child thread");
-//            filter_ep.filter_worker_params();
-//        });
 
         // Start the JSON-RPC Server
         let port = self.config.http_port.clone();

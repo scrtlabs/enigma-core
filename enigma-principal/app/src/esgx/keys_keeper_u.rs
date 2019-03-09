@@ -25,6 +25,7 @@ const MAX_ENC_RESPONSE_LEN: usize = 100_000;
 /// let enclave = esgx::general::init_enclave().unwrap();
 /// let response: EpochSeed = get_enc_state_keys(enclave.geteid(), request).unwrap();
 /// ```
+#[logfn(DEBUG)]
 pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_addrs: Option<Vec<H256>>) -> Result<StateKeyResponse, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];

@@ -54,6 +54,7 @@ impl EpochState {
     }
 
     /// Build a local mapping of smart contract address => selected worker for the epoch
+    #[logfn(DEBUG)]
     pub fn confirm(&mut self, worker_params: &InputWorkerParams, sc_addresses: Vec<H256>) -> Result<(), Error> {
         println!("Confimed epoch with worker params: {:?}", worker_params);
         let block_number = worker_params.block_number.clone();
@@ -78,17 +79,18 @@ impl EpochState {
     }
 
     /// Get the contract address that the worker is selected to work on during this epoch
+    #[logfn(DEBUG)]
     pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<H256>, Error> {
         let addrs = match self.confirmed_state.clone() {
             Some(state) => {
                 let mut addrs: Vec<H256> = Vec::new();
                 for (addr, account) in state.selected_workers {
-                   if account == *worker {
-                       addrs.push(addr.clone());
-                   }
+                    if account == *worker {
+                        addrs.push(addr.clone());
+                    }
                 }
                 addrs
-            },
+            }
             None => bail!("Cannot get contract addresses until the EpochState is confirmed."),
         };
         Ok(addrs)

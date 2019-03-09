@@ -63,6 +63,7 @@ impl InputWorkerParams {
         }
     }
 
+    #[logfn(DEBUG)]
     fn get_selected_workers(&self, sc_addr: H256, seed: U256, group_size: Option<U64>) -> Result<Vec<Address>, Error> {
         let workers = self.workers.to_vec();
         let mut balance_sum: U256 = U256::from(0);
