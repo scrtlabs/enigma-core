@@ -7,7 +7,7 @@ use std::string::*;
 use std::untrusted::fs::remove_file;
 use std::untrusted::fs::File;
 use enigma_crypto::asymmetric;
-use crate::common::errors_t::EnclaveError;
+use crate::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
 
 pub const SEALING_KEY_SIZE: usize = 32;
 pub const SEAL_LOG_SIZE: usize = 2048;
@@ -130,7 +130,7 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
         }
         Err(err) => {
             if err.kind() == io::ErrorKind::PermissionDenied {
-                return Err(EnclaveError::PermissionError { file: sealed_path.to_string() });
+                return Err(SystemError(PermissionError { file: sealed_path.to_string() }));
             }
         }
     }
