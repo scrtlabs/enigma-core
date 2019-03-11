@@ -55,7 +55,7 @@ use enigma_runtime_t::data::{ContractState, StatePatch, EncryptedPatch};
 use enigma_runtime_t::EthereumData;
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
-use enigma_tools_t::common::{errors_t::EnclaveError, LockExpectMutex, EthereumAddress};
+use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError, FailedTaskError::*}, LockExpectMutex, EthereumAddress};
 use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
 use wasm_utils::{build, SourceTarget};
@@ -233,7 +233,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
         *signature = SIGNING_KEY.sign_multiple(&[&callable_args[..], &callback_data, &bytecode])?;
     } else {
         debug_println!("Callback cannot be empty");
-        return Err(EnclaveError::InputError { message: "Callback cannot be empty".to_string() });
+        return Err(FailedTaskError(InputError { message: "Callback cannot be empty".to_string() }));
     }
 
     match res.0 {
@@ -244,7 +244,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
         }
         _ => {
             debug_println!("Error in EVM execution");
-            Err(EnclaveError::EvmError { err: "Error in EVM execution".to_string() })
+            Err(FailedTaskError(EvmError { err: "Error in EVM execution".to_string() }))
         }
     }
 }
@@ -301,7 +301,7 @@ fn sign_if_error (pre_execution_data: &[Box<[u8]>], internal_result: &mut Enclav
             result.signature = v;
         }
         Err(e) => {
-            *internal_result = EnclaveError::CryptoError{err: e};
+            *internal_result = SystemError(EnclaveSystemError::CryptoError{err: e});
         }
     }
 }
@@ -322,7 +322,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
 
     let (decrypted_args, _decrypted_callable, types, function_name, key) =
         decrypt_inputs(callable, args, user_key).
-            map_err(|e| {EnclaveError::InputError{ message: format!("{}", e) }})?;
+            map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone())?;
 
@@ -405,7 +405,7 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
 
     let deploy_bytecode = build_constructor(bytecode)?;
     let (decrypted_args, _, _types, _, _) = decrypt_inputs(constructor, args, user_key).
-        map_err(|e| {EnclaveError::InputError{ message: format!("{}", e) }})?;
+        map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let state = ContractState::new(address);
 

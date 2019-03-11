@@ -1,5 +1,5 @@
 use crate::data::{EncryptedContractState, EncryptedPatch};
-use enigma_tools_t::common::errors_t::EnclaveError::{self, OcallError};
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
 use enigma_types::{ContractAddress, EnclaveReturn, traits::SliceCPtr, RawPointer};
 use sgx_types::sgx_status_t;
 use std::string::ToString;
@@ -26,11 +26,11 @@ pub fn save_state(db_ptr: *const RawPointer, enc: &EncryptedContractState<u8>) -
     let res_status: sgx_status_t = unsafe { ocall_update_state(&mut retval, db_ptr, &enc.contract_address, enc.json.as_c_ptr(), enc.json.len()) };
     match retval {
         EnclaveReturn::Success => (), // 0 is the OK result
-        _ => return Err(OcallError { command: "ocall_update_state".to_string(), err: format!("return result is: {}", &retval) }),
+        _ => return Err(SystemError(OcallError { command: "ocall_update_state".to_string(), err: format!("return result is: {}", &retval) })),
     }
     match res_status {
         sgx_status_t::SGX_SUCCESS => Ok(()),
-        _ => Err(OcallError { command: "ocall_update_state".to_string(), err: res_status.__description().to_string() }),
+        _ => Err(SystemError(OcallError { command: "ocall_update_state".to_string(), err: res_status.__description().to_string() })),
     }
 }
 
@@ -42,14 +42,14 @@ pub fn save_delta(db_ptr: *const RawPointer, enc: &EncryptedPatch) -> Result<(),
     match res {
         EnclaveReturn::Success => (), // 0 is the OK result
         EnclaveReturn::OcallDBError => {
-            return Err(OcallError { command: "ocall_new_delta".to_string(), err: "key already exist".to_string() })
+            return Err(SystemError(OcallError { command: "ocall_new_delta".to_string(), err: "key already exist".to_string() }))
         }
-        _ => return Err(OcallError { command: "ocall_new_delta".to_string(), err: format!("return result is: {}", &res) }),
+        _ => return Err(SystemError(OcallError { command: "ocall_new_delta".to_string(), err: format!("return result is: {}", &res) })),
     }
 
     match res_status {
         sgx_status_t::SGX_SUCCESS => Ok(()),
-        _ => Err(OcallError { command: "ocall_new_delta".to_string(), err: res_status.__description().to_string() }),
+        _ => Err(SystemError(OcallError { command: "ocall_new_delta".to_string(), err: res_status.__description().to_string() })),
     }
 }
 
@@ -58,18 +58,18 @@ pub fn get_state(db_ptr: *const RawPointer, contract_address: ContractAddress) -
     let mut state_len = 0usize;
     let status = unsafe { ocall_get_state_size(&mut retval, db_ptr, &contract_address, &mut state_len) };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveError::OcallError {
+        return Err(SystemError(OcallError {
             command: "get_state_size".to_string(),
             err: format!("Error with SGX, retval: {}, status: {:?}", retval, status),
-        });
+        }));
     }
     let mut state = vec![0u8; state_len];
     let status = unsafe { ocall_get_state(&mut retval, db_ptr, &contract_address, state.as_mut_ptr(), state_len) };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveError::OcallError {
+        return Err(SystemError(OcallError {
             command: "get_state".to_string(),
             err: format!("Error with SGX, retval: {}, status: {:?}", retval, status),
-        });
+        }));
     }
 
     Ok(EncryptedContractState { contract_address, json: state })
@@ -82,19 +82,19 @@ pub fn get_deltas(db_ptr: *const RawPointer, contract_address: ContractAddress, 
     let status =
         unsafe { ocall_get_deltas_sizes(&mut retval, db_ptr, &contract_address, &start as *const u32, &end as *const u32, deltas_buff.as_mut_ptr(), len) };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveError::OcallError {
+        return Err(SystemError(OcallError {
             command: "get_deltas".to_string(),
             err: format!("Error with SGX, retval: {}, status: {:?}", retval, status),
-        });
+        }));
     }
     let mut deltas: Vec<u8> = deltas_buff.iter().map(|len| vec![0u8; (*len) as usize]).flatten().collect();
     let status =
         unsafe { ocall_get_deltas(&mut retval, db_ptr, &contract_address, &start as *const u32, &end as *const u32, deltas.as_mut_ptr(), deltas.len()) };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveError::OcallError {
+        return Err(SystemError(OcallError {
             command: "get_deltas".to_string(),
             err: format!("Error with SGX, retval: {}, status: {:?}", retval, status),
-        });
+        }));
     }
 
     let mut result = Vec::new();

@@ -1,5 +1,5 @@
 use crate::data::{DeltasInterface, IOInterface, StatePatch};
-use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
 use enigma_types::{ContractAddress, StateKey};
 use enigma_crypto::{symmetric, Encryption};
 use enigma_types::Hash256;
@@ -51,7 +51,7 @@ impl IOInterface<EnclaveError, u8> for ContractState {
 impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
     fn apply_delta(&mut self, delta: &StatePatch) -> Result<(), EnclaveError> {
         if delta.previous_hash != self.delta_hash {
-            return Err(EnclaveError::StateError { err: "Applying the delta".to_string() });
+            return Err(SystemError(StateError { err: "Applying the delta".to_string() }));
         }
         json_patch::patch(&mut self.json, &delta.patch)?;
         self.delta_hash = delta.sha256_patch()?;

@@ -20,7 +20,7 @@ extern crate serde;
 extern crate wasmi;
 
 use crate::data::{ContractState, DeltasInterface, IOInterface, StatePatch};
-use enigma_tools_t::common::errors_t::{EnclaveError, WasmError};
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError};
 use enigma_types::ContractAddress;
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
@@ -221,7 +221,7 @@ impl Runtime {
                 self.memory.set(ptr, &buf[..])?;
                 Ok(())
             },
-            Err(e) => Err(EnclaveError::SgxError{ err: format!("{}", e), description: e.__description().to_string() })?
+            Err(e) => Err(SystemError(SgxError{ err: format!("{}", e), description: e.__description().to_string() }))?
         }
     }
 
