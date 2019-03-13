@@ -195,47 +195,29 @@ impl ResultToEnclaveReturn for EnclaveError {
     fn into_enclave_return(self) -> EnclaveReturn { self.into() }
 }
 
-impl Into<EnclaveReturn> for FailedTaskError {
-    fn into(self) -> EnclaveReturn {
-        use self::FailedTaskError::*;
-        match self {
-            InputError { .. } => EnclaveReturn::InputError,
-            WasmModuleCreationError { .. } => EnclaveReturn::WasmModuleError,
-            EvmError { .. } => EnclaveReturn::EVMError,
-            WasmCodeExecutionError { .. } => EnclaveReturn::WasmCodeExecutionError,
-            GasLimitError => EnclaveReturn::GasLimitError,
-        }
-    }
-}
-
-impl Into<EnclaveReturn> for EnclaveSystemError {
-    fn into(self) -> EnclaveReturn {
-        use self::EnclaveSystemError::*;
-        use self::CryptoError::*;
-        match self {
-            PermissionError { .. } => EnclaveReturn::PermissionError,
-            SgxError { .. } => EnclaveReturn::SgxError,
-            StateError { .. } => EnclaveReturn::StateError,
-            OcallError { .. } => EnclaveReturn::OcallError,
-            MessagingError { .. } => EnclaveReturn::MessagingError,
-            CryptoError{err} => match err {
-                RandomError { .. } => EnclaveReturn::SgxError,
-                DerivingKeyError { .. } | KeyError { .. } | MissingKeyError { .. } => EnclaveReturn::KeysError,
-                DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption |
-                ParsingError { ..} | RecoveryError { .. } => EnclaveReturn::EncryptionError,
-            }
-
-        }
-    }
-}
-
-
 impl Into<EnclaveReturn> for EnclaveError {
     fn into(self) -> EnclaveReturn {
         use self::EnclaveError::*;
         match self {
-            FailedTaskError {..} => self.into(),
-            SystemError {..} => self.into(),
+            FailedTaskError {..} => EnclaveReturn::TaskFailure,
+            SystemError(e) => {
+                use self::EnclaveSystemError::*;
+                use self::CryptoError::*;
+                match e {
+                    PermissionError { .. } => EnclaveReturn::PermissionError,
+                    SgxError { .. } => EnclaveReturn::SgxError,
+                    StateError { .. } => EnclaveReturn::StateError,
+                    OcallError { .. } => EnclaveReturn::OcallError,
+                    MessagingError { .. } => EnclaveReturn::MessagingError,
+                    CryptoError{err} => match err {
+                        RandomError { .. } => EnclaveReturn::SgxError,
+                        DerivingKeyError { .. } | KeyError { .. } | MissingKeyError { .. } => EnclaveReturn::KeysError,
+                        DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption |
+                        ParsingError { ..} | RecoveryError { .. } => EnclaveReturn::EncryptionError,
+                    }
+                 }
+
+             }
         }
     }
 }
