@@ -11,13 +11,9 @@ pub type PubKey = [u8; 64];
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnclaveReturn {
     Success,
-    WasmCodeExecutionError,
-    GasLimitError,
-    WasmModuleError,
-    EVMError,
+    TaskFailure,
     KeysError,
     EncryptionError,
-    InputError,
     SigningError,
     PermissionError,
     SgxError,
@@ -139,13 +135,9 @@ impl fmt::Display for EnclaveReturn {
         use self::EnclaveReturn::*;
         let p = match *self {
             Success => "EnclaveReturn: Success",
-            WasmCodeExecutionError => "EnclaveReturn: WasmCodeExecutionError",
-            GasLimitError => "EnclaveReturn: GasLimitError",
-            WasmModuleError => "EnclaveReturn: WasmModuleError",
-            EVMError => "EnclaveReturn: EVMError",
+            TaskFailure => "EnclaveReturn: Task failure",
             KeysError => "EnclaveReturn: KeysError",
             EncryptionError => "EnclaveReturn: EncryptionError",
-            InputError => "EnclaveReturn: InputError",
             SigningError => "EnclaveReturn: SigningError",
             PermissionError => "EnclaveReturn: PermissionError",
             SgxError => "EnclaveReturn: SgxError",
