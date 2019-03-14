@@ -25,5 +25,5 @@ unicase = "=2.2.0"
 web3 = { git = "https://github.com/tomusdrw/rust-web3.git", default-features = false, features=["http"] }
 
 
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.6" }
+sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.6" }
