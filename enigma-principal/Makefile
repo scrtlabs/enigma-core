@@ -96,7 +96,7 @@ RustEnclave_Name := enclave/enclave.so
 Signed_RustEnclave_Name := bin/enclave.signed.so
 
 .PHONY: all
-all: $(App_Name) $(Signed_RustEnclave_Name)
+all: $(Signed_RustEnclave_Name)
 
 ######## EDL Objects ########
 
@@ -108,13 +108,11 @@ $(Enclave_EDL_Files): $(SGX_EDGER8R) enclave/Enclave.edl
 ######## App Objects ########
 
 app/Enclave_u.o: $(Enclave_EDL_Files)
-	cp ../enigma-core/enclave/enigma-types.* ./enclave
 	@$(CC) $(App_C_Flags) -c app/Enclave_u.c -o $@
 	@echo "CC   <=  $<"
 
 $(App_Enclave_u_Object): app/Enclave_u.o
 	$(AR) rcsD $@ $^
-	mkdir -p ./lib
 	cp $(App_Enclave_u_Object) ./lib
 
 $(App_Name): $(App_Enclave_u_Object) $(App_SRC_Files)
@@ -151,15 +149,15 @@ compiler-rt:
 
 .PHONY: test
 test: all
-	@cd app && cargo test
+	@cd app && cargo test $(App_Rust_Flags)
 
 .PHONY: clean
 clean:
-	@rm -f bin/$(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
+	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
 
 .PHONY: full-clean
 full-clean:
-	@rm -f bin/$(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
+	@rm -f ./bin/$(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
 	@rm -rf enclave/enigma-types.h app/enigma-types.h
 	@cd enclave && cargo clean && rm -f Cargo.lock
 	@cd app && cargo clean && rm -f Cargo.lock
