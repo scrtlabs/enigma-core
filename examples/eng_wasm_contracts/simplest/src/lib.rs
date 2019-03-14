@@ -1,6 +1,4 @@
 #![no_std]
-#![feature(proc_macro_gen)]
-#![feature(proc_macro_non_items)]
 
 extern crate eng_wasm;
 extern crate eng_wasm_derive;

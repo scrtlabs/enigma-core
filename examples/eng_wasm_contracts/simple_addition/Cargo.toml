@@ -16,3 +16,5 @@ lto = true                  # Link Time Optimization usually reduces size of bin
                             # If true, passes `-C lto` flag to the compiler
 opt-level = "z"             # controls de --opt-level the compiler build with.
                             # 'z' reduces size to a minimum
+
+incremental = false # Because of bug: https://github.com/rust-lang/cargo/pull/6610
