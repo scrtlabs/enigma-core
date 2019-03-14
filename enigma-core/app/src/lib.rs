@@ -1,7 +1,5 @@
-#![feature(tool_lints)]
 #![warn(clippy::all)]
 #![feature(try_from)]
-#![feature(int_to_from_bytes)]
 #![warn(unused_extern_crates)]
 
 extern crate dirs;
