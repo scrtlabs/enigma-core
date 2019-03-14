@@ -240,7 +240,7 @@ impl Runtime {
         };
         self.result.used_gas = self.gas_counter;
         self.result.updated_state = self.post_execution_state;
-        Ok(self.result.clone())
+        Ok(self.result)
     }
 
     pub fn eprint(&mut self, args: RuntimeArgs) -> Result<()> {

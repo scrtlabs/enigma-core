@@ -1,6 +1,5 @@
 #![no_std]
 #![feature(slice_concat_ext)]
-#![feature(int_to_from_bytes)]
 #![deny(unused_extern_crates)]
 
 /// Enigma implementation of bindings to the Enigma runtime.

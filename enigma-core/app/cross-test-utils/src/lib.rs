@@ -1,4 +1,3 @@
-#![feature(int_to_from_bytes)]
 extern crate enigma_types;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
@@ -42,7 +41,7 @@ pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
     let mut output = Command::new("cargo")
         .current_dir(&dir)
         .args(&["build", "--release"]) // In real contract we should use --release
-//        .args(&["build"])
+    //    .args(&["build"])
         .spawn()
         .unwrap_or_else(|_| panic!("Failed compiling wasm contract: {:?}", &dir));
 
