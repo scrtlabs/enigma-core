@@ -94,7 +94,7 @@ pub(self) mod handling {
             signature = String::new();
         } else { // Hardware Mode
             let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
-            let response = service.get_report(&enc_quote)?;
+            let response = service.get_report(enc_quote)?;
             report_hex = response.result.report_string.as_bytes().to_hex();
             signature = response.result.signature;
         }
@@ -341,7 +341,7 @@ mod test {
     use serde_json::Value;
     use enigma_types::ContractAddress;
 
-    pub const SPID: &str = "1601F95C39B9EA307FEAABB901ADC3EE";
+    pub const SPID: &str = "B0335FD3BC1CCA8F804EB98A6420592D";
     #[ignore]
     #[test]
     fn test_the_listener() {

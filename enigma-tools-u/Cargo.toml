@@ -18,6 +18,7 @@ openssl = "0.10"
 rustc-hex = "1.0.0" # 2.0.1?
 log = "0.4"
 log-derive = "0.2.0"
+unicase = "=2.2.0"
 
 # TODO: Change after a new version is released.
 # Add more transport layers via features if needed.

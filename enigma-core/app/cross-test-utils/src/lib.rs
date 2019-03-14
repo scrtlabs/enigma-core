@@ -12,7 +12,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::Command;
-pub use enigma_types::{ContractAddress, StateKey, Hash256, UserAddress};
+pub use enigma_types::{ContractAddress, StateKey, Hash256};
 use enigma_crypto::{KeyPair, symmetric, rand};
 use enigma_crypto::hash::{Sha256, Keccak256};
 use serde_json::{*, Value};
@@ -24,13 +24,13 @@ pub fn generate_contract_address() -> ContractAddress {
     rand::random(address.as_mut()).unwrap();
     address
 }
-
-pub fn generate_user_address() -> (UserAddress, KeyPair) {
+pub type ERC20UserAddress = Hash256;
+pub fn generate_user_address() -> (ERC20UserAddress, KeyPair) {
     let keys = KeyPair::new().unwrap();
     (keys.get_pubkey().keccak256(), keys)
 }
 
-pub fn sign_message(key: KeyPair, address: UserAddress, amount: u64) -> [u8;65] {
+pub fn sign_message(key: KeyPair, address: ERC20UserAddress, amount: u64) -> [u8;65] {
     let mut msg = address.to_vec();
     msg.extend_from_slice(&amount.to_be_bytes());
     key.sign(&msg).unwrap()

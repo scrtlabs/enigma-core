@@ -73,7 +73,7 @@ pub trait Sampler {
 
     fn get_quote(&self) -> Result<String, Error>;
 
-    fn get_report(&self, quote: &str) -> Result<(Vec<u8>, service::ASResponse), Error>;
+    fn get_report(&self, quote: String) -> Result<(Vec<u8>, service::ASResponse), Error>;
 
     fn get_signing_address(&self) -> Result<String, Error>;
 
@@ -100,7 +100,7 @@ impl Sampler for PrincipalManager {
 
     fn get_quote(&self) -> Result<String, Error> { Ok(retry_quote(self.eid, &self.config.spid, 18)?) }
 
-    fn get_report(&self, quote: &str) -> Result<(Vec<u8>, service::ASResponse), Error> {
+    fn get_report(&self, quote: String) -> Result<(Vec<u8>, service::ASResponse), Error> {
         let (rlp_encoded, as_response) = self.as_service.rlp_encode_registration_params(quote)?;
         Ok((rlp_encoded, as_response))
     }
@@ -120,7 +120,7 @@ impl Sampler for PrincipalManager {
         // get quote
         let quote = self.get_quote()?;
         // get report
-        let (rlp_encoded, _) = self.get_report(&quote)?;
+        let (rlp_encoded, _) = self.get_report(quote)?;
         // get enigma contract
         let enigma_contract = &self.contract;
         let gas_limit: U256 = gas_limit.into();

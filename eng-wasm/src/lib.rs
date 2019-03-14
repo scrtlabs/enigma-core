@@ -70,7 +70,7 @@ pub fn read<T>(key: &str) -> Option<T> where for<'de> T: serde::Deserialize<'de>
     Some(serde_json::from_value(value.clone()).map_err(|_| print("failed unwrapping from_value in read_state")).expect("read_state failed"))
 }
 
-pub fn write_ethereum_bridge(payload: &[u8], address: &[u8;20]){
+pub fn write_ethereum_bridge(payload: &[u8], address: &Address){
     unsafe {
         external::write_eth_bridge(payload.as_ptr(), payload.len() as u32, address.as_ptr())
     };

@@ -311,6 +311,9 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
                                  address: ContractAddress, gas_limit: u64,
                                  db_ptr: *const RawPointer, result: &mut ExecuteResult) -> Result<(), EnclaveError> {
 
+    // TODO: make sure the state is up to date.
+    // TODO: Should this be here or on the untrusted side via build_state?;
+
     let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[callable, args, &*address, user_key]).keccak256();
     let exe_code_hash = bytecode.keccak256();
     pre_execution_data.push(Box::new(*inputs_hash));

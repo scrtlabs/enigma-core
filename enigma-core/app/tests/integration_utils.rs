@@ -15,7 +15,7 @@ extern crate tempfile;
 
 use self::cross_test_utils::{generate_contract_address, generate_user_address, make_encrypted_response,
                              get_fake_state_key, get_bytecode_from_path, ContractAddress,
-                             UserAddress, sign_message};
+                             ERC20UserAddress, sign_message};
 use self::app::*;
 use self::futures::Future;
 use self::app::networking::*;
@@ -47,7 +47,7 @@ pub fn run_core(port: &'static str) {
 
         let (mut db, _datadir) = create_test_db();
         let server = IpcListener::new(&format!("tcp://*:{}", port));
-        let spid = "1601F95C39B9EA307FEAABB901ADC3EE";
+        let spid = "B0335FD3BC1CCA8F804EB98A6420592D";
         server
             .run(move |multi| ipc_listener::handle_message(&mut db, multi, spid, eid))
             .wait()
@@ -178,7 +178,7 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
     (shared_key, keys.get_pubkey())
 }
 
-pub fn full_erc20_deployment(port: &'static str, owner: UserAddress, total_supply: Option<u64>, gas_limit: Option<u64>) -> (Value, [u8; 32]) {
+pub fn full_erc20_deployment(port: &'static str, owner: ERC20UserAddress, total_supply: Option<u64>, gas_limit: Option<u64>) -> (Value, [u8; 32]) {
     // address generation and ptt
     let address = generate_contract_address();
     let _ = run_ptt_round(port, vec![address]);
@@ -244,7 +244,7 @@ pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8
     (result, key, contract_addr)
 }
 
-pub fn full_mint_compute(port: &'static str,  user_addr: UserAddress, amount: u64) -> (Value,  [u8;32], [u8; 32]) {
+pub fn full_mint_compute(port: &'static str,  user_addr: ERC20UserAddress, amount: u64) -> (Value,  [u8;32], [u8; 32]) {
     let (owner, owner_keys) = generate_user_address();
     let (_, contract_addr): (_, [u8; 32]) = full_erc20_deployment(port, owner,None,None);
 
