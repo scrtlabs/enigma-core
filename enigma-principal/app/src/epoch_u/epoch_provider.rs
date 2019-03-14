@@ -45,6 +45,7 @@ impl EpochProvider {
         path
     }
 
+    /// Reset the `EpochState` stores in memory
     pub fn reset_epoch_state(&self) -> Result<(), Error> {
         self.set_epoch_state(None)?;
         Ok(())
@@ -80,7 +81,10 @@ impl EpochProvider {
             let contents = serde_json::to_string(&epoch_state.unwrap())?;
             file.write_all(contents.as_bytes())?;
         } else {
-            fs::remove_file(path)?;
+            match fs::remove_file(path) {
+                Ok(res) => println!("Epoch state file removed: {:?}", res),
+                Err(err) => println!("No epoch state file to remove"),
+            }
         }
         Ok(())
     }
@@ -98,6 +102,7 @@ impl EpochProvider {
         Ok(result)
     }
 
+    /// Returns the `EpochState` stored in memory
     pub fn get_state(&self) -> Result<EpochState, Error> {
         let guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
@@ -128,7 +133,7 @@ impl EpochProvider {
         Ok(())
     }
 
-    /// Get the confirmed state if available. Bail if not
+    /// Get the confirmed state if available. Bail if not.
     /// The confirmed state contains the selected worker cache.
     pub fn get_confirmed(&self) -> Result<ConfirmedEpochState, Error> {
         let guard = match self.epoch_state.try_lock() {
@@ -158,6 +163,13 @@ impl EpochProvider {
     ///  - The list of active worker parameters does not match the sealed epoch data. This prevents
     ///    the enclave operator from tempering with worker parameters in order to modify the
     ///    result of the worker selection.
+    ///
+    /// # Arguments
+    ///
+    /// * `block_number` - The block number marking the active worker list
+    /// * `gas_limit` - The gas limit of the `setWorkersParams` transaction
+    /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
+    ///
     #[logfn(DEBUG)]
     pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<(H256), Error> {
         let result = self.contract.get_active_workers(block_number)?;
@@ -180,6 +192,12 @@ impl EpochProvider {
     }
 
     /// Build a local mapping of smart contract address => selected worker for the epoch
+    ///
+    /// # Arguments
+    ///
+    /// * `epoch_state` - The mutable `EpochState` to be confirmed
+    /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
+    ///
     #[logfn(DEBUG)]
     pub fn confirm_epoch(&self, epoch_state: &mut EpochState, worker_params: InputWorkerParams) -> Result<(), Error> {
         let contract_count = self.contract.count_secret_contracts()?;

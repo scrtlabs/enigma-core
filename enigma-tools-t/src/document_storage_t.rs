@@ -43,7 +43,6 @@ impl<T> SealedDocumentStorage<T> where
 
     /// Unseal sealed log
     /// param: sealed_log_in : the encrypted blob
-    /// param: udata : the SealedDocumentStorage (clear text)
     pub fn unseal(sealed_log_in: &mut [u8]) -> Result<Option<Self>, EnclaveError> {
         let sealed_log_size: usize = SEAL_LOG_SIZE;
         let sealed_log = sealed_log_in.as_mut_ptr();

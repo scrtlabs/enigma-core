@@ -91,7 +91,7 @@ impl ReportManager {
             signature = String::new();
         } else { // Hardware Mode
             println!("Hardware mode, fetching report from the Attestation Service");
-            let response = self.as_service.get_report(&enc_quote)?;
+            let response = self.as_service.get_report(enc_quote)?;
             report = response.result.report_string;
             signature = response.result.signature;
         }
@@ -166,6 +166,13 @@ impl Sampler for PrincipalManager {
         Ok(receipt.transaction_hash)
     }
 
+    /// Verifies whether the worker is registered in the Enigma contract.
+    /// If not, create a `register` transaction.
+    ///
+    /// # Arguments
+    ///
+    /// * `gas_limit` - The gas limit of the `register` transaction
+    ///
     #[logfn(DEBUG)]
     fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error> {
         let signing_address = self.get_signing_address()?;
@@ -180,6 +187,16 @@ impl Sampler for PrincipalManager {
         }
     }
 
+    /// Warms up the application.
+    /// 1. Register the worker if not already registered
+    /// 2. Create an `EpochProvider` which loads the local `EpochState` if available
+    /// 3. Start the JSON-RPC server
+    /// 4. Watch the blocks for new epochs
+    ///
+    /// # Arguments
+    ///
+    /// * `gas_limit` - The gas limit for all Enigma contract transactions
+    ///
     #[logfn(INFO)]
     fn run<G: Into<U256>>(&self, gas_limit: G) -> Result<(), Error> {
         let gas_limit: U256 = gas_limit.into();
@@ -246,10 +263,11 @@ mod test {
     /// helps in assertion to check if a random event was indeed broadcast.
     pub fn filter_random(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_name: &str)
                          -> Result<Vec<Log>, Error> {
-        let logs = w3utils::filter_blocks(&w3, contract_addr, event_name)?;
+        let logs = w3utils::filter_blocks(w3, contract_addr, event_name)?;
         Ok(logs)
     }
 
+    #[logfn(DEBUG)]
     pub fn get_config() -> Result<PrincipalConfig, Error> {
         let config_path = "../app/tests/principal_node/config/principal_test_config.json";
         let mut config = PrincipalManager::load_config(config_path)?;
@@ -259,8 +277,7 @@ mod test {
     pub fn init_no_deploy(eid: u64) -> Result<PrincipalManager, Error> {
         let mut config = get_config()?;
         let enclave_manager = ReportManager::new(config.clone(), eid)?;
-        println!("The Principal node signer address: {}", enclave_manager.get_signing_address().unwrap());
-        let _ = Command::new("/root/src/enigma-principal/app/wait.sh").status();
+        println!("The Principal node signing address: {:?}", enclave_manager.get_signing_address().unwrap());
 
         let contract = Arc::new(
             EnigmaContract::from_deployed(&config.enigma_contract_address,
@@ -288,7 +305,6 @@ mod test {
         let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone()).unwrap();
         epoch_provider.reset_epoch_state().unwrap();
         epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();
-        assert_eq!(true, true);
     }
 
     /// This test is more like a system-test than a unit-test.

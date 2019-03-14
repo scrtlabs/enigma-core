@@ -14,11 +14,16 @@ extern {
                                sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
 
-/// Returns an EpochState object 32 bytes signed random seed and an incremented account nonce.
+/// Returns an EpochState object containing the 32 bytes signed random seed and an incremented account nonce.
 /// # Examples
 /// ```
 /// let enclave = esgx::general::init_enclave().unwrap();
-/// let worker_params = web3.get_worker_params(block_number);
+/// let result = self.contract.get_active_workers(block_number)?;
+/// let worker_params: InputWorkerParams = InputWorkerParams {
+///    block_number,
+///    workers: result.0,
+///    stakes: result.1,
+/// };
 /// let sig = set_worker_params(enclave.geteid(), worker_params).unwrap();
 /// ```
 pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams) -> Result<EpochState, Error> {

@@ -23,6 +23,8 @@ impl Principal for EnigmaContract {
         Ok(Self::from_deployed(address, path, Some(account), url)?)
     }
 
+    /// Watches the blocks for new epoch using the epoch size and the previous epoch block number.
+    /// For each new epoch, set the worker parameters.
     #[logfn(INFO)]
     fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
                                    confirmations: usize, max_epochs: Option<usize>) {

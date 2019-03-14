@@ -196,7 +196,7 @@ mod test {
         /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
         /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
         /// The default is set to ganache cli "http://localhost:8545"
-    fn get_node_url() -> String { env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string()) }
+    fn get_node_url() -> String { env::var("NODE_URL").unwrap_or("http://localhost:9545".to_string()) }
 
     // helper: given a contract name return the bytecode and the abi
     fn get_contract(ctype: &str) -> (String, String) {

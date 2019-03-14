@@ -61,7 +61,6 @@ impl EnigmaContract {
         let token_contract = w3utils::deploy_contract(&w3, &deploy_params, ())?;
 
         deploy_params.bytecode = enigma_bytecode;
-        println!("The Enigma bytecode: {:?}", deploy_params.bytecode);
         deploy_params.abi = enigma_abi;
 
         let signer: H160 = sgx_address.parse()?;

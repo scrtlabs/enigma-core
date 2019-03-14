@@ -49,6 +49,12 @@ impl EpochState {
     }
 
     /// Build a local mapping of smart contract address => selected worker for the epoch
+    ///
+    /// # Arguments
+    ///
+    /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
+    /// * `sc_addresses` - The Secret Contract addresses for which to retrieve the selected worker
+    ///
     #[logfn(DEBUG)]
     pub fn confirm(&mut self, worker_params: &InputWorkerParams, sc_addresses: Vec<H256>) -> Result<(), Error> {
         println!("Confirmed epoch with worker params: {:?}", worker_params);
@@ -73,7 +79,11 @@ impl EpochState {
         Ok(())
     }
 
-    /// Get the contract address that the worker is selected to work on during this epoch
+    /// Returns the contract address that the worker is selected to work on during this epoch
+    ///
+    /// # Arguments
+    ///
+    /// * `worker` - The worker signing address
     #[logfn(DEBUG)]
     pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<H256>, Error> {
         let addrs = match self.confirmed_state.clone() {
