@@ -42,6 +42,7 @@ pub struct ASResponse {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Params {
     pub quote: String,
+    pub production: bool,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct QuoteRequest {
@@ -91,7 +92,7 @@ impl AttestationService {
     pub fn new(conn_str: &str) -> AttestationService { AttestationService { connection_str: conn_str.to_string() } }
 
     #[logfn(INFO)]
-    pub fn get_report(&self, quote: &str) -> Result<ASResponse, Error> {
+    pub fn get_report(&self, quote: String) -> Result<ASResponse, Error> {
         let request: QuoteRequest = self.build_request(quote);
         let response: ASResponse = self.send_request(&request)?;
         Ok(response)
@@ -99,8 +100,16 @@ impl AttestationService {
 
     // input: encrypted enclave quote
     // output : JSON-RPC request object
-    pub fn build_request(&self, quote: &str) -> QuoteRequest {
-        QuoteRequest { jsonrpc: "2.0".to_string(), method: "validate".to_string(), params: Params { quote: quote.to_string() }, id: 1 }
+    pub fn build_request(&self, quote: String) -> QuoteRequest {
+        QuoteRequest {
+            jsonrpc: "2.0".to_string(),
+            method: "validate".to_string(),
+            params: Params {
+                quote,
+                production: true,
+            },
+            id: 1,
+        }
     }
 
     // request the report object
@@ -126,15 +135,19 @@ impl AttestationService {
     }
 
     // encode to rlp the report -> registration for the enigma contract
-    pub fn rlp_encode_registration_params(&self, quote: &str) -> Result<(Vec<u8>, ASResponse), Error> {
+    pub fn rlp_encode_registration_params(&self, quote: String) -> Result<(Vec<u8>, ASResponse), Error> {
         let as_response = self.get_report(quote)?;
         // certificate,signature,report_string are all need to be rlp encoded and send to register() func in enigma contract
-        let certificate = as_response.result.certificate.clone();
-        let signature = as_response.result.signature.clone();
-        let report_string = as_response.result.report_string.clone();
-        // rlp encoding
-        let clear = vec![report_string.as_str(), certificate.as_str(), signature.as_str()];
-        let encoded = rlp::encode_list::<&str, &str>(&clear).to_vec();
+        let encoded;
+        {
+            let certificate = as_response.result.certificate.as_str();
+            let signature = as_response.result.signature.as_str();
+            let report_string = as_response.result.report_string.as_str();
+            // rlp encoding
+            let clear = vec![report_string, certificate, signature];
+            encoded = rlp::encode_list::<&str, &str>(&clear).to_vec();
+        }
+
         Ok((encoded, as_response))
     }
 
@@ -256,6 +269,7 @@ impl Default for QReportBody {
 mod test {
     use crate::attestation_service::{self, service::*};
     use std::str::from_utf8;
+    use hex::FromHex;
 
     // this unit-test is for the attestation service
     // it uses a hardcoded quote that is validated
@@ -265,8 +279,8 @@ mod test {
     fn test_get_response_attestation_service() {
         // build a request
         let service: AttestationService = AttestationService::new(attestation_service::constants::ATTESTATION_SERVICE_URL);
-        let quote = String::from("AgAAANoKAAAHAAYAAAAAABYB+Vw5ueowf+qruQGtw+54eaWW7MiyrIAooQw/uU3eBAT/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAALcVy53ugrfvYImaDi1ZW5RueQiEekyu/HmLIKYvg6OxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACGcCDM4cgbYe6zQSwWQINFsDvd21kXGeteDakovCXPDwjJ31WG0K+wyDDRo8PFi293DtIr6DgNqS/guQSkglPJqAIAALbvs91Ugh9/yhBpAyGQPth+UWXRboGkTaZ3DY8U+Upkb2NWbLPkXbcMbB7c3SAfV4ip/kPswyq0OuTTiJijsUyOBOV3hVLIWM4f2wVXwxiVRXrfeFs/CGla6rGdRQpFzi4wWtrdKisVK5+Cyrt2y38Ialm0NqY9FIjxlodD9D7TC8fv0Xog29V1HROlY+PvRNa+f2qp858w8j+9TshkvOAdE1oVzu0F8KylbXfsSXhH7d+n0c8fqSBoLLEjedoDBp3KSO0bof/uzX2lGQJkZhJ/RSPPvND/1gVj9q1lTM5ccbfVfkmwdN0B5iDA5fMJaRz5o8SVILr3uWoBiwx7qsUceyGX77tCn2gZxfiOICNrpy3vv384TO2ovkwvhq1Lg071eXAlxQVtPvRYOGgBAABydn7bEWdP2htRd46nBkGIAoNAnhMvbGNbGCKtNVQAU0N9f7CROLPOTrlw9gVlKK+G5vM1X95KTdcOjs8gKtTkgEos021zBs9R+whyUcs9npo1SJ8GzowVwTwWfVz9adw2jL95zwJ/qz+y5x/IONw9iXspczf7W+bwyQpNaetO9xapF6aHg2/1w7st9yJOd0OfCZsowikJ4JRhAMcmwj4tiHovLyo2fpP3SiNGzDfzrpD+PdvBpyQgg4aPuxqGW8z+4SGn+vwadsLr+kIB4z7jcLQgkMSAplrnczr0GQZJuIPLxfk9mp8oi5dF3+jqvT1d4CWhRwocrs7Vm1tAKxiOBzkUElNaVEoFCPmUYE7uZhfMqOAUsylj3Db1zx1F1d5rPHgRhybpNpxThVWWnuT89I0XLO0WoQeuCSRT0Y9em1lsozSu2wrDKF933GL7YL0TEeKw3qFTPKsmUNlWMIow0jfWrfds/Lasz4pbGA7XXjhylwum8e/I");
-        let as_response: ASResponse = service.get_report(&quote).unwrap();
+        let quote = String::from("AgAAANoKAAAHAAYAAAAAALAzX9O8HMqPgE65imQgWS3bL6zst0H4QfxKAKurXXnVBAX/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAAIzp3AzhlP03bwcSpF+o5J3dlTq2zu0T03uf7PbnLtMYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD9sUtS1/Vn5lvk3Mxh+eX0AOjdoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqAIAADM2OO98uEjJQLRmzAvAqO4nirzimAHK0PjdgI8MT0xKDy/Paohf208N04YWgzl4kOjrG0X/T8LUphwzn3qB7XkycWqDO9RsLbNIpKRiVBIttztbn0/kxcwo6p54OeOLfhFbxaTn0wkzEYJhGWVR+j6IUGxubDwinf0fO+2vPu20kW1NzSV/Le8fyYzC4v5sIblVW8VZESsbuFd+bFbbcNzco9cH6cNI68FMkeMHoZF/Z4HvP7DR2sIiLnmYcavDbTlzG7OwaTDNcTCNfKsKReK76TRtu+m018QArsRTdrAwx7gZY2788RBpn0veSkU+v9QxNnZmqfpMolAXdu3ksQul4R8bzQ8HoiRkQvedCY8K+5j3GLvDjLCUgB4JP8Vhtt6KjABRO5o4+s3Uj2gBAABJIOqpxIvbG5zmizV7zUe4jAJQoPVM3jtcxXwU9PH5saXiCPHBpTEBpK/2r/5bUnIIBkshRbQ8/kP6/lLhEOu3Fkfh7UMMoizPO8uGQimLBGwbAFyAgU4G8TGeUbYWEGuRRJoKDoclzm9edJZ7mApMlmiT9t2VMLMsg7l49sO1T1TtgK/zpwwLvr2f4a/vmkJWviOcIRimFD+V20xw+EMXYl8Aj4x4Rw62+oiQe0mKvh3K4gXIamejnQHZ/Mrbeh8ai0n1J+GMeKFxxSkeytGZVrT+a75WjLAcJtt5QAU3Em1ELsWLUVUI58mLTe/u+hsjTlWizXAruElzhCIijvR96aHc+lzd/a+EmsQ4mI/mWPxqdoUciznhG4VlxNAhXSw8zn77k8m+1GaBSxvAUDwFOf/V3KcQUYp5Cswo1MD4t26Rn5LBqF1I0I27d/BHD+KUwl7W5doG4Ec6egnoofkSTUnjI3G+9btxIVV2nYWzfXauZzseiZQn");
+        let as_response = service.get_report(quote).unwrap();
         // THE report as a string ready for signing
         //println!("report to be signed string => {}",as_response.result.report_string );
         // example on how to access some param inside ASResponse
@@ -279,8 +293,8 @@ mod test {
     fn test_get_response_attestation_service_rlp_encoded() {
         // build a request
         let service: AttestationService = AttestationService::new(attestation_service::constants::ATTESTATION_SERVICE_URL);
-        let quote = String::from("AgAAANoKAAAHAAYAAAAAABYB+Vw5ueowf+qruQGtw+54eaWW7MiyrIAooQw/uU3eBAT/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAALcVy53ugrfvYImaDi1ZW5RueQiEekyu/HmLIKYvg6OxAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACGcCDM4cgbYe6zQSwWQINFsDvd21kXGeteDakovCXPDwjJ31WG0K+wyDDRo8PFi293DtIr6DgNqS/guQSkglPJqAIAALbvs91Ugh9/yhBpAyGQPth+UWXRboGkTaZ3DY8U+Upkb2NWbLPkXbcMbB7c3SAfV4ip/kPswyq0OuTTiJijsUyOBOV3hVLIWM4f2wVXwxiVRXrfeFs/CGla6rGdRQpFzi4wWtrdKisVK5+Cyrt2y38Ialm0NqY9FIjxlodD9D7TC8fv0Xog29V1HROlY+PvRNa+f2qp858w8j+9TshkvOAdE1oVzu0F8KylbXfsSXhH7d+n0c8fqSBoLLEjedoDBp3KSO0bof/uzX2lGQJkZhJ/RSPPvND/1gVj9q1lTM5ccbfVfkmwdN0B5iDA5fMJaRz5o8SVILr3uWoBiwx7qsUceyGX77tCn2gZxfiOICNrpy3vv384TO2ovkwvhq1Lg071eXAlxQVtPvRYOGgBAABydn7bEWdP2htRd46nBkGIAoNAnhMvbGNbGCKtNVQAU0N9f7CROLPOTrlw9gVlKK+G5vM1X95KTdcOjs8gKtTkgEos021zBs9R+whyUcs9npo1SJ8GzowVwTwWfVz9adw2jL95zwJ/qz+y5x/IONw9iXspczf7W+bwyQpNaetO9xapF6aHg2/1w7st9yJOd0OfCZsowikJ4JRhAMcmwj4tiHovLyo2fpP3SiNGzDfzrpD+PdvBpyQgg4aPuxqGW8z+4SGn+vwadsLr+kIB4z7jcLQgkMSAplrnczr0GQZJuIPLxfk9mp8oi5dF3+jqvT1d4CWhRwocrs7Vm1tAKxiOBzkUElNaVEoFCPmUYE7uZhfMqOAUsylj3Db1zx1F1d5rPHgRhybpNpxThVWWnuT89I0XLO0WoQeuCSRT0Y9em1lsozSu2wrDKF933GL7YL0TEeKw3qFTPKsmUNlWMIow0jfWrfds/Lasz4pbGA7XXjhylwum8e/I");
-        let (rlp_encoded, as_response) = service.rlp_encode_registration_params(&quote).unwrap();
+        let quote = String::from("AgAAANoKAAAHAAYAAAAAALAzX9O8HMqPgE65imQgWS3bL6zst0H4QfxKAKurXXnVBAX/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAAIzp3AzhlP03bwcSpF+o5J3dlTq2zu0T03uf7PbnLtMYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD9sUtS1/Vn5lvk3Mxh+eX0AOjdoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqAIAADM2OO98uEjJQLRmzAvAqO4nirzimAHK0PjdgI8MT0xKDy/Paohf208N04YWgzl4kOjrG0X/T8LUphwzn3qB7XkycWqDO9RsLbNIpKRiVBIttztbn0/kxcwo6p54OeOLfhFbxaTn0wkzEYJhGWVR+j6IUGxubDwinf0fO+2vPu20kW1NzSV/Le8fyYzC4v5sIblVW8VZESsbuFd+bFbbcNzco9cH6cNI68FMkeMHoZF/Z4HvP7DR2sIiLnmYcavDbTlzG7OwaTDNcTCNfKsKReK76TRtu+m018QArsRTdrAwx7gZY2788RBpn0veSkU+v9QxNnZmqfpMolAXdu3ksQul4R8bzQ8HoiRkQvedCY8K+5j3GLvDjLCUgB4JP8Vhtt6KjABRO5o4+s3Uj2gBAABJIOqpxIvbG5zmizV7zUe4jAJQoPVM3jtcxXwU9PH5saXiCPHBpTEBpK/2r/5bUnIIBkshRbQ8/kP6/lLhEOu3Fkfh7UMMoizPO8uGQimLBGwbAFyAgU4G8TGeUbYWEGuRRJoKDoclzm9edJZ7mApMlmiT9t2VMLMsg7l49sO1T1TtgK/zpwwLvr2f4a/vmkJWviOcIRimFD+V20xw+EMXYl8Aj4x4Rw62+oiQe0mKvh3K4gXIamejnQHZ/Mrbeh8ai0n1J+GMeKFxxSkeytGZVrT+a75WjLAcJtt5QAU3Em1ELsWLUVUI58mLTe/u+hsjTlWizXAruElzhCIijvR96aHc+lzd/a+EmsQ4mI/mWPxqdoUciznhG4VlxNAhXSw8zn77k8m+1GaBSxvAUDwFOf/V3KcQUYp5Cswo1MD4t26Rn5LBqF1I0I27d/BHD+KUwl7W5doG4Ec6egnoofkSTUnjI3G+9btxIVV2nYWzfXauZzseiZQn");
+        let (rlp_encoded, as_response) = service.rlp_encode_registration_params(quote).unwrap();
         assert!(!rlp_encoded.is_empty());
         assert_eq!(true, as_response.result.validate);
         assert_eq!("2.0", as_response.jsonrpc);
@@ -310,11 +324,11 @@ mod test {
     #[test]
     fn test_attestation_service_decode_and_verify() {
         let service: AttestationService = AttestationService::new(attestation_service::constants::ATTESTATION_SERVICE_URL);
-        let encrypted_quote = "AgAAANoKAAAHAAYAAAAAABYB+Vw5ueowf+qruQGtw+5gbJslhOX9eWDNazWpHhBVBAT/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAABIhP23bLUNSZ1yvFIrZa0pu/zt6/n3X8qNjMVbWgOGDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAweDRlNmRkMjg0NzdkM2NkY2QzMTA3NTA3YjYxNzM3YWFhMTU5MTYwNzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqAIAAFCUk3u9iZOe6m0Hoq/2vHgHO2b4vJfI7saGcAdAYUJZ4Bu4hpXDRS+CfUSRHSn26sbSVL+1gcwx+lZZ/csjLJocAqlgyN1jkaAmMlKcX+Nz4m3ecBJCNKH++72YJyxyWLsUlY1GcjEDHhZUgJzb4z2Gl5cm8X+KWSyAqi9RVq5QEsvFQZ04ONiojOKgfBY0Y2J09lU0zOz2bKQLErSiNeJgq7bt/lu+IbDELWyqxJ0IoCOdvQapVjT5i8Rw9Y2eC3pXpR8uFlyR1e8bNXDrc7PofXttd4nJkoTrQuJpaR+d5jzIa9alLUVLPIQYCdMSNWmQ+Tv6OcO7gyhy7O5AYla+9FN8EAifAFJaE89uRfeB71TX+uP0l/XkkBQkDtEWD6H7TvjTOYGC4B3aYGgBAAD3Z5Uk/cPTTc6fn9LFdG+7445aVagObJdO3BD9+YNqPyu1j7jabltSFUxrM79lV4kt3P1BJpL+OCUQs7nob9/GkhzM5FsVc02Uj+kKnHkX9/9xSzWgP6NPMDHy5qKMEgKfrznzUyffgAzv3Mcn31S1A7cHHi5kyeQGriHDBD6+zVFMI0bqNblMwLYcJtQy0bfjDQRoqOn6YB5H2tbMpZ67QYtkhs0G6MhsPWoHW8qKIem1yjbHs0UedFZEhENrcgZyk8qHNtPndnlAeQ5gMv03W2VvRNO16QhdFL8+zEOtzxSuAq+XVHgP+eJuL4Q+ikL5+BKFc2WXNgy5PWj8bvvCfF2g7UmMJQyj0IPOlaAdjyYyTGY8lGCgN4adlfTpsAciZexR37emb8awQZkawSLWewKht9TjuLHtW/WbUKpJiSv6OF/TrTfr4Jmm6LehJ9eDQFaqkS6SPjF6Byn05t6+FPLE2XXHEqQ5v5jq2CkOalP4ftNXFyr2".to_string();
-        let response = service.get_report(&encrypted_quote).unwrap();
+        let encrypted_quote = String::from("AgAAANoKAAAHAAYAAAAAALAzX9O8HMqPgE65imQgWS3bL6zst0H4QfxKAKurXXnVBAX/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAAIzp3AzhlP03bwcSpF+o5J3dlTq2zu0T03uf7PbnLtMYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD9sUtS1/Vn5lvk3Mxh+eX0AOjdoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqAIAADM2OO98uEjJQLRmzAvAqO4nirzimAHK0PjdgI8MT0xKDy/Paohf208N04YWgzl4kOjrG0X/T8LUphwzn3qB7XkycWqDO9RsLbNIpKRiVBIttztbn0/kxcwo6p54OeOLfhFbxaTn0wkzEYJhGWVR+j6IUGxubDwinf0fO+2vPu20kW1NzSV/Le8fyYzC4v5sIblVW8VZESsbuFd+bFbbcNzco9cH6cNI68FMkeMHoZF/Z4HvP7DR2sIiLnmYcavDbTlzG7OwaTDNcTCNfKsKReK76TRtu+m018QArsRTdrAwx7gZY2788RBpn0veSkU+v9QxNnZmqfpMolAXdu3ksQul4R8bzQ8HoiRkQvedCY8K+5j3GLvDjLCUgB4JP8Vhtt6KjABRO5o4+s3Uj2gBAABJIOqpxIvbG5zmizV7zUe4jAJQoPVM3jtcxXwU9PH5saXiCPHBpTEBpK/2r/5bUnIIBkshRbQ8/kP6/lLhEOu3Fkfh7UMMoizPO8uGQimLBGwbAFyAgU4G8TGeUbYWEGuRRJoKDoclzm9edJZ7mApMlmiT9t2VMLMsg7l49sO1T1TtgK/zpwwLvr2f4a/vmkJWviOcIRimFD+V20xw+EMXYl8Aj4x4Rw62+oiQe0mKvh3K4gXIamejnQHZ/Mrbeh8ai0n1J+GMeKFxxSkeytGZVrT+a75WjLAcJtt5QAU3Em1ELsWLUVUI58mLTe/u+hsjTlWizXAruElzhCIijvR96aHc+lzd/a+EmsQ4mI/mWPxqdoUciznhG4VlxNAhXSw8zn77k8m+1GaBSxvAUDwFOf/V3KcQUYp5Cswo1MD4t26Rn5LBqF1I0I27d/BHD+KUwl7W5doG4Ec6egnoofkSTUnjI3G+9btxIVV2nYWzfXauZzseiZQn");
+        let response = service.get_report(encrypted_quote).unwrap();
         let quote = response.get_quote().unwrap();
-        let address = from_utf8(&quote.report_body.report_data).unwrap();
-        assert_eq!(address.trim_right_matches("\x00"), "0x4e6dd28477d3cdcd3107507b61737aaa15916070");
+        let address = "fdb14b52d7f567e65be4dccc61f9e5f400e8dda0".from_hex().unwrap();
+        assert_eq!(&quote.report_body.report_data[..20], &address[..]);
         assert!(response.result.verify_report().unwrap());
     }
 }

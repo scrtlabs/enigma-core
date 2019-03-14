@@ -4,13 +4,9 @@
 
 extern crate eng_wasm;
 extern crate eng_wasm_derive;
-extern crate rustc_hex as hex;
 
 use eng_wasm::*;
 use eng_wasm_derive::pub_interface;
-
-use eng_wasm::String;
-use hex::{ToHex, FromHex};
 
 #[pub_interface]
 pub trait ContractInterface{
@@ -56,7 +52,7 @@ impl ContractInterface for Contract {
         a.push_str("157");
         let key = "code";
         write_state!(key => &a);
-        let read_val: String = read_state!(key).unwrap();
+        let read_val: String = read_state!(key).unwrap_or_default();
 
         assert_eq!(read_val, a);
         read_val.as_bytes().to_vec()
@@ -64,40 +60,38 @@ impl ContractInterface for Contract {
 
     #[no_mangle]
     fn check_address(addr: H256) -> H256{
-        write_state!("addr" => addr.to_hex());
-        let read_val: String = read_state!("addr").unwrap();
-
-        assert_eq!(read_val, addr.to_hex());
-
-        H256::from_slice(&read_val.from_hex().unwrap())
+        write_state!("addr" => addr);
+        let read_val: H256 = read_state!("addr").unwrap_or_default();
+        assert_eq!(read_val, addr);
+        read_val
     }
 
     #[no_mangle]
     fn check_addresses(addr1: H256, addr2: H256) -> Vec<H256> {
-        write_state!("addr1" => addr1.to_hex());
-        write_state!("addr2" => addr2.to_hex());
+        write_state!("addr1" => addr1);
+        write_state!("addr2" => addr2);
 
-        let read_addr1: String = read_state!("addr1").unwrap();
-        let read_addr2: String = read_state!("addr2").unwrap();
+        let read_addr1: H256 = read_state!("addr1").unwrap_or_default();
+        let read_addr2: H256 = read_state!("addr2").unwrap_or_default();
 
-        assert_eq!(read_addr1, addr1.to_hex());
-        assert_eq!(read_addr2, addr2.to_hex());
+        assert_eq!(read_addr1, addr1);
+        assert_eq!(read_addr2, addr2);
         let mut ret = Vec::with_capacity(2);
-        ret.push(H256::from_slice(&read_addr1.from_hex().unwrap()));
-        ret.push(H256::from_slice(&read_addr2.from_hex().unwrap()));
+        ret.push(read_addr1);
+        ret.push(read_addr2);
         ret
     }
 
     // tests the random service
     #[no_mangle]
-    fn choose_rand_color() -> Vec<u8>{
+    fn choose_rand_color() -> Vec<u8> {
         let mut colors = Vec::new();
         colors.extend(["green", "yellow", "red", "blue", "white", "black", "orange", "purple"].iter().cloned());
         let random: u8 = Rand::gen();
 
         let rng_rand = (random as usize) % colors.len();
         write_state!("color" => colors[rng_rand]);
-        let color : String = read_state!("color").unwrap();
+        let color : String = read_state!("color").unwrap_or_default();
         color.as_bytes().to_vec()
     }
 
@@ -118,7 +112,7 @@ impl ContractInterface for Contract {
 
     #[no_mangle]
     fn get_last_sum() -> U256 {
-        let sum: u64 = read_state!("curr_sum").unwrap();
+        let sum: u64 = read_state!("curr_sum").unwrap_or_default();
         sum.into()
     }
 

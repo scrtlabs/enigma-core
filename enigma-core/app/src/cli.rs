@@ -14,7 +14,7 @@ pub struct Opt {
     #[structopt(parse(from_os_str), long = "data-dir")]
     pub data_dir: Option<PathBuf>,
     /// Specify a different SPID to use for the Quote/Report
-    #[structopt(long = "spid", default_value = "1601F95C39B9EA307FEAABB901ADC3EE")]
+    #[structopt(long = "spid", default_value = "B0335FD3BC1CCA8F804EB98A6420592D")]
     pub spid: String,
     /// Select a port for the enigma-p2p listener
     #[structopt(long = "port", short = "p", default_value = "5552")]
