@@ -1,12 +1,14 @@
 use sgx_tseal::SgxSealedData;
-use sgx_types::marker::ContiguousMemory;
 #[cfg(not(target_env = "sgx"))]
 use sgx_types::{sgx_attributes_t, sgx_sealed_data_t, sgx_status_t};
-use std::io::{Read, Write, self};
+use sgx_types::marker::ContiguousMemory;
+use std::io::{self, Read, Write};
 use std::string::*;
-use std::untrusted::fs::remove_file;
 use std::untrusted::fs::File;
+use std::untrusted::fs::remove_file;
+
 use enigma_crypto::asymmetric;
+
 use crate::common::errors_t::EnclaveError;
 
 pub const SEALING_KEY_SIZE: usize = 32;
@@ -124,7 +126,12 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
                 // If the data couldn't get unsealed remove the file.
                 None => {
                     debug_println!("Failed reading file, Removing");
-                    remove_file(sealed_path);
+                    match remove_file(sealed_path) {
+                        Ok(_) => debug_println!("File removed"),
+                        Err(err) => {
+                            return Err(EnclaveError::KeyProvisionError { err: format!("Unable to remove sealed file: {:?}", err) })
+                        }
+                    }
                 }
             };
         }
@@ -150,7 +157,8 @@ pub fn get_sealed_keys(sealed_path: &str) -> Result<asymmetric::KeyPair, Enclave
 #[cfg(debug_assertions)]
 pub mod tests {
     use storage_t::*;
-    //use std::untrusted::fs::*;
+
+//use std::untrusted::fs::*;
 
     /* Test functions */
     pub fn test_full_sealing_storage() {

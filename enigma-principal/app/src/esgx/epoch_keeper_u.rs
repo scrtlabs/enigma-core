@@ -3,9 +3,9 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, U256};
 
 use common_u::errors::EnclaveFailError;
-use keys_u::keeper_types_u::InputWorkerParams;
-use epoch_u::epoch_types::{Encodable, encode, EpochState};
 use enigma_types::EnclaveReturn;
+use epoch_u::epoch_types::{encode, EpochState};
+use keys_u::keeper_types_u::InputWorkerParams;
 
 extern {
     fn ecall_set_worker_params(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
@@ -26,7 +26,7 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams
     let mut nonce_out: [u8; 32] = [0; 32];
     let mut rand_out: [u8; 32] = [0; 32];
     let mut sig_out: [u8; 65] = [0; 65];
-    // Serialize the receipt into RLP
+    // Serialize the InputWorkerParams into RLP
     let worker_params_rlp = encode(&worker_params);
     let status = unsafe {
         ecall_set_worker_params(

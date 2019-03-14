@@ -1,10 +1,11 @@
+use std::vec::Vec;
+
 use bigint;
 use bigint::H2048;
 use ethabi::{Address, Bytes, encode, Hash, Token};
 use ethereum_types::{H160, H256, H64, U256, U64};
-pub use rlp::{Decodable, decode, DecoderError, UntrustedRlp};
-use std::vec::Vec;
 use failure::Error;
+pub use rlp::{Decodable, decode, DecoderError, UntrustedRlp};
 
 use enigma_crypto::hash::Keccak256;
 
@@ -65,7 +66,6 @@ impl InputWorkerParams {
 
     #[logfn(DEBUG)]
     fn get_selected_workers(&self, sc_addr: H256, seed: U256, group_size: Option<U64>) -> Result<Vec<Address>, Error> {
-        let workers = self.workers.to_vec();
         let mut balance_sum: U256 = U256::from(0);
         for balance in self.stakes.clone() {
             balance_sum = balance_sum + balance;

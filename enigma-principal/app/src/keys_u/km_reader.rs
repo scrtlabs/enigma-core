@@ -1,11 +1,13 @@
+use std::clone::Clone;
+
+use ethereum_types::{H160, H256};
 use failure::Error;
 use rmp_serde::Deserializer;
 use serde::Deserialize;
-use enigma_types::ContractAddress;
-use ethereum_types::{H160, H256};
-use std::clone::Clone;
-use enigma_crypto::KeyPair;
+
 use enigma_crypto::hash::Keccak256;
+use enigma_crypto::KeyPair;
+use enigma_types::ContractAddress;
 
 #[derive(Debug, PartialEq, Clone, Deserialize)]
 pub enum PrincipalMessageType {
@@ -35,6 +37,7 @@ impl PrincipalMessageReader {
     fn deserialize(msg: &[u8]) -> Result<PrincipalMessage, Error> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
+        println!("The JSON message: {:?}", serde_json::to_string_pretty(&res)?);
         println!("The deserialized message: {:?}", res);
         let msg: PrincipalMessage = serde_json::from_value(res).unwrap();
         Ok(msg)
@@ -69,8 +72,9 @@ impl PrincipalMessageReader {
 
 #[cfg(test)]
 pub mod test {
-    use super::*;
     use rustc_hex::{FromHex, ToHex};
+
+    use super::*;
 
     pub const WORKER_SIGN_ADDRESS: [u8; 20] = [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
     pub(crate) fn sign_message(msg: &Vec<u8>) -> Result<[u8; 65], Error> {

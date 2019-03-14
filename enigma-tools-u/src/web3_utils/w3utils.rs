@@ -1,25 +1,28 @@
+use std::fs::File;
+use std::path::Path;
+use std::str;
+use std::sync::Arc;
+use std::time;
+
 // general
 use failure::Error;
 use hex::FromHex;
-use std::str;
-use std::time;
-use web3;
-use web3::contract::tokens::Tokenize;
-use web3::contract::{Contract, Options};
-use web3::futures::Future;
-use web3::transports::{Http, EventLoopHandle, Batch};
-use web3::types::BlockNumber;
-use web3::types::FilterBuilder;
-use web3::types::{Address, Log, U256};
-use web3::Web3;
-// files
-use crate::common_u::errors;
 use serde_json;
 use serde_json::Value;
-use std::fs::File;
-use std::path::Path;
-use std::sync::Arc;
+use web3;
+use web3::contract::{Contract, Options};
+use web3::contract::tokens::Tokenize;
+use web3::futures::Future;
+use web3::transports::{Batch, Http};
+use web3::types::{Address, Log, U256};
+use web3::types::BlockNumber;
+use web3::types::FilterBuilder;
+use web3::Web3;
+
 use enigma_crypto::hash::Keccak256;
+
+// files
+use crate::common_u::errors;
 
 pub struct DeployParams {
     pub deployer: Address,
@@ -180,16 +183,19 @@ pub fn filter_blocks(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_na
 mod test {
     extern crate rustc_hex;
 
-    use self::rustc_hex::ToHex;
-    use super::*;
     use std::env;
+
     use web3_utils::w3utils;
 
+    use super::*;
+
+    use self::rustc_hex::ToHex;
+
     /// This function is important to enable testing both on the CI server and local.
-    /// On the CI Side:
-    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-    /// The default is set to ganache cli "http://localhost:8545"
+        /// On the CI Side:
+        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+        /// The default is set to ganache cli "http://localhost:8545"
     fn get_node_url() -> String { env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string()) }
 
     // helper: given a contract name return the bytecode and the abi

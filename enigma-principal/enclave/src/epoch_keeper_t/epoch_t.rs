@@ -1,6 +1,5 @@
-use ethabi::{Bytes, encode, Hash, Token};
+use ethabi::{Bytes, encode, Token};
 use ethereum_types::{H160, H256, U256};
-use std::vec::Vec;
 
 use enigma_tools_t::common::errors_t::EnclaveError;
 use keys_keeper_t::keeper_types_t::{InputWorkerParams, RawEncodable};

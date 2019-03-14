@@ -10,14 +10,15 @@ extern crate enigma_crypto;
 extern crate enigma_tools_u;
 extern crate enigma_types;
 extern crate ethabi;
+extern crate ethereum_types;
 #[macro_use]
 extern crate failure;
 extern crate jsonrpc_http_server;
-#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate log_derive;
 extern crate rlp;
+extern crate rmp_serde;
 extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
@@ -26,19 +27,17 @@ extern crate serde_json;
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate simplelog;
-#[macro_use]
 extern crate structopt;
 extern crate tiny_keccak;
 extern crate tokio_core;
 extern crate url;
 extern crate web3;
-extern crate rmp_serde;
-extern crate ethereum_types;
 
 use simplelog::CombinedLogger;
 use structopt::StructOpt;
 
 use cli::options::Opt;
+pub use esgx::general::ocall_get_home;
 
 // enigma modules
 mod boot_network;
@@ -48,8 +47,6 @@ mod esgx;
 mod logging;
 mod epoch_u;
 mod keys_u;
-
-pub use esgx::general::ocall_get_home;
 
 #[allow(unused_variables, unused_mut)]
 fn main() {

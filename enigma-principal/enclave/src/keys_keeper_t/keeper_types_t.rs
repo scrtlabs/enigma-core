@@ -1,26 +1,21 @@
 use bigint;
-use bigint::H2048;
 use ethabi::{Address, Bytes, encode, Hash, Token};
-use ethereum_types::{H160, H256, H64, U256, U64};
+use ethereum_types::{H160, H256, U256, U64};
 pub use rlp::{Decodable, decode, DecoderError, UntrustedRlp};
 use std::vec::Vec;
 
-use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_crypto::hash::Keccak256;
+use enigma_tools_t::common::errors_t::EnclaveError;
 
 pub trait FromBigint<T>: Sized {
     fn from_bigint(_: T) -> Self;
 }
 
-impl FromBigint<bigint::H64> for H64 { fn from_bigint(b: bigint::H64) -> Self { H64(b.0) } }
-
-impl FromBigint<bigint::H256> for H256 { fn from_bigint(b: bigint::H256) -> Self { H256(b.0) } }
 
 impl FromBigint<bigint::H160> for H160 { fn from_bigint(b: bigint::H160) -> Self { H160(b.0) } }
 
 impl FromBigint<bigint::U256> for U256 { fn from_bigint(b: bigint::U256) -> Self { U256(b.0) } }
 
-impl FromBigint<bigint::H2048> for H2048 { fn from_bigint(b: bigint::H2048) -> Self { H2048(b.0) } }
 
 pub trait RawEncodable {
     fn raw_encode(&self) -> Result<Bytes, EnclaveError>;
@@ -64,7 +59,6 @@ impl InputWorkerParams {
     }
 
     fn get_selected_workers(&self, sc_addr: H256, seed: U256, group_size: Option<U64>) -> Result<Vec<Address>, EnclaveError> {
-        let workers = self.workers.to_vec();
         let mut balance_sum: U256 = U256::from(0);
         for balance in self.stakes.clone() {
             balance_sum = balance_sum + balance;

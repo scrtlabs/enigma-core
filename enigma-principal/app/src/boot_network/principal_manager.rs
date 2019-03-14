@@ -1,13 +1,12 @@
 use std::fs::File;
 use std::io::prelude::*;
-use std::path::PathBuf;
+use std::str;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 use std::thread;
-use std::str;
 
 use failure::Error;
-use rustc_hex::{FromHex, ToHex};
+use rustc_hex::ToHex;
 use serde_derive::*;
 use serde_json;
 use sgx_types::sgx_enclave_id_t;
@@ -17,14 +16,13 @@ use web3::types::{Address, H160, H256, U256};
 use web3::Web3;
 
 use boot_network::deploy_scripts;
-use epoch_u::epoch_provider::EpochProvider;
 use boot_network::keys_provider_http::PrincipalHttpServer;
 use boot_network::principal_utils::Principal;
 use enigma_tools_u::attestation_service::service;
 use enigma_tools_u::esgx::equote::retry_quote;
-use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, EnigmaContract, ContractQueries};
+use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
+use epoch_u::epoch_provider::EpochProvider;
 use esgx;
-use esgx::general::{ENCLAVE_DIR, storage_dir};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
@@ -239,10 +237,10 @@ mod test {
     use super::*;
 
     /// This function is important to enable testing both on the CI server and local.
-                            /// On the CI Side:
-                            /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-                            /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-                            /// The default is set to ganache cli "http://localhost:8545"
+                                    /// On the CI Side:
+                                    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+                                    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+                                    /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:8545")) }
 
     /// helps in assertion to check if a random event was indeed broadcast.

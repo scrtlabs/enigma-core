@@ -1,7 +1,9 @@
-use common_u::errors;
+use std::str;
+
 use failure::Error;
 use sgx_types::*;
-use std::str;
+
+use common_u::errors;
 
 extern "C" {
     fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 20]) -> sgx_status_t;
@@ -31,9 +33,10 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<[u8; 20], E
 
 #[cfg(test)]
 mod test {
-    use crate::esgx::general::init_enclave_wrapper;
     use enigma_tools_u::attestation_service::{self, service::AttestationService};
     use enigma_tools_u::esgx::equote::retry_quote;
+
+    use crate::esgx::general::init_enclave_wrapper;
 
     // isans SPID = "3DDB338BD52EE314B01F1E4E1E84E8AA"
     // victors spid = 68A8730E9ABF1829EA3F7A66321E84D0

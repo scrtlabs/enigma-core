@@ -1,12 +1,13 @@
 use sgx_tseal::SgxSealedData;
-use sgx_types::marker::ContiguousMemory;
 #[cfg(not(target_env = "sgx"))]
 use sgx_types::{sgx_attributes_t, sgx_sealed_data_t, sgx_status_t};
+use sgx_types::marker::ContiguousMemory;
 use std::io::{Read, Write};
+use std::path::PathBuf;
 use std::string::*;
 use std::untrusted::fs;
-use std::untrusted::fs::{remove_file, File};
-use std::path::PathBuf;
+use std::untrusted::fs::{File, remove_file};
+
 use common::errors_t::EnclaveError;
 
 pub const SEAL_LOG_SIZE: usize = 2048;
@@ -124,7 +125,8 @@ pub fn load_sealed_document(path: &PathBuf, sealed_document: &mut [u8]) -> Resul
 #[cfg(debug_assertions)]
 pub mod tests {
     use super::*;
-    //use std::untrusted::fs::*;
+
+//use std::untrusted::fs::*;
 
     /* Test functions */
     pub fn test_document_sealing_storage() {

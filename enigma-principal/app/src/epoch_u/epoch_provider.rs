@@ -4,20 +4,19 @@ use std::io::prelude::*;
 use std::mem;
 use std::ops::Deref;
 use std::path::PathBuf;
-use std::sync::{Mutex, MutexGuard};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 use std::time;
 
-use ethabi::{Event, Log, ParseLog, RawLog};
+use ethabi::{Log, RawLog};
 use failure::Error;
 use serde_json;
 // general
 use web3::futures::Future;
 use web3::futures::stream::Stream;
-use web3::types::{Address, FilterBuilder, H256, TransactionReceipt, U256};
+use web3::types::{FilterBuilder, H256, TransactionReceipt, U256};
 
-use boot_network::principal_manager::PrincipalConfig;
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
 use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
 use esgx::epoch_keeper_u::set_worker_params;
@@ -33,6 +32,7 @@ pub struct EpochProvider {
 impl EpochProvider {
     pub fn new(eid: Arc<AtomicU64>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
         let epoch_state_val = Self::read_epoch_state()?;
+        // TODO: If the state is not empty, get the active workers and prove them to the enclave
         println!("Initializing EpochProvider with EpochState: {:?}", epoch_state_val);
         let epoch_state = Arc::new(Mutex::new(epoch_state_val));
         Ok(Self { contract, epoch_state, eid })
@@ -128,6 +128,8 @@ impl EpochProvider {
         Ok(())
     }
 
+    /// Get the confirmed state if available. Bail if not
+    /// The confirmed state contains the selected worker cache.
     pub fn get_confirmed(&self) -> Result<ConfirmedEpochState, Error> {
         let guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
@@ -173,7 +175,7 @@ impl EpochProvider {
         println!("Caching selected workers");
         self.confirm_epoch(epoch_state, worker_params)?;
         println!("Got the receipt: {:?}", receipt);
-        self.set_epoch_state(Some(epoch_state.clone()));
+        self.set_epoch_state(Some(epoch_state.clone()))?;
         Ok(receipt.transaction_hash)
     }
 
@@ -239,9 +241,9 @@ mod test {
     use super::*;
 
     /// This function is important to enable testing both on the CI server and local.
-                                        /// On the CI Side:
-                                        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-                                        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-                                        /// The default is set to ganache cli "http://localhost:8545"
+                                            /// On the CI Side:
+                                            /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+                                            /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+                                            /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:9545")) }
 }

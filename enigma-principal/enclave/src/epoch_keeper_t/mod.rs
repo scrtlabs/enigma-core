@@ -9,8 +9,6 @@ use std::str;
 use std::string::ToString;
 use std::sync::SgxMutex;
 use std::sync::SgxMutexGuard;
-use std::untrusted::fs;
-use std::vec::Vec;
 
 use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::common::errors_t::EnclaveError;
@@ -37,10 +35,6 @@ fn get_epoch_root_path() -> path::PathBuf {
     let mut path_buf = ocalls_t::get_home_path();
     path_buf.push(EPOCH_DIR);
     path_buf
-}
-
-fn get_document_path(nonce: &Uint) -> path::PathBuf {
-    get_epoch_root_path().join(format!("{:?}.{}", nonce, "sealed"))
 }
 
 fn get_epoch_nonce_path() -> path::PathBuf {
@@ -163,7 +157,7 @@ pub mod tests {
     use super::*;
 
     //noinspection RsTypeCheck
-    pub fn test_get_epoch_workers_internal() {
+    pub fn test_get_epoch_worker_internal() {
         let worker_params = InputWorkerParams {
             block_number: U256::from(1),
             workers: vec![H160::from(0), H160::from(1), H160::from(2), H160::from(3)],
@@ -176,7 +170,7 @@ pub mod tests {
         };
         println!("The epoch: {:?}", epoch);
         let sc_addr = H256::from(1);
-        let workers = epoch.get_selected_worker(sc_addr).unwrap();
-        println!("The selected workers: {:?}", workers);
+        let worker = epoch.get_selected_worker(sc_addr).unwrap();
+        println!("The selected workers: {:?}", worker);
     }
 }

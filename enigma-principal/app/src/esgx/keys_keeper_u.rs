@@ -1,11 +1,11 @@
+use ethabi::{encode, Token};
+use ethereum_types::H256;
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors::EnclaveFailError;
 use enigma_types::EnclaveReturn;
-use ethereum_types::H256;
-use ethabi::{Token, encode};
 
 extern {
     fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
@@ -70,11 +70,11 @@ pub mod tests {
     #![allow(dead_code, unused_assignments, unused_variables)]
 
     use sgx_urts::SgxEnclave;
+    use web3::types::{Address, Bytes, H256, U256};
 
     use esgx::epoch_keeper_u::tests::set_mock_worker_params;
     use esgx::general::init_enclave_wrapper;
     use keys_u::keeper_types_u::InputWorkerParams;
-    use web3::types::{Bytes, H256, U256, Address};
 
     use super::*;
 

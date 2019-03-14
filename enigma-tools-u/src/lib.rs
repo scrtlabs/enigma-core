@@ -9,7 +9,6 @@ extern crate serde_json;
 extern crate base64;
 extern crate openssl;
 extern crate rlp;
-extern crate bigint;
 extern crate rustc_hex as hex;
 #[macro_use]
 extern crate serde;
@@ -22,7 +21,6 @@ extern crate sgx_urts;
 extern crate log;
 #[macro_use]
 extern crate log_derive;
-extern crate ethabi;
 
 pub mod attestation_service;
 pub mod common_u;

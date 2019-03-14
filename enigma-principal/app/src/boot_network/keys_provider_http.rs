@@ -2,6 +2,7 @@ use std::string::ToString;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
+use ethereum_types::H256;
 use failure::Error;
 use jsonrpc_http_server::cors::AccessControlAllowOrigin;
 use jsonrpc_http_server::DomainsValidation;
@@ -12,11 +13,9 @@ use serde::{Deserialize, Serialize};
 use sgx_types::sgx_enclave_id_t;
 
 use epoch_u::epoch_provider::EpochProvider;
-use enigma_types::{ContractAddress, StateKey};
-use esgx::keys_keeper_u::get_enc_state_keys;
-use ethereum_types::H256;
-use keys_u::km_reader::PrincipalMessageReader;
 use epoch_u::epoch_types::EpochState;
+use esgx::keys_keeper_u::get_enc_state_keys;
+use keys_u::km_reader::PrincipalMessageReader;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
@@ -140,13 +139,16 @@ impl PrincipalHttpServer {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use keys_u::km_reader::test::{sign_message, WORKER_SIGN_ADDRESS};
     use std::collections::HashMap;
+
     use ethereum_types::{H160, U256};
-    use web3::types::Bytes;
-    use epoch_u::epoch_types::ConfirmedEpochState;
     use rustc_hex::FromHex;
+    use web3::types::Bytes;
+
+    use epoch_u::epoch_types::ConfirmedEpochState;
+    use keys_u::km_reader::test::{sign_message, WORKER_SIGN_ADDRESS};
+
+    use super::*;
 
     #[test]
     pub fn test_find_epoch_contract_addresses() {

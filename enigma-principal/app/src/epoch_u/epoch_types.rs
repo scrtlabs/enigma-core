@@ -1,19 +1,17 @@
+use std::clone::Clone;
 use std::collections::HashMap;
 
 use bigint;
 use ethabi::{Event, EventParam, ParamType};
 use failure::Error;
 pub use rlp::{decode, Encodable, encode, RlpStream};
-use web3::types::{Address, Bytes, H160, H2048, H256, H64, U256};
+use web3::types::{Address, Bytes, H160, H256, U256};
 
 use keys_u::keeper_types_u::InputWorkerParams;
-use std::clone::Clone;
 
 pub trait IntoBigint<T> {
     fn bigint(self) -> T;
 }
-
-impl IntoBigint<bigint::H64> for H64 { fn bigint(self) -> bigint::H64 { bigint::H64(self.0) } }
 
 impl IntoBigint<bigint::H160> for H160 { fn bigint(self) -> bigint::H160 { bigint::H160(self.0) } }
 
@@ -21,9 +19,6 @@ impl IntoBigint<bigint::H256> for H256 { fn bigint(self) -> bigint::H256 { bigin
 
 impl IntoBigint<bigint::U256> for U256 { fn bigint(self) -> bigint::U256 { bigint::U256(self.0) } }
 
-impl IntoBigint<bigint::H2048> for H2048 { fn bigint(self) -> bigint::H2048 { bigint::H2048(self.0) } }
-
-impl IntoBigint<bigint::B256> for Bytes { fn bigint(self) -> bigint::B256 { bigint::B256::new(&self.0) } }
 
 impl Encodable for InputWorkerParams {
     fn rlp_append(&self, s: &mut RlpStream) {
@@ -56,7 +51,7 @@ impl EpochState {
     /// Build a local mapping of smart contract address => selected worker for the epoch
     #[logfn(DEBUG)]
     pub fn confirm(&mut self, worker_params: &InputWorkerParams, sc_addresses: Vec<H256>) -> Result<(), Error> {
-        println!("Confimed epoch with worker params: {:?}", worker_params);
+        println!("Confirmed epoch with worker params: {:?}", worker_params);
         let block_number = worker_params.block_number.clone();
         let mut selected_workers: HashMap<H256, Address> = HashMap::new();
         for sc_address in sc_addresses {

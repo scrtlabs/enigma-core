@@ -1,6 +1,5 @@
 use structopt::StructOpt;
 use url::Url;
-use boot_network::principal_manager::RegistrationParams;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "basic")]
