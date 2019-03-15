@@ -61,7 +61,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: retval, status }.into());
     }
-    let enc_response_out: Vec<u8> = enc_response_slice[0..enc_response_len_out].to_vec()
+    let enc_response_out: Vec<u8> = enc_response_slice[0..enc_response_len_out].to_vec();
     Ok(StateKeyResponse {
         data: StringWrapper::from(enc_response_out),
         sig: StringWrapper::from(sig_out),
