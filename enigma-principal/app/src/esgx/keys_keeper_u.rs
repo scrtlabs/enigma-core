@@ -1,3 +1,5 @@
+use std::convert::TryInto;
+
 use ethabi::{encode, Token};
 use ethereum_types::H256;
 use failure::Error;
@@ -36,7 +38,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
     let enc_response_slice = enc_response.as_mut_slice();
     let mut enc_response_len_out: usize = 0;
 
-    let msg_bytes: Vec<u8> = request.data.into();
+    let msg_bytes: Vec<u8> = request.data.try_into()?;
     let addrs_bytes: Vec<u8> = match epoch_addrs {
         Some(addrs) => {
             let tokens: Vec<Token> = addrs.iter().map(|a| Token::FixedBytes(a.0.to_vec())).collect();

@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use std::string::ToString;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
@@ -23,20 +24,36 @@ const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StringWrapper(pub String);
 
+impl TryInto<Vec<u8>> for StringWrapper {
+    type Error = Error;
+
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
+        let value = &self;
+        Ok(value.0.from_hex()?)
+    }
+}
+
+impl TryInto<[u8; 65]> for StringWrapper {
+    type Error = Error;
+
+    fn try_into(self) -> Result<[u8; 65], Self::Error> {
+        let value = &self;
+        let bytes = value.0.from_hex()?;
+        let mut slice: [u8; 65] = [0; 65];
+        slice.copy_from_slice(&bytes[..]);
+        Ok(slice)
+    }
+}
+
 impl Into<Vec<u8>> for StringWrapper {
     fn into(self) -> Vec<u8> {
-        let value = &self;
-        value.0.from_hex().unwrap()
+        self.try_into().expect("Unable to cast byte array attribute")
     }
 }
 
 impl Into<[u8; 65]> for StringWrapper {
     fn into(self) -> [u8; 65] {
-        let value = &self;
-        let bytes = value.0.from_hex().unwrap();
-        let mut slice: [u8; 65] = [0; 65];
-        slice.copy_from_slice(&bytes[..]);
-        slice
+        self.try_into().expect("Unable to cast fixed 65-bytes array attribute")
     }
 }
 
@@ -89,7 +106,7 @@ impl PrincipalHttpServer {
     #[logfn(DEBUG)]
     fn get_state_keys_internal(epoch_provider: Arc<EpochProvider>, request: StateKeyRequest, eid: sgx_enclave_id_t) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
-        let reader = PrincipalMessageReader::new(request.data.clone().into())?;
+        let reader = PrincipalMessageReader::new(request.data.clone().try_into()?)?;
         let addrs = reader.get_contract_addresses()?;
         let response = match addrs {
             Some(addrs) => {
@@ -99,7 +116,7 @@ impl PrincipalHttpServer {
             None => {
                 println!("No addresses in message, reading from epoch state...");
                 let epoch_state = epoch_provider.get_state()?;
-                let epoch_addrs = Self::find_epoch_contract_addresses(reader, request.sig.clone().into(), epoch_state)?;
+                let epoch_addrs = Self::find_epoch_contract_addresses(reader, request.sig.clone().try_into()?, epoch_state)?;
                 get_enc_state_keys(eid, request, Some(epoch_addrs))?
             }
         };
@@ -155,7 +172,7 @@ mod test {
         let msg = vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         let sig = sign_message(&msg).unwrap();
         let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(sig.to_vec().to_hex()) };
-        let reader = PrincipalMessageReader::new(request.data.clone().into()).unwrap();
+        let reader = PrincipalMessageReader::new(request.data.clone().try_into().unwrap()).unwrap();
         let mut selected_workers: HashMap<H256, H160> = HashMap::new();
         selected_workers.insert(H256([0; 32]), H160(WORKER_SIGN_ADDRESS));
         let block_number = U256::from(1);
@@ -164,7 +181,7 @@ mod test {
         let sig = Bytes::from(sig.to_vec());
         let nonce = U256::from(0);
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
-        let results = PrincipalHttpServer::find_epoch_contract_addresses(reader, request.sig.into(), epoch_state).unwrap();
+        let results = PrincipalHttpServer::find_epoch_contract_addresses(reader, request.sig.try_into(), epoch_state).unwrap();
         println!("Found contract addresses: {:?}", results);
         assert_eq!(results, vec![H256([0; 32])])
     }
