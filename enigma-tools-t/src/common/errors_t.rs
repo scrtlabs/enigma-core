@@ -104,13 +104,18 @@ impl From<wasmi::Error> for EnclaveError{
 #[derive(Debug, Clone)]
 pub enum EnclaveError {
     FailedTaskError(FailedTaskError),
-    SystemError(EnclaveSystemError),
+    FailedTaskErrorWithGas {
+        used_gas: u64,
+        err: FailedTaskError
+    },
+    SystemError(EnclaveSystemError)
 }
 
 impl ::std::fmt::Display for EnclaveError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
         match self {
             EnclaveError::FailedTaskError(ref e) => write!(f, "{}", e),
+            EnclaveError::FailedTaskErrorWithGas{used_gas:_, err} => write!(f, "{}", err),
             EnclaveError::SystemError(ref e) => write!(f, "{}", e),
         }
     }
@@ -200,6 +205,7 @@ impl Into<EnclaveReturn> for EnclaveError {
         use self::EnclaveError::*;
         match self {
             FailedTaskError {..} => EnclaveReturn::TaskFailure,
+            FailedTaskErrorWithGas {..} => EnclaveReturn::TaskFailure,
             SystemError(e) => {
                 use self::EnclaveSystemError::*;
                 use self::CryptoError::*;

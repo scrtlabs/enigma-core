@@ -53,7 +53,7 @@ use enigma_runtime_t::data::{ContractState, StatePatch, EncryptedPatch};
 use enigma_runtime_t::EthereumData;
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
-use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError, FailedTaskError::*}, LockExpectMutex, EthereumAddress};
+use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}, LockExpectMutex, EthereumAddress};
 use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
 use wasm_utils::{build, SourceTarget};
@@ -137,9 +137,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                            result);
     if let Err(e) = internal_result.clone() {
         println!("Error in execution of smart contract function: {}", e);
-        if let FailedTaskError(ref failed_task_error) = e {
-            internal_result = output_task_failure(&pre_execution_data,failed_task_error, result, &io_key);
-        }
+        internal_result = output_task_failure(&pre_execution_data,e, result, &io_key);
     }
     internal_result.into()
 }
@@ -175,9 +173,7 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
     let mut internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, &io_key, *gas_limit, db_ptr, result);
     if let Err(e) = internal_result.clone() {
         println!("Error in deployment of smart contract function: {}", e);
-        if let FailedTaskError(ref failed_task_error) = e {
-            internal_result = output_task_failure(&pre_execution_data, failed_task_error, result, &io_key);
-        }
+        internal_result = output_task_failure(&pre_execution_data, e, result, &io_key);
     }
     internal_result.into()
 }
@@ -303,8 +299,18 @@ fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
     }
 }
 
-fn output_task_failure (pre_execution_data: &[Box<[u8]>], faled_task_error: &FailedTaskError, result: &mut ExecuteResult, key: &DhKey) -> Result<(), EnclaveError>{
+fn output_task_failure (pre_execution_data: &[Box<[u8]>], err: EnclaveError, result: &mut ExecuteResult, key: &DhKey) -> Result<(), EnclaveError>{
     // Signing: S(pre-execution data, usedGas, Failure)
+    result.used_gas = 0;
+    let mut return_error = err.clone();
+    match err {
+        FailedTaskError(_) => (),
+        FailedTaskErrorWithGas{used_gas, err} => {
+            result.used_gas = used_gas;
+            return_error = FailedTaskError(err);
+        },
+        SystemError(e) => return Err(SystemError(e)),
+    }
     let used_gas = result.used_gas.to_be_bytes();
     let failure = [ResultStatus::Failure.into()];
     let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
@@ -312,10 +318,10 @@ fn output_task_failure (pre_execution_data: &[Box<[u8]>], faled_task_error: &Fai
     to_sign.push(&used_gas);
     to_sign.push(&failure);
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
-    let error_text = format!("{}", faled_task_error);
+    let error_text = format!("{}", return_error);
     let encrypted_result = symmetric::encrypt(error_text.as_bytes(), &key)?;
     result.output = ocalls_t::save_to_untrusted_memory(&encrypted_result)? as *const u8;
-    Err(EnclaveError::FailedTaskError(faled_task_error.clone()))
+    Err(return_error)
 }
 
 unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecode: &[u8], callable: &[u8],
