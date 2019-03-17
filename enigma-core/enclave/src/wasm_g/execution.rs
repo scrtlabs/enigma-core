@@ -104,7 +104,17 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
 
     let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types);
 
-    instance.invoke_export("call", &[], &mut runtime)?;
+    let invocation_result = instance.invoke_export("call", &[], &mut runtime);
+    if let Err(err) = invocation_result {
+        let err: EnclaveError = err.into();
+        if let FailedTaskError(e) = err {
+            return Err(EnclaveError::FailedTaskErrorWithGas { used_gas: runtime.get_used_gas(), err: e });
+        }
+        else {
+            return Err(err)
+        }
+    }
+
     let result = runtime.into_result()?;
     Ok(result)
 }

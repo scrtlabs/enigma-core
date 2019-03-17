@@ -7,7 +7,6 @@
 extern crate sgx_tstd as std;
 extern crate sgx_types;
 extern crate sgx_trts;
-#[macro_use]
 extern crate serde_json;
 #[macro_use]
 extern crate enigma_tools_t;
@@ -91,6 +90,10 @@ impl Runtime {
         };
 
         Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, pre_execution_state: init_state, post_execution_state: current_state }
+    }
+
+    pub fn get_used_gas(&self) -> u64 {
+        self.gas_counter
     }
 
     fn fetch_args_length(&mut self) -> RuntimeValue { RuntimeValue::I32(self.args.len() as i32) }
@@ -227,6 +230,7 @@ impl Runtime {
 
     /// Destroy the runtime, returning currently recorded result of the execution
     pub fn into_result(mut self) -> ::std::result::Result<RuntimeResult, EnclaveError> {
+        self.result.used_gas = self.gas_counter;
         self.result.state_delta = {
             // The delta is always generated after a deployment.
             // The delta is generated after an execution only if there is a state change.
@@ -236,7 +240,6 @@ impl Runtime {
                 None
             }
         };
-        self.result.used_gas = self.gas_counter;
         self.result.updated_state = self.post_execution_state;
         Ok(self.result.clone())
     }
@@ -256,6 +259,7 @@ impl Runtime {
         if self.charge_gas(amount as u64) {
             Ok(())
         } else {
+            self.gas_counter = self.gas_limit;
             Err(WasmError::GasLimit)
         }
     }
