@@ -7,10 +7,12 @@ extern crate ethabi;
 use integration_utils::{get_simple_msg_format, conn_and_call_ipc, is_hex, run_core, erc20_deployment_without_ptt_to_addr,
                         run_ptt_round, contract_compute, full_simple_deployment, full_erc20_deployment};
 use cross_test_utils::generate_contract_address;
-use rustc_hex::ToHex;
+use rustc_hex::{ToHex, FromHex};
+use std::str::from_utf8;
 use ethabi::Token;
 use app::serde_json::*;
 use cross_test_utils::generate_user_address;
+use integration_utils::enigma_crypto::symmetric;
 
 #[test]
 fn test_registration_params() {
@@ -83,16 +85,23 @@ fn test_wrong_arguments() {
     let (_, _address) = full_simple_deployment(port);
     let args = [Token::FixedBytes(generate_contract_address().to_vec()), Token::FixedBytes(generate_contract_address().to_vec())];
     let callable  = "mint(bytes32,bytes32)";
-    let (_val, _) = contract_compute(port, _address, &args, callable);
-    let accepted_err =  _val["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "EnclaveFailError { err: WasmCodeExecutionError, status: SGX_SUCCESS }");
+    let (val, key) = contract_compute(port, _address, &args, callable);
+    let output = val["result"]["output"].as_str().unwrap();
+    let dec = symmetric::decrypt(&output.from_hex().unwrap(), &key).unwrap();
+    assert_eq!(from_utf8(&dec).unwrap(), "Error in execution of WASM code: unreachable");
 }
 
 #[test]
 fn test_out_of_gas() {
     let port = "5580";
     run_core(port);
-    let (_val,_) = full_erc20_deployment(port, generate_user_address().0, None,Some(2));
-    let accepted_err =  _val["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "EnclaveFailError { err: GasLimitError, status: SGX_SUCCESS }");
+    let (val, key, _) = full_erc20_deployment(port,  generate_user_address().0, None, Some(200));
+    let output = val["result"]["output"].as_str().unwrap();
+    let used_gas = val["result"]["usedGas"].as_u64().unwrap();
+    let msg_type = val["type"].as_str().unwrap();
+    let dec = symmetric::decrypt(&output.from_hex().unwrap(), &key).unwrap();
+    assert_eq!("FailedTask", msg_type);
+    assert_eq!("Invocation resulted in gas limit violated", from_utf8(&dec).unwrap());
+    assert_eq!(200, used_gas);
+
 }
