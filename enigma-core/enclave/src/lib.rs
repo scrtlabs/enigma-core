@@ -23,6 +23,8 @@ extern crate sgx_trts;
 extern crate sgx_types;
 
 #[macro_use]
+extern crate serde_json;
+#[macro_use]
 extern crate lazy_static;
 #[macro_use]
 extern crate error_chain;

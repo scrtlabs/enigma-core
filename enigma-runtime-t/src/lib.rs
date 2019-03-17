@@ -7,6 +7,7 @@
 extern crate sgx_tstd as std;
 extern crate sgx_types;
 extern crate sgx_trts;
+#[macro_use]
 extern crate serde_json;
 #[macro_use]
 extern crate enigma_tools_t;
