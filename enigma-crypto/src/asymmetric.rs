@@ -128,7 +128,7 @@ impl KeyPair {
     /// let sig = keys.sign_multiple(&[msg, msg2]).unwrap();
     /// ```
     #[cfg(any(feature = "sgx", feature = "std"))]
-    pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], CryptoError> {
+    pub fn sign_multiple<B: AsRef<[u8]>>(&self, messages: &[B]) -> Result<[u8; 65], CryptoError> {
         let ready = crate::hash::prepare_hash_multiple(messages);
         self.sign(&ready)
     }
