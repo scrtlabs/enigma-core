@@ -18,42 +18,55 @@ pub enum PrincipalMessageType {
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct PrincipalMessage {
-    #[doc(hidden)]
-    prefix: [u8; 14],
     pub data: PrincipalMessageType,
     pubkey: Vec<u8>,
     id: MsgID,
 }
 
 impl PrincipalMessage {
-    const PREFIX: &'static [u8; 14] = b"Enigma Message";
 
     pub fn new(data: PrincipalMessageType, pubkey: PubKey) -> Result<Self, EnclaveError> {
         let mut id = [0u8; 12];
         rsgx_read_rand(&mut id)?;
         let pubkey = pubkey.to_vec();
-        let prefix = *Self::PREFIX;
-        Ok(Self { data, pubkey, id, prefix })
+        Ok(Self { data, pubkey, id })
     }
 
     pub fn new_id(data: PrincipalMessageType, id: [u8; 12], pubkey: PubKey) -> Self {
         let pubkey = pubkey.to_vec();
-        let prefix = *Self::PREFIX;
-        Self { data, pubkey, id, prefix }
+        Self { data, pubkey, id }
     }
 
-    pub fn to_message(&self) -> Result<Vec<u8>, EnclaveError> {
+    pub fn to_sign(&self) -> Result<Vec<u8>, EnclaveError> {
+        if self.is_response() {
+            return Err(EnclaveError::MessagingError { err: "can't serialize non encrypted response".to_string() });
+        }
+        let mut to_sign= Vec::with_capacity(3);
+        match &self.data {
+            PrincipalMessageType::Request(Some(addresses)) => {
+                to_sign.push(hash::prepare_hash_multiple(addresses.as_ref()));
+            }
+            PrincipalMessageType::EncryptedResponse(v) => to_sign.push(v.clone()),
+            PrincipalMessageType::Request(None) | PrincipalMessageType::Response(_) => (),
+        }
+        to_sign.push(self.pubkey.to_vec());
+        to_sign.push(self.id.to_vec());
+        Ok(hash::prepare_hash_multiple(&to_sign))
+    }
+
+    pub fn into_message(self) -> Result<Vec<u8>, EnclaveError> {
         if self.is_response() {
             return Err(SystemError(MessagingError { err: "can't serialize non encrypted response".to_string() }));
         }
         let mut buf = Vec::new();
-        let val = serde_json::to_value(self.clone()).unwrap(); // TODO: impl From for this error
+        let val = serde_json::to_value(self)
+            .map_err(|_| EnclaveError::MessagingError {err: "Couldn't convert PrincipalMessage to Value".to_string()})?;
         val.serialize(&mut Serializer::new(&mut buf))?;
         Ok(buf)
     }
 
     pub fn from_message(msg: &[u8]) -> Result<Self, EnclaveError> {
-        let mut des = Deserializer::new(&msg[..]);
+        let mut des = Deserializer::new(msg);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
         let msg: Self = serde_json::from_value(res).unwrap();
         Ok(msg)
@@ -99,7 +112,7 @@ impl<'a> Encryption<&'a DhKey, CryptoError, Self, [u8; 12]> for PrincipalMessage
                 let mut buf = Vec::new();
                 response.serialize(&mut Serializer::new(&mut buf)).map_err(|_| CryptoError::EncryptionError)?;
                 let enc = symmetric::encrypt_with_nonce(&buf, key, _iv)?;
-                Ok(Self { prefix: self.prefix, data: PrincipalMessageType::EncryptedResponse(enc), pubkey: self.pubkey, id: self.id })
+                Ok(Self { data: PrincipalMessageType::EncryptedResponse(enc), pubkey: self.pubkey, id: self.id })
             }
             _ => Err(CryptoError::EncryptionError ),
         }
@@ -111,7 +124,7 @@ impl<'a> Encryption<&'a DhKey, CryptoError, Self, [u8; 12]> for PrincipalMessage
                 let dec = symmetric::decrypt(&response, key)?;
                 let mut des = Deserializer::new(&dec[..]);
                 let data = PrincipalMessageType::Response(Deserialize::deserialize(&mut des).map_err(|_| CryptoError::DecryptionError)?);
-                Ok(Self { prefix: enc.prefix, data, pubkey: enc.pubkey, id: enc.id })
+                Ok(Self { data, pubkey: enc.pubkey, id: enc.id })
             }
             _ => Err(CryptoError::EncryptionError),
         }
@@ -170,7 +183,7 @@ pub mod tests {
         let req = get_request();
 
         assert_eq!(
-            req.to_message().unwrap(),
+            req.into_message().unwrap(),
             vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97 , 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         );
     }
@@ -183,8 +196,8 @@ pub mod tests {
 
     pub fn test_from_to_message() {
         let res = get_request();
-        let msg = res.to_message().unwrap();
-        assert_eq!(PrincipalMessage::from_message(&msg[..]).unwrap(), res);
+        let msg = res.clone().into_message().unwrap();
+        assert_eq!(PrincipalMessage::from_message(&msg).unwrap(), res);
     }
 
     pub fn test_encrypt_response() {
