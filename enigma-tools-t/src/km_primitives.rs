@@ -1,11 +1,10 @@
-use crate::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
-use enigma_crypto::{symmetric, Encryption, CryptoError};
+use crate::common::errors_t::{EnclaveError::{self, SystemError}, EnclaveSystemError::MessagingError};
+use enigma_crypto::{symmetric, Encryption, CryptoError, hash};
 use enigma_types::{ContractAddress, DhKey, StateKey, PubKey};
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_trts::trts::rsgx_read_rand;
-use std::string::ToString;
-use std::vec::Vec;
+use std::{string::ToString, vec::Vec};
 use serde_json;
 
 pub type MsgID = [u8; 12];
@@ -121,9 +120,7 @@ impl<'a> Encryption<&'a DhKey, CryptoError, Self, [u8; 12]> for PrincipalMessage
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct UserMessage {
-    #[doc(hidden)]
-    prefix: [u8; 19],
-    pubkey: Vec<u8>,
+    pubkey: Vec<u8>
 }
 
 impl UserMessage {
@@ -131,13 +128,19 @@ impl UserMessage {
 
     pub fn new(pubkey: PubKey) -> Self {
         let pubkey = pubkey.to_vec();
-        let prefix = *Self::PREFIX;
-        Self { prefix, pubkey }
+        Self { pubkey }
     }
 
-    pub fn to_message(&self) -> Result<Vec<u8>, EnclaveError> {
+    pub fn to_sign(&self) -> Vec<u8> {
+        let to_sign = [&Self::PREFIX[..], &self.pubkey];
+        hash::prepare_hash_multiple(&to_sign)
+    }
+
+    pub fn into_message(self) -> Result<Vec<u8>, EnclaveError> {
         let mut buf = Vec::new();
-        let val = serde_json::to_value(self.clone()).unwrap(); // TODO: impl From for this error
+        let val = serde_json::to_value(self)
+            .map_err(|_| SystemError(MessagingError {err: "Couldn't convert UserMesssage to Value".to_string()}))?;
+
         val.serialize(&mut Serializer::new(&mut buf))?;
         Ok(buf)
     }
@@ -145,7 +148,8 @@ impl UserMessage {
     pub fn from_message(msg: &[u8]) -> Result<Self, EnclaveError> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
-        let msg: Self = serde_json::from_value(res).unwrap();
+        let msg: Self = serde_json::from_value(res)
+            .map_err(|_| SystemError(MessagingError {err: "Couldn't convert Value to UserMesssage".to_string()}))?;
         Ok(msg)
     }
 

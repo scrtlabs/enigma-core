@@ -12,8 +12,8 @@ lazy_static! { pub static ref DH_KEYS: SgxMutex<HashMap<Vec<u8>, DhKey>> = SgxMu
 pub(crate) unsafe fn ecall_get_user_key_internal(sig: &mut [u8; 65], user_pubkey: &PubKey) -> Result<Vec<u8>, EnclaveError> {
     let keys = KeyPair::new()?;
     let req = UserMessage::new(keys.get_pubkey());
-    let msg = req.to_message()?;
-    *sig = SIGNING_KEY.sign(&msg[..])?;
+    *sig = SIGNING_KEY.sign(&req.to_sign())?;
+    let msg = req.into_message()?;
     let enc_key = keys.derive_key(&user_pubkey)?;
     DH_KEYS.lock_expect("DH Keys").insert(user_pubkey.to_vec(), enc_key);
     Ok(msg)
