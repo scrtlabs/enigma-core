@@ -25,18 +25,18 @@ pub enum CryptoError {
 impl fmt::Display for CryptoError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::CryptoError::*;
-        match &self {
-            &DerivingKeyError{ self_key, other_key} => write!(f, "Failed to derive a key with ECDH: self: {:?}, other: {:?}", &self_key[..], &other_key[..]),
-            &KeyError { key_type, err } => write!(f, "The {} Isn't valid, err: {:?}", key_type, err),
-            &MissingKeyError { key_type } => write!(f, "The following key is missing: {}", key_type),
-            &DecryptionError => write!(f, "Failed Decrypting"),
-            &ImproperEncryption => write!(f, "Improper Encryption"),
-            &EncryptionError => write!(f, "Failed Encrypting"),
-            &SigningError { hashed_msg } => write!(f, "Signing the message failed, msg hash: {:?}", hashed_msg),
-            &ParsingError { sig } => write!(f, "Parsing the signature failed, sig: {:?}", &sig[..]),
-            &RecoveryError { sig } => write!(f, "Recovering the pubkey failed using the sig: {:?}", &sig[..]),
+        match self {
+            DerivingKeyError{ self_key, other_key} => write!(f, "Failed to derive a key with ECDH: self: {:?}, other: {:?}", &self_key[..], &other_key[..]),
+            KeyError { key_type, err } => write!(f, "The {} Isn't valid, err: {:?}", key_type, err),
+            MissingKeyError { key_type } => write!(f, "The following key is missing: {}", key_type),
+            DecryptionError => write!(f, "Failed Decrypting"),
+            ImproperEncryption => write!(f, "Improper Encryption"),
+            EncryptionError => write!(f, "Failed Encrypting"),
+            SigningError { hashed_msg } => write!(f, "Signing the message failed, msg hash: {:?}", hashed_msg),
+            ParsingError { sig } => write!(f, "Parsing the signature failed, sig: {:?}", &sig[..]),
+            RecoveryError { sig } => write!(f, "Recovering the pubkey failed using the sig: {:?}", &sig[..]),
             #[cfg(any(feature = "std", feature = "sgx"))]
-            &RandomError{ err } => write!(f, "Failed Generating a random. Error: {:?}", err),
+            RandomError{ err } => write!(f, "Failed Generating a random. Error: {:?}", err),
         }
     }
 }

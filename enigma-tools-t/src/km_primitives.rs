@@ -39,9 +39,9 @@ impl PrincipalMessage {
 
     pub fn to_sign(&self) -> Result<Vec<u8>, EnclaveError> {
         if self.is_response() {
-            return Err(EnclaveError::MessagingError { err: "can't serialize non encrypted response".to_string() });
+            return Err(SystemError(MessagingError { err: "can't serialize non encrypted response".to_string() }));
         }
-        let mut to_sign= Vec::with_capacity(3);
+        let mut to_sign = Vec::with_capacity(3);
         match &self.data {
             PrincipalMessageType::Request(Some(addresses)) => {
                 to_sign.push(hash::prepare_hash_multiple(addresses.as_ref()));
@@ -60,7 +60,7 @@ impl PrincipalMessage {
         }
         let mut buf = Vec::new();
         let val = serde_json::to_value(self)
-            .map_err(|_| EnclaveError::MessagingError {err: "Couldn't convert PrincipalMessage to Value".to_string()})?;
+            .map_err(|_| SystemError(MessagingError {err: "Couldn't convert PrincipalMessage to Value".to_string()}))?;
         val.serialize(&mut Serializer::new(&mut buf))?;
         Ok(buf)
     }
