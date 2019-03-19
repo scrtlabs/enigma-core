@@ -14,40 +14,44 @@ pub trait ContractInterface{
     fn add(a: U256, b: U256) -> U256;
     fn sub(a: U256, b: U256) -> U256;
     fn mul(a: U256, b: U256) -> U256;
-    // no floats
     fn div(a: U256, b: U256) -> U256;
-    fn construct();
-
 }
 
 pub struct Contract;
 impl ContractInterface for Contract {
     #[no_mangle]
     fn add(a: U256, b: U256) -> U256 {
-        a + b
+        let res = a.checked_add(b);
+        match res {
+            Some(r) => r,
+            None => panic!("addition overflow"),
+        }
     }
 
     #[no_mangle]
     fn sub(a: U256, b: U256) -> U256 {
-        if a < b {
-            return U256::zero()
+        let res = a.checked_sub(b);
+        match res {
+            Some(r) => r,
+            None => panic!("subtraction overflow"),
         }
-        a - b
     }
 
     #[no_mangle]
     fn mul(a: U256, b: U256) -> U256 {
-        a * b
+        let res = a.checked_mul(b);
+        match res {
+            Some(r) => r,
+            None => panic!("multiple overflow"),
+        }
     }
 
     #[no_mangle]
     fn div(a: U256, b: U256) -> U256 {
-        if b.is_zero() {
-            return U256::zero()
+        let res = a.checked_div(b);
+        match res {
+            Some(r) => r,
+            None => panic!("division by zero"),
         }
-        a / b
     }
-
-    #[no_mangle]
-    fn construct() {}
 }
