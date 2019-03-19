@@ -137,6 +137,8 @@ pub struct UserMessage {
 }
 
 impl UserMessage {
+    // The reason for the prefix is that I(@elichai) don't feel comfortable signing a plain public key.
+    // Because ECDSA signature contains multiplication of curve points, so I'm not sure if signing on a valid curve point has any side effect.
     const PREFIX: &'static [u8; 19] = b"Enigma User Message";
 
     pub fn new(pubkey: PubKey) -> Self {
