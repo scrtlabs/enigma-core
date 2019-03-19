@@ -40,7 +40,7 @@ impl KeyPair {
             .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
 
         let shared = SharedSecret::new(&pubkey, &self.privkey)
-            .map_err(|_| CryptoError::DerivingKeyError { self_key: self.get_pubkey().into(), other_key: (*_pubarr).into() })?;
+            .map_err(|_| CryptoError::DerivingKeyError { self_key: self.get_pubkey(), other_key: *_pubarr })?;
 
         let mut result = [0u8; 32];
         result.copy_from_slice(shared.as_ref());
@@ -128,7 +128,7 @@ impl KeyPair {
     /// let sig = keys.sign_multiple(&[msg, msg2]).unwrap();
     /// ```
     #[cfg(any(feature = "sgx", feature = "std"))]
-    pub fn sign_multiple(&self, messages: &[&[u8]]) -> Result<[u8; 65], CryptoError> {
+    pub fn sign_multiple<B: AsRef<[u8]>>(&self, messages: &[B]) -> Result<[u8; 65], CryptoError> {
         let ready = crate::hash::prepare_hash_multiple(messages);
         self.sign(&ready)
     }

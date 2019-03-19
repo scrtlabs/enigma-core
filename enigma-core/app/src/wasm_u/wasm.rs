@@ -522,7 +522,7 @@ mod tests {
 
         let a = ethabi::Token::Uint(Uint::MAX);
         let b = Token::Uint(76.into());
-        let (_, _, result, shared_key) = compile_deploy_execute(
+        let _ = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simple_calculator",
             generate_contract_address(),

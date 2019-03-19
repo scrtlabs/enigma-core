@@ -53,7 +53,7 @@ pub fn decrypt_args(callable_args: &[u8], key: &DhKey) -> Result<Vec<u8>, Enclav
 
 pub fn decrypt_callable(callable: &[u8], key: &DhKey) -> Result<Vec<u8>, EnclaveError> {
     if callable.is_empty(){
-        return Err(FailedTaskError(InputError { message: "called function representation is empty".to_string()}))
+        Err(FailedTaskError(InputError { message: "called function representation is empty".to_string()}))
     } else {
         Ok(decrypt(callable, key)?)
     }

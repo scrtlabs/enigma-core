@@ -115,7 +115,7 @@ impl ::std::fmt::Display for EnclaveError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
         match self {
             EnclaveError::FailedTaskError(ref e) => write!(f, "{}", e),
-            EnclaveError::FailedTaskErrorWithGas{used_gas:_, err} => write!(f, "{}", err),
+            EnclaveError::FailedTaskErrorWithGas{err, ..} => write!(f, "{}", err),
             EnclaveError::SystemError(ref e) => write!(f, "{}", e),
         }
     }
