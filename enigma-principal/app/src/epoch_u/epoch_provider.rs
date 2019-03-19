@@ -182,6 +182,7 @@ impl EpochProvider {
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
         let receipt = self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
+        println!("Got the receipt: {:?}", receipt);
         let log = self.parse_worker_parameterized(&receipt)?;
         match log.params.iter().find(|&x| x.name == "firstBlockNumber") {
             Some(param) => {
@@ -189,7 +190,6 @@ impl EpochProvider {
                 let token = param.value.clone();
                 let block_number = token.to_uint().unwrap();
                 self.confirm_epoch(epoch_state, block_number, worker_params)?;
-                println!("Got the receipt: {:?}", receipt);
                 self.set_epoch_state(Some(epoch_state.clone()))?;
                 Ok(receipt.transaction_hash)
             }

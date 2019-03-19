@@ -38,6 +38,9 @@ impl TryInto<[u8; 65]> for StringWrapper {
     fn try_into(self) -> Result<[u8; 65], Self::Error> {
         let value = &self;
         let bytes = value.0.from_hex()?;
+        if bytes.len() != 65 {
+            bail!("Cannot create a 65 bytes array from mismatching mismatching size slice.")
+        }
         let mut slice: [u8; 65] = [0; 65];
         slice.copy_from_slice(&bytes[..]);
         Ok(slice)
