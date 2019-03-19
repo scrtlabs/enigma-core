@@ -2,7 +2,7 @@ pub mod wasm;
 
 use crate::common_u::errors::EnclaveFailError;
 use crate::db::{Delta, DeltaKey, Stype};
-use std::{fmt, mem, convert::TryFrom};
+use std::{fmt, convert::TryFrom};
 use enigma_types::{EnclaveReturn, ExecuteResult, ContractAddress};
 use failure::Error;
 use sgx_types::*;
@@ -32,13 +32,25 @@ pub enum WasmResult{
 
 impl Default for WasmTaskResult {
     fn default() -> WasmTaskResult {
-        unsafe { mem::zeroed() }
+        WasmTaskResult {
+            bytecode: Default::default(),
+            output: Default::default(),
+            delta: Default::default(),
+            eth_payload: Default::default(),
+            eth_contract_addr: Default::default(),
+            signature: [0u8; 65],
+            used_gas: Default::default()
+        }
     }
 }
 
-impl Default for WasmTaskFailure {
+impl Default for  WasmTaskFailure {
     fn default() -> WasmTaskFailure {
-        unsafe { mem::zeroed() }
+        WasmTaskFailure {
+            output: Default::default(),
+            signature: [0u8; 65],
+            used_gas: Default::default()
+        }
     }
 }
 

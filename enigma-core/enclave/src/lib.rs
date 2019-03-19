@@ -122,11 +122,10 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     let args = slice::from_raw_parts(args, args_len);
 
     let mut pre_execution_data = vec![];
-    let io_key;
-    match get_io_key(user_key){
-        Ok(v) => io_key  = v,
+    let io_key = match get_io_key(user_key) {
+        Ok(v) => v,
         Err(e) => return e.into(),
-    }
+    };
 
 // in order to view the specific error print out the result of the function
     let mut internal_result = ecall_execute_internal(&mut pre_execution_data, bytecode,

@@ -92,11 +92,11 @@ pub(self) mod handling {
     }
 
     impl WasmTaskResult {
-        pub fn into_execute_response(&self) -> IpcResponse {
+        pub fn into_execute_response(self) -> IpcResponse {
             let result = IpcResults::ComputeResult {
                 used_gas: self.used_gas,
                 output: self.output.to_hex(),
-                delta: self.delta.clone().into(),
+                delta: self.delta.into(),
                 ethereum_address: self.eth_contract_addr.to_hex(),
                 ethereum_payload: self.eth_payload.to_hex(),
                 signature: self.signature.to_hex(),
@@ -104,12 +104,12 @@ pub(self) mod handling {
             IpcResponse::ComputeTask { result }
         }
 
-        pub fn into_deploy_response(&self, bytecode: &[u8]) -> IpcResponse {
+        pub fn into_deploy_response(self, bytecode: &[u8]) -> IpcResponse {
             let result = IpcResults::DeployResult {
                 pre_code_hash: bytecode.keccak256().to_hex(),
                 used_gas: self.used_gas,
                 output: self.output.to_hex(), // TODO: Return output
-                delta: self.delta.clone().into(),
+                delta: self.delta.into(),
                 ethereum_address: self.eth_contract_addr.to_hex(),
                 ethereum_payload: self.eth_payload.to_hex(),
                 signature: self.signature.to_hex(),
