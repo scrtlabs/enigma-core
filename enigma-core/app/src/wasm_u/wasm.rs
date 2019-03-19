@@ -100,6 +100,7 @@ mod tests {
     use enigma_crypto::symmetric;
     use sgx_types::*;
     use wasm_u::{WasmResult};
+    use self::ethabi::Uint;
 
     pub const GAS_LIMIT: u64 = 100_000_000;
 
@@ -328,8 +329,8 @@ mod tests {
         ).expect("Execution failed");
 
         // deserialization of result
-        let expected_total_supply: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
-        let accepted_total_supply = Token::Uint((total_supply.to_uint().unwrap().as_u64() + amount).into());
+        let accepted_total_supply: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
+        let expected_total_supply = Token::Uint((total_supply.to_uint().unwrap().as_u64() + amount).into());
         assert_eq!(expected_total_supply, accepted_total_supply);
     }
 
@@ -468,6 +469,164 @@ mod tests {
             &[],
             "test()",
             &[]
+        );
+    }
+
+    #[test]
+    fn test_add_calc() {
+        let (mut db, _dir) = create_test_db();
+
+        let a = ethabi::Token::Uint(3358967.into());
+        let b = Token::Uint(76.into());
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simple_calculator",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "add(uint256,uint256)",
+            &[a.clone(), b.clone()]
+        );
+
+        // deserialization of result
+        let accepted_result: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
+        let expected_result = Token::Uint((a.to_uint().unwrap().as_u64() + b.to_uint().unwrap().as_u64()).into());
+        assert_eq!(accepted_result, expected_result);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_overflow_add_calc() {
+        let (mut db, _dir) = create_test_db();
+
+        let a = ethabi::Token::Uint(Uint::MAX);
+        let b = Token::Uint(76.into());
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simple_calculator",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "add(uint256,uint256)",
+            &[a.clone(), b.clone()]
+        );
+
+    }
+
+    #[test]
+    fn test_sub_calc() {
+        let (mut db, _dir) = create_test_db();
+        let a = Token::Uint(76.into());
+        let b = Token::Uint(17.into());
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simple_calculator",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "sub(uint256,uint256)",
+            &[a.clone(), b.clone()]
+        );
+
+
+        // deserialization of result
+        let accepted_result: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
+        let expected_result = Token::Uint((a.to_uint().unwrap().as_u64() - b.to_uint().unwrap().as_u64()).into());
+        assert_eq!(accepted_result, expected_result);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_sub_overflow_calc() {
+        let (mut db, _dir) = create_test_db();
+        let a = Token::Uint(10.into());
+        let b = Token::Uint(20.into());
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simple_calculator",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "sub(uint256,uint256)",
+            &[a.clone(), b.clone()]
+        );
+    }
+
+    #[test]
+    fn test_mul_calc() {
+        let (mut db, _dir) = create_test_db();
+        let a = Token::Uint(17.into());
+        let b = Token::Uint(76.into());
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simple_calculator",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "mul(uint256,uint256)",
+            &[a.clone(), b.clone()]
+        );
+
+
+        // deserialization of result
+        let accepted_result: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
+        let expected_result = Token::Uint((a.to_uint().unwrap().as_u64() * b.to_uint().unwrap().as_u64()).into());
+        assert_eq!(accepted_result, expected_result);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_mul_overflow_calc() {
+        let (mut db, _dir) = create_test_db();
+        let a = Token::Uint(Uint::MAX);
+        let b = Token::Uint(76.into());
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simple_calculator",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "mul(uint256,uint256)",
+            &[a.clone(), b.clone()]
+        );
+    }
+
+    #[test]
+    fn test_div_calc() {
+        let (mut db, _dir) = create_test_db();
+        let a = Token::Uint(76.into());
+        let b = Token::Uint(17.into());
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simple_calculator",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "div(uint256,uint256)",
+            &[a.clone(), b.clone()]
+        );
+
+
+        // deserialization of result
+        let accepted_result: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
+        let expected_result = Token::Uint((a.to_uint().unwrap().as_u64() / b.to_uint().unwrap().as_u64()).into());
+        assert_eq!(accepted_result, expected_result);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_div_zero_calc() {
+        let (mut db, _dir) = create_test_db();
+        let a = Token::Uint(76.into());
+        let b = Token::Uint(0.into());
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simple_calculator",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "div(uint256,uint256)",
+            &[a.clone(), b.clone()]
         );
     }
 }
