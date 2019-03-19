@@ -56,9 +56,8 @@ impl EpochState {
     /// * `sc_addresses` - The Secret Contract addresses for which to retrieve the selected worker
     ///
     #[logfn(DEBUG)]
-    pub fn confirm(&mut self, worker_params: &InputWorkerParams, sc_addresses: Vec<H256>) -> Result<(), Error> {
+    pub fn confirm(&mut self, block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<H256>) -> Result<(), Error> {
         println!("Confirmed epoch with worker params: {:?}", worker_params);
-        let block_number = worker_params.block_number.clone();
         let mut selected_workers: HashMap<H256, Address> = HashMap::new();
         for sc_address in sc_addresses {
             println!("Getting the selected worker for: {:?}", sc_address);

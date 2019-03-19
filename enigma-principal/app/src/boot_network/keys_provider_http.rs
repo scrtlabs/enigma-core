@@ -1,7 +1,6 @@
 use std::convert::TryInto;
 use std::string::ToString;
 use std::sync::Arc;
-use std::sync::atomic::Ordering;
 
 use ethereum_types::H256;
 use failure::Error;

@@ -5,7 +5,6 @@ use std::mem;
 use std::ops::Deref;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time;
 
@@ -171,7 +170,6 @@ impl EpochProvider {
     /// * `gas_limit` - The gas limit of the `setWorkersParams` transaction
     /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
     ///
-    #[logfn(DEBUG)]
     pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<(H256), Error> {
         let result = self.contract.get_active_workers(block_number)?;
         let worker_params: InputWorkerParams = InputWorkerParams {
@@ -184,12 +182,19 @@ impl EpochProvider {
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
         let receipt = self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
-        self.parse_worker_parameterized(&receipt)?;
-        println!("Caching selected workers");
-        self.confirm_epoch(epoch_state, worker_params)?;
-        println!("Got the receipt: {:?}", receipt);
-        self.set_epoch_state(Some(epoch_state.clone()))?;
-        Ok(receipt.transaction_hash)
+        let log = self.parse_worker_parameterized(&receipt)?;
+        match log.params.iter().find(|&x| x.name == "firstBlockNumber") {
+            Some(param) => {
+                println!("Caching selected workers");
+                let token = param.value.clone();
+                let block_number = token.to_uint().unwrap();
+                self.confirm_epoch(epoch_state, block_number, worker_params)?;
+                println!("Got the receipt: {:?}", receipt);
+                self.set_epoch_state(Some(epoch_state.clone()))?;
+                Ok(receipt.transaction_hash)
+            }
+            None => bail!("firstBlockNumber not found in receipt log")
+        }
     }
 
     /// Build a local mapping of smart contract address => selected worker for the epoch
@@ -200,12 +205,12 @@ impl EpochProvider {
     /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
     ///
     #[logfn(DEBUG)]
-    pub fn confirm_epoch(&self, epoch_state: &mut EpochState, worker_params: InputWorkerParams) -> Result<(), Error> {
+    pub fn confirm_epoch(&self, epoch_state: &mut EpochState, block_number: U256, worker_params: InputWorkerParams) -> Result<(), Error> {
         let contract_count = self.contract.count_secret_contracts()?;
         println!("The secret contract count: {:?}", contract_count);
         let sc_addresses = self.contract.get_secret_contract_addresses(U256::from(0), contract_count)?;
         println!("The secret contract addresses: {:?}", sc_addresses);
-        epoch_state.confirm(&worker_params, sc_addresses)?;
+        epoch_state.confirm(block_number, &worker_params, sc_addresses)?;
         Ok(())
     }
 
