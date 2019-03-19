@@ -8,7 +8,7 @@ pub enum EvmResult {
 }
 
 pub mod preprocessor {
-    use enigma_tools_t::common::errors_t::EnclaveError;
+    use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*, EnclaveSystemError::*};
     use sgx_trts::trts::rsgx_read_rand;
     use std::string::ToString;
     use std::vec::Vec;
@@ -17,14 +17,15 @@ pub mod preprocessor {
     pub fn run(pre_sig: &str) -> Result<Vec<u8>, EnclaveError> {
         match pre_sig {
             "rand()" | "rand" => rand(),
-            _ => Err(EnclaveError::PreprocessorError { message: "Unknown preprocessor".to_string() }),
+            _ => Err(FailedTaskError(InputError { message: "Unknown preprocessor".to_string() })),
         }
     }
     fn rand() -> Result<Vec<u8>, EnclaveError> {
         let mut r: [u8; 16] = [0; 16];
         match rsgx_read_rand(&mut r) {
             Ok(_) => Ok(r.to_vec()),
-            Err(err) => Err(EnclaveError::PreprocessorError { message: err.to_string() }),
+            Err(err) => Err(SystemError(SgxError{ err: format!("{}", err), description: err.__description().to_string() })
+            ),
         }
     }
 

@@ -76,7 +76,6 @@ pub fn conn_and_call_ipc(msg: &str, port: &'static str) -> Value {
     assert!(requester.connect(&format!("tcp://localhost:{}", port)).is_ok());
 
     requester.send(msg, 0).unwrap();
-
     let mut msg = zmq::Message::new();
     requester.recv(&mut msg, 0).unwrap();
     serde_json::from_str(msg.as_str().unwrap()).unwrap()
@@ -178,7 +177,7 @@ pub fn produce_shared_key(port: &'static str) -> ([u8; 32], [u8; 64]) {
     (shared_key, keys.get_pubkey())
 }
 
-pub fn full_erc20_deployment(port: &'static str, owner: ERC20UserAddress, total_supply: Option<u64>, gas_limit: Option<u64>) -> (Value, [u8; 32]) {
+pub fn full_erc20_deployment(port: &'static str, owner: ERC20UserAddress, total_supply: Option<u64>, gas_limit: Option<u64>) -> (Value, [u8; 32], [u8; 32]) {
     // address generation and ptt
     let address = generate_contract_address();
     let _ = run_ptt_round(port, vec![address]);
@@ -190,14 +189,14 @@ pub fn full_erc20_deployment(port: &'static str, owner: ERC20UserAddress, total_
     let pre_code = get_bytecode_from_path("../../examples/eng_wasm_contracts/erc20");
     let fn_deploy = "construct(bytes32,uint256)";
     let args_deploy = [Token::FixedBytes(owner.to_vec()), total_supply.clone()];
-    let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, _shared_key);
+    let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, _shared_key.clone());
     let gas_limit = gas_limit.unwrap_or(100_000_000);
 
     let msg = get_deploy_msg(&pre_code.to_hex(), &encrypted_args.to_hex(),
                              &encrypted_callable.to_hex(), &_user_pubkey.to_hex(), gas_limit, &address.to_hex());
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
 
-    (v, address.into())
+    (v, _shared_key, address.into())
 }
 
 pub fn erc20_deployment_without_ptt_to_addr(port: &'static str, _address: &str) -> Value {
@@ -246,7 +245,7 @@ pub fn full_addition_compute(port: &'static str,  a: u64, b: u64) -> (Value, [u8
 
 pub fn full_mint_compute(port: &'static str,  user_addr: ERC20UserAddress, amount: u64) -> (Value,  [u8;32], [u8; 32]) {
     let (owner, owner_keys) = generate_user_address();
-    let (_, contract_addr): (_, [u8; 32]) = full_erc20_deployment(port, owner,None,None);
+    let (_, _, contract_addr): (_, _, [u8; 32]) = full_erc20_deployment(port, owner, None, None);
 
     let sig = sign_message(owner_keys, user_addr, amount).to_vec();
     let args = [Token::FixedBytes(owner.to_vec()), Token::FixedBytes(user_addr.to_vec()), Token::Uint(amount.into()), Token::Bytes(sig)];

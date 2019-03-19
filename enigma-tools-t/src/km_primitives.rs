@@ -1,4 +1,4 @@
-use crate::common::errors_t::EnclaveError;
+use crate::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
 use enigma_crypto::{symmetric, Encryption, CryptoError};
 use enigma_types::{ContractAddress, DhKey, StateKey, PubKey};
 use rmp_serde::{Deserializer, Serializer};
@@ -45,7 +45,7 @@ impl PrincipalMessage {
 
     pub fn to_message(&self) -> Result<Vec<u8>, EnclaveError> {
         if self.is_response() {
-            return Err(EnclaveError::MessagingError { err: "can't serialize non encrypted response".to_string() });
+            return Err(SystemError(MessagingError { err: "can't serialize non encrypted response".to_string() }));
         }
         let mut buf = Vec::new();
         let val = serde_json::to_value(self.clone()).unwrap(); // TODO: impl From for this error

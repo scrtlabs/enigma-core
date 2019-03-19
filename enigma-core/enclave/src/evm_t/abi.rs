@@ -1,6 +1,6 @@
 use crate::evm_t::error::Error;
 use crate::evm_t::preprocessor;
-use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*};
 use enigma_tools_t::common::utils_t::ToHex;
 use ethabi;
 use ethabi::param_type::{ParamType, Reader};
@@ -62,7 +62,7 @@ fn create_function_signature(types_vector: Vec<String>, function_name: String) -
     let types: Vec<ParamType>;
     match types_vector[..].iter().map(|s| Reader::read(s)).collect::<Result<_, _>>() {
         Ok(v) => types = v,
-        Err(e) => return Err(EnclaveError::InputError { message: e.to_string() }),
+        Err(e) => return Err(FailedTaskError(InputError { message: e.to_string() })),
     };
 
     let callback_signature = short_signature(&function_name, &types);
@@ -91,22 +91,22 @@ pub fn prepare_evm_input(callable: &[u8], callable_args: &[u8], preproc: &[u8], 
         }
     }
     if types_vector.len() != args_vector.len() {
-        return Err(EnclaveError::InputError {
+        return Err(FailedTaskError(InputError {
             message: "The number of function arguments does not match the number of actual parameters in ".to_string()
                 + &function_name,
-        });
+        }));
     }
     let params = match encode_params(&types_vector[..], &args_vector[..], false) {
         Ok(v) => v,
         Err(e) => {
-            return Err(EnclaveError::InputError { message: format!("Error in encoding of funciton: {}, {}", function_name, &e) })
+            return Err(FailedTaskError(InputError { message: format!("Error in encoding of funciton: {}, {}", function_name, &e) }))
         }
     };
-
+    println!("params {:?}", params);
     let types: Vec<ParamType>;
     match types_vector[..].iter().map(|s| Reader::read(s)).collect::<Result<_, _>>() {
         Ok(v) => types = v,
-        Err(e) => return Err(EnclaveError::InputError { message: e.to_string() }),
+        Err(e) => return Err(FailedTaskError(InputError { message: e.to_string() })),
     };
 
     let callable_signature = short_signature(&function_name, &types);

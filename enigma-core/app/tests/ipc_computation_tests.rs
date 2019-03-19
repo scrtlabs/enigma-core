@@ -7,8 +7,8 @@ extern crate enigma_types;
 
 use integration_utils::{conn_and_call_ipc, is_hex, run_core, get_msg_format_update_contract,
                         get_encryption_msg, full_simple_deployment, full_addition_compute, decrypt_output_to_uint,
-                        send_update_contract, full_erc20_deployment, run_ptt_round, contract_compute, get_update_deltas_msg, decrypt_addr_delta, encrypt_addr_delta};
-use cross_test_utils::{generate_contract_address, generate_user_address};
+                        send_update_contract, run_ptt_round, contract_compute, get_update_deltas_msg, decrypt_addr_delta, encrypt_addr_delta};
+use cross_test_utils::generate_contract_address;
 use self::app::serde_json;
 use app::serde_json::*;
 use hex::{ToHex, FromHex};

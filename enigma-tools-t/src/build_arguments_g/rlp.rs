@@ -1,5 +1,5 @@
 use bigint::U256;
-use common::errors_t::EnclaveError;
+use common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*};
 use common::utils_t::ToHex;
 use enigma_crypto::symmetric::decrypt;
 use hexutil::read_hex;
@@ -37,21 +37,21 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityTy
             let string_result: Result<String, DecoderError> = rlp.as_val();
             result = match string_result {
                 Ok(v) => v,
-                Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
+                Err(_e) => return Err(FailedTaskError(InputError { message: rlp_error })),
             }
         }
         SolidityType::Uint => {
             let num_result: Result<u64, DecoderError> = rlp.as_val();
             result = match num_result {
                 Ok(v) => v.to_string(),
-                Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
+                Err(_e) => return Err(FailedTaskError(InputError { message: rlp_error })),
             }
         }
         SolidityType::Bool => {
             let num_result: Result<bool, DecoderError> = rlp.as_val();
             result = match num_result {
                 Ok(v) => v.to_string(),
-                Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
+                Err(_e) => return Err(FailedTaskError(InputError { message: rlp_error })),
             }
         }
         _ => {
@@ -76,7 +76,7 @@ fn convert_undecrypted_value_to_string(rlp: &UntrustedRlp, arg_type: &SolidityTy
                         }
                     }
                 },
-                Err(_e) => return Err(EnclaveError::InputError { message: rlp_error }),
+                Err(_e) => return Err(FailedTaskError(InputError { message: rlp_error })),
             };
         }
     }
@@ -95,10 +95,10 @@ pub fn complete_to_u256(num: &str) -> String {
 fn decrypt_rlp(v: &[u8], key: &[u8; 32], arg_type: &SolidityType) -> Result<String, EnclaveError> {
     let encrypted_value = match from_utf8(&v) {
         Ok(value) => value,
-        Err(_e) => return Err(EnclaveError::InputError { message: "".to_string() }),
+        Err(_e) => return Err(FailedTaskError(InputError { message: "".to_string() })),
     };
     match read_hex(encrypted_value) {
-        Err(_e) => Err(EnclaveError::InputError { message: "".to_string() }),
+        Err(_e) => Err(FailedTaskError(InputError { message: "".to_string() })),
         Ok(v) => {
             let decrypted_value = decrypt(&v, key);
             match decrypted_value {
@@ -184,7 +184,7 @@ pub fn decode_args(encoded: &[u8], types: &[String], key: &[u8; 32]) -> Result<V
         let mut str: String = "".to_string();
         let next_type = match types_iter.next() {
             Some(v) => v,
-            None => return Err(EnclaveError::InputError { message: "Arguments and callable signature do not match".to_string() }),
+            None => return Err(FailedTaskError(InputError { message: "Arguments and callable signature do not match".to_string() })),
         };
         match decode_rlp(&item, &mut str, &key, &get_type(next_type)) {
             Ok(_v) => result.push(str),
