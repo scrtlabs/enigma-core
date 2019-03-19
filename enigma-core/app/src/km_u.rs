@@ -103,14 +103,12 @@ pub mod tests {
     extern crate cross_test_utils;
 
     use super::{ptt_build_state, ptt_req, ptt_res};
-    use crate::db::Stype::{Delta, State};
-    use crate::db::{CRUDInterface, DeltaKey, DB
-                    , tests::create_test_db};
-    use crate::esgx::general::init_enclave_wrapper;
+    use crate::db::{CRUDInterface, DeltaKey, DB,
+                    Stype::{Delta, State}, tests::create_test_db};
+    use crate::esgx::{general::init_enclave_wrapper, equote};
     use self::cross_test_utils::*;
     use enigma_types::{ContractAddress, DhKey};
-    use enigma_crypto::{KeyPair, symmetric};
-    use enigma_crypto::hash::Sha256;
+    use enigma_crypto::{KeyPair, symmetric, hash::{self, Sha256, Keccak256}};
     use rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
     use serde_json::{self, Value};
@@ -164,22 +162,16 @@ pub mod tests {
     #[test]
     fn test_get_user_key() {
         let enclave = init_enclave_wrapper().unwrap();
-        let (_, _, data, _sig) = exchange_keys(enclave.geteid());
+        let (_, _, data, sig) = exchange_keys(enclave.geteid());
+        let signing_key = equote::get_register_signing_address(enclave.geteid()).unwrap();
 
         let mut des = Deserializer::new(&data[..]);
         let res: Value = Deserialize::deserialize(&mut des).unwrap();
-        let prefix = serde_json::from_value::<[u8; 19]>(res["prefix"].clone()).unwrap();
-        assert_eq!(b"Enigma User Message", &prefix);
-
-        let mut sig = [0u8; 64];
-        sig.copy_from_slice(&_sig[..64]);
-        //TODO: This Can be restored after `recover` is added to enigma-crypto
-//        let sig = Signature::parse(&sig);
-//
-//        let msg = Message::parse(&data.keccak256());
-//        let recovery_id = RecoveryId::parse(_sig[64] - 27).unwrap();
-//        let _pubkey = secp256k1::recover(&msg, &sig, &recovery_id).unwrap();
-        // TODO: Consider verifying this against ecall_get_signing_address
+        let prefix = b"Enigma User Message";
+        let pubkey = serde_json::from_value::<Vec<u8>>(res["pubkey"].clone()).unwrap();
+        let msg = hash::prepare_hash_multiple(&[&prefix[..], &pubkey]);
+        let recovered = KeyPair::recover(&msg, sig).unwrap();
+        assert_eq!(recovered.keccak256()[12..32], signing_key);
     }
 
     #[test]
