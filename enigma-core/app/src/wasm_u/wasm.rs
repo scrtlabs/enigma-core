@@ -331,7 +331,7 @@ mod tests {
 
       if let WasmResult::WasmTaskResult(v) = result {
         // deserialization of result
-        let accepted_total_supply: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&result.output,&shared_key).unwrap()).unwrap().pop().unwrap();
+        let accepted_total_supply: Token = ethabi::decode(&[ethabi::ParamType::Uint(256)], &symmetric::decrypt(&v.output,&shared_key).unwrap()).unwrap().pop().unwrap();
         let expected_total_supply = Token::Uint((total_supply.to_uint().unwrap().as_u64() + amount).into());
         assert_eq!(expected_total_supply, accepted_total_supply);
       }
