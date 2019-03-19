@@ -47,7 +47,8 @@ impl PrincipalMessage {
                 to_sign.push(hash::prepare_hash_multiple(addresses.as_ref()));
             }
             PrincipalMessageType::EncryptedResponse(v) => to_sign.push(v.clone()),
-            PrincipalMessageType::Request(None) | PrincipalMessageType::Response(_) => (),
+            PrincipalMessageType::Request(None) => (), // If the request is empty we don't need to sign on it.
+            PrincipalMessageType::Response(_) => unreachable!() // This can't be reached because we check if it's a response before.
         }
         to_sign.push(self.pubkey.to_vec());
         to_sign.push(self.id.to_vec());
