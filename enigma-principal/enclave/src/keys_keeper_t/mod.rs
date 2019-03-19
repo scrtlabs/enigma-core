@@ -73,14 +73,14 @@ fn get_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, R
 fn new_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, RandomState>>, sc_addrs: &Vec<ContractAddress>) -> Result<Vec<StateKey>, EnclaveError> {
     let mut results: Vec<StateKey> = Vec::new();
     for addr in sc_addrs {
-        let mut rand_seed: [u8; 1072] = [0; 1072];
+        let mut rand_seed: [u8; 32] = [0; 32];
         // Generate a new key randomly
         rsgx_read_rand(&mut rand_seed)?;
         let mut doc: SealedDocumentStorage<StateKey> = SealedDocumentStorage {
             version: 0x1234, //TODO: what's this?
             data: [0; 32],
         };
-        doc.data.copy_from_slice(&rand_seed[..32]);
+        doc.data.copy_from_slice(&rand_seed);
         let mut sealed_log_in = [0u8; SEAL_LOG_SIZE];
         doc.seal(&mut sealed_log_in)?;
         // Save sealed_log to file
@@ -96,12 +96,11 @@ fn new_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, R
     Ok(results)
 }
 
-fn build_get_state_keys_response(_sc_addrs: Option<Vec<ContractAddress>>) -> Result<Vec<(ContractAddress, StateKey)>, EnclaveError> {
+fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(ContractAddress, StateKey)>, EnclaveError> {
     let mut response_data: Vec<(ContractAddress, StateKey)> = Vec::new();
-    if _sc_addrs.is_none() {
+    if sc_addrs.is_empty() {
         return Ok(response_data);
     }
-    let sc_addrs = _sc_addrs.unwrap();
     let mut guard = STATE_KEY_STORE.lock_expect("State Key Store");
     let keys = get_state_keys(&mut guard, &sc_addrs)?;
     // Create the state keys not found in storage
@@ -136,13 +135,13 @@ fn build_get_state_keys_response(_sc_addrs: Option<Vec<ContractAddress>>) -> Res
 /// Get encrypted state keys
 pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes: Vec<u8>, sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let msg = PrincipalMessage::from_message(&msg_bytes)?;
-    let sc_addrs: Option<Vec<ContractAddress>> = match msg.data.clone() {
+    let sc_addrs: Vec<ContractAddress> = match msg.data.clone() {
         PrincipalMessageType::Request(addrs) => match addrs {
-            Some(addrs) => Some(addrs),
+            Some(addrs) => Vec::new(),
             None => {
                 let sc_addrs;
                 if addrs_bytes == vec![0] {
-                    sc_addrs = None;
+                    sc_addrs = Vec::new();
                 } else {
                     let tokens = match decode(&vec![ParamType::FixedBytes(256)], &addrs_bytes) {
                         Ok(tokens) => tokens,
@@ -152,11 +151,11 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes:
                             });
                         }
                     };
-                    sc_addrs = Some(tokens.into_iter().map(|t| {
+                    sc_addrs = tokens.into_iter().map(|t| {
                         let mut sc_addr: ContractAddress = Hash256::from([0; 32]);
                         sc_addr.copy_from_slice(&t.to_fixed_bytes().unwrap());
                         sc_addr
-                    }).collect());
+                    }).collect();
                 }
                 sc_addrs
             }
@@ -173,7 +172,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes:
     let response_data = build_get_state_keys_response(sc_addrs)?;
 
     // Generate the encryption key material
-    let mut rand_num: [u8; 1072] = [0; 1072];
+    let mut rand_num: [u8; 44] = [0; 44];
     rsgx_read_rand(&mut rand_num)?;
     let mut privkey_slice = [0u8; 32];
     privkey_slice.copy_from_slice(&rand_num[..32]);

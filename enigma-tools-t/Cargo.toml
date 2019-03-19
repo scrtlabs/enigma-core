@@ -1,5 +1,3 @@
-cargo-features = ["rename-dependency"]
-
 [package]
 name = "enigma-tools-t"
 version = "0.1.3"

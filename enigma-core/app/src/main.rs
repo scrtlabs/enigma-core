@@ -11,7 +11,7 @@ use db::DB;
 use cli::Opt;
 use structopt::StructOpt;
 use futures::Future;
-use simplelog::CombinedLogger;
+use enigma_tools_u::common_u::logging::{self, CombinedLogger};
 
 fn main() {
     let opt: Opt = Opt::from_args();
@@ -42,7 +42,7 @@ mod tests {
     use enigma_core_app::sgx_types::*;
     use enigma_core_app::db::DB;
     use self::enigma_types::RawPointer;
-    use enigma_core_app::simplelog::TermLogger;
+    use enigma_tools_u::common_u::logging::TermLogger;
     use enigma_core_app::log::LevelFilter;
     use self::tempfile::TempDir;
 

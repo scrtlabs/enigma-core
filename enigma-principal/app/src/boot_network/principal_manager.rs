@@ -2,7 +2,6 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::str;
 use std::sync::Arc;
-use std::sync::atomic::AtomicU64;
 use std::thread;
 
 use failure::Error;
@@ -149,20 +148,22 @@ impl Sampler for PrincipalManager {
 
     fn get_contract_address(&self) -> Address { self.contract.address() }
 
-    fn get_account_address(&self) -> Address { self.contract.account.clone() }
+    //noinspection RsBorrowChecker
+    fn get_account_address(&self) -> Address { self.contract.account }
 
     fn get_network_url(&self) -> String { self.config.url.clone() }
 
     fn get_block_number(&self) -> Result<U256, Error> {
-        let block_number = self.get_web3().eth().block_number().wait().unwrap();
+        let block_number = match self.get_web3().eth().block_number().wait() {
+            Ok(block_number) => block_number,
+            Err(err) => bail!("Current block number not available: {:?}", err),
+        };
         Ok(block_number)
     }
 
     fn register<G: Into<U256>>(&self, signing_address: String, gas_limit: G) -> Result<H256, Error> {
         let registration_params = self.report_manager.get_registration_params()?;
-        let report = registration_params.report.clone();
-        let signature = registration_params.signature.clone();
-        let receipt = self.contract.register(signing_address, report, signature, gas_limit, self.config.confirmations as usize)?;
+        let receipt = self.contract.register(signing_address, registration_params.report, registration_params.signature, gas_limit, self.config.confirmations as usize)?;
         Ok(receipt.transaction_hash)
     }
 
@@ -204,7 +205,7 @@ impl Sampler for PrincipalManager {
         // get enigma contract
         let enigma_contract = &self.contract;
         // Start the WorkerParameterized Web3 log filter
-        let eid: Arc<AtomicU64> = Arc::new(AtomicU64::new(self.eid));
+        let eid: Arc<sgx_enclave_id_t> = Arc::new(self.eid);
         let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone())?);
 
         // Start the JSON-RPC Server
@@ -301,7 +302,7 @@ mod test {
         principal.verify_identity_or_register(gas_limit).unwrap();
 
         let block_number = principal.get_web3().eth().block_number().wait().unwrap();
-        let eid_safe = Arc::new(AtomicU64::new(eid));
+        let eid_safe = Arc::new(eid);
         let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone()).unwrap();
         epoch_provider.reset_epoch_state().unwrap();
         epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();

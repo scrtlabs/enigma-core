@@ -1,5 +1,5 @@
-use ethabi::{Address, Hash, Token, Uint};
-use ethereum_types::H256;
+use ethabi::{Token};
+use ethereum_types::{H256, H160, U256};
 use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
 use std::collections::hash_map::RandomState;
@@ -28,7 +28,7 @@ const INIT_NONCE: uint32_t = 0;
 const EPOCH_DIR: &str = "epoch";
 
 // The epoch seed contains the seeds + a nonce that must match the Ethereum tx
-lazy_static! { pub static ref EPOCH: SgxMutex< HashMap<Uint, Epoch >> = SgxMutex::new(HashMap::new()); }
+lazy_static! { pub static ref EPOCH: SgxMutex< HashMap<U256, Epoch >> = SgxMutex::new(HashMap::new()); }
 
 /// The epoch root path is guaranteed to exist of the enclave was initialized
 fn get_epoch_root_path() -> path::PathBuf {
@@ -41,11 +41,7 @@ fn get_epoch_nonce_path() -> path::PathBuf {
     get_epoch_root_path().join("nonce.sealed")
 }
 
-fn get_max_nonce(guard: &SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>) -> Uint {
-    guard.keys().max().unwrap().clone()
-}
-
-fn get_epoch(guard: &SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>, block_number: Option<Uint>) -> Result<Option<Epoch>, EnclaveError> {
+fn get_epoch(guard: &SgxMutexGuard<HashMap<U256, Epoch, RandomState>>, block_number: Option<U256>) -> Result<Option<Epoch>, EnclaveError> {
     println!("Getting epoch for block number: {:?}", block_number);
     if block_number.is_some() {
         return Err(EnclaveError::WorkerAuthError {
@@ -71,13 +67,14 @@ fn get_epoch(guard: &SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>, block_num
         }
         return Ok(None);
     }
-    let nonce = get_max_nonce(&guard);
+    // The epoch map cannot be empty here
+    let nonce = guard.keys().max().unwrap().clone();
     let epoch: Epoch = guard.get(&nonce).unwrap().clone();
     Ok(Some(epoch))
 }
 
 /// Creates new epoch both in the cache and as sealed documents
-fn new_epoch(guard: &mut SgxMutexGuard<HashMap<Uint, Epoch, RandomState>>, worker_params: &InputWorkerParams, nonce: &Uint, seed: &Uint) -> Result<Epoch, EnclaveError> {
+fn new_epoch(guard: &mut SgxMutexGuard<HashMap<U256, Epoch, RandomState>>, worker_params: &InputWorkerParams, nonce: &U256, seed: &U256) -> Result<Epoch, EnclaveError> {
     let mut marker_doc: SealedDocumentStorage<EpochNonce> = SealedDocumentStorage {
         version: 0x1234, //TODO: what's this?
         data: [0; 32],
@@ -112,15 +109,14 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], rand_ou
 
     let mut guard = EPOCH.lock_expect("Epoch");
     let previous_epoch = get_epoch(&guard, None)?;
-    let nonce: Uint = match previous_epoch {
+    let nonce: U256 = match previous_epoch {
         Some(_) => guard.keys().max().unwrap() + 1,
-        None => Uint::from(INIT_NONCE),
+        None => U256::from(INIT_NONCE),
     };
     println!("Generated a nonce by incrementing the previous by 1 {:?}", nonce);
     let nonce_bytes: EpochNonce = nonce.into();
     nonce_out.copy_from_slice(&nonce_bytes[..]);
 
-    // TODO: Check if needs to check the random is within the curve.
     rsgx_read_rand(&mut rand_out[..])?;
     let seed_token = Token::Uint(rand_out[..].into());
     let seed = seed_token.to_uint().unwrap();
@@ -128,15 +124,13 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], rand_ou
 
     let epoch = new_epoch(&mut guard, &worker_params, &nonce, &seed)?;
     let msg = epoch.raw_encode()?;
-    let hash = msg.keccak256();
-    println!("Signing msg hash {} with signer address {}", hash.to_hex(), SIGNING_KEY.get_pubkey().address_string());
-    let sig = SIGNING_KEY.sign(hash.as_ref())?;
+    let sig = SIGNING_KEY.sign(&msg)?;
     sig_out.copy_from_slice(&sig[..]);
-    println!("Signed the message hash: 0x{}", hash.to_hex());
+    println!("Signed the message : 0x{}", msg.to_hex());
     Ok(())
 }
 
-pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: Hash, block_number: Option<Uint>) -> Result<Address, EnclaveError> {
+pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: H256, block_number: Option<U256>) -> Result<H160, EnclaveError> {
     let guard = EPOCH.lock_expect("Epoch");
     let epoch = match get_epoch(&guard, block_number)? {
         Some(epoch) => epoch,

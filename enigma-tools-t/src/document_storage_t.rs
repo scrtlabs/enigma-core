@@ -1,5 +1,4 @@
 use sgx_tseal::SgxSealedData;
-#[cfg(not(target_env = "sgx"))]
 use sgx_types::{sgx_attributes_t, sgx_sealed_data_t, sgx_status_t};
 use sgx_types::marker::ContiguousMemory;
 use std::io::{Read, Write};
@@ -132,11 +131,8 @@ pub mod tests {
         // generate mock data
         let mut doc: SealedDocumentStorage<[u8; 32]> = SealedDocumentStorage {
             version: 0x1234,
-            data: [0; 32],
+            data: [b'i'; 32],
         };
-        for i in 0..32 {
-            doc.data[i] = b'i';
-        }
         // seal data
         let mut sealed_log_in: [u8; SEAL_LOG_SIZE] = [0; SEAL_LOG_SIZE];
         doc.seal(&mut sealed_log_in).expect("Unable to seal document");

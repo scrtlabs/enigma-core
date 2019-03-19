@@ -54,7 +54,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
             msg_bytes.len(),
             addrs_bytes.as_ptr() as *const u8,
             addrs_bytes.len(),
-            &request.sig.into(),
+            &request.sig.try_into()?,
             enc_response_slice.as_mut_ptr() as *mut u8,
             &mut enc_response_len_out,
             &mut sig_out,

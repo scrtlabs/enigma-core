@@ -13,7 +13,7 @@ use web3;
 use web3::contract::{Contract, Options};
 use web3::contract::tokens::Tokenize;
 use web3::futures::Future;
-use web3::transports::{Batch, Http};
+use web3::transports::{Http};
 use web3::types::{Address, Log, U256};
 use web3::types::BlockNumber;
 use web3::types::FilterBuilder;
@@ -72,11 +72,6 @@ pub fn connect(url: &str) -> Result<(web3::transports::EventLoopHandle, Web3<Htt
     };
     let w3 = web3::Web3::new(http);
     Ok((_eloop, w3))
-}
-
-pub fn connect_batch(http: Http) -> Web3<Batch<Http>> {
-    let w3 = web3::Web3::new(web3::transports::Batch::new(http));
-    w3
 }
 
 // connect to an existing deployed smart contract

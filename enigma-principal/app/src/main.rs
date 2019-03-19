@@ -27,25 +27,23 @@ extern crate serde_derive;
 extern crate serde_json;
 extern crate sgx_types;
 extern crate sgx_urts;
-extern crate simplelog;
 extern crate structopt;
 extern crate tiny_keccak;
 extern crate tokio_core;
 extern crate url;
 extern crate web3;
 
-use simplelog::CombinedLogger;
 use structopt::StructOpt;
 
 use cli::options::Opt;
 pub use esgx::general::ocall_get_home;
+use enigma_tools_u::common_u::logging::{self, CombinedLogger};
 
 // enigma modules
 mod boot_network;
 mod cli;
 mod common_u;
 mod esgx;
-mod logging;
 mod epoch_u;
 mod keys_u;
 
@@ -81,8 +79,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-    use simplelog::LevelFilter;
-    use simplelog::TermLogger;
+    use log::LevelFilter;
+    use enigma_tools_u::common_u::logging::TermLogger;
 
     use esgx::general::init_enclave_wrapper;
 

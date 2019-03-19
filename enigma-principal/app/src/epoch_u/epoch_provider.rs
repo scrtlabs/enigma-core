@@ -22,15 +22,16 @@ use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterized
 use esgx::epoch_keeper_u::set_worker_params;
 use esgx::general::{ENCLAVE_DIR, storage_dir};
 use keys_u::keeper_types_u::InputWorkerParams;
+use sgx_types::sgx_enclave_id_t;
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
     pub epoch_state: Arc<Mutex<Option<EpochState>>>,
-    pub eid: Arc<AtomicU64>,
+    pub eid: Arc<sgx_enclave_id_t>,
 }
 
 impl EpochProvider {
-    pub fn new(eid: Arc<AtomicU64>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
+    pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
         let epoch_state_val = Self::read_epoch_state()?;
         // TODO: If the state is not empty, get the active workers and prove them to the enclave
         println!("Initializing EpochProvider with EpochState: {:?}", epoch_state_val);
@@ -179,10 +180,10 @@ impl EpochProvider {
             stakes: result.1,
         };
         println!("The active workers: {:?}", worker_params);
-        let epoch_state = &mut set_worker_params(self.eid.load(Ordering::SeqCst), worker_params.clone())?;
+        let epoch_state = &mut set_worker_params(*self.eid, worker_params.clone())?;
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
-        let receipt = self.contract.set_workers_params(block_number, epoch_state.seed.clone(), epoch_state.sig.clone(), gas_limit, confirmations)?;
+        let receipt = self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
         self.parse_worker_parameterized(&receipt)?;
         println!("Caching selected workers");
         self.confirm_epoch(epoch_state, worker_params)?;

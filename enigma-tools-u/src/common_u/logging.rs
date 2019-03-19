@@ -2,7 +2,8 @@ use std::{fs::{self, File}, path::Path};
 
 use failure::Error;
 use log::LevelFilter;
-use simplelog::{SharedLogger, TermLogger, WriteLogger};
+use simplelog::{SharedLogger, WriteLogger};
+pub use simplelog::{CombinedLogger, TermLogger};
 
 pub fn get_logger<P: AsRef<Path>>(stdout: bool, data_dir: P, verbose: u8) ->  Result<Vec<Box<SharedLogger>>, Error> {
     let file_level = log_level_from_verbose(verbose + 2); // This plus 2 means that by default it logs from Warn level and up

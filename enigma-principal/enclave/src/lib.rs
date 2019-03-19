@@ -74,7 +74,6 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 #[no_mangle]
 pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
-    println!("The priv key for worker 8: {:?}", SIGNING_KEY.get_privkey().to_vec().to_hex());
     pubkey.clone_from_slice(SIGNING_KEY.get_pubkey().address_string().as_bytes());
 }
 
@@ -99,7 +98,7 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
                                                   sig_out: &mut [u8; 65]) -> EnclaveReturn {
     let msg_bytes = slice::from_raw_parts(msg, msg_len).to_vec();
     let addrs_bytes = slice::from_raw_parts(addrs, addrs_len).to_vec();
-    let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, sig.clone(), sig_out) {
+    let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, sig_out) {
         Ok(response) => response,
         Err(err) => return err.into(),
     };

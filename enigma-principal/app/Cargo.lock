@@ -396,7 +396,6 @@ dependencies = [
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "sgx_types 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "sgx_urts 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
- "simplelog 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-core 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -424,6 +423,7 @@ dependencies = [
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
  "sgx_types 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "sgx_urts 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
+ "simplelog 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "web3 0.6.0 (git+https://github.com/tomusdrw/rust-web3.git)",
 ]

@@ -89,6 +89,3 @@ dockerfile-elichai/
 
 /target
 **/*.rs.bk
-
-/target
-**/*.rs.bk
