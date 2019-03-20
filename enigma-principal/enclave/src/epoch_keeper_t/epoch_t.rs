@@ -7,10 +7,6 @@ use std::string::ToString;
 
 pub type EpochNonce = [u8; 32];
 
-pub trait IntoBigint<T> {
-    fn bigint(self) -> T;
-}
-
 #[derive(Debug, Clone)]
 pub struct Epoch {
     pub nonce: U256,
@@ -20,13 +16,8 @@ pub struct Epoch {
 
 impl Epoch {
     pub fn get_selected_worker(&self, sc_addr: H256) -> Result<H160, EnclaveError> {
-        let worker = match self.worker_params.get_selected_worker(sc_addr, self.seed)? {
-            Some(worker) => worker,
-            None => {
-                return Err(SystemError(WorkerAuthError { err: "Worker selection returns nothing.".to_string() }));
-            }
-        };
-        Ok(worker)
+        self.worker_params.get_selected_worker(sc_addr, self.seed)?
+            .ok_or(SystemError(WorkerAuthError { err: "Worker selection returns nothing.".to_string() }))
     }
 }
 

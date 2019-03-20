@@ -36,59 +36,58 @@ fn get_document_path(sc_addr: &ContractAddress) -> path::PathBuf {
 
 /// Read state keys from the cache and sealed documents.
 /// Adds keys to the cache after unsealing.
-fn get_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, RandomState>>, sc_addrs: &Vec<ContractAddress>) -> Result<Vec<Option<StateKey>>, EnclaveError> {
+fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey, RandomState>, sc_addrs: &[ContractAddress]) -> Result<Vec<Option<StateKey>>, EnclaveError> {
     let mut results: Vec<Option<StateKey>> = Vec::new();
-    for addr in sc_addrs {
-        let mut key: Option<StateKey> = match guard.get(addr) {
-            Some(key) => {
-                let mut buf: StateKey = [0; 32];
-                buf.copy_from_slice(&key[..]);
-                Some(buf)
-            }
-            None => None,
-        };
-        if key.is_none() {
-            println!("State key not found in cache, fetching sealed document.");
-            let path = get_document_path(addr);
-            if is_document(&path) {
-                println!("Unsealing state key.");
-                let mut sealed_log_out = [0u8; SEAL_LOG_SIZE];
-                load_sealed_document(&path, &mut sealed_log_out)?;
-                let doc = SealedDocumentStorage::<StateKey>::unseal(&mut sealed_log_out)?;
-                match doc {
-                    Some(doc) => {
-                        guard.insert(addr.clone(), doc.data);
-                        key = Some(doc.data);
+    for &addr in sc_addrs {
+        let key = match keys_map.get(&addr) {
+            Some(&key) => Some(key),
+            None => {
+                println!("State key not found in cache, fetching sealed document.");
+                let path = get_document_path(&addr);
+                if is_document(&path) {
+                    println!("Unsealing state key.");
+                    let mut sealed_log_out = [0u8; SEAL_LOG_SIZE];
+                    load_sealed_document(&path, &mut sealed_log_out)?;
+                    let doc = SealedDocumentStorage::<StateKey>::unseal(&mut sealed_log_out)?;
+                    match doc {
+                        Some(doc) => {
+                            keys_map.insert(addr, doc.data);
+                            Some(doc.data)
+                        }
+                        None => {
+                            println!("State key {:?} does not exist", addr);
+                            None
+                        }
                     }
-                    None => println!("State key {:?} does not exist", addr)
+                } else {
+                    None
                 }
             }
-        }
+        };
         results.push(key);
     }
     Ok(results)
 }
 
 /// Creates new state keys both in the cache and as sealed documents
-fn new_state_keys(guard: &mut SgxMutexGuard<HashMap<ContractAddress, StateKey, RandomState>>, sc_addrs: &Vec<ContractAddress>) -> Result<Vec<StateKey>, EnclaveError> {
+fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey, RandomState>, sc_addrs: &Vec<ContractAddress>) -> Result<Vec<StateKey>, EnclaveError> {
     let mut results: Vec<StateKey> = Vec::new();
-    for addr in sc_addrs {
-        let mut rand_seed: [u8; 32] = [0; 32];
-        // Generate a new key randomly
-        rsgx_read_rand(&mut rand_seed)?;
+    for &addr in sc_addrs {
         let mut doc: SealedDocumentStorage<StateKey> = SealedDocumentStorage {
             version: 0x1234, //TODO: what's this?
             data: [0; 32],
         };
-        doc.data.copy_from_slice(&rand_seed);
+        // Generate a new key randomly
+        rsgx_read_rand(&mut doc.data)?;
+
         let mut sealed_log_in = [0u8; SEAL_LOG_SIZE];
         doc.seal(&mut sealed_log_in)?;
         // Save sealed_log to file
-        let path = get_document_path(addr);
+        let path = get_document_path(&addr);
         save_sealed_document(&path, &sealed_log_in)?;
         // Add to cache
-        match guard.insert(addr.clone(), doc.data) {
-            Some(prev) => println!("New key stored successfully, previous key: {:?}", prev),
+        match keys_map.insert(addr, doc.data) {
+            Some(prev) => println!("New key stored successfully, previous key: {:?}", prev), // TODO: What is that?
             None => println!("Initial key stored successfully"),
         }
         results.push(doc.data);
@@ -117,11 +116,7 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
     //Now we have keys for all addresses in cache
     for addr in sc_addrs {
         match guard.get(&addr) {
-            Some(_key) => {
-                let mut key = [0; 32];
-                key.copy_from_slice(_key);
-                response_data.push((addr, key));
-            }
+            Some(&key) => response_data.push((addr, key)),
             None => {
                 return Err(SystemError(KeyProvisionError { err: format!("State key not found in cache: {:?}", addr.to_hex()) }));
             }
@@ -137,26 +132,20 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: &[u8], addrs_bytes: &
     let user_pubkey = msg.get_pubkey();
     let msg_id = msg.get_id();
     let sc_addrs: Vec<ContractAddress> = match msg.data {
-        PrincipalMessageType::Request(addrs) => match addrs {
-            Some(addrs) => addrs,
-            None => {
-                let sc_addrs;
-                if addrs_bytes == &[0] {
-                    sc_addrs = Vec::new();
-                } else {
-                    let tokens = match decode(&vec![ParamType::FixedBytes(256)], &addrs_bytes) {
-                        Ok(tokens) => tokens,
-                        Err(err) => {
-                            return Err(SystemError(KeyProvisionError { err: format!("Unable to deserialize contract addresses {:?}: {:?}", addrs_bytes, err) }));
-                        }
-                    };
-                    sc_addrs = tokens.into_iter().map(|t| {
-                        let mut sc_addr: ContractAddress = Hash256::from([0; 32]);
-                        sc_addr.copy_from_slice(&t.to_fixed_bytes().unwrap());
-                        sc_addr
-                    }).collect();
-                }
-                sc_addrs
+        PrincipalMessageType::Request(Some(addrs)) => addrs,
+        PrincipalMessageType::Request(None) => {
+            if addrs_bytes == &[0] {
+                Vec::new()
+            } else {
+                let tokens = decode(&vec![ParamType::FixedBytes(256)], &addrs_bytes)
+                    .map_err(|e|
+                        SystemError(KeyProvisionError { err: format!("Unable to deserialize contract addresses {:?}: {:?}", addrs_bytes, e) }))?;
+
+                tokens.into_iter().map(|t| {
+                    let mut sc_addr: ContractAddress = Hash256::from([0; 32]);
+                    sc_addr.copy_from_slice(&t.to_fixed_bytes().unwrap());
+                    sc_addr
+                }).collect()
             }
         },
         _ => {
