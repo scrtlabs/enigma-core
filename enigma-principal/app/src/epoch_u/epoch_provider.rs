@@ -178,19 +178,18 @@ impl EpochProvider {
             stakes: result.1,
         };
         println!("The active workers: {:?}", worker_params);
-        let epoch_state = &mut set_worker_params(*self.eid, worker_params.clone())?;
+        let mut epoch_state = set_worker_params(*self.eid, worker_params.clone())?;
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
         let receipt = self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
         println!("Got the receipt: {:?}", receipt);
         let log = self.parse_worker_parameterized(&receipt)?;
-        match log.params.iter().find(|&x| x.name == "firstBlockNumber") {
+        match log.params.into_iter().find(|x| x.name == "firstBlockNumber") {
             Some(param) => {
                 println!("Caching selected workers");
-                let token = param.value.clone();
-                let block_number = token.to_uint().unwrap();
-                self.confirm_epoch(epoch_state, block_number, worker_params)?;
-                self.set_epoch_state(Some(epoch_state.clone()))?;
+                let block_number = param.value.to_uint().unwrap();
+                self.confirm_epoch(&mut epoch_state, block_number, worker_params)?;
+                self.set_epoch_state(Some(epoch_state))?;
                 Ok(receipt.transaction_hash)
             }
             None => bail!("firstBlockNumber not found in receipt log")

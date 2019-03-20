@@ -85,11 +85,11 @@ impl EpochState {
     /// * `worker` - The worker signing address
     #[logfn(DEBUG)]
     pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<H256>, Error> {
-        let addrs = match self.confirmed_state.clone() {
+        let addrs = match &self.confirmed_state {
             Some(state) => {
                 let mut addrs: Vec<H256> = Vec::new();
-                for (addr, account) in state.selected_workers {
-                    if account == *worker {
+                for (addr, account) in &state.selected_workers {
+                    if account == worker {
                         addrs.push(addr.clone());
                     }
                 }
