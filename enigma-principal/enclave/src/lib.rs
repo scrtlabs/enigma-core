@@ -55,7 +55,12 @@ lazy_static! { static ref SIGNING_KEY: asymmetric::KeyPair = get_sealed_keys_wra
 
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, real_report: &mut sgx_report_t) -> sgx_status_t {
-    quote_t::create_report_with_data(&target_info, real_report, &SIGNING_KEY.get_pubkey().address_string().as_bytes())
+    quote_t::create_report_with_data(&target_info, real_report, &SIGNING_KEY.get_pubkey().address())
+}
+
+#[no_mangle]
+pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) {
+    pubkey.copy_from_slice(&SIGNING_KEY.get_pubkey().address());
 }
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
@@ -67,14 +72,13 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
     // TODO: Decide what to do if failed to obtain keys.
     match storage_t::get_sealed_keys(&sealed_path) {
-        Ok(key) => return key,
+        Ok(key) => {
+            println!("The signing address #7: {}", key.get_pubkey().address_string());
+            println!("The priv key #7: 0x{}", key.get_privkey().to_vec().to_hex());
+            return key
+        }
         Err(err) => panic!("Failed obtaining keys: {:?}", err)
     };
-}
-
-#[no_mangle]
-pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 42]) {
-    pubkey.clone_from_slice(SIGNING_KEY.get_pubkey().address_string().as_bytes());
 }
 
 #[no_mangle]

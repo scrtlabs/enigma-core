@@ -96,7 +96,7 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
         let signature = _signature.from_hex()?;
         println!("The report signer: {:?}", signing_address);
         println!("The report: {}", str::from_utf8(&report).unwrap());
-        println!("The report signature: {:?}", signature.to_hex());
+        println!("The report signature: {}", signature.to_hex());
         let call = self.w3_contract.call_with_confirmations("register", (signing_address, report, signature), self.account, opts, confirmations);
         let receipt = match call.wait() {
             Ok(receipt) => receipt,
