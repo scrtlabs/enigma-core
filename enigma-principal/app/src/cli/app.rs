@@ -12,10 +12,9 @@ use boot_network::principal_manager::{self, PrincipalManager, ReportManager, Sam
 use cli;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use epoch_u::epoch_provider::EpochProvider;
-use esgx::general::{ENCLAVE_DIR, storage_dir};
+use esgx::general::ENCLAVE_DIR;
+use enigma_tools_u::esgx::general::storage_dir;
 use boot_network::keys_provider_http::{PrincipalHttpServer, StateKeyRequest};
-use serde::Deserialize;
-use serde_json;
 
 #[logfn(INFO)]
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
@@ -27,8 +26,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     if opt.info {
         cli::options::print_info(&signing_address);
     } else if opt.sign_address {
-        let mut path = storage_dir();
-        path.join(ENCLAVE_DIR);
+        let mut path = storage_dir(ENCLAVE_DIR)?;
         path.push("principal-sign-addr.txt");
         let mut file = File::create(path.clone())?;
         let prefixed_signing_address = format!("0x{}", signing_address);

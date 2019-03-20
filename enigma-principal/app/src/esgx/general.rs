@@ -1,45 +1,18 @@
 use std::fs;
 use std::io::Write;
 use std::path;
-use std::ptr;
 
 use dirs;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 
-use enigma_tools_u;
+use enigma_tools_u::{self, esgx::general::storage_dir};
 
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 pub static ENCLAVE_DIR: &'static str = ".enigma";
 pub static EPOCH_DIR: &'static str = "epoch";
 pub static STATE_KEYS_DIR: &'static str = "state-keys";
-
-#[no_mangle]
-pub extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
-    let path = storage_dir();
-    let path_str = path.to_str().unwrap();
-    unsafe {
-        ptr::copy_nonoverlapping(path_str.as_ptr(), output, path_str.len());
-    }
-    *result_len = path_str.len();
-}
-
-pub fn storage_dir() -> path::PathBuf {
-    let mut home_dir = path::PathBuf::new();
-    match dirs::home_dir() {
-        Some(path) => {
-            println!("[+] Home dir is {}", path.display());
-            home_dir = path;
-            true
-        }
-        None => {
-            println!("[-] Cannot get home dir");
-            false
-        }
-    };
-    home_dir.join(ENCLAVE_DIR)
-}
 
 #[logfn(INFO)]
 pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
@@ -63,7 +36,7 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     // Step : try to create a .enigma folder for storing all the files
     // Create a directory, returns `io::Result<()>`
     //let storage_path = home_dir.join(ENCLAVE_DIR);
-    let storage_path = storage_dir();
+    let storage_path = storage_dir(ENCLAVE_DIR).unwrap();
     match fs::create_dir(&storage_path) {
         Err(why) => {
             println!("[-] Create .enigma folder => {:?}", why.kind());

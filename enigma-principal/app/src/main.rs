@@ -36,7 +36,7 @@ extern crate web3;
 use structopt::StructOpt;
 
 use cli::options::Opt;
-pub use esgx::general::ocall_get_home;
+pub use enigma_tools_u::esgx::ocalls_u::{ocall_get_home, ocall_save_to_memory};
 use enigma_tools_u::common_u::logging::{self, CombinedLogger};
 
 // enigma modules

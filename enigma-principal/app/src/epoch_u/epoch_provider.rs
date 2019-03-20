@@ -19,8 +19,9 @@ use web3::types::{H256, TransactionReceipt, U256};
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
 use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
 use esgx::epoch_keeper_u::set_worker_params;
-use esgx::general::{ENCLAVE_DIR, storage_dir};
+use esgx::general::ENCLAVE_DIR;
 use keys_u::keeper_types_u::InputWorkerParams;
+use enigma_tools_u::esgx::general::storage_dir;
 use sgx_types::sgx_enclave_id_t;
 
 pub struct EpochProvider {
@@ -39,8 +40,7 @@ impl EpochProvider {
     }
 
     fn get_state_file_path() -> PathBuf {
-        let mut path = storage_dir();
-        path.join(ENCLAVE_DIR);
+        let mut path = storage_dir(ENCLAVE_DIR).unwrap();
         path.push("epoch-state.json");
         path
     }

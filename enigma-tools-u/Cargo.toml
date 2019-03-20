@@ -7,6 +7,7 @@ build = "build.rs"
 
 [dependencies]
 enigma-crypto = { path = "../enigma-crypto" }
+enigma-types = { path = "../enigma-types" }
 
 serde_json = "1.0"
 serde = { version = "1.0", default-features = false, features=["serde_derive"] }
@@ -20,6 +21,7 @@ rustc-hex = "1.0.0" # 2.0.1?
 log = "0.4"
 log-derive = "0.2.0"
 simplelog = "0.5.3"
+dirs = "1.0.4"
 
 # TODO: Change after a new version is released.
 # Add more transport layers via features if needed.
