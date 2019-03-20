@@ -172,11 +172,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes:
     let response_data = build_get_state_keys_response(sc_addrs)?;
 
     // Generate the encryption key material
-    let mut rand_num: [u8; 44] = [0; 44];
-    rsgx_read_rand(&mut rand_num)?;
-    let mut privkey_slice = [0u8; 32];
-    privkey_slice.copy_from_slice(&rand_num[..32]);
-    let key_pair = KeyPair::from_slice(&privkey_slice)?;
+    let key_pair = KeyPair::new()?;
     let derived_key = key_pair.derive_key(&msg.get_pubkey())?;
 
     // Create the response message
@@ -184,21 +180,15 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes:
     let id = msg.get_id();
     let pubkey = key_pair.get_pubkey();
     let response_msg = PrincipalMessage::new_id(response_msg_data, id, pubkey);
-    if !response_msg.is_response() {
-        return Err(EnclaveError::KeyProvisionError {
-            err: "Unable create response".to_string()
-        });
-    }
     // Generate the iv from the first 12 bytes of a new random number
     let mut iv: [u8; 12] = [0; 12];
-    iv.clone_from_slice(&rand_num[32..44]);
+    rsgx_read_rand(&mut iv)?;
     let response = response_msg.encrypt_with_nonce(&derived_key, Some(iv))?;
     let response_bytes = response.to_message()?;
     println!("The partially encrypted response: {:?}", response_bytes.to_hex());
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
-    let hash = response_bytes.clone().keccak256();
-    let sig = SIGNING_KEY.sign(hash.as_ref())?;
+    let sig = SIGNING_KEY.sign(&response_bytes)?;
     sig_out.copy_from_slice(&sig[..]);
     Ok(response_bytes)
 }
