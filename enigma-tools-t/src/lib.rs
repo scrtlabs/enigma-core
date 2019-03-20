@@ -37,6 +37,7 @@ pub mod km_primitives;
 pub mod quote_t;
 pub mod document_storage_t; //TODO: Copy of storage_t with more generic naming convention
 pub mod storage_t;
+pub mod esgx;
 
 #[cfg(debug_assertions)]
 #[no_mangle]

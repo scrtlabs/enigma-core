@@ -25,7 +25,7 @@ lazy_static! { pub static ref STATE_KEY_STORE: SgxMutex< HashMap<ContractAddress
 
 /// The state keys root path is guaranteed to exist of the enclave was initialized
 fn get_state_keys_root_path() -> path::PathBuf {
-    let mut path_buf = ocalls_t::get_home_path();
+    let mut path_buf = ocalls_t::get_home_path().unwrap();
     path_buf.push(STATE_KEYS_DIR);
     path_buf
 }

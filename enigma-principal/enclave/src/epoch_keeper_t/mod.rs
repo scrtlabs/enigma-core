@@ -32,7 +32,7 @@ lazy_static! { pub static ref EPOCH: SgxMutex< HashMap<U256, Epoch >> = SgxMutex
 
 /// The epoch root path is guaranteed to exist of the enclave was initialized
 fn get_epoch_root_path() -> path::PathBuf {
-    let mut path_buf = ocalls_t::get_home_path();
+    let mut path_buf = ocalls_t::get_home_path().unwrap();
     path_buf.push(EPOCH_DIR);
     path_buf
 }

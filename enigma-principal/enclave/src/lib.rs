@@ -43,11 +43,11 @@ use enigma_tools_t::common::utils_t::EthereumAddress;
 use enigma_tools_t::quote_t;
 use enigma_tools_t::storage_t;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
+use enigma_tools_t::esgx::ocalls_t;
 
 use crate::epoch_keeper_t::ecall_set_worker_params_internal;
 use crate::keys_keeper_t::ecall_get_enc_state_keys_internal;
 
-mod ocalls_t;
 mod epoch_keeper_t;
 mod keys_keeper_t;
 lazy_static! { static ref SIGNING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -65,7 +65,7 @@ pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) {
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     // Get Home path via Ocall
-    let mut path_buf = ocalls_t::get_home_path();
+    let mut path_buf = ocalls_t::get_home_path().unwrap();
     // add the filename to the path: `keypair.sealed`
     path_buf.push("keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
