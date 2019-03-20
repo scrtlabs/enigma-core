@@ -3,15 +3,16 @@ extern crate enigma_core_app;
 extern crate log;
 pub extern crate log_derive;
 
-pub use enigma_core_app::*;
-pub use esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
-                                ocall_new_delta, ocall_save_to_memory, ocall_update_state};
-use networking::{ipc_listener, IpcListener};
-use db::DB;
 use cli::Opt;
-use structopt::StructOpt;
-use futures::Future;
+pub use crate::esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_state, ocall_get_state_size, ocall_new_delta,
+                                ocall_update_state};
+use db::DB;
+pub use enigma_core_app::*;
 use enigma_tools_u::common_u::logging::{self, CombinedLogger};
+pub use enigma_tools_u::esgx::ocalls_u::{ocall_get_home, ocall_save_to_memory};
+use futures::Future;
+use networking::{ipc_listener, IpcListener};
+use structopt::StructOpt;
 
 fn main() {
     let opt: Opt = Opt::from_args();
@@ -28,10 +29,7 @@ fn main() {
     let mut db = DB::new(datadir, true).expect("Failed initializing the DB");
     let server = IpcListener::new(&format!("tcp://*:{}", opt.port));
 
-    server
-        .run(move |multi| ipc_listener::handle_message(&mut db, multi, &opt.spid, eid))
-        .wait()
-        .unwrap();
+    server.run(move |multi| ipc_listener::handle_message(&mut db, multi, &opt.spid, eid)).wait().unwrap();
 }
 
 #[cfg(test)]

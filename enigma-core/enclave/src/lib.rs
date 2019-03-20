@@ -44,7 +44,6 @@ extern crate pwasm_utils as wasm_utils;
 
 mod evm_t;
 mod km_t;
-mod ocalls_t;
 mod wasm_g;
 
 use crate::evm_t::{abi::{create_callback, prepare_evm_input},
@@ -56,7 +55,7 @@ use enigma_runtime_t::EthereumData;
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
 use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}, LockExpectMutex, EthereumAddress};
-use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
+use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t, esgx::ocalls_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
 use wasm_utils::{build, SourceTarget};
 
