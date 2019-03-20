@@ -27,8 +27,7 @@ impl TryInto<Vec<u8>> for StringWrapper {
     type Error = Error;
 
     fn try_into(self) -> Result<Vec<u8>, Self::Error> {
-        let value = &self;
-        Ok(value.0.from_hex()?)
+        Ok(self.0.from_hex()?)
     }
 }
 
@@ -36,13 +35,12 @@ impl TryInto<[u8; 65]> for StringWrapper {
     type Error = Error;
 
     fn try_into(self) -> Result<[u8; 65], Self::Error> {
-        let value = &self;
-        let bytes = value.0.from_hex()?;
+        let bytes = self.0.from_hex()?;
         if bytes.len() != 65 {
             bail!("Cannot create a 65 bytes array from mismatching mismatching size slice.")
         }
         let mut slice: [u8; 65] = [0; 65];
-        slice.copy_from_slice(&bytes[..]);
+        slice.copy_from_slice(&bytes);
         Ok(slice)
     }
 }
@@ -67,12 +65,12 @@ impl<H: ToHex> From<H> for StringWrapper {
 
 pub struct PrincipalHttpServer {
     epoch_provider: Arc<EpochProvider>,
-    pub port: String,
+    pub port: u16,
 }
 
 impl PrincipalHttpServer {
-    pub fn new(epoch_provider: Arc<EpochProvider>, port: &str) -> PrincipalHttpServer {
-        PrincipalHttpServer { epoch_provider, port: port.to_string() }
+    pub fn new(epoch_provider: Arc<EpochProvider>, port: u16) -> PrincipalHttpServer {
+        PrincipalHttpServer { epoch_provider, port }
     }
 
     fn find_epoch_contract_addresses(reader: PrincipalMessageReader, sig: [u8; 65], epoch_state: EpochState) -> Result<Vec<H256>, Error> {

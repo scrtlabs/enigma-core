@@ -108,7 +108,7 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
     }
 
     #[logfn(DEBUG)]
-    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize, ) -> Result<TransactionReceipt, Error> {
         let mut opts: Options = Options::default();
         opts.gas = Some(gas.into());
         let call = self.w3_contract.call_with_confirmations("setWorkersParams", (block_number, seed, sig.0), self.account, opts, confirmations);
@@ -140,41 +140,43 @@ impl ContractQueries for EnigmaContract {
     #[logfn(INFO)]
     fn get_signing_address(&self) -> Result<H160, Error> {
         println!("Fetching the signing address for account: {:?}", self.account);
-        let result: Result<H160, web3::contract::Error> = self.w3_contract.query("getSigningAddress", (), self.account, Options::default(), None).wait();
-        let signing_address = match result {
-            Ok(addr) => addr,
-            Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getSigningAddress: {:?}", e) }.into()),
-        };
+        let signing_address: H160 =
+            match self.w3_contract.query("getSigningAddress", (), self.account, Options::default(), None).wait() {
+                Ok(addr) => addr,
+                Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getSigningAddress: {:?}", e) }.into()),
+            };
         Ok(signing_address)
     }
 
     #[logfn(INFO)]
+    fn get_active_workers(&self, block_number: U256) -> Result<(Vec<H160>, Vec<U256>), Error> {
+        let worker_params: (Vec<Address>, Vec<U256>) =
+            match self.w3_contract.query("getActiveWorkers", block_number, self.account, Options::default(), None).wait() {
+                Ok(result) => result,
+                Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getActiveWorkers: {:?}", e) }.into()),
+            };
+        Ok(worker_params)
+    }
+
+    #[logfn(INFO)]
     fn count_secret_contracts(&self) -> Result<U256, Error> {
-        let result: Result<U256, web3::contract::Error> = self.w3_contract.query("countSecretContracts", (), self.account, Options::default(), None).wait();
-        let secret_contract_count = match result {
-            Ok(count) => count,
-            Err(e) => return Err(errors::Web3Error { message: format!("Unable to query countSecretContracts: {:?}", e) }.into()),
-        };
+        let secret_contract_count: U256 =
+            match self.w3_contract.query("countSecretContracts", (), self.account, Options::default(), None).wait() {
+                Ok(count) => count,
+                Err(e) => return Err(errors::Web3Error { message: format!("Unable to query countSecretContracts: {:?}", e) }.into()),
+            };
         Ok(secret_contract_count)
     }
 
     #[logfn(INFO)]
     fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<H256>, Error> {
-        let result: Result<Vec<H256>, web3::contract::Error> = self.w3_contract.query("getSecretContractAddresses", (start, stop), self.account, Options::default(), None).wait();
-        let addrs = match result {
-            Ok(addrs) => addrs,
-            Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getSecretContractAddresses: {:?}", e) }.into()),
-        };
+        let addrs: Vec<H256> =
+            match self.w3_contract.query("getSecretContractAddresses", (start, stop), self.account, Options::default(), None).wait() {
+                Ok(addrs) => addrs,
+                Err(e) => {
+                    return Err(errors::Web3Error { message: format!("Unable to query getSecretContractAddresses: {:?}", e) }.into())
+                }
+            };
         Ok(addrs)
-    }
-
-    #[logfn(INFO)]
-    fn get_active_workers(&self, block_number: U256) -> Result<(Vec<H160>, Vec<U256>), Error> {
-        let result: Result<(Vec<Address>, Vec<U256>), web3::contract::Error> = self.w3_contract.query("getActiveWorkers", (block_number), self.account, Options::default(), None).wait();
-        let worker_params = match result {
-            Ok(result) => result,
-            Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getActiveWorkers: {:?}", e) }.into()),
-        };
-        Ok(worker_params)
     }
 }

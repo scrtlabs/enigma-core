@@ -38,7 +38,7 @@ pub struct PrincipalConfig {
     pub max_epochs: Option<usize>,
     pub spid: String,
     pub attestation_service_url: String,
-    pub http_port: String,
+    pub http_port: u16,
     pub confirmations: u64,
 }
 
@@ -206,11 +206,10 @@ impl Sampler for PrincipalManager {
         let gas_limit: U256 = gas_limit.into();
         self.verify_identity_or_register(gas_limit)?;
         // get enigma contract
-        let enigma_contract = &self.contract;
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<sgx_enclave_id_t> = Arc::new(self.eid);
         let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone())?);
-        if reset_epoch == true {
+        if reset_epoch {
             epoch_provider.reset_epoch_state()?;
         }
 
@@ -219,14 +218,14 @@ impl Sampler for PrincipalManager {
         let server_ep = Arc::clone(&epoch_provider);
         thread::spawn(move || {
             println!("Starting the JSON RPC Server");
-            let server = PrincipalHttpServer::new(server_ep, &port);
+            let server = PrincipalHttpServer::new(server_ep, port);
             server.start();
         });
 
         // watch blocks
         let polling_interval = self.config.polling_interval;
         let epoch_size = self.config.epoch_size;
-        enigma_contract.watch_blocks(epoch_size, polling_interval, epoch_provider, gas_limit, self.config.confirmations as usize, self.config.max_epochs);
+        self.contract.watch_blocks(epoch_size, polling_interval, epoch_provider, gas_limit, self.config.confirmations as usize, self.config.max_epochs);
         Ok(())
     }
 }

@@ -90,7 +90,7 @@ impl EpochProvider {
     }
 
     #[logfn(DEBUG)]
-    fn parse_worker_parameterized(&self, receipt: &TransactionReceipt) -> Result<(Log), Error> {
+    fn parse_worker_parameterized(&self, receipt: &TransactionReceipt) -> Result<Log, Error> {
         let log = receipt.logs[0].clone();
         let raw_log = RawLog { topics: log.topics, data: log.data.0 };
         let event = WorkersParameterizedEvent::new();

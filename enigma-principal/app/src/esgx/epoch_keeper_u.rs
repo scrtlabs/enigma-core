@@ -3,7 +3,7 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, U256};
 
 use common_u::errors::EnclaveFailError;
-use enigma_types::EnclaveReturn;
+use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 use epoch_u::epoch_types::{encode, EpochState};
 use keys_u::keeper_types_u::InputWorkerParams;
 
@@ -37,7 +37,7 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: InputWorkerParams
         ecall_set_worker_params(
             eid,
             &mut retval,
-            worker_params_rlp.as_ptr() as *const u8,
+            worker_params_rlp.as_c_ptr() as *const u8,
             worker_params_rlp.len(),
             &mut rand_out,
             &mut nonce_out,
