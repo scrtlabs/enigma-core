@@ -34,7 +34,7 @@ extern crate sgx_types;
 use sgx_types::sgx_report_t;
 use sgx_types::sgx_status_t;
 use sgx_types::sgx_target_info_t;
-use std::ptr;
+use std::mem;
 use std::slice;
 
 use enigma_crypto::asymmetric;
@@ -42,7 +42,7 @@ use enigma_tools_t::common::ToHex;
 use enigma_tools_t::common::utils_t::EthereumAddress;
 use enigma_tools_t::quote_t;
 use enigma_tools_t::storage_t;
-use enigma_types::{EnclaveReturn, traits::SliceCPtr};
+use enigma_types::{EnclaveReturn, traits::SliceCPtr, ContractAddress};
 use enigma_tools_t::esgx::ocalls_t;
 
 use crate::epoch_keeper_t::ecall_set_worker_params_internal;
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
                                                   addrs: *const u8, addrs_len: usize, sig: &[u8; 65],
                                                   serialized_ptr: *mut u64, sig_out: &mut [u8; 65]) -> EnclaveReturn {
     let msg_bytes = slice::from_raw_parts(msg, msg_len);
-    let addrs_bytes = slice::from_raw_parts(addrs, addrs_len);
+    let addrs_bytes = slice::from_raw_parts(addrs as *const ContractAddress, addrs_len/mem::size_of::<ContractAddress>()).to_vec();
     let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, sig_out) {
         Ok(response) => response,
         Err(err) => return err.into(),

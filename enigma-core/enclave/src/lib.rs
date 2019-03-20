@@ -181,8 +181,7 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
 #[no_mangle]
 pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
     let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
-    let address_list: Vec<Hash256> = address_list.into_iter().map(|a| (*a).into()).collect();
-    let msg = match ecall_ptt_req_internal(&address_list, sig) {
+    let msg = match ecall_ptt_req_internal(address_list, sig) {
         Ok(msg) => msg,
         Err(e) => return e.into(),
     };

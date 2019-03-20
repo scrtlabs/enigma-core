@@ -2,7 +2,6 @@ use std::convert::TryInto;
 use std::string::ToString;
 use std::sync::Arc;
 
-use ethereum_types::H256;
 use failure::Error;
 use jsonrpc_http_server::cors::AccessControlAllowOrigin;
 use jsonrpc_http_server::DomainsValidation;
@@ -11,6 +10,7 @@ use jsonrpc_http_server::ServerBuilder;
 use rustc_hex::{FromHex, ToHex};
 use serde::{Deserialize, Serialize};
 use sgx_types::sgx_enclave_id_t;
+use enigma_types::ContractAddress;
 
 use epoch_u::epoch_provider::EpochProvider;
 use epoch_u::epoch_types::EpochState;
@@ -73,7 +73,7 @@ impl PrincipalHttpServer {
         PrincipalHttpServer { epoch_provider, port }
     }
 
-    fn find_epoch_contract_addresses(reader: PrincipalMessageReader, sig: [u8; 65], epoch_state: EpochState) -> Result<Vec<H256>, Error> {
+    fn find_epoch_contract_addresses(reader: PrincipalMessageReader, sig: [u8; 65], epoch_state: EpochState) -> Result<Vec<ContractAddress>, Error> {
         let worker = reader.get_signing_address(sig)?;
         let addrs = epoch_state.get_contract_addresses(&worker)?;
         Ok(addrs)
@@ -94,7 +94,7 @@ impl PrincipalHttpServer {
                 println!("No addresses in message, reading from epoch state...");
                 let epoch_state = epoch_provider.get_state()?;
                 let epoch_addrs = Self::find_epoch_contract_addresses(reader, request.sig.clone().try_into()?, epoch_state)?;
-                get_enc_state_keys(*eid, request, Some(epoch_addrs))?
+                get_enc_state_keys(*eid, request, Some(&epoch_addrs))?
             }
         };
         let response_data = serde_json::to_value(&response)?;
@@ -131,8 +131,8 @@ impl PrincipalHttpServer {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
-
     use ethereum_types::{H160, U256};
+    use enigma_types::ContractAddress;
     use rustc_hex::FromHex;
     use web3::types::Bytes;
 
@@ -147,8 +147,8 @@ mod test {
         let sig = sign_message(&msg).unwrap();
         let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(sig.to_vec().to_hex()) };
         let reader = PrincipalMessageReader::new(request.data.clone().try_into().unwrap()).unwrap();
-        let mut selected_workers: HashMap<H256, H160> = HashMap::new();
-        selected_workers.insert(H256([0; 32]), H160(WORKER_SIGN_ADDRESS));
+        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        selected_workers.insert([0; 32].into(), H160(WORKER_SIGN_ADDRESS));
         let block_number = U256::from(1);
         let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
         let seed = U256::from(1);
@@ -157,7 +157,7 @@ mod test {
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
         let results = PrincipalHttpServer::find_epoch_contract_addresses(reader, request.sig.try_into().unwrap(), epoch_state).unwrap();
         println!("Found contract addresses: {:?}", results);
-        assert_eq!(results, vec![H256([0; 32])])
+        assert_eq!(results, vec![[0; 32].into()])
     }
 
     #[test]

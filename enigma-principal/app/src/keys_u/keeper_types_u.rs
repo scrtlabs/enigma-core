@@ -2,9 +2,10 @@ use std::vec::Vec;
 
 use bigint;
 use ethabi::{Address, Bytes, encode, Hash, Token};
-use ethereum_types::{H160, H256, U256, U64};
+use ethereum_types::{H160, U256, U64};
 use failure::Error;
 pub use rlp::{Decodable, decode, DecoderError, UntrustedRlp};
+use enigma_types::ContractAddress;
 
 use enigma_crypto::hash::Keccak256;
 
@@ -13,7 +14,6 @@ pub trait FromBigint<T>: Sized {
 }
 
 
-impl FromBigint<bigint::H256> for H256 { fn from_bigint(b: bigint::H256) -> Self { H256(b.0) } }
 
 impl FromBigint<bigint::H160> for H160 { fn from_bigint(b: bigint::H160) -> Self { H160(b.0) } }
 
@@ -27,7 +27,7 @@ pub trait RawEncodable {
 #[derive(Debug, Clone)]
 struct WorkerSelectionToken {
     pub seed: U256,
-    pub sc_addr: Hash,
+    pub sc_addr: ContractAddress,
     pub nonce: U256,
 }
 
@@ -36,7 +36,7 @@ impl RawEncodable for WorkerSelectionToken {
     fn raw_encode(&self) -> Result<Bytes, Error> {
         let tokens = vec![
             Token::Uint(self.seed),
-            Token::FixedBytes(self.sc_addr.0.to_vec()),
+            Token::FixedBytes(self.sc_addr.to_vec()),
             Token::Uint(self.nonce),
         ];
         Ok(encode(&tokens))
@@ -58,7 +58,7 @@ impl InputWorkerParams {
     /// * `sc_addr` - The Secret Contract address
     /// * `seed` - The random seed for the selected epoch
     ///
-    pub fn get_selected_worker(&self, sc_addr: H256, seed: U256) -> Result<Option<Address>, Error> {
+    pub fn get_selected_worker(&self, sc_addr: ContractAddress, seed: U256) -> Result<Option<Address>, Error> {
         let worker = self.get_selected_workers(sc_addr, seed, None)?;
         if worker.is_empty() {
             Ok(None)
@@ -68,7 +68,7 @@ impl InputWorkerParams {
     }
 
     #[logfn(DEBUG)]
-    fn get_selected_workers(&self, sc_addr: H256, seed: U256, group_size: Option<u64>) -> Result<Vec<Address>, Error> {
+    fn get_selected_workers(&self, sc_addr: ContractAddress, seed: U256, group_size: Option<u64>) -> Result<Vec<Address>, Error> {
         let mut balance_sum = U256::zero();
         for &balance in &self.stakes {
             balance_sum += balance;

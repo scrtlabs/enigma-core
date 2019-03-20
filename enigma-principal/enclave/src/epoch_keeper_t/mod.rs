@@ -2,7 +2,6 @@ use ethabi::Token;
 use ethereum_types::{H256, H160, U256};
 use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
-use std::collections::hash_map::RandomState;
 use std::collections::HashMap;
 use std::path;
 use std::str;
@@ -41,7 +40,7 @@ fn get_epoch_nonce_path() -> path::PathBuf {
     get_epoch_root_path().join("nonce.sealed")
 }
 
-fn get_epoch(epoch_map: &HashMap<U256, Epoch, RandomState>, block_number: Option<U256>) -> Result<Option<Epoch>, EnclaveError> {
+fn get_epoch(epoch_map: &HashMap<U256, Epoch>, block_number: Option<U256>) -> Result<Option<Epoch>, EnclaveError> {
     println!("Getting epoch for block number: {:?}", block_number);
     if block_number.is_some() {
         return Err(SystemError(WorkerAuthError { err: "Epoch lookup by block number not implemented.".to_string() }));
@@ -72,7 +71,7 @@ fn get_epoch(epoch_map: &HashMap<U256, Epoch, RandomState>, block_number: Option
 }
 
 /// Creates new epoch both in the cache and as sealed documents
-fn new_epoch(nonce_map: &mut HashMap<U256, Epoch, RandomState>, worker_params: &InputWorkerParams, nonce: U256, seed: U256) -> Result<Epoch, EnclaveError> {
+fn new_epoch(nonce_map: &mut HashMap<U256, Epoch>, worker_params: &InputWorkerParams, nonce: U256, seed: U256) -> Result<Epoch, EnclaveError> {
     let mut marker_doc: SealedDocumentStorage<EpochNonce> = SealedDocumentStorage {
         version: 0x1234, //TODO: what's this?
         data: [0; 32],

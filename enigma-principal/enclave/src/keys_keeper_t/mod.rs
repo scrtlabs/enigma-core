@@ -1,6 +1,6 @@
 use ethabi::{decode, ParamType};
 use sgx_trts::trts::rsgx_read_rand;
-use std::{collections::hash_map::RandomState, collections::HashMap, sync::SgxMutex, sync::SgxMutexGuard, vec::Vec};
+use std::{collections::HashMap, sync::SgxMutex, sync::SgxMutexGuard, vec::Vec};
 use std::path;
 use std::string::ToString;
 
@@ -21,7 +21,7 @@ pub mod keeper_types_t;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
-lazy_static! { pub static ref STATE_KEY_STORE: SgxMutex< HashMap<ContractAddress, StateKey >> = SgxMutex::new(HashMap::new()); }
+lazy_static! { pub static ref STATE_KEY_STORE: SgxMutex< HashMap<ContractAddress, StateKey> > = SgxMutex::new(HashMap::new()); }
 
 /// The state keys root path is guaranteed to exist of the enclave was initialized
 fn get_state_keys_root_path() -> path::PathBuf {
@@ -36,7 +36,7 @@ fn get_document_path(sc_addr: &ContractAddress) -> path::PathBuf {
 
 /// Read state keys from the cache and sealed documents.
 /// Adds keys to the cache after unsealing.
-fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey, RandomState>, sc_addrs: &[ContractAddress]) -> Result<Vec<Option<StateKey>>, EnclaveError> {
+fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>, sc_addrs: &[ContractAddress]) -> Result<Vec<Option<StateKey>>, EnclaveError> {
     let mut results: Vec<Option<StateKey>> = Vec::new();
     for &addr in sc_addrs {
         let key = match keys_map.get(&addr) {
@@ -70,7 +70,7 @@ fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey, RandomState>
 }
 
 /// Creates new state keys both in the cache and as sealed documents
-fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey, RandomState>, sc_addrs: &Vec<ContractAddress>) -> Result<Vec<StateKey>, EnclaveError> {
+fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>, sc_addrs: &Vec<ContractAddress>) -> Result<Vec<StateKey>, EnclaveError> {
     let mut results: Vec<StateKey> = Vec::new();
     for &addr in sc_addrs {
         let mut doc: SealedDocumentStorage<StateKey> = SealedDocumentStorage {
@@ -109,10 +109,7 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
             new_addrs.push(sc_addrs[i]);
         }
     }
-    if !new_addrs.is_empty() {
-        // Creates keys in cache and seal
-        new_state_keys(&mut guard, &new_addrs)?;
-    }
+    new_state_keys(&mut guard, &new_addrs)?; // If the vector is empty this won't do anything.
     //Now we have keys for all addresses in cache
     for addr in sc_addrs {
         match guard.get(&addr) {
@@ -127,27 +124,13 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
 
 /// Get encrypted state keys
 
-pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: &[u8], addrs_bytes: &[u8], sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
+pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: &[u8], addrs_bytes: Vec<ContractAddress>, sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let msg = PrincipalMessage::from_message(msg_bytes)?;
     let user_pubkey = msg.get_pubkey();
     let msg_id = msg.get_id();
     let sc_addrs: Vec<ContractAddress> = match msg.data {
         PrincipalMessageType::Request(Some(addrs)) => addrs,
-        PrincipalMessageType::Request(None) => {
-            if addrs_bytes == &[0] {
-                Vec::new()
-            } else {
-                let tokens = decode(&vec![ParamType::FixedBytes(256)], &addrs_bytes)
-                    .map_err(|e|
-                        SystemError(KeyProvisionError { err: format!("Unable to deserialize contract addresses {:?}: {:?}", addrs_bytes, e) }))?;
-
-                tokens.into_iter().map(|t| {
-                    let mut sc_addr: ContractAddress = Hash256::from([0; 32]);
-                    sc_addr.copy_from_slice(&t.to_fixed_bytes().unwrap());
-                    sc_addr
-                }).collect()
-            }
-        },
+        PrincipalMessageType::Request(None) => addrs_bytes,
         _ => {
             return Err(SystemError(KeyProvisionError { err: format!("Unable to deserialize message: {:?}", msg_bytes) }));
         }
@@ -166,9 +149,8 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: &[u8], addrs_bytes: &
     let pubkey = key_pair.get_pubkey();
     let response_msg = PrincipalMessage::new_id(response_msg_data, msg_id, pubkey);
     // Generate the iv from the first 12 bytes of a new random number
-    let response = response_msg.encrypt(&derived_key)?.to_message()?;
-    let response_bytes = response.into_message()?;
-    println!("The partially encrypted response: {:?}", response_bytes.to_hex());
+    let response = response_msg.encrypt(&derived_key)?.into_message()?;
+    println!("The partially encrypted response: {:?}", response.to_hex());
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
     *sig_out = SIGNING_KEY.sign(&response)?;
