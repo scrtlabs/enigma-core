@@ -73,8 +73,6 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     // TODO: Decide what to do if failed to obtain keys.
     match storage_t::get_sealed_keys(&sealed_path) {
         Ok(key) => {
-            println!("The signing address #7: {}", key.get_pubkey().address_string());
-            println!("The priv key #7: 0x{}", key.get_privkey().to_vec().to_hex());
             return key
         }
         Err(err) => panic!("Failed obtaining keys: {:?}", err)
