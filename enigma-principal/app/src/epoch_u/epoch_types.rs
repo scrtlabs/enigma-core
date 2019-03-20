@@ -5,7 +5,8 @@ use bigint;
 use ethabi::{Event, EventParam, ParamType};
 use failure::Error;
 pub use rlp::{decode, Encodable, encode, RlpStream};
-use web3::types::{Address, Bytes, H160, H256, U256};
+use web3::types::{Address, Bytes, H160, U256};
+use enigma_types::ContractAddress;
 
 use keys_u::keeper_types_u::InputWorkerParams;
 
@@ -14,8 +15,6 @@ pub trait IntoBigint<T> {
 }
 
 impl IntoBigint<bigint::H160> for H160 { fn bigint(self) -> bigint::H160 { bigint::H160(self.0) } }
-
-impl IntoBigint<bigint::H256> for H256 { fn bigint(self) -> bigint::H256 { bigint::H256(self.0) } }
 
 impl IntoBigint<bigint::U256> for U256 { fn bigint(self) -> bigint::U256 { bigint::U256(self.0) } }
 
@@ -31,7 +30,7 @@ impl Encodable for InputWorkerParams {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ConfirmedEpochState {
-    pub selected_workers: HashMap<H256, H160>,
+    pub selected_workers: HashMap<ContractAddress, H160>,
     pub block_number: U256,
 }
 
@@ -56,9 +55,9 @@ impl EpochState {
     /// * `sc_addresses` - The Secret Contract addresses for which to retrieve the selected worker
     ///
     #[logfn(DEBUG)]
-    pub fn confirm(&mut self, block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<H256>) -> Result<(), Error> {
+    pub fn confirm(&mut self, block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<ContractAddress>) -> Result<(), Error> {
         println!("Confirmed epoch with worker params: {:?}", worker_params);
-        let mut selected_workers: HashMap<H256, Address> = HashMap::new();
+        let mut selected_workers: HashMap<ContractAddress, Address> = HashMap::new();
         for sc_address in sc_addresses {
             println!("Getting the selected worker for: {:?}", sc_address);
             match worker_params.get_selected_worker(sc_address.clone(), self.seed.clone())? {
@@ -84,10 +83,10 @@ impl EpochState {
     ///
     /// * `worker` - The worker signing address
     #[logfn(DEBUG)]
-    pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<H256>, Error> {
+    pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<ContractAddress>, Error> {
         let addrs = match &self.confirmed_state {
             Some(state) => {
-                let mut addrs: Vec<H256> = Vec::new();
+                let mut addrs: Vec<ContractAddress> = Vec::new();
                 for (addr, account) in &state.selected_workers {
                     if account == worker {
                         addrs.push(addr.clone());

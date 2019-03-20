@@ -10,6 +10,8 @@ use web3::transports::{EventLoopHandle, Http};
 use web3::types::{Address, Bytes, H160, H256, TransactionReceipt, U256};
 use web3::Web3;
 
+use enigma_types::ContractAddress;
+
 use crate::common_u::errors;
 use crate::web3_utils::w3utils;
 
@@ -133,7 +135,7 @@ pub trait ContractQueries {
 
     // getSecretContractAddresses
     // input: uint _start, uint _stop
-    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<H256>, Error>;
+    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<ContractAddress>, Error>;
 }
 
 impl ContractQueries for EnigmaContract {
@@ -169,7 +171,7 @@ impl ContractQueries for EnigmaContract {
     }
 
     #[logfn(INFO)]
-    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<H256>, Error> {
+    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<ContractAddress>, Error> {
         let addrs: Vec<H256> =
             match self.w3_contract.query("getSecretContractAddresses", (start, stop), self.account, Options::default(), None).wait() {
                 Ok(addrs) => addrs,
@@ -177,6 +179,6 @@ impl ContractQueries for EnigmaContract {
                     return Err(errors::Web3Error { message: format!("Unable to query getSecretContractAddresses: {:?}", e) }.into())
                 }
             };
-        Ok(addrs)
+        Ok(addrs.into_iter().map(|a|ContractAddress::from(a.0)).collect())
     }
 }

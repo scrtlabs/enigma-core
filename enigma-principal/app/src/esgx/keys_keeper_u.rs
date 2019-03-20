@@ -1,13 +1,12 @@
-use std::convert::TryInto;
+use std::{mem, convert::TryInto};
 
 use ethabi::{encode, Token};
-use ethereum_types::H256;
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors::EnclaveFailError;
-use enigma_types::{EnclaveReturn, traits::SliceCPtr};
+use enigma_types::{EnclaveReturn, traits::SliceCPtr, ContractAddress};
 
 extern {
     fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
@@ -28,27 +27,21 @@ extern {
 /// let response = get_enc_state_keys(enclave.geteid(), request, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_addrs: Option<Vec<H256>>) -> Result<StateKeyResponse, Error> {
+pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_addrs: Option<&[ContractAddress]>) -> Result<StateKeyResponse, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
     let mut response_ptr = 0u64;
+    let epoch_addrs = epoch_addrs.unwrap_or_default();
 
     let msg_bytes: Vec<u8> = request.data.try_into()?;
-    let addrs_bytes: Vec<u8> = match epoch_addrs {
-        Some(addrs) => {
-            let tokens: Vec<Token> = addrs.iter().map(|a| Token::FixedBytes(a.0.to_vec())).collect();
-            encode(&tokens)
-        }
-        None => vec![0],
-    };
     let status = unsafe {
         ecall_get_enc_state_keys(
             eid,
             &mut retval,
             msg_bytes.as_c_ptr() as *const u8,
             msg_bytes.len(),
-            addrs_bytes.as_c_ptr() as *const u8,
-            addrs_bytes.len(),
+            epoch_addrs.as_c_ptr() as *const u8,
+            mem::size_of_val(epoch_addrs),
             &request.sig.try_into()?,
             &mut response_ptr as *mut u64,
             &mut sig_out,
