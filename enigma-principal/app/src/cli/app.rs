@@ -77,7 +77,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
                 let tx = epoch_provider.set_worker_params(block_number, gas_limit, principal_config.confirmations as usize)?;
                 println!("The setWorkersParams tx: {:?}", tx);
             } else {
-                principal.run(gas_limit).unwrap();
+                principal.run(false, gas_limit).unwrap();
             }
             if let Some(t) = join_handle { t.join().unwrap(); }
         }

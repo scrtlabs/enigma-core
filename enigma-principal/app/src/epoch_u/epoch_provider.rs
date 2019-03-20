@@ -14,7 +14,7 @@ use serde_json;
 // general
 use web3::futures::Future;
 use web3::futures::stream::Stream;
-use web3::types::{FilterBuilder, H256, TransactionReceipt, U256};
+use web3::types::{H256, TransactionReceipt, U256};
 
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
 use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
@@ -170,7 +170,7 @@ impl EpochProvider {
     /// * `gas_limit` - The gas limit of the `setWorkersParams` transaction
     /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
     ///
-    pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<(H256), Error> {
+    pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
         let result = self.contract.get_active_workers(block_number)?;
         let worker_params: InputWorkerParams = InputWorkerParams {
             block_number,
@@ -212,47 +212,6 @@ impl EpochProvider {
         println!("The secret contract addresses: {:?}", sc_addresses);
         epoch_state.confirm(block_number, &worker_params, sc_addresses)?;
         Ok(())
-    }
-
-    /// Store the epoch state (first block number of the new epoch) for each
-    /// WorkerParametized event emitted by the Enigma contract.
-    /// Not in use, this approach has no obvious benefit compared to just waiting for the tx on the main thread.
-    /// Consider in context of a possible future optimization
-    #[allow(dead_code)]
-    pub fn filter_worker_params(&self) {
-        let event = WorkersParameterizedEvent::new();
-        let event_sig = event.0.signature();
-        // Filter for Hello event in our contract
-        let filter = FilterBuilder::default()
-            .address(vec![self.contract.address()])
-            .topics(
-                Some(vec![
-                    event_sig.into(),
-                ]),
-                None,
-                None,
-                None,
-            )
-            .build();
-
-        let event_future = self.contract.web3.eth_filter()
-            .create_logs_filter(filter)
-            .then(|filter| {
-                filter
-                    .unwrap()
-                    .stream(time::Duration::from_secs(1))
-                    .for_each(|log| {
-                        println!("Got WorkerParameterized log: {:?}", log);
-                        let raw_log = RawLog { topics: log.topics, data: log.data.0 };
-                        let event = WorkersParameterizedEvent::new();
-                        let result = event.0.parse_log(raw_log).unwrap();
-                        println!("Parsed the WorkerParameterized event: {:?}", result);
-                        // TODO: consider performing a cursory check against EpochSeed
-                        Ok(())
-                    })
-            })
-            .map_err(|err| eprintln!("Unable to process WorkersParameterized log: {:?}", err));
-        event_future.wait().unwrap();
     }
 }
 

@@ -134,7 +134,7 @@ pub trait Sampler {
     fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error>;
 
     /// after initiation, this will run the principal node and block.
-    fn run<G: Into<U256>>(&self, gas: G) -> Result<(), Error>;
+    fn run<G: Into<U256>>(&self,reset_epoch: bool,  gas: G) -> Result<(), Error>;
 }
 
 impl Sampler for PrincipalManager {
@@ -163,6 +163,7 @@ impl Sampler for PrincipalManager {
 
     fn register<G: Into<U256>>(&self, signing_address: String, gas_limit: G) -> Result<H256, Error> {
         let registration_params = self.report_manager.get_registration_params()?;
+        println!("Registering worker");
         let receipt = self.contract.register(signing_address, registration_params.report, registration_params.signature, gas_limit, self.config.confirmations as usize)?;
         Ok(receipt.transaction_hash)
     }
@@ -184,6 +185,7 @@ impl Sampler for PrincipalManager {
             Ok(None)
         } else {
             let tx = self.register(signing_address, gas_limit)?;
+            println!("Registered worker tx: {:?}", tx);
             Ok(Some(tx))
         }
     }
@@ -196,10 +198,11 @@ impl Sampler for PrincipalManager {
     ///
     /// # Arguments
     ///
+    /// * `reset_epoch` - If true, reset the epoch state
     /// * `gas_limit` - The gas limit for all Enigma contract transactions
     ///
     #[logfn(INFO)]
-    fn run<G: Into<U256>>(&self, gas_limit: G) -> Result<(), Error> {
+    fn run<G: Into<U256>>(&self, reset_epoch: bool, gas_limit: G) -> Result<(), Error> {
         let gas_limit: U256 = gas_limit.into();
         self.verify_identity_or_register(gas_limit)?;
         // get enigma contract
@@ -207,6 +210,9 @@ impl Sampler for PrincipalManager {
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<sgx_enclave_id_t> = Arc::new(self.eid);
         let epoch_provider = Arc::new(EpochProvider::new(eid.clone(), self.contract.clone())?);
+        if reset_epoch == true {
+            epoch_provider.reset_epoch_state()?;
+        }
 
         // Start the JSON-RPC Server
         let port = self.config.http_port.clone();
@@ -251,6 +257,10 @@ mod test {
     use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
     use enigma_tools_u::web3_utils::w3utils;
     use esgx::general::init_enclave_wrapper;
+    use epoch_u::epoch_types::WorkersParameterizedEvent;
+    use web3::futures::Future;
+    use web3::futures::stream::Stream;
+    use web3::types::FilterBuilder;
 
     use super::*;
 
@@ -301,7 +311,7 @@ mod test {
         let principal = init_no_deploy(eid).unwrap();
         principal.verify_identity_or_register(gas_limit).unwrap();
 
-        let block_number = principal.get_web3().eth().block_number().wait().unwrap();
+        let block_number = principal.get_block_number().unwrap();
         let eid_safe = Arc::new(eid);
         let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone()).unwrap();
         epoch_provider.reset_epoch_state().unwrap();
@@ -317,62 +327,49 @@ mod test {
     /// The testing is looking for atleast 2 emmits of the WorkersParameterized event and compares the event triggerd
     /// If the event name is different or if it takes more than 30 seconds then the test will fail.
     #[test]
-    #[ignore]
     fn test_full_principal_logic() {
+        let gas_limit: U256 = 5999999.into();
         let enclave = init_enclave_wrapper().unwrap();
-
         let eid = enclave.geteid();
-        // load the config
-//        let deploy_config = "../app/tests/principal_node/config/deploy_config.json";
-//        let mut config = deploy_scripts::load_config(deploy_config).unwrap();
-//        // modify to dynamic address
-//        //        config.set_accounts_address(deployer);
-//        config.set_ethereum_url(get_node_url());
-//
-//        let signer_addr = deploy_scripts::get_signing_address(eid).unwrap();
-//        // deploy all contracts. (Enigma & EnigmaToken)
-//        let enigma_contract = Arc::new(EnigmaContract::deploy_contract(&config.enigma_token_contract_path,
-//                                                                       &config.enigma_contract_path,
-//                                                                       &config.url,
-//                                                                       None,
-//                                                                       &signer_addr).expect("cannot deploy Enigma,EnigmaToken"));
-//
-//        let account = enigma_contract.account.clone();
-//
-//        // run simulated miner
-//        run_miner(account, Arc::clone(&enigma_contract.web3), 1);
-//
-//        let principal_config = get_config().unwrap();
-//
-//        // run event filter in the background
-//        let event_name = "WorkersParameterized(uint256,address[],bool)";
-//        let w3 = Arc::clone(&enigma_contract.web3);
-//        let child = thread::spawn(move || {
-//            let mut counter = 0;
-//            loop {
-//                counter += 1;
-//                let logs = filter_random(&Arc::clone(&w3), None, &event_name).expect("err filtering random");
-//                // the test: if events recieved >2 (more than 2 emitts of random)
-//                // assert topic (keccack(event_name))
-//                if logs.len() >= 2 {
-////                    println!("FOUND 2 LOGS!!!! {:?}", logs);
-//                    for log in logs.iter() {
-//                        let expected_topic = event_name.as_bytes().keccak256();
-//                        assert!(log.topics[0].contains(&H256::from_slice(&*expected_topic)));
-//                    }
-//                    break;
-//                }
-//                thread::sleep(time::Duration::from_secs(1));
-//                let max_time = 30;
-//                if counter > max_time {
-//                    panic!("test failed, more than {} seconds without events", max_time)
-//                }
-//            }
-//        });
-//
-//        // run principal
-//        let principal = PrincipalManager::new_delegated(the_config, enigma_contract, eid);
-//        principal.run(5999999).unwrap();
-//        child.join().unwrap();
+        let principal = init_no_deploy(eid).unwrap();
+        let account = principal.get_account_address();
+
+        // run simulated miner
+        run_miner(account, Arc::clone(&principal.contract.web3), 1);
+
+        let contract = Arc::clone(&principal.contract);
+        let child = thread::spawn(move || {
+            let event = WorkersParameterizedEvent::new();
+            let event_sig = event.0.signature();
+            let filter = FilterBuilder::default()
+                .address(vec![contract.address()])
+                .topics(
+                    Some(vec![
+                        event_sig.into(),
+                    ]),
+                    None,
+                    None,
+                    None,
+                )
+                .build();
+
+            let event_future = contract.web3.eth_filter()
+                .create_logs_filter(filter)
+                .then(|filter| {
+                    filter
+                        .unwrap()
+                        .stream(time::Duration::from_secs(1))
+                        .for_each(|log| {
+                            println!("Got WorkerParameterized log: {:?}", log);
+                            Ok(())
+                        })
+                })
+                .map_err(|err| eprintln!("Unable to process WorkersParameterized log: {:?}", err));
+            event_future.wait().unwrap();
+        });
+
+        // run principal
+        principal.run(true, 5999999).unwrap();
+        child.join().unwrap();
     }
 }
