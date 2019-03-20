@@ -58,40 +58,38 @@ impl InputWorkerParams {
         }
     }
 
-    fn get_selected_workers(&self, sc_addr: H256, seed: U256, group_size: Option<U64>) -> Result<Vec<Address>, EnclaveError> {
-        let mut balance_sum: U256 = U256::from(0);
-        for balance in self.stakes.clone() {
-            balance_sum = balance_sum + balance;
+    fn get_selected_workers(&self, sc_addr: H256, seed: U256, group_size: Option<u64>) -> Result<Vec<Address>, EnclaveError> {
+        let mut balance_sum = U256::zero();
+        for &balance in &self.stakes {
+            balance_sum += balance;
         }
         // Using the same type as the Enigma contract
-        let mut nonce = U256::from(0);
-        let mut selected_workers: Vec<H160> = Vec::new();
-        while {
+        let mut nonce = U256::zero();
+        let mut selected_workers = Vec::new();
+        let group_size = group_size.unwrap_or(1);
+
+        while selected_workers.len() < group_size as usize {
             let token = WorkerSelectionToken { seed, sc_addr, nonce };
             // This is equivalent to encodePacked in Solidity
-            let hash: [u8; 32] = token.raw_encode()?.keccak256().into();
-            let mut rand_val: U256 = U256::from(hash) % balance_sum;
+            let hash = token.raw_encode()?.keccak256();
+            let mut rand_val: U256 = U256::from(*hash) % balance_sum;
             println!("The initial random value: {:?}", rand_val);
-            let mut selected_worker = self.workers[self.workers.len() - 1].clone();
-            for i in 0..self.workers.len() {
-                let result = rand_val.overflowing_sub(self.stakes[i]);
-                if result.1 == true || result.0 == U256::from(0) {
-                    selected_worker = self.workers[i];
+            let mut selected_worker = self.workers.last().unwrap();
+
+            for (i, worker) in self.workers.iter().enumerate() {
+                let (new_rand, overflow) = rand_val.overflowing_sub(self.stakes[i]);
+                if overflow || new_rand.is_zero() {
+                    selected_worker = worker;
                     break;
                 }
-                rand_val = result.0;
+                rand_val = new_rand;
                 println!("The next random value: {:?}", rand_val);
             }
-            if !selected_workers.contains(&selected_worker) {
-                selected_workers.push(selected_worker);
+            if !selected_workers.contains(selected_worker) {
+                selected_workers.push(*selected_worker);
             }
-            nonce = nonce + U256::from(1);
-            let limit = match group_size {
-                Some(size) => size,
-                None => U64::from(1),
-            };
-            U64::from(selected_workers.len()) < limit
-        } {}
+            nonce += 1.into();
+        }
         println!("The selected workers: {:?}", selected_workers);
         Ok(selected_workers)
     }
