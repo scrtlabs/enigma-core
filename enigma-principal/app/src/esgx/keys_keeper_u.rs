@@ -7,18 +7,15 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors::EnclaveFailError;
-use enigma_types::EnclaveReturn;
+use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 
 extern {
     fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
                                 msg: *const u8, msg_len: usize,
                                 addrs: *const u8, addrs_len: usize,
                                 sig: &[u8; 65],
-                                enc_response_out: *mut u8, enc_response_len_out: &mut usize,
-                                sig_out: &mut [u8; 65]) -> sgx_status_t;
+                                serialized_ptr: *mut u64, sig_out: &mut [u8; 65]) -> sgx_status_t;
 }
-
-const MAX_ENC_RESPONSE_LEN: usize = 100_000;
 
 /// Returns the signed encrypted keys.
 ///
@@ -34,9 +31,7 @@ const MAX_ENC_RESPONSE_LEN: usize = 100_000;
 pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_addrs: Option<Vec<H256>>) -> Result<StateKeyResponse, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
-    let mut enc_response = vec![0u8; MAX_ENC_RESPONSE_LEN];
-    let enc_response_slice = enc_response.as_mut_slice();
-    let mut enc_response_len_out: usize = 0;
+    let mut response_ptr = 0u64;
 
     let msg_bytes: Vec<u8> = request.data.try_into()?;
     let addrs_bytes: Vec<u8> = match epoch_addrs {
@@ -50,23 +45,23 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
         ecall_get_enc_state_keys(
             eid,
             &mut retval,
-            msg_bytes.as_ptr() as *const u8,
+            msg_bytes.as_c_ptr() as *const u8,
             msg_bytes.len(),
-            addrs_bytes.as_ptr() as *const u8,
+            addrs_bytes.as_c_ptr() as *const u8,
             addrs_bytes.len(),
             &request.sig.try_into()?,
-            enc_response_slice.as_mut_ptr() as *mut u8,
-            &mut enc_response_len_out,
+            &mut response_ptr as *mut u64,
             &mut sig_out,
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: retval, status }.into());
     }
-    let enc_response_out: Vec<u8> = enc_response_slice[0..enc_response_len_out].to_vec();
+    let box_ptr = response_ptr as *mut Box<[u8]>;
+    let response = unsafe { Box::from_raw(box_ptr) };
     Ok(StateKeyResponse {
-        data: StringWrapper::from(enc_response_out),
-        sig: StringWrapper::from(sig_out),
+        data: StringWrapper::from(&response[..]),
+        sig: StringWrapper::from(&sig_out[..]),
     })
 }
 

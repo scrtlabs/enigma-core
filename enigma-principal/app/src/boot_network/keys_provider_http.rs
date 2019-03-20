@@ -59,21 +59,9 @@ pub struct StateKeyResponse {
     pub sig: StringWrapper,
 }
 
-impl From<Vec<u8>> for StringWrapper {
-    fn from(bytes: Vec<u8>) -> Self {
+impl<H: ToHex> From<H> for StringWrapper {
+    fn from(bytes: H) -> Self {
         StringWrapper(bytes.to_hex())
-    }
-}
-
-impl From<[u8; 65]> for StringWrapper {
-    fn from(bytes: [u8; 65]) -> Self {
-        StringWrapper(bytes.to_vec().to_hex())
-    }
-}
-
-impl From<[u8; 64]> for StringWrapper {
-    fn from(bytes: [u8; 64]) -> Self {
-        StringWrapper(bytes.to_vec().to_hex())
     }
 }
 

@@ -96,17 +96,18 @@ pub unsafe extern "C" fn ecall_set_worker_params(worker_params_rlp: *const u8, w
 #[no_mangle]
 pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize,
                                                   addrs: *const u8, addrs_len: usize, sig: &[u8; 65],
-                                                  enc_response_out: *mut u8, enc_response_len: &mut usize,
-                                                  sig_out: &mut [u8; 65]) -> EnclaveReturn {
-    let msg_bytes = slice::from_raw_parts(msg, msg_len).to_vec();
-    let addrs_bytes = slice::from_raw_parts(addrs, addrs_len).to_vec();
+                                                  serialized_ptr: *mut u64, sig_out: &mut [u8; 65]) -> EnclaveReturn {
+    let msg_bytes = slice::from_raw_parts(msg, msg_len);
+    let addrs_bytes = slice::from_raw_parts(addrs, addrs_len);
     let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, sig_out) {
         Ok(response) => response,
         Err(err) => return err.into(),
     };
-    // std magic
-    ptr::copy_nonoverlapping(response.as_c_ptr(), enc_response_out, response.len());
-    *enc_response_len = response.len();
+
+    *serialized_ptr = match ocalls_t::save_to_untrusted_memory(&response) {
+        Ok(ptr) => ptr,
+        Err(e) => return e.into(),
+    };
     EnclaveReturn::Success
 }
 

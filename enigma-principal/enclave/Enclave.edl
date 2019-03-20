@@ -25,11 +25,12 @@ enclave {
         public EnclaveReturn ecall_get_enc_state_keys([in, size=msg_len] const uint8_t* msg, size_t msg_len,
                                         [in, size=addrs_len] const uint8_t* addrs, size_t addrs_len,
                                         [in, size=65] uint8_t* sig,
-                                        [out, size=100000] uint8_t* enc_response_out, [out] uint64_t* enc_response_len_out,
-                                        [out, size=65] uint8_t* sig_out);
+                                        [out] uint64_t* serialized_ptr, [out, size=65] uint8_t* sig_out);
     };
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);
+
+        uint64_t ocall_save_to_memory( [in, count=data_len] const uint8_t* data_ptr, size_t data_len);
 
     };
 };

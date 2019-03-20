@@ -131,14 +131,17 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
 }
 
 /// Get encrypted state keys
-pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes: Vec<u8>, sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
-    let msg = PrincipalMessage::from_message(&msg_bytes)?;
-    let sc_addrs: Vec<ContractAddress> = match msg.data.clone() {
+
+pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: &[u8], addrs_bytes: &[u8], sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
+    let msg = PrincipalMessage::from_message(msg_bytes)?;
+    let user_pubkey = msg.get_pubkey();
+    let msg_id = msg.get_id();
+    let sc_addrs: Vec<ContractAddress> = match msg.data {
         PrincipalMessageType::Request(addrs) => match addrs {
             Some(addrs) => addrs,
             None => {
                 let sc_addrs;
-                if addrs_bytes == vec![0] {
+                if addrs_bytes == &[0] {
                     sc_addrs = Vec::new();
                 } else {
                     let tokens = match decode(&vec![ParamType::FixedBytes(256)], &addrs_bytes) {
@@ -167,24 +170,20 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes:
 
     // Generate the encryption key material
     let key_pair = KeyPair::new()?;
-    let derived_key = key_pair.derive_key(&msg.get_pubkey())?;
+    let derived_key = key_pair.derive_key(&user_pubkey)?;
 
     // Create the response message
     let response_msg_data = PrincipalMessageType::Response(response_data);
-    let id = msg.get_id();
     let pubkey = key_pair.get_pubkey();
-    let response_msg = PrincipalMessage::new_id(response_msg_data, id, pubkey);
+    let response_msg = PrincipalMessage::new_id(response_msg_data, msg_id, pubkey);
     // Generate the iv from the first 12 bytes of a new random number
-    let mut iv: [u8; 12] = [0; 12];
-    rsgx_read_rand(&mut iv)?;
-    let response = response_msg.encrypt_with_nonce(&derived_key, Some(iv))?;
+    let response = response_msg.encrypt(&derived_key)?.to_message()?;
     let response_bytes = response.into_message()?;
     println!("The partially encrypted response: {:?}", response_bytes.to_hex());
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
-    let sig = SIGNING_KEY.sign(&response_bytes)?;
-    sig_out.copy_from_slice(&sig[..]);
-    Ok(response_bytes)
+    *sig_out = SIGNING_KEY.sign(&response)?;
+    Ok(response)
 }
 
 pub mod tests {
