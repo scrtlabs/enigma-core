@@ -137,7 +137,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes:
     let msg = PrincipalMessage::from_message(&msg_bytes)?;
     let sc_addrs: Vec<ContractAddress> = match msg.data.clone() {
         PrincipalMessageType::Request(addrs) => match addrs {
-            Some(addrs) => Vec::new(),
+            Some(addrs) => addrs,
             None => {
                 let sc_addrs;
                 if addrs_bytes == vec![0] {
