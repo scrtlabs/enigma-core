@@ -37,7 +37,7 @@ impl PrincipalMessageReader {
     fn deserialize(msg: &[u8]) -> Result<PrincipalMessage, Error> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
-        println!("The JSON message: {:?}", serde_json::to_string_pretty(&res)?);
+        println!("The JSON message: {:?}", serde_json::to_string(&res)?);
         println!("The deserialized message: {:?}", res);
         let msg: PrincipalMessage = serde_json::from_value(res).unwrap();
         Ok(msg)
