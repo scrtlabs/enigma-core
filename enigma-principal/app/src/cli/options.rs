@@ -28,6 +28,10 @@ pub struct Opt {
     #[structopt(short = "p", long = "set-worker-params")]
     pub set_worker_params: bool,
 
+    /// Get state keys and shutdown
+    #[structopt(short = "k", long = "get-state-keys")]
+    pub get_state_keys: Option<String>,
+
     ///Optional: The Enigma contract address, use the config if not provided
     #[structopt(short = "c", long = "contract-address")]
     pub contract_address: Option<String>,
@@ -102,6 +106,7 @@ pub fn print_info(signing_address: &str) {
     green!("--write-sign-address                   => Write the signing address to ~/.enigma/principal-sign-addr.txt.\n");
     green!("--register                             => Run the Register procedure and shutdown.\n");
     green!("--set-worker-params                    => Run the Set Worker Params procedure and shutdown.\n");
+    green!("--get-state-keys                       => Get the state keys from the message and shutdown.\n");
     green!("--contract-address                     => The Enigma contract address, use the config if not provided.\n");
     green!("--deploy                               => Optional, deploy the Enigma contract.\n");
     green!("--network                              => Currently ignored, use a custom network (use config file instead).\n");

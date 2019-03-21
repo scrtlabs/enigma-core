@@ -94,20 +94,21 @@ impl PrincipalHttpServer {
     }
 
     #[logfn(DEBUG)]
-    fn get_state_keys_internal(epoch_provider: Arc<EpochProvider>, request: StateKeyRequest, eid: sgx_enclave_id_t) -> Result<Value, Error> {
+    pub fn get_state_keys(epoch_provider: Arc<EpochProvider>, request: StateKeyRequest) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
         let reader = PrincipalMessageReader::new(request.data.clone().try_into()?)?;
         let addrs = reader.get_contract_addresses()?;
+        let eid = epoch_provider.eid.clone();
         let response = match addrs {
             Some(addrs) => {
                 println!("Found addresses in message: {:?}", addrs);
-                get_enc_state_keys(eid, request, None)?
+                get_enc_state_keys(*eid, request, None)?
             }
             None => {
                 println!("No addresses in message, reading from epoch state...");
                 let epoch_state = epoch_provider.get_state()?;
                 let epoch_addrs = Self::find_epoch_contract_addresses(reader, request.sig.clone().try_into()?, epoch_state)?;
-                get_enc_state_keys(eid, request, Some(epoch_addrs))?
+                get_enc_state_keys(*eid, request, Some(epoch_addrs))?
             }
         };
         let response_data = serde_json::to_value(&response)?;
@@ -125,8 +126,7 @@ impl PrincipalHttpServer {
         io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
             let epoch_provider = epoch_provider.clone();
             let request = params.parse::<StateKeyRequest>()?;
-            let eid = epoch_provider.eid.clone();
-            let body = match Self::get_state_keys_internal(epoch_provider, request, *eid) {
+            let body = match Self::get_state_keys(epoch_provider, request) {
                 Ok(body) => body,
                 Err(err) => return Err(ServerError { code: ErrorCode::InternalError, message: format!("Unable to get keys: {:?}", err), data: None }),
             };
@@ -172,5 +172,10 @@ mod test {
         let results = PrincipalHttpServer::find_epoch_contract_addresses(reader, request.sig.try_into().unwrap(), epoch_state).unwrap();
         println!("Found contract addresses: {:?}", results);
         assert_eq!(results, vec![H256([0; 32])])
+    }
+
+    #[test]
+    pub fn test_get_state_keys() {
+
     }
 }

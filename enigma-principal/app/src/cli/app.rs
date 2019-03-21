@@ -13,6 +13,9 @@ use cli;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use epoch_u::epoch_provider::EpochProvider;
 use esgx::general::{ENCLAVE_DIR, storage_dir};
+use boot_network::keys_provider_http::{PrincipalHttpServer, StateKeyRequest};
+use serde::Deserialize;
+use serde_json;
 
 #[logfn(INFO)]
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
@@ -70,12 +73,18 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
                     Some(tx) => println!("Registered Principal with tx: {:?}", tx),
                     None => println!("Principal already registered"),
                 };
-            } else if opt.set_worker_params {
+            } else if opt.set_worker_params || !opt.get_state_keys.is_none() {
                 let block_number = principal.get_block_number()?;
                 let eid_safe = Arc::new(eid);
                 let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone())?;
-                let tx = epoch_provider.set_worker_params(block_number, gas_limit, principal_config.confirmations as usize)?;
-                println!("The setWorkersParams tx: {:?}", tx);
+                if opt.set_worker_params {
+                    let tx = epoch_provider.set_worker_params(block_number, gas_limit, principal_config.confirmations as usize)?;
+                    println!("The setWorkersParams tx: {:?}", tx);
+                } else {
+                    let request: StateKeyRequest = serde_json::from_str(&opt.get_state_keys.unwrap())?;
+                    let response = PrincipalHttpServer::get_state_keys(Arc::new(epoch_provider), request)?;
+                    println!("The getStateKeys response: {}", serde_json::to_string(&response)?);
+                }
             } else {
                 principal.run(false, gas_limit).unwrap();
             }
