@@ -67,6 +67,11 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
                 None
             };
 
+            let eid_safe = Arc::new(eid);
+            let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone())?;
+            if opt.reset_epoch_state {
+                epoch_provider.reset_epoch_state()?;
+            }
             /* step3 : run the principal manager */
             if opt.register {
                 match principal.verify_identity_or_register(gas_limit)? {
@@ -75,8 +80,6 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
                 };
             } else if opt.set_worker_params || !opt.get_state_keys.is_none() {
                 let block_number = principal.get_block_number()?;
-                let eid_safe = Arc::new(eid);
-                let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone())?;
                 if opt.set_worker_params {
                     let tx = epoch_provider.set_worker_params(block_number, gas_limit, principal_config.confirmations as usize)?;
                     println!("The setWorkersParams tx: {:?}", tx);
