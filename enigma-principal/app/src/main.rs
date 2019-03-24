@@ -9,6 +9,7 @@ extern crate colour;
 extern crate dirs;
 extern crate enigma_crypto;
 extern crate enigma_tools_u;
+extern crate enigma_tools_m;
 extern crate enigma_types;
 extern crate ethabi;
 extern crate ethereum_types;

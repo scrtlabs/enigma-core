@@ -1,30 +1,30 @@
-use std::vec::Vec;
+use crate::localstd::{vec, vec::Vec};
+use log::debug;
+use log_derive::logfn;
 
 use bigint;
-use ethabi::{Address, Bytes, encode, Hash, Token};
-use ethereum_types::{H160, U256, U64};
-use failure::Error;
-pub use rlp::{Decodable, decode, DecoderError, UntrustedRlp};
-use enigma_types::ContractAddress;
-
+use crate::ethabi::{encode, Address, Bytes, Token};
+use crate::ethereum_types::{H160, U256};
 use enigma_crypto::hash::Keccak256;
+use enigma_types::ContractAddress;
+pub use rlp::{decode, Encodable, Decodable, DecoderError, UntrustedRlp, RlpStream};
 
 pub trait FromBigint<T>: Sized {
     fn from_bigint(_: T) -> Self;
 }
 
-
-
-impl FromBigint<bigint::H160> for H160 { fn from_bigint(b: bigint::H160) -> Self { H160(b.0) } }
-
-impl FromBigint<bigint::U256> for U256 { fn from_bigint(b: bigint::U256) -> Self { U256(b.0) } }
-
-
-pub trait RawEncodable {
-    fn raw_encode(&self) -> Result<Bytes, Error>;
+impl FromBigint<bigint::H160> for H160 {
+    fn from_bigint(b: bigint::H160) -> Self { H160(b.0) }
+}
+impl FromBigint<bigint::U256> for U256 {
+    fn from_bigint(b: bigint::U256) -> Self { U256(b.0) }
 }
 
-#[derive(Debug, Clone)]
+pub trait RawEncodable {
+    fn raw_encode(&self) -> Bytes;
+}
+
+#[derive(Clone)]
 struct WorkerSelectionToken {
     pub seed: U256,
     pub sc_addr: ContractAddress,
@@ -33,13 +33,9 @@ struct WorkerSelectionToken {
 
 impl RawEncodable for WorkerSelectionToken {
     /// Encode the WorkerSelectionToken as Ethereum ABI parameters
-    fn raw_encode(&self) -> Result<Bytes, Error> {
-        let tokens = vec![
-            Token::Uint(self.seed),
-            Token::FixedBytes(self.sc_addr.to_vec()),
-            Token::Uint(self.nonce),
-        ];
-        Ok(encode(&tokens))
+    fn raw_encode(&self) -> Bytes {
+        let tokens = vec![Token::Uint(self.seed), Token::FixedBytes(self.sc_addr.to_vec()), Token::Uint(self.nonce)];
+        encode(&tokens)
     }
 }
 
@@ -58,17 +54,17 @@ impl InputWorkerParams {
     /// * `sc_addr` - The Secret Contract address
     /// * `seed` - The random seed for the selected epoch
     ///
-    pub fn get_selected_worker(&self, sc_addr: ContractAddress, seed: U256) -> Result<Option<Address>, Error> {
-        let worker = self.get_selected_workers(sc_addr, seed, None)?;
-        if worker.is_empty() {
-            Ok(None)
+    pub fn get_selected_worker(&self, sc_addr: ContractAddress, seed: U256) -> Option<Address> {
+        let workers = self.get_selected_workers(sc_addr, seed, None);
+        if workers.is_empty() {
+            None
         } else {
-            Ok(Some(worker[0].clone()))
+            Some(workers[0])
         }
     }
 
     #[logfn(DEBUG)]
-    fn get_selected_workers(&self, sc_addr: ContractAddress, seed: U256, group_size: Option<u64>) -> Result<Vec<Address>, Error> {
+    fn get_selected_workers(&self, sc_addr: ContractAddress, seed: U256, group_size: Option<u64>) -> Vec<Address> {
         let mut balance_sum = U256::zero();
         for &balance in &self.stakes {
             balance_sum += balance;
@@ -81,9 +77,9 @@ impl InputWorkerParams {
         while selected_workers.len() < group_size as usize {
             let token = WorkerSelectionToken { seed, sc_addr, nonce };
             // This is equivalent to encodePacked in Solidity
-            let hash = token.raw_encode()?.keccak256();
+            let hash = token.raw_encode().keccak256();
             let mut rand_val: U256 = U256::from(*hash) % balance_sum;
-            println!("The initial random value: {:?}", rand_val);
+            debug!("The initial random value: {:?}", rand_val.0);
             let mut selected_worker = self.workers.last().unwrap();
 
             for (i, worker) in self.workers.iter().enumerate() {
@@ -93,15 +89,15 @@ impl InputWorkerParams {
                     break;
                 }
                 rand_val = new_rand;
-                println!("The next random value: {:?}", rand_val);
+                debug!("The next random value: {:?}", rand_val.0);
             }
             if !selected_workers.contains(selected_worker) {
                 selected_workers.push(*selected_worker);
             }
             nonce += 1.into();
         }
-        println!("The selected workers: {:?}", selected_workers);
-        Ok(selected_workers)
+        debug!("The selected workers: {:?}", selected_workers);
+        selected_workers
     }
 }
 
@@ -109,8 +105,17 @@ impl Decodable for InputWorkerParams {
     fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
         Ok(Self {
             block_number: U256::from_bigint(rlp.val_at(0)?),
-            workers: rlp.list_at(1)?.iter().map(|a| H160::from_bigint(*a)).collect::<Vec<H160>>(),
-            stakes: rlp.list_at(2)?.iter().map(|b| U256::from_bigint(*b)).collect::<Vec<U256>>(),
+            workers: rlp.list_at(1)?.iter().map(|a| H160::from_bigint(*a)).collect::<Vec<_>>(),
+            stakes: rlp.list_at(2)?.iter().map(|b| U256::from_bigint(*b)).collect::<Vec<_>>(),
         })
+    }
+}
+
+impl Encodable for InputWorkerParams {
+    fn rlp_append(&self, s: &mut RlpStream) {
+        s.begin_list(3);
+        s.append(&bigint::U256(self.block_number.0));
+        s.append_list(&self.workers.iter().map(|a| bigint::H160(a.0)).collect::<Vec<_>>());
+        s.append_list(&self.stakes.iter().map(|b| bigint::U256(b.0)).collect::<Vec<_>>());
     }
 }

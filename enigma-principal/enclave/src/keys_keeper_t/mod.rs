@@ -17,8 +17,6 @@ use ocalls_t;
 
 use crate::SIGNING_KEY;
 
-pub mod keeper_types_t;
-
 const STATE_KEYS_DIR: &str = "state-keys";
 
 lazy_static! { pub static ref STATE_KEY_STORE: SgxMutex< HashMap<ContractAddress, StateKey> > = SgxMutex::new(HashMap::new()); }
