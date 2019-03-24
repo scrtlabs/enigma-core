@@ -1,5 +1,5 @@
 use enigma_types::{EnclaveReturn, ResultToEnclaveReturn};
-
+use enigma_tools_m::ToolsError;
 use json_patch;
 use pwasm_utils as wasm_utils;
 use sgx_types::sgx_status_t;
@@ -169,6 +169,14 @@ pub enum EnclaveSystemError {
 impl From<CryptoError> for EnclaveError {
     fn from(err: CryptoError) -> EnclaveError {
         EnclaveError::SystemError(EnclaveSystemError::CryptoError { err })
+    }
+}
+
+impl From<ToolsError> for EnclaveError {
+    fn from(err: ToolsError) -> Self {
+        match err {
+            ToolsError::MessagingError {err} => EnclaveError::MessagingError {err: err.to_string() }
+        }
     }
 }
 

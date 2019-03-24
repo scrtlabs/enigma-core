@@ -1,7 +1,7 @@
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
 #![deny(unused_extern_crates)]
 
-mod errors;
+mod common;
 pub mod keeper_types;
 pub mod primitives;
 

@@ -15,7 +15,9 @@ use enigma_types::ContractAddress;
 use epoch_u::epoch_provider::EpochProvider;
 use epoch_u::epoch_types::EpochState;
 use esgx::keys_keeper_u::get_enc_state_keys;
-use keys_u::km_reader::PrincipalMessageReader;
+use enigma_tools_m::primitives::km_primitives::{PrincipalMessage, PrincipalMessageType};
+use enigma_tools_m::utils::EthereumAddress;
+use enigma_crypto::KeyPair;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
@@ -68,34 +70,48 @@ pub struct PrincipalHttpServer {
     pub port: u16,
 }
 
+impl StateKeyRequest {
+    pub fn get_data(&self) -> Result<Vec<u8>, Error> {
+        Ok(self.data.0.from_hex()?)
+    }
+
+    pub fn get_sig(&self) -> Result<[u8; 65], Error> {
+        let mut sig = [0u8; 65];
+        sig.copy_from_slice(&self.sig.0.from_hex()?);
+        Ok(sig)
+    }
+}
+
 impl PrincipalHttpServer {
     pub fn new(epoch_provider: Arc<EpochProvider>, port: u16) -> PrincipalHttpServer {
         PrincipalHttpServer { epoch_provider, port }
     }
 
-    fn find_epoch_contract_addresses(reader: PrincipalMessageReader, sig: [u8; 65], epoch_state: EpochState) -> Result<Vec<ContractAddress>, Error> {
-        let worker = reader.get_signing_address(sig)?;
-        let addrs = epoch_state.get_contract_addresses(&worker)?;
+    fn find_epoch_contract_addresses(request: StateKeyRequest, epoch_state: EpochState) -> Result<Vec<ContractAddress>, Error> {
+        let msg_slice = request.get_data()?;
+        let sig = request.get_sig()?;
+        let worker = KeyPair::recover(&msg_slice, sig)?.address();
+        let addrs = epoch_state.get_contract_addresses(&worker.into())?;
         Ok(addrs)
     }
 
     #[logfn(DEBUG)]
     pub fn get_state_keys(epoch_provider: Arc<EpochProvider>, request: StateKeyRequest) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
-        let reader = PrincipalMessageReader::new(request.data.clone().try_into()?)?;
-        let addrs = reader.get_contract_addresses()?;
-        let eid = epoch_provider.eid.clone();
-        let response = match addrs {
-            Some(addrs) => {
+        let msg_slice = request.get_data()?;
+        let msg = PrincipalMessage::from_message(&msg_slice)?;
+        let response = match msg.data {
+            PrincipalMessageType::Request(Some(addrs)) => {
                 println!("Found addresses in message: {:?}", addrs);
-                get_enc_state_keys(*eid, request, None)?
-            }
-            None => {
+                get_enc_state_keys(*epoch_provider.eid, request, None)?
+            },
+            PrincipalMessageType::Request(None) => {
                 println!("No addresses in message, reading from epoch state...");
                 let epoch_state = epoch_provider.get_state()?;
-                let epoch_addrs = Self::find_epoch_contract_addresses(reader, request.sig.clone().try_into()?, epoch_state)?;
-                get_enc_state_keys(*eid, request, Some(&epoch_addrs))?
-            }
+                let epoch_addrs = Self::find_epoch_contract_addresses(request.clone(), epoch_state)?;
+                get_enc_state_keys(*epoch_provider.eid, request, Some(&epoch_addrs))?
+            },
+            _ => bail!("Invalid Principal message request")
         };
         let response_data = serde_json::to_value(&response)?;
         Ok(response_data)

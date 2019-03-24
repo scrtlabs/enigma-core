@@ -6,6 +6,7 @@
 
 extern crate enigma_types;
 extern crate enigma_crypto;
+extern crate enigma_tools_m;
 
 #[macro_use]
 extern crate sgx_tstd as std;
@@ -33,7 +34,6 @@ pub mod macros;
 
 pub mod build_arguments_g;
 pub mod common;
-pub mod km_primitives;
 pub mod quote_t;
 pub mod document_storage_t; //TODO: Copy of storage_t with more generic naming convention
 pub mod storage_t;
