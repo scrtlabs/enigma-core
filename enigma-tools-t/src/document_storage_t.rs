@@ -7,7 +7,7 @@ use std::string::*;
 use std::untrusted::fs;
 use std::untrusted::fs::{File, remove_file};
 
-use common::errors_t::EnclaveError;
+use common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
 
 pub const SEAL_LOG_SIZE: usize = 2048;
 
@@ -48,7 +48,7 @@ impl<T> SealedDocumentStorage<T> where
         let sealed_data = match from_sealed_log::<Self>(sealed_log, sealed_log_size as u32) {
             Some(data) => data,
             None => {
-                return Err(EnclaveError::OcallError { command: "unseal".to_string(), err: "Data not found in the sealed_log.".to_string() });
+                return Err(SystemError(OcallError { command: "unseal".to_string(), err: "No data in sealed log".to_string() }));
             }
         };
         let unsealed_result = sealed_data.unseal_data();
@@ -60,7 +60,7 @@ impl<T> SealedDocumentStorage<T> where
             Err(err) => {
                 // TODO: Handle this. It can causes panic in Simulation Mode until deleting the file.
                 if err != sgx_status_t::SGX_ERROR_MAC_MISMATCH {
-                    return Err(EnclaveError::OcallError { command: "unseal".to_string(), err: format!("{:?}", err) });
+                    return Err(SystemError(OcallError { command: "unseal".to_string(), err: format!("{:?}", err) }));
                 }
                 Ok(None)
             }
@@ -83,13 +83,13 @@ pub fn save_sealed_document(path: &PathBuf, sealed_document: &[u8]) -> Result<()
     let mut file = match File::create(path) {
         Ok(opt) => opt,
         Err(err) => {
-            return Err(EnclaveError::OcallError { command: "save_sealed_document".to_string(), err: format!("{:?}", err) });
+            return Err(SystemError(OcallError { command: "save_sealed_document".to_string(), err: format!("{:?}", err) }));
         }
     };
     match file.write_all(&sealed_document) {
         Ok(_) => println!("Sealed document: {:?} written successfully.", path),
         Err(err) => {
-            return Err(EnclaveError::OcallError { command: "save_sealed_document".to_string(), err: format!("{:?}", err) });
+            return Err(SystemError(OcallError { command: "sealed_document".to_string(), err: format!("{:?}", err) }));
         }
     }
     Ok(())
@@ -108,19 +108,19 @@ pub fn load_sealed_document(path: &PathBuf, sealed_document: &mut [u8]) -> Resul
     let mut file = match File::open(path) {
         Ok(opt) => opt,
         Err(err) => {
-            return Err(EnclaveError::OcallError { command: "load_sealed_document".to_string(), err: format!("{:?}", err) });
+            return Err(SystemError(OcallError { command: "load_sealed_document".to_string(), err: format!("{:?}", err) }));
         }
     };
     match file.read(sealed_document) {
         Ok(_) => println!("Sealed document: {:?} loaded successfully.", path),
         Err(err) => {
-            return Err(EnclaveError::OcallError { command: "load_sealed_document".to_string(), err: format!("{:?}", err) });
+            return Err(SystemError(OcallError { command: "load_sealed_document".to_string(), err: format!("{:?}", err) }));
         }
     };
     Ok(())
 }
 
-#[cfg(debug_assertions)]
+//#[cfg(debug_assertions)]
 pub mod tests {
     use super::*;
 

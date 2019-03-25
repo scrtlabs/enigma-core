@@ -1,8 +1,9 @@
 use ethabi::{Bytes, encode, Token};
 use ethereum_types::{H160, H256, U256};
 
-use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
 use keys_keeper_t::keeper_types_t::{InputWorkerParams, RawEncodable};
+use std::string::ToString;
 
 pub type EpochNonce = [u8; 32];
 
@@ -22,9 +23,7 @@ impl Epoch {
         let worker = match self.worker_params.get_selected_worker(sc_addr, self.seed)? {
             Some(worker) => worker,
             None => {
-                return Err(EnclaveError::WorkerAuthError {
-                    err: format!("Worker selection return nothing.")
-                });
+                return Err(SystemError(WorkerAuthError { err: "Worker selection returns nothing.".to_string() }));
             }
         };
         Ok(worker)

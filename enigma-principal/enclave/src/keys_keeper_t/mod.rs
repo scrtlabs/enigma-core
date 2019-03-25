@@ -8,7 +8,7 @@ use enigma_crypto::asymmetric::KeyPair;
 use enigma_crypto::Encryption;
 use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::common::{EthereumAddress, ToHex};
-use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
 use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
@@ -123,9 +123,7 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
                 response_data.push((addr, key));
             }
             None => {
-                return Err(EnclaveError::KeyProvisionError {
-                    err: format!("State key not found in cache: {:?}", addr.to_hex())
-                });
+                return Err(SystemError(KeyProvisionError { err: format!("State key not found in cache: {:?}", addr.to_hex()) }));
             }
         }
     }
@@ -146,9 +144,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes:
                     let tokens = match decode(&vec![ParamType::FixedBytes(256)], &addrs_bytes) {
                         Ok(tokens) => tokens,
                         Err(err) => {
-                            return Err(EnclaveError::MessagingError {
-                                err: format!("Unable to deserialize contract addresses {:?}: {:?}", addrs_bytes, err),
-                            });
+                            return Err(SystemError(KeyProvisionError { err: format!("Unable to deserialize contract addresses {:?}: {:?}", addrs_bytes, err) }));
                         }
                     };
                     sc_addrs = tokens.into_iter().map(|t| {
@@ -161,9 +157,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes:
             }
         },
         _ => {
-            return Err(EnclaveError::MessagingError {
-                err: format!("Unable to deserialize message: {:?}", msg_bytes),
-            });
+            return Err(SystemError(KeyProvisionError { err: format!("Unable to deserialize message: {:?}", msg_bytes) }));
         }
     };
     let recovered = KeyPair::recover(&msg_bytes, sig)?;
@@ -184,7 +178,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: Vec<u8>, addrs_bytes:
     let mut iv: [u8; 12] = [0; 12];
     rsgx_read_rand(&mut iv)?;
     let response = response_msg.encrypt_with_nonce(&derived_key, Some(iv))?;
-    let response_bytes = response.to_message()?;
+    let response_bytes = response.into_message()?;
     println!("The partially encrypted response: {:?}", response_bytes.to_hex());
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary

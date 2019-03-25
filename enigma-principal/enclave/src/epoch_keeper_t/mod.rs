@@ -1,4 +1,4 @@
-use ethabi::{Token};
+use ethabi::Token;
 use ethereum_types::{H256, H160, U256};
 use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
@@ -11,7 +11,7 @@ use std::sync::SgxMutex;
 use std::sync::SgxMutexGuard;
 
 use enigma_crypto::hash::Keccak256;
-use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
 use enigma_tools_t::common::EthereumAddress;
 use enigma_tools_t::common::ToHex;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
@@ -44,9 +44,7 @@ fn get_epoch_nonce_path() -> path::PathBuf {
 fn get_epoch(guard: &SgxMutexGuard<HashMap<U256, Epoch, RandomState>>, block_number: Option<U256>) -> Result<Option<Epoch>, EnclaveError> {
     println!("Getting epoch for block number: {:?}", block_number);
     if block_number.is_some() {
-        return Err(EnclaveError::WorkerAuthError {
-            err: "Epoch lookup by block number not implemented.".to_string(),
-        });
+        return Err(SystemError(WorkerAuthError { err: "Epoch lookup by block number not implemented.".to_string() }));
     }
     if guard.is_empty() {
         println!("Epoch not found");
@@ -135,9 +133,7 @@ pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: H256, block_number: Optio
     let epoch = match get_epoch(&guard, block_number)? {
         Some(epoch) => epoch,
         None => {
-            return Err(EnclaveError::WorkerAuthError {
-                err: format!("No epoch found for block number (None == latest): {:?}", block_number),
-            });
+            return Err(SystemError(WorkerAuthError { err: format!("No epoch found for block number (None == latest): {:?}", block_number) }));
         }
     };
     println!("Running worker selection using Epoch: {:?}", epoch);
