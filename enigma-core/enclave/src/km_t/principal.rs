@@ -148,7 +148,7 @@ pub mod tests {
     use enigma_runtime_t::data::{EncryptedContractState, EncryptedPatch};
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::asymmetric::KeyPair;
-    use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
+    use enigma_tools_m::primitives::km_primitives::{PrincipalMessage, PrincipalMessageType};
     use enigma_types::{ContractAddress, RawPointer};
     use std::string::ToString;
 

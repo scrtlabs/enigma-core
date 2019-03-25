@@ -518,7 +518,6 @@ pub mod tests {
         use crate::wasm_g::execution::tests::*;
         use enigma_runtime_t::data::tests::*;
         use enigma_runtime_t::ocalls_t::tests::*;
-        use enigma_tools_t::km_primitives::tests::*;
         use enigma_tools_t::storage_t::tests::*;
         use self::sgx_tunittest::*;
         use std::{vec::Vec, string::String};
