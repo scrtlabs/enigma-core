@@ -17,7 +17,7 @@ pub struct Epoch {
 
 impl Epoch {
     pub fn get_selected_worker(&self, sc_addr: ContractAddress) -> Result<H160, EnclaveError> {
-        self.worker_params.get_selected_worker(sc_addr, self.seed)?
+        self.worker_params.get_selected_worker(sc_addr, self.seed)
             .ok_or(SystemError(EnclaveSystemError::WorkerAuthError { err: "Worker selection returns nothing.".to_string() }))
     }
 }

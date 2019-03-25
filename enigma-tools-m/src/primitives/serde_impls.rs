@@ -10,8 +10,7 @@ use enigma_types::{ContractAddress, StateKey};
 impl Serialize for UserMessage {
     fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
-        let mut state = Serializer::serialize_struct(ser, "UserMessage", 2)?;
-        state.serialize_field("prefix", &self.prefix)?;
+        let mut state = Serializer::serialize_struct(ser, "UserMessage", 1)?;
         state.serialize_field("pubkey", &self.pubkey)?;
         state.end()
     }
@@ -28,13 +27,12 @@ impl<'de> Deserialize<'de> for UserMessage {
 
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where A: SeqAccess<'de> {
-                let err_msg = "struct UserMessage with 2 elements";
-                let prefix = seq.next_element::<[u8; 19]>()?.ok_or_else(|| Error::invalid_length(0, &err_msg))?;
-                let pubkey = seq.next_element::<Vec<u8>>()?.ok_or_else(|| Error::invalid_length(2, &err_msg))?;
+                let err_msg = "struct UserMessage with 1 elements";
+                let pubkey = seq.next_element::<Vec<u8>>()?.ok_or_else(|| Error::invalid_length(0, &err_msg))?;
                 if pubkey.len() != 64 {
                     return Err(Error::invalid_value(Unexpected::Bytes(&pubkey), &"The pubkey should be 64 bytes"));
                 }
-                Ok(UserMessage { prefix, pubkey })
+                Ok(UserMessage { pubkey })
             }
         }
 
@@ -117,8 +115,7 @@ impl<'de> Deserialize<'de> for PrincipalMessageType {
 impl Serialize for PrincipalMessage {
     fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
-        let mut state = Serializer::serialize_struct(ser, "PrincipalMessage", 5)?;
-        state.serialize_field("prefix", &self.prefix)?;
+        let mut state = Serializer::serialize_struct(ser, "PrincipalMessage", 3)?;
         state.serialize_field("data", &self.data)?;
         state.serialize_field("pubkey", &self.pubkey)?;
         state.serialize_field("id", &self.id)?;
@@ -131,7 +128,6 @@ impl<'de> Deserialize<'de> for PrincipalMessage {
     where D: Deserializer<'de> {
         #[allow(non_camel_case_types)]
         enum PrincipalMessageFields {
-            prefix,
             data,
             pubkey,
             id,
@@ -147,7 +143,6 @@ impl<'de> Deserialize<'de> for PrincipalMessage {
             fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
             where E: Error {
                 match value {
-                    "prefix" => Ok(PrincipalMessageFields::prefix),
                     "data" => Ok(PrincipalMessageFields::data),
                     "pubkey" => Ok(PrincipalMessageFields::pubkey),
                     "id" => Ok(PrincipalMessageFields::id),
@@ -170,34 +165,25 @@ impl<'de> Deserialize<'de> for PrincipalMessage {
 
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
             where A: SeqAccess<'de> {
-                let err_msg = "struct PrincipalMessage with 4 elements";
-                let prefix = seq.next_element::<[u8; 14]>()?.ok_or_else(|| Error::invalid_length(0, &err_msg))?;
-                let data = seq.next_element::<PrincipalMessageType>()?.ok_or_else(|| Error::invalid_length(1, &err_msg))?;
-                let pubkey = seq.next_element::<Vec<u8>>()?.ok_or_else(|| Error::invalid_length(2, &err_msg))?;
+                let err_msg = "struct PrincipalMessage with 3 elements";
+                let data = seq.next_element::<PrincipalMessageType>()?.ok_or_else(|| Error::invalid_length(0, &err_msg))?;
+                let pubkey = seq.next_element::<Vec<u8>>()?.ok_or_else(|| Error::invalid_length(1, &err_msg))?;
                 if pubkey.len() != 64 {
                     return Err(Error::invalid_value(Unexpected::Bytes(&pubkey), &"The pubkey should be 64 bytes"));
                 }
-                let id = seq.next_element::<MsgID>()?.ok_or_else(|| Error::invalid_length(3, &err_msg))?;
+                let id = seq.next_element::<MsgID>()?.ok_or_else(|| Error::invalid_length(2, &err_msg))?;
 
-                Ok(PrincipalMessage { prefix, data, pubkey, id })
+                Ok(PrincipalMessage { data, pubkey, id })
             }
 
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
             where A: MapAccess<'de> {
-                let mut prefix: Option<[u8; 14]> = None;
                 let mut data: Option<PrincipalMessageType> = None;
                 let mut pubkey: Option<Vec<u8>> = None;
                 let mut id: Option<MsgID> = None;
 
                 while let Some(key) = map.next_key::<PrincipalMessageFields>()? {
                     match key {
-                        PrincipalMessageFields::prefix => {
-                            if prefix.is_some() {
-                                return Err(<A::Error as Error>::duplicate_field("prefix"));
-                            } else {
-                                prefix = Some(map.next_value()?);
-                            }
-                        }
                         PrincipalMessageFields::data => {
                             if data.is_some() {
                                 return Err(<A::Error as Error>::duplicate_field("data"));
@@ -225,12 +211,11 @@ impl<'de> Deserialize<'de> for PrincipalMessage {
                     }
                 }
 
-                let prefix = prefix.ok_or_else(|| Error::missing_field("prefix"))?;
                 let data = data.ok_or_else(|| Error::missing_field("data"))?;
                 let pubkey = pubkey.ok_or_else(|| Error::missing_field("pubkey"))?;
                 let id = id.ok_or_else(|| Error::missing_field("id"))?;
 
-                Ok(PrincipalMessage { prefix, data, pubkey, id })
+                Ok(PrincipalMessage { data, pubkey, id })
             }
         }
 

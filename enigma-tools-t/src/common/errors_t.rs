@@ -175,7 +175,7 @@ impl From<CryptoError> for EnclaveError {
 impl From<ToolsError> for EnclaveError {
     fn from(err: ToolsError) -> Self {
         match err {
-            ToolsError::MessagingError {err} => EnclaveError::MessagingError {err: err.to_string() }
+            ToolsError::MessagingError {err} => EnclaveError::SystemError(EnclaveSystemError::MessagingError { err: err.to_string() })
         }
     }
 }

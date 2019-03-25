@@ -153,7 +153,6 @@ mod test {
     use web3::types::Bytes;
 
     use epoch_u::epoch_types::ConfirmedEpochState;
-    use keys_u::km_reader::test::{sign_message, WORKER_SIGN_ADDRESS};
 
     use super::*;
 
@@ -161,19 +160,30 @@ mod test {
     pub fn test_find_epoch_contract_addresses() {
         let msg = vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         let sig = sign_message(&msg).unwrap();
-        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(sig.to_vec().to_hex()) };
-        let reader = PrincipalMessageReader::new(request.data.clone().try_into().unwrap()).unwrap();
+        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(sig.to_hex()) };
+        let address = ContractAddress::from([0u8; 32]);
+
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
-        selected_workers.insert([0; 32].into(), H160(WORKER_SIGN_ADDRESS));
+        selected_workers.insert(address, H160(WORKER_SIGN_ADDRESS));
         let block_number = U256::from(1);
         let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
         let seed = U256::from(1);
         let sig = Bytes::from(sig.to_vec());
         let nonce = U256::from(0);
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
-        let results = PrincipalHttpServer::find_epoch_contract_addresses(reader, request.sig.try_into().unwrap(), epoch_state).unwrap();
+        let results = PrincipalHttpServer::find_epoch_contract_addresses(request, epoch_state).unwrap();
         println!("Found contract addresses: {:?}", results);
-        assert_eq!(results, vec![[0; 32].into()])
+        assert_eq!(results, vec![address])
+    }
+
+    pub const WORKER_SIGN_ADDRESS: [u8; 20] = [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
+    pub(crate) fn sign_message(msg: &Vec<u8>) -> Result<[u8; 65], Error> {
+        let pkey = "79191a46ad1ed7a15e2bf64264c4b41fe6167ea887a5f7de82f52be073539730".from_hex()?;
+        let mut pkey_slice: [u8; 32] = [0; 32];
+        pkey_slice.copy_from_slice(&pkey);
+        let key_pair = KeyPair::from_slice(&pkey_slice).unwrap();
+        let sig = key_pair.sign(&msg).unwrap();
+        Ok(sig)
     }
 
     #[test]

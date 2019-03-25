@@ -1,9 +1,9 @@
 use crate::common::errors::ToolsError::{self, MessagingError};
-use crate::localstd::{string::ToString, vec::Vec};
+use crate::localstd::vec::Vec;
 use crate::rmp_serde::{Deserializer, Serializer};
 use crate::serde::{Deserialize, Serialize};
 use crate::serde_json;
-use enigma_crypto::{rand, symmetric, CryptoError, Encryption};
+use enigma_crypto::{rand, symmetric, CryptoError, Encryption, hash};
 use enigma_types::{ContractAddress, DhKey, PubKey, StateKey};
 
 pub type MsgID = [u8; 12];
@@ -53,7 +53,7 @@ impl PrincipalMessage {
         Ok(hash::prepare_hash_multiple(&to_sign))
     }
 
-    pub fn into_message(self) -> Result<Vec<u8>, EnclaveError> {
+    pub fn into_message(self) -> Result<Vec<u8>, ToolsError> {
         if self.is_response() {
             return Err(MessagingError { err: "can't serialize non encrypted response" });
         }
@@ -131,7 +131,7 @@ impl<'a> Encryption<&'a DhKey, CryptoError, Self, [u8; 12]> for PrincipalMessage
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct UserMessage {
     pub(crate) pubkey: Vec<u8>,
 }
@@ -186,7 +186,7 @@ mod tests {
 
         assert_eq!(
             req.into_message().unwrap(),
-            vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            vec![131, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         );
     }
 
