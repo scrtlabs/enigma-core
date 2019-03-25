@@ -56,6 +56,7 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
     responses
 }
 
+
 // TODO: Make sure that every ? that doesn't require responding with a empty Message is replaced with an appropriate handling
 pub(self) mod handling {
     #![allow(clippy::needless_pass_by_value)]
@@ -64,7 +65,7 @@ pub(self) mod handling {
     use crate::km_u;
     use crate::networking::messages::*;
     use crate::esgx::equote;
-    use crate::wasm_u::wasm;
+    use crate::wasm_u::*;
     use enigma_crypto::hash::Keccak256;
     use enigma_tools_u::esgx::equote as equote_tools;
     use enigma_tools_u::attestation_service::{service::AttestationService, constants::ATTESTATION_SERVICE_URL};
@@ -78,6 +79,45 @@ pub(self) mod handling {
     use std::str;
 
     type ResponseResult = Result<IpcResponse, Error>;
+
+    impl Into<IpcResponse> for WasmTaskFailure{
+        fn into(self) -> IpcResponse {
+            let result = IpcResults::FailedTask {
+                used_gas: self.used_gas,
+                output: self.output.to_hex(),
+                signature: self.signature.to_hex(),
+            };
+            IpcResponse::FailedTask { result }
+        }
+    }
+
+    impl WasmTaskResult {
+        pub fn into_execute_response(self) -> IpcResponse {
+            let result = IpcResults::ComputeResult {
+                used_gas: self.used_gas,
+                output: self.output.to_hex(),
+                delta: self.delta.into(),
+                ethereum_address: self.eth_contract_addr.to_hex(),
+                ethereum_payload: self.eth_payload.to_hex(),
+                signature: self.signature.to_hex(),
+            };
+            IpcResponse::ComputeTask { result }
+        }
+
+        pub fn into_deploy_response(self, bytecode: &[u8]) -> IpcResponse {
+            let result = IpcResults::DeployResult {
+                pre_code_hash: bytecode.keccak256().to_hex(),
+                used_gas: self.used_gas,
+                output: self.output.to_hex(), // TODO: Return output
+                delta: self.delta.into(),
+                ethereum_address: self.eth_contract_addr.to_hex(),
+                ethereum_payload: self.eth_payload.to_hex(),
+                signature: self.signature.to_hex(),
+            };
+            IpcResponse::DeploySecretContract { result }
+        }
+    }
+
 
     #[logfn(INFO)]
     pub fn get_registration_params(eid: sgx_enclave_id_t, spid: &str) -> ResponseResult {
@@ -282,21 +322,15 @@ pub(self) mod handling {
             &user_pubkey,
             input.gas_limit)?;
 
-        // Save the ExeCode into the DB.
-        let key = DeltaKey::new(contract_address, Stype::ByteCode);
-        db.create(&key, &result.output)?;
-        // Return Result.
-        let result = IpcResults::DeployResult {
-            pre_code_hash: bytecode.keccak256().to_hex(),
-            used_gas: result.used_gas,
-            output: result.output.to_hex(), // TODO: Return output
-            delta: result.delta.into(),
-            ethereum_address: result.eth_contract_addr.to_hex(),
-            ethereum_payload: result.eth_payload.to_hex(),
-            signature: result.signature.to_hex(),
-        };
-        Ok( IpcResponse::DeploySecretContract { result } )
-
+        match result {
+            WasmResult::WasmTaskResult(v) => {
+                // Save the ExeCode into the DB.
+                let key = DeltaKey::new(contract_address, Stype::ByteCode);
+                db.create(&key, &v.output)?;
+                Ok(v.into_deploy_response(&bytecode))
+            },
+            WasmResult::WasmTaskFailure(v) => Ok(v.into())
+        }
     }
 
     #[logfn(INFO)]
@@ -320,16 +354,10 @@ pub(self) mod handling {
             &address,
             input.gas_limit)?;
 
-        let result = IpcResults::ComputeResult {
-            used_gas: result.used_gas,
-            output: result.output.to_hex(),
-            delta: result.delta.into(),
-            ethereum_address: result.eth_contract_addr.to_hex(),
-            ethereum_payload: result.eth_payload.to_hex(),
-            signature: result.signature.to_hex(),
-        };
-
-        Ok( IpcResponse::ComputeTask { result } )
+        match result {
+            WasmResult::WasmTaskResult(v) => Ok(v.into_execute_response()),
+            WasmResult::WasmTaskFailure(v) => Ok(v.into())
+        }
     }
 
 }

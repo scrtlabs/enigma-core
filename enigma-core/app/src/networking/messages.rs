@@ -37,6 +37,7 @@ pub enum IpcResponse {
     NewTaskEncryptionKey { #[serde(flatten)] result: IpcResults },
     DeploySecretContract { #[serde(flatten)] result: IpcResults},
     ComputeTask { #[serde(flatten)] result: IpcResults },
+    FailedTask { #[serde(flatten)] result: IpcResults },
     GetPTTRequest { #[serde(flatten)] result: IpcResults },
     PTTResponse { result: IpcResults },
     Error { msg: String },
@@ -85,7 +86,14 @@ pub enum IpcResults {
         #[serde(rename = "ethereumPayload")]
         ethereum_payload: String,
         signature: String,
-    }
+    },
+    #[serde(rename = "result")]
+    FailedTask {
+        output: String,
+        #[serde(rename = "usedGas")]
+        used_gas: u64,
+        signature: String,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

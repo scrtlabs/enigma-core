@@ -5,21 +5,15 @@ pub type SymmetricKey = [u8; 32];
 pub type StateKey = SymmetricKey;
 pub type DhKey = SymmetricKey;
 pub type ContractAddress = Hash256;
-pub type UserAddress = Hash256;
 pub type PubKey = [u8; 64];
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EnclaveReturn {
     Success,
-    WasmCodeExecutionError,
-    GasLimitError,
-    EngRuntimeError,
-    WasmModuleError,
-    EVMError,
+    TaskFailure,
     KeysError,
     EncryptionError,
-    InputError,
     SigningError,
     RecoveringError,
     PermissionError,
@@ -27,7 +21,6 @@ pub enum EnclaveReturn {
     StateError,
     OcallError,
     OcallDBError,
-    Utf8Error,
     MessagingError,
     WorkerAuthError,
     KeyProvisionError,
@@ -142,14 +135,9 @@ impl fmt::Display for EnclaveReturn {
         use self::EnclaveReturn::*;
         let p = match *self {
             Success => "EnclaveReturn: Success",
-            WasmCodeExecutionError => "EnclaveReturn: WasmCodeExecutionError",
-            GasLimitError => "EnclaveReturn: GasLimitError",
-            EngRuntimeError => "EnclaveReturn: EngRuntimeError",
-            WasmModuleError => "EnclaveReturn: WasmModuleError",
-            EVMError => "EnclaveReturn: EVMError",
+            TaskFailure => "EnclaveReturn: Task failure",
             KeysError => "EnclaveReturn: KeysError",
             EncryptionError => "EnclaveReturn: EncryptionError",
-            InputError => "EnclaveReturn: InputError",
             SigningError => "EnclaveReturn: SigningError",
             RecoveringError => "EnclaveReturn: RecoveringError",
             PermissionError => "EnclaveReturn: PermissionError",
@@ -157,7 +145,6 @@ impl fmt::Display for EnclaveReturn {
             StateError => "EnclaveReturn: StateError",
             OcallError => "EnclaveReturn: OcallError",
             OcallDBError => "EnclaveReturn: OcallDBError",
-            Utf8Error => "EnclaveReturn: Utf8Error",
             MessagingError => "EnclaveReturn: MessagingError",
             WorkerAuthError => "EnclaveReturn: WorkerAuthError",
             KeyProvisionError => "EnclaveReturn: KeyProvisionError",

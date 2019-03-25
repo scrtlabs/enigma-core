@@ -55,7 +55,7 @@ use enigma_runtime_t::data::{ContractState, StatePatch, EncryptedPatch};
 use enigma_runtime_t::EthereumData;
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
-use enigma_tools_t::common::{errors_t::EnclaveError, LockExpectMutex, EthereumAddress};
+use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}, LockExpectMutex, EthereumAddress};
 use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
 use wasm_utils::{build, SourceTarget};
@@ -122,18 +122,23 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
     let args = slice::from_raw_parts(args, args_len);
 
     let mut pre_execution_data = vec![];
-    // in order to view the specific error print out the result of the function
-    let internal_result = ecall_execute_internal(&mut pre_execution_data, bytecode,
+    let io_key = match get_io_key(user_key) {
+        Ok(v) => v,
+        Err(e) => return e.into(),
+    };
+
+// in order to view the specific error print out the result of the function
+    let mut internal_result = ecall_execute_internal(&mut pre_execution_data, bytecode,
                            callable,
-                           args,
-                           &user_key,
+                           args, user_key,
+                         &io_key,
                            (*contract_address).into(),
                            *gas_limit,
                            db_ptr,
                            result);
-    if let Err(ref mut e) = internal_result.clone() {
-        debug_println!("Error in execution of smart contract function: {}", e);
-        sign_if_error(&pre_execution_data, e, result);
+    if let Err(e) = internal_result.clone() {
+        println!("Error in execution of smart contract function: {}", e);
+        internal_result = output_task_failure(&pre_execution_data,e, result, &io_key);
     }
     internal_result.into()
 }
@@ -161,10 +166,15 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
     let bytecode = slice::from_raw_parts(bytecode, bytecode_len);
     let constructor = slice::from_raw_parts(constructor, constructor_len);
     let mut pre_execution_data = vec![];
-    let internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, *gas_limit, db_ptr, result);
-    if let Err(ref mut e) = internal_result.clone() {
-        debug_println!("Error in deployment of smart contract: {}", e);
-        sign_if_error(&pre_execution_data, e, result);
+    let io_key;
+    match get_io_key(user_key){
+        Ok(v) => io_key  = v,
+        Err(e) => return e.into(),
+    }
+    let mut internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, &io_key, *gas_limit, db_ptr, result);
+    if let Err(e) = internal_result.clone() {
+        println!("Error in deployment of smart contract function: {}", e);
+        internal_result = output_task_failure(&pre_execution_data, e, result, &io_key);
     }
     internal_result.into()
 }
@@ -233,7 +243,7 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
         *signature = SIGNING_KEY.sign_multiple(&[&callable_args[..], &callback_data, &bytecode])?;
     } else {
         debug_println!("Callback cannot be empty");
-        return Err(EnclaveError::InputError { message: "Callback cannot be empty".to_string() });
+        return Err(FailedTaskError(InputError { message: "Callback cannot be empty".to_string() }));
     }
 
     match res.0 {
@@ -244,23 +254,26 @@ unsafe fn ecall_evm_internal(bytecode_slice: &[u8], callable_slice: &[u8], calla
         }
         _ => {
             debug_println!("Error in EVM execution");
-            Err(EnclaveError::EvmError { err: "Error in EVM execution".to_string() })
+            Err(FailedTaskError(EvmError { err: "Error in EVM execution".to_string() }))
         }
     }
 }
 
-fn decrypt_inputs(callable: &[u8], args: &[u8], user_key: &PubKey) -> Result<(Vec<u8>, Vec<u8>, String, String, DhKey), EnclaveError>{
-    let inputs_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
+fn get_io_key(user_key: &PubKey) -> Result<DhKey, EnclaveError> {
+    let io_key = km_t::users::DH_KEYS.lock_expect("User DH Key")
         .remove(&user_key[..])
         .ok_or(CryptoError::MissingKeyError { key_type: "DH Key" })?;
+        Ok(io_key)
+}
 
+fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: DhKey) -> Result<(Vec<u8>, Vec<u8>, String, String), EnclaveError>{
     let decrypted_callable = decrypt_callable(callable, &inputs_key)?;
     let decrypted_args = decrypt_args(&args, &inputs_key)?;
     let (types, function_name) = {
         let decrypted_callable_str = str::from_utf8(&decrypted_callable)?;
         get_types(&decrypted_callable_str)?
     };
-    Ok((decrypted_args, decrypted_callable, types, function_name, inputs_key))
+    Ok((decrypted_args, decrypted_callable, types, function_name))
 }
 
 fn encrypt_and_save_delta(db_ptr: *const RawPointer, delta: &Option<StatePatch>) -> Result<(Option<EncryptedPatch>, Hash256), EnclaveError> {
@@ -287,29 +300,38 @@ fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
     }
 }
 
-fn sign_if_error (pre_execution_data: &[Box<[u8]>], internal_result: &mut EnclaveError, result: &mut ExecuteResult) {
+fn output_task_failure (pre_execution_data: &[Box<[u8]>], err: EnclaveError, result: &mut ExecuteResult, key: &DhKey) -> Result<(), EnclaveError>{
     // Signing: S(pre-execution data, usedGas, Failure)
+    result.used_gas = 0;
+    let mut return_error = err.clone();
+    match err {
+        FailedTaskError(_) => (),
+        FailedTaskErrorWithGas{used_gas, err} => {
+            result.used_gas = used_gas;
+            return_error = FailedTaskError(err);
+        },
+        SystemError(e) => return Err(SystemError(e)),
+    }
     let used_gas = result.used_gas.to_be_bytes();
     let failure = [ResultStatus::Failure.into()];
     let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
     pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
     to_sign.push(&used_gas);
     to_sign.push(&failure);
-    let signature = SIGNING_KEY.sign_multiple(&to_sign);
-    match signature {
-        Ok(v) => {
-            result.signature = v;
-        }
-        Err(e) => {
-            *internal_result = EnclaveError::CryptoError{err: e};
-        }
-    }
+    result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
+    let error_text = format!("{}", return_error);
+    let encrypted_result = symmetric::encrypt(error_text.as_bytes(), &key)?;
+    result.output = ocalls_t::save_to_untrusted_memory(&encrypted_result)? as *const u8;
+    Err(return_error)
 }
 
 unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecode: &[u8], callable: &[u8],
-                                 args: &[u8], user_key: &PubKey,
+                                 args: &[u8], user_key: &PubKey, io_key: &DhKey,
                                  address: ContractAddress, gas_limit: u64,
                                  db_ptr: *const RawPointer, result: &mut ExecuteResult) -> Result<(), EnclaveError> {
+
+    // TODO: make sure the state is up to date.
+    // TODO: Should this be here or on the untrusted side via build_state?;
 
     let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[callable, args, &*address, user_key]).keccak256();
     let exe_code_hash = bytecode.keccak256();
@@ -317,13 +339,15 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     pre_execution_data.push(Box::new(*exe_code_hash));
     let pre_execution_state = execution::get_state(db_ptr, address)?;
 
-    let (decrypted_args, _decrypted_callable, types, function_name, key) = decrypt_inputs(callable, args, user_key)?;
+    let (decrypted_args, _decrypted_callable, types, function_name) =
+        decrypt_inputs(callable, args, *io_key).
+             map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone())?;
 
     let (delta, delta_hash) = encrypt_and_save_delta(db_ptr, &exec_res.state_delta)?;
 
-    let encrypted_output = symmetric::encrypt(&exec_res.result, &key)?;
+    let encrypted_output = symmetric::encrypt(&exec_res.result, io_key)?;
     prepare_wasm_result(delta.clone(),
                         &encrypted_output,
                         exec_res.ethereum_bridge.clone(),
@@ -390,16 +414,17 @@ pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
 }
 
 unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecode: &[u8], constructor: &[u8], args: &[u8],
-                                address: ContractAddress, user_key: &PubKey,
+                                address: ContractAddress, user_key: &PubKey, io_key: &DhKey,
                                 gas_limit: u64, db_ptr: *const RawPointer,
                                 result: &mut ExecuteResult) -> Result<(), EnclaveError> {
 
     let pre_code_hash = bytecode.keccak256();
     let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[constructor, args, &pre_code_hash[..], user_key][..]).keccak256();
     pre_execution_data.push(Box::new(*inputs_hash));
-    let deploy_bytecode = build_constructor(bytecode)?;
 
-    let (decrypted_args, _, _types, _, _) = decrypt_inputs(constructor, args, user_key)?;
+    let deploy_bytecode = build_constructor(bytecode)?;
+    let (decrypted_args, _, _types, _) = decrypt_inputs(constructor, args, *io_key).
+        map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let state = ContractState::new(address);
 

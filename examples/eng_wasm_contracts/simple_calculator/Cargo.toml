@@ -1,13 +1,11 @@
 [package]
+# must be called contract
 name = "contract"
 version = "0.1.0"
 
 [dependencies]
 eng-wasm = {path = "../../../eng-wasm"}
 eng-wasm-derive = {path = "../../../eng-wasm/derive"}
-enigma-crypto = { path = "../../../enigma-crypto", default-features = false, features = ["asymmetric", "hash"] }
-rustc-hex = "2.0.1"
-serde = { version = "1.0", default-features = false, features=["serde_derive"] }
 
 [lib]
 crate-type = ["cdylib"]

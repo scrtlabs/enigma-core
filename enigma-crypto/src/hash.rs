@@ -13,10 +13,11 @@ use enigma_types::Hash256;
 /// let ready = hash::prepare_hash_multiple(&[msg, msg2]);
 /// ```
 #[cfg(any(feature = "sgx", feature = "std"))]
-pub fn prepare_hash_multiple(messages: &[&[u8]]) -> crate::localstd::vec::Vec<u8> {
+pub fn prepare_hash_multiple<B: AsRef<[u8]>>(messages: &[B]) -> crate::localstd::vec::Vec<u8> {
     use crate::localstd::{vec::Vec, mem};
     let mut res = Vec::with_capacity(messages.len() * mem::size_of::<usize>());
     for msg in messages {
+        let msg = msg.as_ref();
         let len = msg.len().to_be_bytes();
         res.extend_from_slice(&len);
         res.extend_from_slice(&msg);

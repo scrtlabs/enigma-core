@@ -25,9 +25,10 @@ pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: 
         data = PrincipalMessageType::Request(Some(addresses.to_vec()));
     }
     let req = PrincipalMessage::new(data, keys.get_pubkey())?;
-    let msg = req.to_message()?;
-    *sig = SIGNING_KEY.sign(&msg[..])?;
-    DH_KEYS.lock_expect("DH Keys").insert(req.get_id(), keys);
+    let id = req.get_id();
+    *sig = SIGNING_KEY.sign(&req.to_sign()?)?;
+    let msg = req.into_message()?;
+    DH_KEYS.lock_expect("DH Keys").insert(id, keys);
     Ok(msg)
 }
 
@@ -189,7 +190,7 @@ pub mod tests {
         let dh_key = km_node_keys.derive_key(&req_obj.get_pubkey()).unwrap();
         let enc_req = res_obj.encrypt(&dh_key).unwrap();
 
-        let enc_res_slice = enc_req.to_message().unwrap();
+        let enc_res_slice = enc_req.into_message().unwrap();
 
         // Enclave Process Response
         ecall_ptt_res_internal(&enc_res_slice).unwrap();

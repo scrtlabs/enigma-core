@@ -1,7 +1,7 @@
 use crate::km_t;
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeResult};
-use enigma_tools_t::common::errors_t::EnclaveError;
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*};
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_crypto::{CryptoError, Encryption};
 use enigma_types::{ContractAddress, RawPointer};
@@ -80,9 +80,9 @@ fn create_module(code: &[u8]) -> Result<Box<Module>, EnclaveError> {
     if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
         // According to WebAssembly spec, internal memory is hidden from embedder and should not
         // be interacted with. So parity disable this kind of modules at decoding level.
-        return Err(EnclaveError::WasmModuleError {
+        return Err(FailedTaskError(WasmModuleCreationError {
             code: "creation of WASM module".to_string(),
-            err: "Malformed wasm module: internal memory".to_string() });
+            err: "Malformed wasm module: internal memory".to_string() }));
     }
     let wasm_costs = WasmCosts::default();
     let contract_module = pwasm_utils::inject_gas_counter(deserialized_module, &gas_rules(&wasm_costs))?;
@@ -104,7 +104,17 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
 
     let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types);
 
-    instance.invoke_export("call", &[], &mut runtime)?;
+    let invocation_result = instance.invoke_export("call", &[], &mut runtime);
+    if let Err(err) = invocation_result {
+        let err: EnclaveError = err.into();
+        if let FailedTaskError(e) = err {
+            return Err(EnclaveError::FailedTaskErrorWithGas { used_gas: runtime.get_used_gas(), err: e });
+        }
+        else {
+            return Err(err)
+        }
+    }
+
     let result = runtime.into_result()?;
     Ok(result)
 }

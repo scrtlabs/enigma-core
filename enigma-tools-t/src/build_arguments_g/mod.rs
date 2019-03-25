@@ -2,7 +2,7 @@ pub mod rlp;
 use self::rlp::decode_args;
 use enigma_crypto::{asymmetric::KeyPair, symmetric::decrypt};
 use enigma_types::DhKey;
-use crate::common::errors_t::EnclaveError;
+use crate::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*};
 use crate::common::utils_t::FromHex;
 use std::string::String;
 use std::string::ToString;
@@ -25,12 +25,12 @@ pub fn get_types(function: &str) -> Result<(String, String), EnclaveError> {
 
     match function.find('(') {
         Some(x) => start_arg_index = x,
-        None => return Err(EnclaveError::InputError { message: "'callable' signature is illegal".to_string() }),
+        None => return Err(FailedTaskError(InputError { message: "'callable' signature is illegal".to_string() })),
     }
 
     match function.find(')') {
         Some(x) => end_arg_index = x,
-        None => return Err(EnclaveError::InputError { message: "'callable' signature is illegal".to_string() }),
+        None => return Err(FailedTaskError(InputError { message: "'callable' signature is illegal".to_string() })),
     }
 
     Ok((function[start_arg_index + 1..end_arg_index].to_string(), String::from(&function[..start_arg_index])))
@@ -53,7 +53,7 @@ pub fn decrypt_args(callable_args: &[u8], key: &DhKey) -> Result<Vec<u8>, Enclav
 
 pub fn decrypt_callable(callable: &[u8], key: &DhKey) -> Result<Vec<u8>, EnclaveError> {
     if callable.is_empty(){
-        Err(EnclaveError::InputError { message: "called function representation is empty".to_string()})
+        Err(FailedTaskError(InputError { message: "called function representation is empty".to_string()}))
     } else {
         Ok(decrypt(callable, key)?)
     }

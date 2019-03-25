@@ -13,7 +13,7 @@ use parity_wasm;
 #[derive(Debug)]
 pub enum WasmError {
     GasLimit,
-    EngRuntime(String),
+    WasmiError(wasmi::Error),
     EnclaveError(EnclaveError),
 }
 
@@ -25,7 +25,7 @@ impl ::std::fmt::Display for WasmError {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
         match self {
             WasmError::GasLimit => write!(f, "Invocation resulted in gas limit violated"),
-            WasmError::EngRuntime(ref s) => write!(f, "{}", s),
+            WasmError::WasmiError(ref e) => write!(f, "{}", e),
             WasmError::EnclaveError(ref e) => write!(f, "{}", e),
         }
     }
@@ -37,14 +37,14 @@ impl ::std::fmt::Display for WasmError {
 // memory manipulation function.
 impl From<wasmi::Error> for WasmError {
     fn from(e: wasmi::Error) -> Self {
-        WasmError::EngRuntime(format!("{}", e))
+        WasmError::WasmiError(e)
     }
 }
 
 // This is for extracting arguments in eng runtime
 // Implemented by wasmi in `nth_checked` function
 impl From<wasmi::Trap> for WasmError {
-    fn from(trap: wasmi::Trap) -> Self { WasmError::EngRuntime(format!("{}", trap)) }
+    fn from(trap: wasmi::Trap) -> Self { WasmError::WasmiError(wasmi::Error::Trap(trap)) }
 }
 
 // This is for any call from eng runtime to core function
@@ -55,26 +55,21 @@ impl From<EnclaveError> for WasmError {
     }
 }
 
-// This is for calling to from_utf8 in eng runtime
-impl From<str::Utf8Error> for WasmError {
-    fn from(err: str::Utf8Error) -> Self { WasmError::EngRuntime(err.to_string()) }
-}
-
 impl From<parity_wasm::elements::Error> for EnclaveError {
     fn from(err: parity_wasm::elements::Error) -> EnclaveError {
-        EnclaveError::WasmModuleError { code: "deserialization into WASM module".to_string(), err: err.to_string() }
+        EnclaveError::FailedTaskError(FailedTaskError::WasmModuleCreationError { code: "deserialization into WASM module".to_string(), err: err.to_string() })
     }
 }
 
 impl From<parity_wasm::elements::Module> for EnclaveError {
     fn from(err: parity_wasm::elements::Module) -> EnclaveError {
-        EnclaveError::WasmModuleError { code: "injecting gas counter".to_string(), err: format!("{:?}", err) }
+        EnclaveError::FailedTaskError(FailedTaskError::WasmModuleCreationError { code: "injecting gas counter".to_string(), err: format!("{:?}", err) })
     }
 }
 
 impl From<wasm_utils::stack_height::Error> for EnclaveError {
     fn from(err: wasm_utils::stack_height::Error) -> EnclaveError {
-        EnclaveError::WasmModuleError { code: "injecting stack height limiter".to_string(), err: format!("{:?}", err) }
+        EnclaveError::FailedTaskError(FailedTaskError::WasmModuleCreationError { code: "injecting stack height limiter".to_string(), err: format!("{:?}", err) })
     }
 }
 
@@ -87,35 +82,67 @@ impl From<wasmi::Error> for EnclaveError{
                     TrapKind::Host(t) => {
                         match (**t).downcast_ref::<WasmError>()
                             .expect("Failed to downcast to expected error type"){
-                            WasmError::GasLimit => EnclaveError::GasLimitError,
-                            WasmError::EngRuntime(s) => EnclaveError::EngRuntimeError { err: format!("{}", s) },
+                            WasmError::GasLimit => EnclaveError::FailedTaskError(FailedTaskError::GasLimitError),
+                            WasmError::WasmiError(e) => EnclaveError::FailedTaskError(FailedTaskError::WasmCodeExecutionError { err: format!("{}", e) }),
                             WasmError::EnclaveError(err) => err.clone(),
                         }
                     },
-                    TrapKind::Unreachable => EnclaveError::WasmCodeExecutionError{ err: "unreachable".to_string() },
-                    TrapKind::MemoryAccessOutOfBounds => EnclaveError::WasmCodeExecutionError{ err: "memory access out of bounds".to_string() },
-                    TrapKind::TableAccessOutOfBounds | TrapKind::ElemUninitialized => EnclaveError::WasmCodeExecutionError{ err: "table access out of bounds".to_string() },
-                    TrapKind::DivisionByZero => EnclaveError::WasmCodeExecutionError{ err: "division by zero".to_string() },
-                    TrapKind::InvalidConversionToInt => EnclaveError::WasmCodeExecutionError{ err: "invalid conversion to int".to_string() },
-                    TrapKind::UnexpectedSignature => EnclaveError::WasmCodeExecutionError{ err: "unexpected signature".to_string() },
-                    TrapKind::StackOverflow => EnclaveError::WasmCodeExecutionError{ err: "stack overflow".to_string() },
+                    TrapKind::Unreachable => EnclaveError::FailedTaskError(FailedTaskError::WasmCodeExecutionError{ err: "unreachable".to_string() }),
+                    TrapKind::MemoryAccessOutOfBounds => EnclaveError::FailedTaskError(FailedTaskError::WasmCodeExecutionError{ err: "memory access out of bounds".to_string() }),
+                    TrapKind::TableAccessOutOfBounds | TrapKind::ElemUninitialized => EnclaveError::FailedTaskError(FailedTaskError::WasmCodeExecutionError{ err: "table access out of bounds".to_string() }),
+                    TrapKind::DivisionByZero => EnclaveError::FailedTaskError(FailedTaskError::WasmCodeExecutionError{ err: "division by zero".to_string() }),
+                    TrapKind::InvalidConversionToInt => EnclaveError::FailedTaskError(FailedTaskError::WasmCodeExecutionError{ err: "invalid conversion to int".to_string() }),
+                    TrapKind::UnexpectedSignature => EnclaveError::FailedTaskError(FailedTaskError::WasmCodeExecutionError{ err: "unexpected signature".to_string() }),
+                    TrapKind::StackOverflow => EnclaveError::FailedTaskError(FailedTaskError::WasmCodeExecutionError{ err: "stack overflow".to_string() }),
                 }
             }
-            _ => EnclaveError::WasmCodeExecutionError { err: e.to_string() }
+            _ => EnclaveError::FailedTaskError(FailedTaskError::WasmCodeExecutionError { err: e.to_string() })
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum EnclaveError {
+    FailedTaskError(FailedTaskError),
+    FailedTaskErrorWithGas {
+        used_gas: u64,
+        err: FailedTaskError
+    },
+    SystemError(EnclaveSystemError)
+}
+
+impl ::std::fmt::Display for EnclaveError {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::result::Result<(), ::std::fmt::Error> {
+        match self {
+            EnclaveError::FailedTaskError(ref e) => write!(f, "{}", e),
+            EnclaveError::FailedTaskErrorWithGas{err, ..} => write!(f, "{}", err),
+            EnclaveError::SystemError(ref e) => write!(f, "{}", e),
         }
     }
 }
 
 #[derive(Debug, Fail, Clone)]
-pub enum EnclaveError {
-    #[fail(display = "Cryptography Error: {:?}", err)]
-    CryptoError { err: CryptoError },
-
-    #[fail(display = "Preprocessor Error: {}", message)]
-    PreprocessorError { message: String },
-
+pub enum FailedTaskError {
     #[fail(display = "Input Error: {}", message)]
     InputError { message: String },
+
+    #[fail(display = "Error in execution of {}: {}", code, err)]
+    WasmModuleCreationError { code: String, err: String },
+
+    #[fail(display = "Error in execution of WASM code: {}", err)]
+    WasmCodeExecutionError { err: String},
+
+    #[fail(display = "Invocation resulted in gas limit violated")]
+    GasLimitError,
+
+    #[fail(display = "Error in EVM:  {}", err)]
+    EvmError { err: String },
+}
+
+#[derive(Debug, Fail, Clone)]
+pub enum EnclaveSystemError {
+    #[fail(display = "Cryptography Error: {:?}", err)]
+    CryptoError { err: CryptoError },
 
     #[fail(display = "There's no sufficient permissions to read this file: {}", file)]
     PermissionError { file: String },
@@ -123,29 +150,11 @@ pub enum EnclaveError {
     #[fail(display = "An SGX Error has occurred: {}, Description: {}", err, description)]
     SgxError { err: String, description: String },
 
-    #[fail(display = "Error in execution of {}: {}", code, err)]
-    WasmModuleError { code: String, err: String },
-
-    #[fail(display = "Error in execution of WASM code: {}", err)]
-    WasmCodeExecutionError { err: String},
-
-    #[fail(display = "Error in Enigma runtime: {}", err)]
-    EngRuntimeError { err: String },
-
-    #[fail(display = "Invocation resulted in gas limit violated")]
-    GasLimitError,
-
-    #[fail(display = "Error in EVM:  {}", err)]
-    EvmError { err: String },
-
     #[fail(display = "There's a State error with: {}", err)]
     StateError { err: String },
 
     #[fail(display = "There's an error with the ocall: {}; {}", command, err)]
     OcallError { command: String, err: String },
-
-    #[fail(display = "UTF8 failure in a from_utf8: {}", err)]
-    Utf8Error { err: String },
 
     #[fail(display = "There's an error with the messaging: {}", err)]
     MessagingError { err: String },
@@ -159,34 +168,38 @@ pub enum EnclaveError {
 
 impl From<CryptoError> for EnclaveError {
     fn from(err: CryptoError) -> EnclaveError {
-        EnclaveError::CryptoError { err }
+        EnclaveError::SystemError(EnclaveSystemError::CryptoError { err })
     }
 }
 
 impl From<sgx_status_t> for EnclaveError {
     fn from(err: sgx_status_t) -> EnclaveError {
-        EnclaveError::SgxError { err: err.as_str().to_string(), description: err.__description().to_string() }
+        EnclaveError::SystemError(EnclaveSystemError::SgxError { err: err.as_str().to_string(), description: err.__description().to_string() })
     }
 }
 
 impl From<rmp_serde::decode::Error> for EnclaveError {
-    fn from(err: rmp_serde::decode::Error) -> EnclaveError { EnclaveError::StateError { err: format!("{:?}", err) } }
+    fn from(err: rmp_serde::decode::Error) -> EnclaveError {
+        EnclaveError::SystemError(EnclaveSystemError::StateError { err: format!("{:?}", err) })
+    }
 }
 
 impl From<rmp_serde::encode::Error> for EnclaveError {
-    fn from(err: rmp_serde::encode::Error) -> EnclaveError { EnclaveError::StateError { err: format!("{:?}", err) } }
+    fn from(err: rmp_serde::encode::Error) -> EnclaveError {
+        EnclaveError::SystemError(EnclaveSystemError::StateError { err: format!("{:?}", err) })
+    }
 }
 
 impl From<json_patch::PatchError> for EnclaveError {
-    fn from(err: json_patch::PatchError) -> EnclaveError { EnclaveError::StateError { err: format!("{}", err) } }
+    fn from(err: json_patch::PatchError) -> EnclaveError { EnclaveError::SystemError(EnclaveSystemError::StateError { err: format!("{}", err) } )}
 }
 
 impl From<str::Utf8Error> for EnclaveError {
-    fn from(err: str::Utf8Error) -> Self { EnclaveError::Utf8Error { err: format!("{:?}", err) } }
+    fn from(err: str::Utf8Error) -> Self { EnclaveError::FailedTaskError(FailedTaskError::InputError { message: format!("{:?}", err) } )}
 }
 
 impl From<hexutil::ParseHexError> for EnclaveError {
-    fn from(err: hexutil::ParseHexError) -> Self { EnclaveError::InputError { message: format!("{:?}", err) } }
+    fn from(err: hexutil::ParseHexError) -> Self { EnclaveError::FailedTaskError(FailedTaskError::InputError { message: format!("{:?}", err) } )}
 }
 
 impl ResultToEnclaveReturn for EnclaveError {
@@ -196,28 +209,29 @@ impl ResultToEnclaveReturn for EnclaveError {
 impl Into<EnclaveReturn> for EnclaveError {
     fn into(self) -> EnclaveReturn {
         use self::EnclaveError::*;
-        use self::CryptoError::*;
         match self {
-            InputError { .. } | PreprocessorError { .. } => EnclaveReturn::InputError,
-            PermissionError { .. } => EnclaveReturn::PermissionError,
-            SgxError { .. } => EnclaveReturn::SgxError,
-            WasmModuleError { .. } => EnclaveReturn::WasmModuleError,
-            StateError { .. } => EnclaveReturn::StateError,
-            OcallError { .. } => EnclaveReturn::OcallError,
-            Utf8Error { .. } => EnclaveReturn::Utf8Error,
-            EvmError { .. } => EnclaveReturn::EVMError,
-            MessagingError { .. } => EnclaveReturn::MessagingError,
-            CryptoError{err} => match err {
-                RandomError { .. } => EnclaveReturn::SgxError,
-                DerivingKeyError { .. } | KeyError { .. } | MissingKeyError { .. } => EnclaveReturn::KeysError,
-                DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption |
-                ParsingError { ..} | RecoveryError { .. } => EnclaveReturn::EncryptionError,
-            }
-            WasmCodeExecutionError { .. } => EnclaveReturn::WasmCodeExecutionError,
-            GasLimitError => EnclaveReturn::GasLimitError,
-            EngRuntimeError { .. } => EnclaveReturn::EngRuntimeError,
-            WorkerAuthError { .. } => EnclaveReturn::WorkerAuthError,
-            KeyProvisionError { .. } => EnclaveReturn::KeyProvisionError,
+            FailedTaskError {..} => EnclaveReturn::TaskFailure,
+            FailedTaskErrorWithGas {..} => EnclaveReturn::TaskFailure,
+            SystemError(e) => {
+                use self::EnclaveSystemError::*;
+                use self::CryptoError::*;
+                match e {
+                    PermissionError { .. } => EnclaveReturn::PermissionError,
+                    SgxError { .. } => EnclaveReturn::SgxError,
+                    StateError { .. } => EnclaveReturn::StateError,
+                    OcallError { .. } => EnclaveReturn::OcallError,
+                    MessagingError { .. } => EnclaveReturn::MessagingError,
+                    CryptoError{err} => match err {
+                        RandomError { .. } => EnclaveReturn::SgxError,
+                        DerivingKeyError { .. } | KeyError { .. } | MissingKeyError { .. } => EnclaveReturn::KeysError,
+                        DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption |
+                        ParsingError { ..} | RecoveryError { .. } => EnclaveReturn::EncryptionError,
+                    }
+                    WorkerAuthError { .. } => EnclaveReturn::WorkerAuthError,
+                    KeyProvisionError { .. } => EnclaveReturn::KeyProvisionError,
+                 }
+
+             }
         }
     }
 }
