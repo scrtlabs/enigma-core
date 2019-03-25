@@ -4,6 +4,8 @@
 mod common;
 pub mod keeper_types;
 pub mod primitives;
+pub use crate::common::errors::ToolsError;
+pub use crate::common::utils;
 
 #[cfg(feature = "std")]
 use {ethabi_std as ethabi, ethereum_types_std as ethereum_types, rmp_serde_std as rmp_serde, serde_json_std as serde_json,

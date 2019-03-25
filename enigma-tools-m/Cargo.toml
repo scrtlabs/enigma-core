@@ -14,7 +14,7 @@ log = { version = "0.4.6", default-features = false }
 failure = { version = "0.1", default-features = false, features = ["derive"] }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
 etcommon-rlp = {version = "0.2", default-features = false}
-
+rustc-hex = { version = "2.0.1", default-features = false }
 ethabi_std = { package = "ethabi", version = "6.0.1", optional = true }
 ethereum_types_std = { package = "ethereum-types", version = "0.4", optional = true }
 rmp_serde_std = { package = "rmp-serde", git = "https://github.com/3Hren/msgpack-rust.git", optional = true }

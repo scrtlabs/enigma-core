@@ -11,7 +11,7 @@ use std::sync::SgxMutexGuard;
 
 use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
-use enigma_tools_t::common::EthereumAddress;
+use enigma_tools_m::utils::EthereumAddress;
 use enigma_tools_t::common::ToHex;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
