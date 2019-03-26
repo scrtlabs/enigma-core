@@ -10,7 +10,7 @@ use web3::transports::{EventLoopHandle, Http};
 use web3::types::{Address, H160, U256};
 use web3::Web3;
 
-// This should be used as the main Web3/EventLoop
+//  This should be used as the main Web3/EventLoop
 // Creating another one means more threads and more thing to handle.
 // Important!! When the eloop is dropped the Web3/Contract will stop work!
 #[derive(Debug)]
