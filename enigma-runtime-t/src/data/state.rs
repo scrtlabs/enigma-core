@@ -46,6 +46,12 @@ impl IOInterface<EnclaveError, u8> for ContractState {
         self.json[key] = value.clone();
         Ok(())
     }
+
+    fn remove_key(&mut self, key: &str) {
+        if let Some(ref mut v) = self.json.as_object_mut() {
+            v.remove(key);
+        }
+    }
 }
 
 impl DeltasInterface<EnclaveError, StatePatch> for ContractState {

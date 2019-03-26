@@ -24,6 +24,7 @@ pub mod external {
         pub fn write_state (key: *const u8, key_len: u32, value: *const u8, value_len: u32);
         pub fn read_state_len (key: *const u8, key_len: u32) -> i32;
         pub fn read_state (key: *const u8, key_len: u32, value_holder: *const u8);
+        pub fn remove_from_state (key: *const u8, key_len: u32);
         pub fn eprint(str_ptr: *const u8, str_len: u32);
         pub fn fetch_function_name_length() -> i32;
         pub fn fetch_function_name(name_holder: *const u8);
@@ -70,6 +71,15 @@ pub fn read<T>(key: &str) -> Option<T> where for<'de> T: serde::Deserialize<'de>
     Some(serde_json::from_value(value.clone()).map_err(|_| print("failed unwrapping from_value in read_state")).expect("read_state failed"))
 }
 
+
+/// Remove key and value from state
+pub fn remove<T>(key: &str) -> Option<T> where for<'de> T: serde::Deserialize<'de> {
+    let value = read(key);
+    unsafe { external::remove_from_state(key.as_ptr(), key.len() as u32) }
+    value
+}
+
+
 pub fn write_ethereum_bridge(payload: &[u8], address: &Address){
     unsafe {
         external::write_eth_bridge(payload.as_ptr(), payload.len() as u32, address.as_ptr())
@@ -92,6 +102,15 @@ pub fn write_ethereum_bridge(payload: &[u8], address: &Address){
      ( $key: expr ) => {
          {
              $crate::read($key)
+         }
+     }
+ }
+
+#[macro_export]
+macro_rules! remove_from_state {
+     ( $key: expr ) => {
+         {
+             $crate::remove($key)
          }
      }
  }
