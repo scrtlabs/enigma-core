@@ -156,6 +156,67 @@ mod tests {
     }
 
     #[test]
+    fn test_flip() {
+        let (mut db, _dir) = create_test_db();
+        let address = generate_contract_address();
+
+        let (enclave, contract_code, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/flip_coin",
+            address,
+            "construct()",
+            &[],
+            "flip()",
+            &[]
+        );
+        let mut encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Bool], &encoded_output).unwrap())[0];
+        let commitment = decoded_output.clone().to_bool().unwrap();
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let mut encrypted_callable = symmetric::encrypt(b"commit(bool)", &shared_key).unwrap();
+        let mut encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Bool(commitment)]), &shared_key).unwrap();
+        let mut result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed");
+
+        if let WasmResult::WasmTaskResult(v) = result {
+            let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+            encrypted_callable = symmetric::encrypt(b"guess(bool)", &shared_key).unwrap();
+            encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Bool(commitment.into())]), &shared_key).unwrap();
+            result = wasm::execute(
+                &mut db,
+                enclave.geteid(),
+                &contract_code,
+                &encrypted_callable,
+                &encrypted_args,
+                &keys.get_pubkey(),
+                &address,
+                GAS_LIMIT
+            ).expect("Execution failed");
+
+            if let WasmResult::WasmTaskResult(v) = result {
+                encoded_output = symmetric::decrypt(&v.output, &shared_key).unwrap();
+                let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Bool], &encoded_output).unwrap())[0];
+                let res = decoded_output.clone().to_bool().unwrap();
+                assert_eq!(res, true);
+            } else {
+                panic!("Task Failure");
+            }
+        } else {
+                panic!("Task Failure");
+        }
+
+    }
+
+    #[test]
     fn test_print_simple() {
         let (mut db, _dir) = create_test_db();
 
