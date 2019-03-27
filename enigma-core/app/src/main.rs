@@ -41,13 +41,13 @@ mod tests {
     use enigma_core_app::esgx::general::init_enclave_wrapper;
     use enigma_core_app::sgx_types::*;
     use enigma_core_app::db::DB;
-    use self::enigma_types::RawPointer;
+    use self::enigma_types::{RawPointer, ResultStatus};
     use enigma_core_app::simplelog::TermLogger;
     use enigma_core_app::log::LevelFilter;
     use self::tempfile::TempDir;
 
     extern "C" {
-        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer) -> sgx_status_t;
+        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer, result: *mut u8) -> sgx_status_t;
     }
 
     /// It's important to save TempDir too, because when it gets dropped the directory will be removed.
@@ -67,8 +67,11 @@ mod tests {
         let (mut db, _dir) = create_test_db();
         let enclave = init_enclave_wrapper().unwrap();
         let db_ptr = unsafe { RawPointer::new_mut(&mut db) };
-        let ret = unsafe { ecall_run_tests(enclave.geteid(), &db_ptr as *const RawPointer) };
+        let mut result: u8 = 0;
+        let ret = unsafe { ecall_run_tests(enclave.geteid(), &db_ptr as *const RawPointer, &mut result) };
 
         assert_eq!(ret, sgx_status_t::SGX_SUCCESS);
+        let expected: u8 = ResultStatus::Success.into();
+        assert_eq!(result,expected);
     }
 }
