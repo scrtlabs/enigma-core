@@ -99,6 +99,15 @@ impl From<ResultStatus> for u8 {
     }
 }
 
+impl From<bool> for ResultStatus {
+    fn from(i: bool) -> Self {
+        match i{
+            true => ResultStatus::Success,
+            false => ResultStatus::Failure,
+        }
+    }
+}
+
 impl Default for ExecuteResult {
     fn default() -> ExecuteResult {
         ExecuteResult {

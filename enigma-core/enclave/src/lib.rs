@@ -522,9 +522,9 @@ pub mod tests {
         use self::sgx_tunittest::*;
         use std::{vec::Vec, string::String};
         use std::panic::UnwindSafe;
-        use enigma_types::RawPointer;
+        use enigma_types::{RawPointer, ResultStatus};
 
-        pub fn internal_tests(db_ptr: *const RawPointer) {
+        pub fn internal_tests(db_ptr: *const RawPointer) -> ResultStatus {
             let mut ctr = 0u64;
             let mut failures = Vec::new();
             rsgx_unit_test_start();
@@ -557,7 +557,9 @@ pub mod tests {
             core_unitests(&mut ctr, &mut failures, || {test_state(db_ptr)}, "test_state" );
 
 
+            let result = failures.is_empty();
             rsgx_unit_test_end(ctr, failures);
+            result.into()
         }
 
 
@@ -591,9 +593,10 @@ pub mod tests {
     //    use crate::km_t::users::tests::*;
 
     #[no_mangle]
-    pub extern "C" fn ecall_run_tests(db_ptr: *const RawPointer) {
+    pub extern "C" fn ecall_run_tests(db_ptr: *const RawPointer, result: *mut u8) {
         #[cfg(debug_assertions)]
-            self::internal_tests::internal_tests(db_ptr);
+            let internal_tests_result = self::internal_tests::internal_tests(db_ptr);
+            unsafe {*result = internal_tests_result.into()};
 
     }
 
