@@ -30,15 +30,6 @@ pub enum WasmResult{
     WasmTaskFailure(WasmTaskFailure),
 }
 
-impl WasmResult {
-    fn unwrap_result(self) -> WasmTaskResult {
-        match self {
-            WasmResult::WasmTaskResult(v) => v,
-            WasmResult::WasmTaskFailure(_) => panic!("Task Failure"),
-        }
-    }
-}
-
 impl Default for WasmTaskResult {
     fn default() -> WasmTaskResult {
         WasmTaskResult {

@@ -95,6 +95,15 @@ mod tests {
 
     pub const GAS_LIMIT: u64 = 100_000_000;
 
+    impl WasmResult {
+        fn unwrap_result(self) -> WasmTaskResult {
+            match self {
+                WasmResult::WasmTaskResult(v) => v,
+                WasmResult::WasmTaskFailure(_) => panic!("Task Failure"),
+            }
+        }
+    }
+    
     fn compile_and_deploy_wasm_contract(db: &mut DB, eid: sgx_enclave_id_t, test_path: &str, contract_address: ContractAddress, constructor: &[u8], args: &[u8],  user_pubkey: &PubKey) -> WasmResult {
         let wasm_code = get_bytecode_from_path(test_path);
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
