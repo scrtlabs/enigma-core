@@ -311,7 +311,7 @@ fn output_task_failure (pre_execution_data: &[Box<[u8]>], err: EnclaveError, res
         SystemError(e) => return Err(SystemError(e)),
     }
     let used_gas = result.used_gas.to_be_bytes();
-    let failure = [ResultStatus::Failure.into()];
+    let failure = [ResultStatus::Failure as u8];
     let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
     pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
     to_sign.push(&used_gas);
@@ -369,7 +369,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
         &used_gas[..],
         &ethereum_payload[..],
         &ethereum_address[..],
-        &[ResultStatus::Success.into()]];
+        &[ResultStatus::Ok as u8]];
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
     Ok(())
 }
@@ -453,7 +453,7 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
         &used_gas[..],
         &ethereum_payload[..],
         &ethereum_address[..],
-        &[ResultStatus::Success.into()]
+        &[ResultStatus::Ok as u8]
     ];
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
     Ok(())
@@ -505,6 +505,7 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 pub mod tests {
     use enigma_types::RawPointer;
+    use enigma_types::ResultStatus;
 
     #[cfg(debug_assertions)]
     mod internal_tests {
@@ -520,9 +521,9 @@ pub mod tests {
         use self::sgx_tunittest::*;
         use std::{vec::Vec, string::String};
         use std::panic::UnwindSafe;
-        use enigma_types::RawPointer;
+        use enigma_types::{RawPointer, ResultStatus};
 
-        pub fn internal_tests(db_ptr: *const RawPointer) {
+        pub fn internal_tests(db_ptr: *const RawPointer) -> ResultStatus {
             let mut ctr = 0u64;
             let mut failures = Vec::new();
             rsgx_unit_test_start();
@@ -555,7 +556,9 @@ pub mod tests {
             core_unitests(&mut ctr, &mut failures, || {test_state(db_ptr)}, "test_state" );
 
 
+            let result = failures.is_empty();
             rsgx_unit_test_end(ctr, failures);
+            result.into()
         }
 
 
@@ -589,10 +592,12 @@ pub mod tests {
     //    use crate::km_t::users::tests::*;
 
     #[no_mangle]
-    pub extern "C" fn ecall_run_tests(db_ptr: *const RawPointer) {
-        #[cfg(debug_assertions)]
-            self::internal_tests::internal_tests(db_ptr);
-
+    pub extern "C" fn ecall_run_tests(db_ptr: *const RawPointer, result: *mut ResultStatus) {
+        unsafe {*result = ResultStatus::Ok};
+        #[cfg(debug_assertions)] {
+            let internal_tests_result = self::internal_tests::internal_tests(db_ptr);
+            unsafe {*result = internal_tests_result};
+        }
     }
 
 //    fn test_ecall_evm_signning() {

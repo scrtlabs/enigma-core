@@ -28,10 +28,11 @@ pub enum EnclaveReturn {
 }
 
 
-#[derive(Debug)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
 pub enum ResultStatus {
-    Success,
-    Failure,
+    Ok = 1,
+    Failure = 0,
 }
 
 
@@ -90,13 +91,11 @@ impl RawPointer {
 
 }
 
-
-
-impl From<ResultStatus> for u8 {
-    fn from(i: ResultStatus) -> Self {
+impl From<bool> for ResultStatus {
+    fn from(i: bool) -> Self {
         match i{
-            ResultStatus::Success => 1u8,
-            ResultStatus::Failure => 0u8,
+            true => ResultStatus::Ok,
+            false => ResultStatus::Failure,
         }
     }
 }

@@ -3,16 +3,15 @@ extern crate enigma_core_app;
 extern crate log;
 pub extern crate log_derive;
 
-use cli::Opt;
-pub use crate::esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_state, ocall_get_state_size, ocall_new_delta,
-                                ocall_update_state};
-use db::DB;
 pub use enigma_core_app::*;
-use enigma_tools_u::common_u::logging::{self, CombinedLogger};
-pub use enigma_tools_u::esgx::ocalls_u::{ocall_get_home, ocall_save_to_memory};
-use futures::Future;
+pub use esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
+                                ocall_new_delta, ocall_save_to_memory, ocall_update_state};
 use networking::{ipc_listener, IpcListener};
+use db::DB;
+use cli::Opt;
 use structopt::StructOpt;
+use futures::Future;
+use simplelog::CombinedLogger;
 
 fn main() {
     let opt: Opt = Opt::from_args();
@@ -29,7 +28,10 @@ fn main() {
     let mut db = DB::new(datadir, true).expect("Failed initializing the DB");
     let server = IpcListener::new(&format!("tcp://*:{}", opt.port));
 
-    server.run(move |multi| ipc_listener::handle_message(&mut db, multi, &opt.spid, eid)).wait().unwrap();
+    server
+        .run(move |multi| ipc_listener::handle_message(&mut db, multi, &opt.spid, eid))
+        .wait()
+        .unwrap();
 }
 
 #[cfg(test)]
@@ -39,13 +41,13 @@ mod tests {
     use enigma_core_app::esgx::general::init_enclave_wrapper;
     use enigma_core_app::sgx_types::*;
     use enigma_core_app::db::DB;
-    use self::enigma_types::RawPointer;
-    use enigma_tools_u::common_u::logging::TermLogger;
+    use self::enigma_types::{RawPointer, ResultStatus};
+    use enigma_core_app::simplelog::TermLogger;
     use enigma_core_app::log::LevelFilter;
     use self::tempfile::TempDir;
 
     extern "C" {
-        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer) -> sgx_status_t;
+        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer, result: *mut ResultStatus) -> sgx_status_t;
     }
 
     /// It's important to save TempDir too, because when it gets dropped the directory will be removed.
@@ -65,8 +67,10 @@ mod tests {
         let (mut db, _dir) = create_test_db();
         let enclave = init_enclave_wrapper().unwrap();
         let db_ptr = unsafe { RawPointer::new_mut(&mut db) };
-        let ret = unsafe { ecall_run_tests(enclave.geteid(), &db_ptr as *const RawPointer) };
+        let mut result: ResultStatus = ResultStatus::Ok;
+        let ret = unsafe { ecall_run_tests(enclave.geteid(), &db_ptr as *const RawPointer, &mut result) };
 
         assert_eq!(ret, sgx_status_t::SGX_SUCCESS);
+        assert_eq!(result,ResultStatus::Ok);
     }
 }
