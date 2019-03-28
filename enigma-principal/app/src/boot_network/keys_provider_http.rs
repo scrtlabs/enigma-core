@@ -131,8 +131,8 @@ impl PrincipalHttpServer {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
-
     use ethereum_types::{H160, U256};
+    use enigma_types::ContractAddress;
     use rustc_hex::FromHex;
     use web3::types::Bytes;
 
@@ -147,8 +147,8 @@ mod test {
         let sig = sign_message(&msg).unwrap();
         let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(sig.to_vec().to_hex()) };
         let reader = PrincipalMessageReader::new(request.data.clone().try_into().unwrap()).unwrap();
-        let mut selected_workers: HashMap<H256, H160> = HashMap::new();
-        selected_workers.insert(H256([0; 32]), H160(WORKER_SIGN_ADDRESS));
+        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        selected_workers.insert([0; 32].into(), H160(WORKER_SIGN_ADDRESS));
         let block_number = U256::from(1);
         let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
         let seed = U256::from(1);
@@ -157,7 +157,7 @@ mod test {
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
         let results = PrincipalHttpServer::find_epoch_contract_addresses(reader, request.sig.try_into().unwrap(), epoch_state).unwrap();
         println!("Found contract addresses: {:?}", results);
-        assert_eq!(results, vec![H256([0; 32])])
+        assert_eq!(results, vec![[0; 32].into()])
     }
 
     #[test]
