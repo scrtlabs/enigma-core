@@ -301,8 +301,10 @@ mod test {
         Ok(principal)
     }
 
+    //TODO: The two tests below require the Enigma contract to be deployed
     /// Not a standalone unit test, must be coordinated with the Enigma Contract tests
     #[test]
+    #[ignore]
     fn test_set_worker_params() {
         let gas_limit: U256 = 5999999.into();
         let enclave = init_enclave_wrapper().unwrap();
@@ -326,6 +328,7 @@ mod test {
     /// The testing is looking for atleast 2 emmits of the WorkersParameterized event and compares the event triggerd
     /// If the event name is different or if it takes more than 30 seconds then the test will fail.
     #[test]
+    #[ignore]
     fn test_full_principal_logic() {
         let gas_limit: U256 = 5999999.into();
         let enclave = init_enclave_wrapper().unwrap();
