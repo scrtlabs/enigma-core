@@ -1,12 +1,30 @@
 use dirs;
-use enigma_tools_u::{self, esgx::general::storage_dir};
+use enigma_tools_u;
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use std::{fs, path, io::Write};
+use std::fs;
+use std::io::Write;
+use std::path;
 
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 pub static ENCLAVE_DIR: &'static str = ".enigma";
+
+pub fn storage_dir() -> path::PathBuf {
+    let mut home_dir = path::PathBuf::new();
+    match dirs::home_dir() {
+        Some(path) => {
+            println!("[+] Home dir is {}", path.display());
+            home_dir = path;
+            true
+        }
+        None => {
+            println!("[-] Cannot get home dir");
+            false
+        }
+    };
+    home_dir.join(ENCLAVE_DIR)
+}
 
 #[logfn(INFO)]
 pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
@@ -30,7 +48,7 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     // Step : try to create a .enigma folder for storing all the files
     // Create a directory, returns `io::Result<()>`
     //let storage_path = home_dir.join(ENCLAVE_DIR);
-    let storage_path = storage_dir(ENCLAVE_DIR).unwrap();
+    let storage_path = storage_dir();
     match fs::create_dir(&storage_path) {
         Err(why) => {
             println!("[-] Create .enigma folder => {:?}", why.kind());

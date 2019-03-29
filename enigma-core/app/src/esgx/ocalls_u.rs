@@ -1,12 +1,21 @@
 use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DB};
-use enigma_crypto::hash::Sha256;
+use crate::esgx::general;
 use enigma_tools_u::common_u::LockExpectMutex;
-use enigma_types::{ContractAddress, EnclaveReturn, Hash256, RawPointer};
+use enigma_crypto::hash::Sha256;
+use enigma_types::{Hash256, ContractAddress, EnclaveReturn, RawPointer, traits::SliceCPtr};
 use lru_cache::LruCache;
 use std::sync::Mutex;
 use std::{ptr, slice};
 
 lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(500)); }
+
+#[no_mangle]
+pub unsafe extern "C" fn ocall_get_home(output: *mut u8, result_len: &mut usize) {
+    let path = general::storage_dir();
+    let path_str = path.to_str().unwrap();
+    ptr::copy_nonoverlapping(path_str.as_c_ptr(), output, path_str.len());
+    *result_len = path_str.len();
+}
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &ContractAddress, enc_state: *const u8, state_len: usize) -> EnclaveReturn {
@@ -50,6 +59,13 @@ pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
             EnclaveReturn::OcallDBError
         }
     }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ocall_save_to_memory(data_ptr: *const u8, data_len: usize) -> u64 {
+    let data = slice::from_raw_parts(data_ptr, data_len).to_vec();
+    let ptr = Box::into_raw(Box::new(data.into_boxed_slice())) as *const u8;
+    ptr as u64
 }
 
 #[no_mangle]
