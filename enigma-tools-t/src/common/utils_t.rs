@@ -17,7 +17,6 @@ use std::fmt;
 use std::string::String;
 use std::sync::{SgxMutex, SgxMutexGuard};
 use std::vec::Vec;
-use enigma_crypto::hash::Keccak256;
 
 pub trait LockExpectMutex<T> {
     fn lock_expect(&self, name: &str) -> SgxMutexGuard<T>;
@@ -26,31 +25,6 @@ pub trait LockExpectMutex<T> {
 impl<T> LockExpectMutex<T> for SgxMutex<T> {
     fn lock_expect(&self, name: &str) -> SgxMutexGuard<T> { self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name)) }
 }
-
-
-pub trait EthereumAddress<T, P> {
-    fn address_string(&self) -> T where T: Sized;
-    fn address(&self) -> P where P: Sized;
-}
-
-
-impl EthereumAddress<String, [u8; 20]> for [u8; 64] {
-    // TODO: Maybe add a checksum address
-    fn address_string(&self) -> String {
-        let mut result: String = String::from("0x");
-        result.push_str(&self.keccak256()[12..32].to_hex());
-        result
-    }
-
-    fn address(&self) -> [u8; 20] {
-        let mut result = [0u8; 20];
-        result.copy_from_slice(&self.keccak256()[12..32]);
-        result
-    }
-}
-
-
-
 
 // TODO: Remove this and use rtustc-hex instead.
 

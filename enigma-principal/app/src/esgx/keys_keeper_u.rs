@@ -67,7 +67,7 @@ pub mod tests {
 
     use esgx::epoch_keeper_u::tests::set_mock_worker_params;
     use esgx::general::init_enclave_wrapper;
-    use keys_u::keeper_types_u::InputWorkerParams;
+    use enigma_tools_m::keeper_types::InputWorkerParams;
 
     use super::*;
 

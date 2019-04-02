@@ -5,7 +5,7 @@ use web3::types::{Bytes, U256};
 use common_u::errors::EnclaveFailError;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 use epoch_u::epoch_types::{encode, EpochState};
-use keys_u::keeper_types_u::InputWorkerParams;
+use enigma_tools_m::keeper_types::InputWorkerParams;
 
 extern {
     fn ecall_set_worker_params(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,

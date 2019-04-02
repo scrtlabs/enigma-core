@@ -9,6 +9,7 @@
 extern crate bigint;
 extern crate enigma_crypto;
 extern crate enigma_tools_t;
+extern crate enigma_tools_m;
 extern crate enigma_types;
 extern crate ethabi;
 extern crate ethereum_types;
@@ -39,7 +40,7 @@ use std::slice;
 
 use enigma_crypto::asymmetric;
 use enigma_tools_t::common::ToHex;
-use enigma_tools_t::common::utils_t::EthereumAddress;
+use enigma_tools_m::utils::EthereumAddress;
 use enigma_tools_t::quote_t;
 use enigma_tools_t::storage_t;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr, ContractAddress};
@@ -101,7 +102,10 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
     let addrs_bytes = slice::from_raw_parts(addrs as *const ContractAddress, addrs_len/mem::size_of::<ContractAddress>()).to_vec();
     let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, sig_out) {
         Ok(response) => response,
-        Err(err) => return err.into(),
+        Err(err) => {
+            println!("{:?}", err);
+            return err.into();
+        }
     };
 
     *serialized_ptr = match ocalls_t::save_to_untrusted_memory(&response) {

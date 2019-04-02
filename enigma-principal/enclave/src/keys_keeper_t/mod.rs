@@ -7,17 +7,16 @@ use std::string::ToString;
 use enigma_crypto::asymmetric::KeyPair;
 use enigma_crypto::Encryption;
 use enigma_crypto::hash::Keccak256;
-use enigma_tools_t::common::{EthereumAddress, ToHex};
+use enigma_tools_t::common::ToHex;
+use enigma_tools_m::utils::EthereumAddress;
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
-use enigma_tools_t::km_primitives::{PrincipalMessage, PrincipalMessageType};
+use enigma_tools_m::primitives::km_primitives::{PrincipalMessage, PrincipalMessageType};
 use enigma_types::{ContractAddress, Hash256, StateKey};
 use ocalls_t;
 
 use crate::SIGNING_KEY;
-
-pub mod keeper_types_t;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 

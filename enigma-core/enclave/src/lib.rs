@@ -13,6 +13,7 @@
 extern crate enigma_runtime_t;
 #[macro_use]
 extern crate enigma_tools_t;
+extern crate enigma_tools_m;
 extern crate enigma_types;
 extern crate enigma_crypto;
 
@@ -44,7 +45,6 @@ extern crate pwasm_utils as wasm_utils;
 
 mod evm_t;
 mod km_t;
-mod ocalls_t;
 mod wasm_g;
 
 use crate::evm_t::{abi::{create_callback, prepare_evm_input},
@@ -55,8 +55,9 @@ use enigma_runtime_t::data::{ContractState, StatePatch, EncryptedPatch};
 use enigma_runtime_t::EthereumData;
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
-use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}, LockExpectMutex, EthereumAddress};
-use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
+use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}, LockExpectMutex};
+use enigma_tools_m::utils::EthereumAddress;
+use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t, esgx::ocalls_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
 use wasm_utils::{build, SourceTarget};
 
@@ -182,8 +183,7 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
 #[no_mangle]
 pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
     let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
-    let address_list: Vec<Hash256> = address_list.into_iter().map(|a| (*a).into()).collect();
-    let msg = match ecall_ptt_req_internal(&address_list, sig) {
+    let msg = match ecall_ptt_req_internal(address_list, sig) {
         Ok(msg) => msg,
         Err(e) => return e.into(),
     };
@@ -518,7 +518,6 @@ pub mod tests {
         use crate::wasm_g::execution::tests::*;
         use enigma_runtime_t::data::tests::*;
         use enigma_runtime_t::ocalls_t::tests::*;
-        use enigma_tools_t::km_primitives::tests::*;
         use enigma_tools_t::storage_t::tests::*;
         use self::sgx_tunittest::*;
         use std::{vec::Vec, string::String};
@@ -546,12 +545,6 @@ pub mod tests {
             core_unitests(&mut ctr, &mut failures, test_generate_delta, "test_generate_delta" );
             core_unitests(&mut ctr, &mut failures, ||test_me(db_ptr), "test_me" );
             core_unitests(&mut ctr, &mut failures, test_execute_contract, "test_execute_contract" );
-            core_unitests(&mut ctr, &mut failures, test_to_message, "test_to_message" );
-            core_unitests(&mut ctr, &mut failures, test_from_message, "test_from_message" );
-            core_unitests(&mut ctr, &mut failures, test_from_to_message, "test_from_to_message" );
-            core_unitests(&mut ctr, &mut failures, test_encrypt_decrypt_response, "test_encrypt_decrypt_response" );
-            core_unitests(&mut ctr, &mut failures, test_encrypt_response, "test_encrypt_response" );
-            core_unitests(&mut ctr, &mut failures, test_decrypt_reponse, "test_decrypt_reponse" );
             core_unitests(&mut ctr, &mut failures, ||test_get_deltas(db_ptr), "test_get_deltas" );
             core_unitests(&mut ctr, &mut failures, ||test_get_deltas_more(db_ptr), "test_get_deltas_more" );
             core_unitests(&mut ctr, &mut failures, ||test_state_internal(db_ptr), "test_state_internal" );

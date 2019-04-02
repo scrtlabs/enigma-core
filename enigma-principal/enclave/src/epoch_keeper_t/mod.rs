@@ -11,12 +11,13 @@ use std::sync::SgxMutexGuard;
 
 use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
-use enigma_tools_t::common::EthereumAddress;
+use enigma_tools_m::utils::EthereumAddress;
 use enigma_tools_t::common::ToHex;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
+use enigma_types::ContractAddress;
 use epoch_keeper_t::epoch_t::{Epoch, EpochNonce};
-use keys_keeper_t::keeper_types_t::{decode, InputWorkerParams, RawEncodable};
+use enigma_tools_m::keeper_types::{decode, InputWorkerParams, RawEncodable};
 use ocalls_t;
 
 use crate::SIGNING_KEY;
@@ -117,13 +118,13 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], rand_ou
     println!("Generated random seed: {:?}", seed);
     let epoch = new_epoch(&mut guard, &worker_params, nonce, seed)?;
 
-    let msg = epoch.raw_encode()?;
+    let msg = epoch.raw_encode();
     *sig_out = SIGNING_KEY.sign(&msg)?;
     println!("Signed the message : 0x{}", msg.to_hex());
     Ok(())
 }
 
-pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: H256, block_number: Option<U256>) -> Result<H160, EnclaveError> {
+pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, block_number: Option<U256>) -> Result<H160, EnclaveError> {
     let guard = EPOCH.lock_expect("Epoch");
     let epoch = match get_epoch(&guard, block_number)? {
         Some(epoch) => epoch,
@@ -154,7 +155,7 @@ pub mod tests {
             worker_params,
         };
         println!("The epoch: {:?}", epoch);
-        let sc_addr = H256::from(1);
+        let sc_addr = ContractAddress::from([1u8; 32]);
         let worker = epoch.get_selected_worker(sc_addr).unwrap();
         println!("The selected workers: {:?}", worker);
     }

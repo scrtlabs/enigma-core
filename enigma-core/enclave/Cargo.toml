@@ -17,6 +17,7 @@ default = []
 enigma-types = { path = "../../enigma-types", default-features = false, features = ["sgx"] }
 enigma-crypto = { path = "../../enigma-crypto", default-features = false, features = ["sgx", "asymmetric"] }
 enigma-tools-t = { path = "../../enigma-tools-t" }
+enigma-tools-m = { path = "../../enigma-tools-m", default-features = false, features = ["sgx"] }
 enigma-runtime-t = { path = "../../enigma-runtime-t" }
 
 lazy_static = {version = "=1.2.0", features = ["spin_no_std"] }

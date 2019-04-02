@@ -20,7 +20,7 @@ use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries
 use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
 use esgx::epoch_keeper_u::set_worker_params;
 use esgx::general::ENCLAVE_DIR;
-use keys_u::keeper_types_u::InputWorkerParams;
+use enigma_tools_m::keeper_types::InputWorkerParams;
 use enigma_tools_u::esgx::general::storage_dir;
 use sgx_types::sgx_enclave_id_t;
 
