@@ -1,26 +1,30 @@
-use ethabi::{decode, ParamType};
-use sgx_trts::trts::rsgx_read_rand;
-use std::{collections::HashMap, sync::SgxMutex, sync::SgxMutexGuard, vec::Vec};
-use std::path;
-use std::string::ToString;
-
-use enigma_crypto::asymmetric::KeyPair;
-use enigma_crypto::Encryption;
-use enigma_crypto::hash::Keccak256;
-use enigma_tools_t::common::ToHex;
-use enigma_tools_m::utils::EthereumAddress;
-use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
-use enigma_tools_t::common::utils_t::LockExpectMutex;
-use enigma_tools_t::document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage};
-use enigma_tools_m::primitives::km_primitives::{PrincipalMessage, PrincipalMessageType};
+use crate::SIGNING_KEY;
+use enigma_crypto::{asymmetric::KeyPair, Encryption};
+use enigma_tools_m::{
+    primitives::km_primitives::{PrincipalMessage, PrincipalMessageType},
+    utils::EthereumAddress,
+};
+use enigma_tools_t::{
+    common::{
+        errors_t::{
+            EnclaveError::{self, *},
+            EnclaveSystemError::*,
+        },
+        utils_t::LockExpectMutex,
+        ToHex,
+    },
+    document_storage_t::{is_document, load_sealed_document, save_sealed_document, SealedDocumentStorage, SEAL_LOG_SIZE},
+};
 use enigma_types::{ContractAddress, Hash256, StateKey};
 use ocalls_t;
-
-use crate::SIGNING_KEY;
+use sgx_trts::trts::rsgx_read_rand;
+use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec};
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
-lazy_static! { pub static ref STATE_KEY_STORE: SgxMutex< HashMap<ContractAddress, StateKey> > = SgxMutex::new(HashMap::new()); }
+lazy_static! {
+    pub static ref STATE_KEY_STORE: SgxMutex<HashMap<ContractAddress, StateKey>> = SgxMutex::new(HashMap::new());
+}
 
 /// The state keys root path is guaranteed to exist of the enclave was initialized
 fn get_state_keys_root_path() -> path::PathBuf {
@@ -35,7 +39,8 @@ fn get_document_path(sc_addr: &ContractAddress) -> path::PathBuf {
 
 /// Read state keys from the cache and sealed documents.
 /// Adds keys to the cache after unsealing.
-fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>, sc_addrs: &[ContractAddress]) -> Result<Vec<Option<StateKey>>, EnclaveError> {
+fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
+                  sc_addrs: &[ContractAddress]) -> Result<Vec<Option<StateKey>>, EnclaveError> {
     let mut results: Vec<Option<StateKey>> = Vec::new();
     for &addr in sc_addrs {
         let key = match keys_map.get(&addr) {
@@ -69,11 +74,12 @@ fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>, sc_addrs: &
 }
 
 /// Creates new state keys both in the cache and as sealed documents
-fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>, sc_addrs: &Vec<ContractAddress>) -> Result<Vec<StateKey>, EnclaveError> {
+fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
+                  sc_addrs: &[ContractAddress]) -> Result<Vec<StateKey>, EnclaveError> {
     let mut results: Vec<StateKey> = Vec::new();
     for &addr in sc_addrs {
         let mut doc: SealedDocumentStorage<StateKey> = SealedDocumentStorage {
-            version: 0x1234, //TODO: what's this?
+            version: 0x1234, // TODO: what's this?
             data: [0; 32],
         };
         // Generate a new key randomly
@@ -109,7 +115,7 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
         }
     }
     new_state_keys(&mut guard, &new_addrs)?; // If the vector is empty this won't do anything.
-    //Now we have keys for all addresses in cache
+                                             // Now we have keys for all addresses in cache
     for addr in sc_addrs {
         match guard.get(&addr) {
             Some(&key) => response_data.push((addr, key)),
@@ -123,7 +129,9 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
 
 /// Get encrypted state keys
 
-pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: &[u8], addrs_bytes: Vec<ContractAddress>, sig: [u8; 65], sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
+pub(crate) fn ecall_get_enc_state_keys_internal(
+    msg_bytes: &[u8], addrs_bytes: Vec<ContractAddress>, sig: [u8; 65], sig_out: &mut [u8; 65],
+) -> Result<Vec<u8>, EnclaveError> {
     let msg = PrincipalMessage::from_message(msg_bytes)?;
     let user_pubkey = msg.get_pubkey();
     let msg_id = msg.get_id();
@@ -157,11 +165,10 @@ pub(crate) fn ecall_get_enc_state_keys_internal(msg_bytes: &[u8], addrs_bytes: V
 }
 
 pub mod tests {
+    use super::*;
     use enigma_tools_t::common::FromHex;
 
-    use super::*;
-
-    //noinspection RsTypeCheck
+    // noinspection RsTypeCheck
     pub fn test_state_keys_storage() {
         let data = vec![
             "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08".from_hex().unwrap(),
@@ -176,7 +183,8 @@ pub mod tests {
         let mut guard = STATE_KEY_STORE.lock_expect("State Key Store");
         let new_keys = new_state_keys(&mut guard, &sc_addrs).expect("Unable to store state keys");
 
-        let cached_keys = get_state_keys(&mut guard, &sc_addrs).expect("Unable to get state keys from cache")
+        let cached_keys = get_state_keys(&mut guard, &sc_addrs)
+            .expect("Unable to get state keys from cache")
             .iter()
             .map(|k| k.unwrap())
             .collect::<Vec<StateKey>>();
@@ -185,7 +193,8 @@ pub mod tests {
         // Clearing the cache to test retrieval of sealed keys form disk
         guard.clear();
 
-        let stored_keys = get_state_keys(&mut guard, &sc_addrs).expect("Unable to get state keys from sealed files")
+        let stored_keys = get_state_keys(&mut guard, &sc_addrs)
+            .expect("Unable to get state keys from sealed files")
             .iter()
             .map(|k| k.unwrap())
             .collect::<Vec<StateKey>>();
