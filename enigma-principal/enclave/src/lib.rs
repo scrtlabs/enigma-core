@@ -5,54 +5,35 @@
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 #![feature(tool_lints)]
 #![feature(try_from)]
+#![deny(unused_extern_crates)]
 
-extern crate bigint;
 extern crate enigma_crypto;
-extern crate enigma_tools_t;
 extern crate enigma_tools_m;
+extern crate enigma_tools_t;
 extern crate enigma_types;
 extern crate ethabi;
 extern crate ethereum_types;
-extern crate hexutil;
 #[macro_use]
 extern crate lazy_static;
-extern crate rlp;
-extern crate rustc_hex as hex;
-extern crate secp256k1;
-extern crate serde;
-extern crate serde_derive;
-extern crate serde_json;
-extern crate sgx_rand;
 extern crate sgx_trts;
-extern crate sgx_tse;
-extern crate sgx_tseal;
-#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
 extern crate sgx_tunittest;
 extern crate sgx_types;
 
-use sgx_types::sgx_report_t;
-use sgx_types::sgx_status_t;
-use sgx_types::sgx_target_info_t;
-use std::mem;
-use std::slice;
-
+use crate::{epoch_keeper_t::ecall_set_worker_params_internal, keys_keeper_t::ecall_get_enc_state_keys_internal};
 use enigma_crypto::asymmetric;
-use enigma_tools_t::common::ToHex;
 use enigma_tools_m::utils::EthereumAddress;
-use enigma_tools_t::quote_t;
-use enigma_tools_t::storage_t;
-use enigma_types::{EnclaveReturn, traits::SliceCPtr, ContractAddress};
-use enigma_tools_t::esgx::ocalls_t;
-
-use crate::epoch_keeper_t::ecall_set_worker_params_internal;
-use crate::keys_keeper_t::ecall_get_enc_state_keys_internal;
+use enigma_tools_t::{esgx::ocalls_t, quote_t, storage_t};
+use enigma_types::{ContractAddress, EnclaveReturn};
+use sgx_types::{sgx_report_t, sgx_status_t, sgx_target_info_t};
+use std::{mem, slice};
 
 mod epoch_keeper_t;
 mod keys_keeper_t;
-lazy_static! { static ref SIGNING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
-
+lazy_static! {
+    static ref SIGNING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper();
+}
 
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, real_report: &mut sgx_report_t) -> sgx_status_t {
@@ -60,9 +41,7 @@ pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, 
 }
 
 #[no_mangle]
-pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) {
-    pubkey.copy_from_slice(&SIGNING_KEY.get_pubkey().address());
-}
+pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) { pubkey.copy_from_slice(&SIGNING_KEY.get_pubkey().address()); }
 
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     // Get Home path via Ocall
@@ -73,11 +52,9 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
     // TODO: Decide what to do if failed to obtain keys.
     match storage_t::get_sealed_keys(&sealed_path) {
-        Ok(key) => {
-            return key
-        }
-        Err(err) => panic!("Failed obtaining keys: {:?}", err)
-    };
+        Ok(key) => key,
+        Err(err) => panic!("Failed obtaining keys: {:?}", err),
+    }
 }
 
 #[no_mangle]
@@ -99,7 +76,7 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
                                                   addrs: *const u8, addrs_len: usize, sig: &[u8; 65],
                                                   serialized_ptr: *mut u64, sig_out: &mut [u8; 65]) -> EnclaveReturn {
     let msg_bytes = slice::from_raw_parts(msg, msg_len);
-    let addrs_bytes = slice::from_raw_parts(addrs as *const ContractAddress, addrs_len/mem::size_of::<ContractAddress>()).to_vec();
+    let addrs_bytes = slice::from_raw_parts(addrs as *const ContractAddress, addrs_len / mem::size_of::<ContractAddress>()).to_vec();
     let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, sig_out) {
         Ok(response) => response,
         Err(err) => {
@@ -116,19 +93,11 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
 }
 
 pub mod tests {
-    extern crate sgx_tunittest;
-    extern crate sgx_tstd as std;
-    extern crate enigma_tools_t;
 
+    use crate::{epoch_keeper_t::tests::*, keys_keeper_t::tests::*};
+    use enigma_tools_t::{document_storage_t::tests::*, storage_t::tests::*};
     use sgx_tunittest::*;
-    use std::string::String;
-    use std::vec::Vec;
-
-    use enigma_tools_t::document_storage_t::tests::*;
-    use enigma_tools_t::storage_t::tests::*;
-
-    use crate::epoch_keeper_t::tests::*;
-    use crate::keys_keeper_t::tests::*;
+    use std::{string::String, vec::Vec};
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {

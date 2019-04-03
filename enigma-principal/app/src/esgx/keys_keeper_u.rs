@@ -1,19 +1,15 @@
-use std::{mem, convert::TryInto};
-
-use ethabi::{encode, Token};
-use failure::Error;
-use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors::EnclaveFailError;
-use enigma_types::{EnclaveReturn, traits::SliceCPtr, ContractAddress};
+use enigma_types::{traits::SliceCPtr, ContractAddress, EnclaveReturn};
+use failure::Error;
+use sgx_types::{sgx_enclave_id_t, sgx_status_t};
+use std::{convert::TryInto, mem};
 
-extern {
-    fn ecall_get_enc_state_keys(eid: sgx_enclave_id_t, retval: &mut EnclaveReturn,
-                                msg: *const u8, msg_len: usize,
-                                addrs: *const u8, addrs_len: usize,
-                                sig: &[u8; 65],
-                                serialized_ptr: *mut u64, sig_out: &mut [u8; 65]) -> sgx_status_t;
+extern "C" {
+    fn ecall_get_enc_state_keys(
+        eid: sgx_enclave_id_t, retval: &mut EnclaveReturn, msg: *const u8, msg_len: usize, addrs: *const u8, addrs_len: usize,
+        sig: &[u8; 65], serialized_ptr: *mut u64, sig_out: &mut [u8; 65],
+    ) -> sgx_status_t;
 }
 
 /// Returns the signed encrypted keys.
@@ -52,24 +48,15 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
     }
     let box_ptr = response_ptr as *mut Box<[u8]>;
     let response = unsafe { Box::from_raw(box_ptr) };
-    Ok(StateKeyResponse {
-        data: StringWrapper::from(&response[..]),
-        sig: StringWrapper::from(&sig_out[..]),
-    })
+    Ok(StateKeyResponse { data: StringWrapper::from(&response[..]), sig: StringWrapper::from(&sig_out[..]) })
 }
 
 #[cfg(test)]
 pub mod tests {
-    #![allow(dead_code, unused_assignments, unused_variables)]
-
-    use sgx_urts::SgxEnclave;
-    use web3::types::{Address, Bytes, H256, U256};
-
-    use esgx::epoch_keeper_u::tests::set_mock_worker_params;
-    use esgx::general::init_enclave_wrapper;
-    use enigma_tools_m::keeper_types::InputWorkerParams;
 
     use super::*;
+    use esgx::{epoch_keeper_u::tests::set_mock_worker_params, general::init_enclave_wrapper};
+    use sgx_urts::SgxEnclave;
 
     // From Truffle
     // TODO: This won't pass seed verification
@@ -100,7 +87,7 @@ pub mod tests {
         println!("The mock message: {:?}", msg);
         println!("The mock sig: {:?}", sig);
 
-        let request = StateKeyRequest { data: msg, sig: sig };
+        let request = StateKeyRequest { data: msg, sig };
         let response = get_enc_state_keys(enclave.geteid(), request, None).unwrap();
         println!("Got response: {:?}", response);
         enclave.destroy();

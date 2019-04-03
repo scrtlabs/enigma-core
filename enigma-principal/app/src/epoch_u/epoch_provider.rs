@@ -1,28 +1,23 @@
-use std::fs;
-use std::fs::File;
-use std::io::prelude::*;
-use std::mem;
-use std::ops::Deref;
-use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::time;
-
+use enigma_tools_m::keeper_types::InputWorkerParams;
+use enigma_tools_u::{
+    esgx::general::storage_dir,
+    web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract},
+};
+use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
+use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
 use ethabi::{Log, RawLog};
 use failure::Error;
 use serde_json;
-// general
-use web3::futures::Future;
-use web3::futures::stream::Stream;
-use web3::types::{H256, TransactionReceipt, U256};
-
-use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
-use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
-use esgx::epoch_keeper_u::set_worker_params;
-use esgx::general::ENCLAVE_DIR;
-use enigma_tools_m::keeper_types::InputWorkerParams;
-use enigma_tools_u::esgx::general::storage_dir;
 use sgx_types::sgx_enclave_id_t;
+use std::{
+    fs::{self, File},
+    io::prelude::*,
+    mem,
+    ops::Deref,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+use web3::types::{TransactionReceipt, H256, U256};
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
@@ -83,7 +78,7 @@ impl EpochProvider {
         } else {
             match fs::remove_file(path) {
                 Ok(res) => println!("Epoch state file removed: {:?}", res),
-                Err(err) => println!("No epoch state file to remove"),
+                Err(_err) => println!("No epoch state file to remove"),
             }
         }
         Ok(())
@@ -169,19 +164,15 @@ impl EpochProvider {
     /// * `block_number` - The block number marking the active worker list
     /// * `gas_limit` - The gas limit of the `setWorkersParams` transaction
     /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
-    ///
     pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
         let result = self.contract.get_active_workers(block_number)?;
-        let worker_params: InputWorkerParams = InputWorkerParams {
-            block_number,
-            workers: result.0,
-            stakes: result.1,
-        };
+        let worker_params: InputWorkerParams = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
         println!("The active workers: {:?}", worker_params);
-        let mut epoch_state = set_worker_params(*self.eid, worker_params.clone())?;
+        let mut epoch_state = set_worker_params(*self.eid, &worker_params)?;
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
-        let receipt = self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
+        let receipt =
+            self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
         println!("Got the receipt: {:?}", receipt);
         let log = self.parse_worker_parameterized(&receipt)?;
         match log.params.into_iter().find(|x| x.name == "firstBlockNumber") {
@@ -192,7 +183,7 @@ impl EpochProvider {
                 self.set_epoch_state(Some(epoch_state))?;
                 Ok(receipt.transaction_hash)
             }
-            None => bail!("firstBlockNumber not found in receipt log")
+            None => bail!("firstBlockNumber not found in receipt log"),
         }
     }
 
@@ -202,7 +193,6 @@ impl EpochProvider {
     ///
     /// * `epoch_state` - The mutable `EpochState` to be confirmed
     /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
-    ///
     #[logfn(DEBUG)]
     pub fn confirm_epoch(&self, epoch_state: &mut EpochState, block_number: U256, worker_params: InputWorkerParams) -> Result<(), Error> {
         let contract_count = self.contract.count_secret_contracts()?;
@@ -220,12 +210,10 @@ impl EpochProvider {
 mod test {
     use std::env;
 
-    use super::*;
-
     /// This function is important to enable testing both on the CI server and local.
-                                            /// On the CI Side:
-                                            /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-                                            /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-                                            /// The default is set to ganache cli "http://localhost:8545"
+    /// On the CI Side:
+    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+    /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:9545")) }
 }

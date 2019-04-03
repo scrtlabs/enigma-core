@@ -1,18 +1,15 @@
 #![feature(integer_atomics)]
 #![feature(try_from)]
 #![feature(arbitrary_self_types)]
-extern crate base64;
-//etcommon
-extern crate bigint;
+
 #[macro_use]
 extern crate colour;
 extern crate dirs;
 extern crate enigma_crypto;
-extern crate enigma_tools_u;
 extern crate enigma_tools_m;
+extern crate enigma_tools_u;
 extern crate enigma_types;
 extern crate ethabi;
-extern crate ethereum_types;
 #[macro_use]
 extern crate failure;
 extern crate jsonrpc_http_server;
@@ -20,7 +17,6 @@ extern crate log;
 #[macro_use]
 extern crate log_derive;
 extern crate rlp;
-extern crate rmp_serde;
 extern crate rustc_hex;
 extern crate serde;
 #[macro_use]
@@ -29,25 +25,21 @@ extern crate serde_json;
 extern crate sgx_types;
 extern crate sgx_urts;
 extern crate structopt;
-extern crate tiny_keccak;
-extern crate tokio_core;
 extern crate url;
 extern crate web3;
 
-use structopt::StructOpt;
-
 use cli::options::Opt;
-pub use enigma_tools_u::esgx::ocalls_u::{ocall_get_home, ocall_save_to_memory};
 use enigma_tools_u::common_u::logging::{self, CombinedLogger};
+pub use enigma_tools_u::esgx::ocalls_u::{ocall_get_home, ocall_save_to_memory};
+use structopt::StructOpt;
 
 // enigma modules
 mod boot_network;
 mod cli;
 mod common_u;
-mod esgx;
 mod epoch_u;
+mod esgx;
 
-#[allow(unused_variables, unused_mut)]
 fn main() {
     let opt: Opt = Opt::from_args();
     println!("CLI params: {:?}", opt);
@@ -78,11 +70,10 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-    use log::LevelFilter;
     use enigma_tools_u::common_u::logging::TermLogger;
-
     use esgx::general::init_enclave_wrapper;
+    use log::LevelFilter;
+    use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 
     extern "C" {
         fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;
