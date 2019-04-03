@@ -1,11 +1,14 @@
 extern crate enigma_core_app;
+
 #[macro_use]
 extern crate log;
-pub extern crate log_derive;
+extern crate log_derive;
 
 pub use enigma_core_app::*;
-pub use esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_home, ocall_get_state, ocall_get_state_size,
-                                ocall_new_delta, ocall_save_to_memory, ocall_update_state};
+pub use esgx::ocalls_u::{ocall_get_deltas, ocall_get_deltas_sizes, ocall_get_state, ocall_get_state_size,
+                                ocall_new_delta, ocall_update_state};
+pub use enigma_tools_u::esgx::ocalls_u::{ocall_get_home, ocall_save_to_memory};
+use enigma_tools_u::common_u::logging;
 use networking::{ipc_listener, IpcListener};
 use db::DB;
 use cli::Opt;
@@ -41,13 +44,13 @@ mod tests {
     use enigma_core_app::esgx::general::init_enclave_wrapper;
     use enigma_core_app::sgx_types::*;
     use enigma_core_app::db::DB;
-    use self::enigma_types::RawPointer;
+    use self::enigma_types::{RawPointer, ResultStatus};
     use enigma_core_app::simplelog::TermLogger;
     use enigma_core_app::log::LevelFilter;
     use self::tempfile::TempDir;
 
     extern "C" {
-        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer) -> sgx_status_t;
+        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer, result: *mut ResultStatus) -> sgx_status_t;
     }
 
     /// It's important to save TempDir too, because when it gets dropped the directory will be removed.
@@ -67,8 +70,10 @@ mod tests {
         let (mut db, _dir) = create_test_db();
         let enclave = init_enclave_wrapper().unwrap();
         let db_ptr = unsafe { RawPointer::new_mut(&mut db) };
-        let ret = unsafe { ecall_run_tests(enclave.geteid(), &db_ptr as *const RawPointer) };
+        let mut result: ResultStatus = ResultStatus::Ok;
+        let ret = unsafe { ecall_run_tests(enclave.geteid(), &db_ptr as *const RawPointer, &mut result) };
 
         assert_eq!(ret, sgx_status_t::SGX_SUCCESS);
+        assert_eq!(result,ResultStatus::Ok);
     }
 }

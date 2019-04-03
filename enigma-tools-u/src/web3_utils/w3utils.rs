@@ -1,26 +1,28 @@
+use std::fs::File;
+use std::path::Path;
+use std::str;
+use std::sync::Arc;
+use std::time;
+
 // general
 use failure::Error;
 use hex::FromHex;
-use std::str;
-use std::time;
-use web3;
-use web3::contract::tokens::Tokenize;
-use web3::contract::{Contract, Options};
-use web3::futures::Future;
-use web3::transports::Http;
-use web3::types::BlockNumber;
-use web3::types::FilterBuilder;
-use web3::types::{Address, Log, U256};
-use web3::Web3;
-// files
-use crate::common_u::errors;
 use serde_json;
 use serde_json::Value;
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
-use std::sync::Arc;
+use web3;
+use web3::contract::{Contract, Options};
+use web3::contract::tokens::Tokenize;
+use web3::futures::Future;
+use web3::transports::{Http};
+use web3::types::{Address, Log, U256};
+use web3::types::BlockNumber;
+use web3::types::FilterBuilder;
+use web3::Web3;
+
 use enigma_crypto::hash::Keccak256;
+
+// files
+use crate::common_u::errors;
 
 pub struct DeployParams {
     pub deployer: Address,
@@ -51,19 +53,17 @@ pub fn load_contract_abi_bytecode<P: AsRef<Path>>(path: P) -> Result<(String, St
     Ok((abi, bytecode))
 }
 
-pub fn load_contract_abi<R: Read>(rdr: R) -> Result<String, Error> {
-    let data: Value = serde_json::from_reader(rdr)?;
-    if data.is_array() {
-        Ok(serde_json::to_string(&data)?)
-    } else {
-        Ok(serde_json::to_string(&data["abi"])?)
-    }
+pub fn load_contract_abi<P: AsRef<Path>>(path: P) -> Result<String, Error> {
+    let f = File::open(path)?;
+    let data: Value = serde_json::from_reader(f)?;
+    Ok(serde_json::to_string(&data["abi"])?)
 }
 
 // Important!! Best Practice is to have only one Web3 Instance.
 // Every time Web3::new() is called it spawns a new thread that is tied to eloop.
 // Important!! When eloop is Dropped, the underlying Transport dies.
 // https://github.com/tomusdrw/rust-web3/blob/master/src/transports/http.rs#L79
+// Precision: This is true for Transport::new(), not Web3::new()
 #[logfn(WARN)]
 pub fn connect(url: &str) -> Result<(web3::transports::EventLoopHandle, Web3<Http>), Error> {
     let (_eloop, http) = match web3::transports::Http::new(url) {
@@ -88,6 +88,7 @@ pub fn deployed_contract(web3: &Web3<Http>, contract_addr: Address, abi: &[u8]) 
 // 2) serde_json reads the bytecode as string with '"0x..."' so 4 chars needs to be removed.
 // TODO:: solve the fact that serde doesnt ignore `"`
 pub fn truncate_bytecode(bytecode: &str) -> Result<Vec<u8>, Error> {
+    // TODO: this does not work with linked libraries and probably should be handled be web3
     let b = bytecode.as_bytes();
     let sliced = &b[3..b.len() - 1];
     let result = str::from_utf8(&sliced.to_vec()).unwrap().from_hex()?;
@@ -96,7 +97,7 @@ pub fn truncate_bytecode(bytecode: &str) -> Result<Vec<u8>, Error> {
 
 // deploy any smart contract
 pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_params: P) -> Result<Contract<Http>, Error>
-where P: Tokenize {
+    where P: Tokenize {
     let bytecode: Vec<u8> = truncate_bytecode(&tx_params.bytecode)?;
 
     let deployer_addr = tx_params.deployer;
@@ -169,7 +170,6 @@ pub fn filter_blocks(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_na
 //           thread::sleep(time::Duration::from_secs(1));
 //         }
 // }
-
 //////////////////////// EVENTS LISTENING END ///////////////////////////
 
 //////////////////////// TESTS  /////////////////////////////////////////
@@ -177,17 +177,22 @@ pub fn filter_blocks(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_na
 #[cfg(test)]
 mod test {
     extern crate rustc_hex;
-    use self::rustc_hex::ToHex;
-    use super::*;
+
     use std::env;
+
     use web3_utils::w3utils;
 
+    use super::*;
+
+    use self::rustc_hex::ToHex;
+
     /// This function is important to enable testing both on the CI server and local.
-    /// On the CI Side:
-    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-    /// The default is set to ganache cli "http://localhost:8545"
-    fn get_node_url() -> String { env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string()) }
+        /// On the CI Side:
+        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+        /// The default is set to ganache cli "http://localhost:8545"
+    fn get_node_url() -> String { env::var("NODE_URL").unwrap_or("http://localhost:9545".to_string()) }
+
     // helper: given a contract name return the bytecode and the abi
     fn get_contract(ctype: &str) -> (String, String) {
         let path = env::current_dir().unwrap();
@@ -208,6 +213,7 @@ mod test {
         let (abi, bytecode) = w3utils::load_contract_abi_bytecode(to_load).unwrap();
         (abi, bytecode)
     }
+
     // helper to quickly mock params for deployment of a contract to generate DeployParams
     fn get_deploy_params(account: Address, ctype: &str) -> w3utils::DeployParams {
         let deployer = account.to_hex();
@@ -217,6 +223,7 @@ mod test {
         let (abi, bytecode) = get_contract(&ctype.to_string());
         w3utils::DeployParams::new(&deployer, abi, bytecode, gas_limit, poll_interval, confirmations).unwrap()
     }
+
     // helper connect to web3
     fn connect() -> (web3::transports::EventLoopHandle, Web3<Http>, Vec<Address>) {
         let uri = get_node_url();
@@ -224,12 +231,14 @@ mod test {
         let accounts = w3.eth().accounts().wait().unwrap();
         (eloop, w3, accounts)
     }
+
     // helper deploy a dummy contract and return the contract instance
     fn deploy_dummy(w3: &Web3<Http>, account: Address) -> Contract<Http> {
         let tx = get_deploy_params(account, "Dummy");
         let contract = w3utils::deploy_contract(&w3, &tx, ()).unwrap();
         contract
     }
+
     #[test]
     //#[ignore]
     fn test_deploy_dummy_contract() {
@@ -241,6 +250,7 @@ mod test {
         let param: U256 = result.wait().unwrap();
         assert_eq!(param.as_u64(), 1);
     }
+
     #[test]
     //#[ignore]
     fn test_deploy_enigma_contract() {
@@ -256,6 +266,7 @@ mod test {
         // 4) deploy the contract
         w3utils::deploy_contract(&w3, &tx, fake_input).unwrap();
     }
+
     #[test]
     //#[ignore]
     fn test_deployed_contract() {

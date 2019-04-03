@@ -17,7 +17,7 @@ extern crate tokio_zmq;
 extern crate zmq;
 #[macro_use]
 extern crate failure;
-extern crate enigma_tools_u;
+pub extern crate enigma_tools_u;
 extern crate enigma_crypto;
 extern crate enigma_types;
 extern crate rustc_hex as hex;
@@ -38,7 +38,6 @@ pub mod evm_u;
 pub mod km_u;
 pub mod networking;
 pub mod wasm_u;
-pub mod logging;
 pub mod cli;
 
 #[cfg(feature = "cross-test-utils")]

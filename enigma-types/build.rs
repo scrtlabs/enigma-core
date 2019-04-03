@@ -13,6 +13,7 @@ fn main() {
         .with_sys_include("stdbool.h")
         .with_language(Language::C)
         .include_item("EnclaveReturn")
+        .include_item("ResultStatus")
         .include_item("ExecuteResult")
         .include_item("Hash256")
         .include_item("StateKey")

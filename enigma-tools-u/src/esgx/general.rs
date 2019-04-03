@@ -3,7 +3,16 @@ use sgx_urts::SgxEnclave;
 use std::env;
 use std::fs;
 use std::io::Read;
-use std::path;
+use std::path::{self, PathBuf, Path};
+use dirs;
+use failure::Error;
+
+pub fn storage_dir<P: AsRef<Path>>(dir_name: P) -> Result<PathBuf, Error> {
+    let mut path = dirs::home_dir().ok_or(format_err!("Missing HomeDir"))?;
+    println!("[+] Home dir is {}", path.display());
+    path.push(dir_name);
+    Ok(path)
+}
 
 pub fn init_enclave(token_path: &path::PathBuf, use_token: bool, enclave_location: &str)
     -> SgxResult<(SgxEnclave, Option<sgx_launch_token_t>)> {

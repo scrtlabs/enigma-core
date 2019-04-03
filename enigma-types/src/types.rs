@@ -15,21 +15,24 @@ pub enum EnclaveReturn {
     KeysError,
     EncryptionError,
     SigningError,
+    RecoveringError,
     PermissionError,
     SgxError,
     StateError,
     OcallError,
     OcallDBError,
     MessagingError,
-    Other,
-//    Uninitialized,
+    WorkerAuthError,
+    KeyProvisionError,
+    Other
 }
 
 
-#[derive(Debug)]
+#[repr(C)]
+#[derive(Debug, PartialEq)]
 pub enum ResultStatus {
-    Success,
-    Failure,
+    Ok = 1,
+    Failure = 0,
 }
 
 
@@ -88,13 +91,11 @@ impl RawPointer {
 
 }
 
-
-
-impl From<ResultStatus> for u8 {
-    fn from(i: ResultStatus) -> Self {
+impl From<bool> for ResultStatus {
+    fn from(i: bool) -> Self {
         match i{
-            ResultStatus::Success => 1u8,
-            ResultStatus::Failure => 0u8,
+            true => ResultStatus::Ok,
+            false => ResultStatus::Failure,
         }
     }
 }
@@ -124,8 +125,6 @@ impl fmt::Debug for ExecuteResult {
     }
 }
 
-
-
 impl Default for EnclaveReturn {
     fn default() -> EnclaveReturn { EnclaveReturn::Success }
 }
@@ -139,12 +138,15 @@ impl fmt::Display for EnclaveReturn {
             KeysError => "EnclaveReturn: KeysError",
             EncryptionError => "EnclaveReturn: EncryptionError",
             SigningError => "EnclaveReturn: SigningError",
+            RecoveringError => "EnclaveReturn: RecoveringError",
             PermissionError => "EnclaveReturn: PermissionError",
             SgxError => "EnclaveReturn: SgxError",
             StateError => "EnclaveReturn: StateError",
             OcallError => "EnclaveReturn: OcallError",
             OcallDBError => "EnclaveReturn: OcallDBError",
             MessagingError => "EnclaveReturn: MessagingError",
+            WorkerAuthError => "EnclaveReturn: WorkerAuthError",
+            KeyProvisionError => "EnclaveReturn: KeyProvisionError",
             Other => "EnclaveReturn: Other",
         };
         write!(f, "{}", p)
