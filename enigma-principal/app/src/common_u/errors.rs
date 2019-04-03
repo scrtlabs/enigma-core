@@ -1,4 +1,5 @@
 #![allow(dead_code, unused_assignments, unused_variables)]
+
 use sgx_types::*;
 
 // error while requesting to produce a quote (registration)
@@ -10,9 +11,7 @@ pub struct ProduceQuoteErr {
 }
 // error while requesting the public signing key (the registration key)
 #[derive(Fail, Debug)]
-#[fail(display = "Error while retrieving the registration signing public key sgx_status = {}. info = ({})",
-       status,
-       message)]
+#[fail(display = "Error while retrieving the registration signing public key sgx_status = {}. info = ({})", status, message)]
 pub struct GetRegisterKeyErr {
     pub status: sgx_status_t,
     pub message: String,
@@ -23,4 +22,11 @@ pub struct GetRegisterKeyErr {
 #[fail(display = "Error while using the attestation service info = ({})", message)]
 pub struct AttestationServiceErr {
     pub message: String,
+}
+
+#[derive(Fail, Debug)]
+#[fail(display = "Error inside the Enclave = ({:?})", err)]
+pub struct EnclaveFailError {
+    pub err: enigma_types::EnclaveReturn,
+    pub status: sgx_status_t,
 }

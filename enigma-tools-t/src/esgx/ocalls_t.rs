@@ -1,7 +1,7 @@
-use enigma_tools_t::common::errors_t::EnclaveError;
+use crate::common::errors_t::EnclaveError;
 use enigma_types::traits::SliceCPtr;
 use sgx_types::sgx_status_t;
-use std::{path, str};
+use std::{path::PathBuf, str};
 
 const PATH_MAX: usize = 4096; // linux/limits.h - this depends on the FS.
 
@@ -10,7 +10,7 @@ extern "C" {
     fn ocall_save_to_memory(ptr: *mut u64, data_ptr: *const u8, data_len: usize) -> sgx_status_t;
 }
 
-pub fn get_home_path() -> Result<path::PathBuf, EnclaveError> {
+pub fn get_home_path() -> Result<PathBuf, EnclaveError> {
     // Get Home path via Ocall
     let mut home_slice: [u8; PATH_MAX] = [0; PATH_MAX];
     let mut result_len: usize = 0;
@@ -18,7 +18,7 @@ pub fn get_home_path() -> Result<path::PathBuf, EnclaveError> {
     let home_str = str::from_utf8(&home_slice[..result_len])?;
     debug_println!("Back from Ocall: {}", &home_str);
 
-    Ok(path::PathBuf::from(home_str))
+    Ok(PathBuf::from(home_str))
 }
 
 

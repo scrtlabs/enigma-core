@@ -68,6 +68,7 @@ cmake-build-release/
 out/
 .idea/
 .vscode/
+**/*.iml
 
 # mpeltonen/sbt-idea plugin
 .idea_modules/
@@ -85,3 +86,6 @@ fabric.properties
 sgx-tests
 CMakeLists.txt
 dockerfile-elichai/
+
+/target
+**/*.rs.bk

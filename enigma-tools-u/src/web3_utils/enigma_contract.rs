@@ -1,14 +1,19 @@
-use crate::common_u::errors;
-use crate::web3_utils::w3utils;
-use failure::Error;
-use hex::ToHex;
 use std::path::Path;
+use std::str;
 use std::sync::Arc;
+
+use failure::Error;
+use hex::{FromHex, ToHex};
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
 use web3::transports::{EventLoopHandle, Http};
-use web3::types::{Address, H160, U256};
+use web3::types::{Address, Bytes, H160, H256, TransactionReceipt, U256};
 use web3::Web3;
+
+use enigma_types::ContractAddress;
+
+use crate::common_u::errors;
+use crate::web3_utils::w3utils;
 
 // This should be used as the main Web3/EventLoop
 // Creating another one means more threads and more thing to handle.
@@ -36,7 +41,7 @@ impl EnigmaContract {
             Some(a) => a.parse()?,
             None => web3.eth().accounts().wait().unwrap()[0], // TODO: Do something with this unwrapping
         };
-        let (abi_json, _bytecode) = w3utils::load_contract_abi_bytecode(abi_path)?;
+        let abi_json = w3utils::load_contract_abi(abi_path)?;
         let w3_contract = Contract::from_json(web3.eth(), contract_address.parse()?, abi_json.as_bytes()).unwrap();
         Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, account })
     }
@@ -74,35 +79,106 @@ impl EnigmaContract {
 pub trait ContractFuncs<G> {
     // register
     // input: _signer: Address, _report: bytes
-    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<(), Error>;
+    fn register(&self, signing_address: String, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
 
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<(), Error>;
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
-    #[logfn(INFO)]
-    fn register(&self, signer: &str, report: &[u8], gas: G) -> Result<(), Error> {
+    #[logfn(DEBUG)]
+    fn register(&self, _signing_address: String, _report: String, _signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
         // register
-        let signer_addr: Address = signer.parse()?;
         let mut opts = Options::default();
         opts.gas = Some(gas.into());
         // call the register function
-        match self.w3_contract.call("register", (signer_addr, report.to_vec()), self.account, opts).wait() {
-            Ok(_) => Ok(()),
+        let signing_address: H160 = _signing_address.parse()?;
+        let report = _report.as_bytes().to_vec();
+        let signature = _signature.from_hex()?;
+//        println!("The report signer: {:?}", signing_address);
+//        println!("The report: {}", str::from_utf8(&report).unwrap());
+//        println!("The report signature: {}", signature.to_hex());
+        let call = self.w3_contract.call_with_confirmations("register", (signing_address, report, signature), self.account, opts, confirmations);
+        let receipt = match call.wait() {
+            Ok(receipt) => receipt,
             Err(e) => {
-                Err(errors::Web3Error { message: format!("error when trying to register- unable to call contract: {:?}", e) }.into())
+                return Err(errors::Web3Error { message: format!("Unable to call register: {:?}", e) }.into());
             }
-        }
+        };
+        Ok(receipt)
+    }
+
+    #[logfn(DEBUG)]
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize, ) -> Result<TransactionReceipt, Error> {
+        let mut opts: Options = Options::default();
+        opts.gas = Some(gas.into());
+        let call = self.w3_contract.call_with_confirmations("setWorkersParams", (block_number, seed, sig.0), self.account, opts, confirmations);
+        let receipt = match call.wait() {
+            Ok(tx) => tx,
+            Err(e) => return Err(errors::Web3Error { message: format!("Unable to call setWorkerParams: {:?}", e) }.into()),
+        };
+        Ok(receipt)
+    }
+}
+
+pub trait ContractQueries {
+    // getSigningAddress
+    fn get_signing_address(&self) -> Result<H160, Error>;
+
+    // getActiveWorkers
+    // input: block_number
+    fn get_active_workers(&self, block_number: U256) -> Result<(Vec<H160>, Vec<U256>), Error>;
+
+    // countSecretContracts
+    fn count_secret_contracts(&self) -> Result<U256, Error>;
+
+    // getSecretContractAddresses
+    // input: uint _start, uint _stop
+    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<ContractAddress>, Error>;
+}
+
+impl ContractQueries for EnigmaContract {
+    #[logfn(INFO)]
+    fn get_signing_address(&self) -> Result<H160, Error> {
+        println!("Fetching the signing address for account: {:?}", self.account);
+        let signing_address: H160 =
+            match self.w3_contract.query("getSigningAddress", (), self.account, Options::default(), None).wait() {
+                Ok(addr) => addr,
+                Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getSigningAddress: {:?}", e) }.into()),
+            };
+        Ok(signing_address)
     }
 
     #[logfn(INFO)]
-    fn set_workers_params(&self, _seed: u64, _sig: &[u8], gas: G) -> Result<(), Error> {
-        let mut opts: Options = Options::default();
-        opts.gas = Some(gas.into());
-        let seed: U256 = _seed.into();
-        self.w3_contract.call("setWorkersParams", (seed, _sig.to_vec()), self.account, opts).wait().unwrap();
-        Ok(())
+    fn get_active_workers(&self, block_number: U256) -> Result<(Vec<H160>, Vec<U256>), Error> {
+        let worker_params: (Vec<Address>, Vec<U256>) =
+            match self.w3_contract.query("getActiveWorkers", block_number, self.account, Options::default(), None).wait() {
+                Ok(result) => result,
+                Err(e) => return Err(errors::Web3Error { message: format!("Unable to query getActiveWorkers: {:?}", e) }.into()),
+            };
+        Ok(worker_params)
+    }
+
+    #[logfn(INFO)]
+    fn count_secret_contracts(&self) -> Result<U256, Error> {
+        let secret_contract_count: U256 =
+            match self.w3_contract.query("countSecretContracts", (), self.account, Options::default(), None).wait() {
+                Ok(count) => count,
+                Err(e) => return Err(errors::Web3Error { message: format!("Unable to query countSecretContracts: {:?}", e) }.into()),
+            };
+        Ok(secret_contract_count)
+    }
+
+    #[logfn(INFO)]
+    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<ContractAddress>, Error> {
+        let addrs: Vec<H256> =
+            match self.w3_contract.query("getSecretContractAddresses", (start, stop), self.account, Options::default(), None).wait() {
+                Ok(addrs) => addrs,
+                Err(e) => {
+                    return Err(errors::Web3Error { message: format!("Unable to query getSecretContractAddresses: {:?}", e) }.into())
+                }
+            };
+        Ok(addrs.into_iter().map(|a|ContractAddress::from(a.0)).collect())
     }
 }

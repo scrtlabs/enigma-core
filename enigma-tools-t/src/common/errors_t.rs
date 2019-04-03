@@ -1,5 +1,5 @@
 use enigma_types::{EnclaveReturn, ResultToEnclaveReturn};
-
+use enigma_tools_m::ToolsError;
 use json_patch;
 use pwasm_utils as wasm_utils;
 use sgx_types::sgx_status_t;
@@ -158,11 +158,25 @@ pub enum EnclaveSystemError {
 
     #[fail(display = "There's an error with the messaging: {}", err)]
     MessagingError { err: String },
+
+    #[fail(display = "Failed to authenticate the worker: {}", err)]
+    WorkerAuthError { err: String },
+
+    #[fail(display = "Failed to provide state key: {}", err)]
+    KeyProvisionError { err: String },
 }
 
 impl From<CryptoError> for EnclaveError {
     fn from(err: CryptoError) -> EnclaveError {
         EnclaveError::SystemError(EnclaveSystemError::CryptoError { err })
+    }
+}
+
+impl From<ToolsError> for EnclaveError {
+    fn from(err: ToolsError) -> Self {
+        match err {
+            ToolsError::MessagingError {err} => EnclaveError::SystemError(EnclaveSystemError::MessagingError { err: err.to_string() })
+        }
     }
 }
 
@@ -221,6 +235,8 @@ impl Into<EnclaveReturn> for EnclaveError {
                         DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption |
                         ParsingError { ..} | RecoveryError { .. } => EnclaveReturn::EncryptionError,
                     }
+                    WorkerAuthError { .. } => EnclaveReturn::WorkerAuthError,
+                    KeyProvisionError { .. } => EnclaveReturn::KeyProvisionError,
                  }
 
              }

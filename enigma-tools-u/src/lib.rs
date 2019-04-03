@@ -2,6 +2,7 @@
 #![warn(unused_extern_crates)]
 
 extern crate enigma_crypto;
+extern crate enigma_types;
 #[macro_use]
 extern crate failure;
 extern crate reqwest;
@@ -21,6 +22,8 @@ extern crate sgx_urts;
 extern crate log;
 #[macro_use]
 extern crate log_derive;
+extern crate simplelog;
+extern crate dirs;
 
 pub mod attestation_service;
 pub mod common_u;

@@ -15,14 +15,16 @@ pub enum EnclaveReturn {
     KeysError,
     EncryptionError,
     SigningError,
+    RecoveringError,
     PermissionError,
     SgxError,
     StateError,
     OcallError,
     OcallDBError,
     MessagingError,
-    Other,
-//    Uninitialized,
+    WorkerAuthError,
+    KeyProvisionError,
+    Other
 }
 
 
@@ -123,8 +125,6 @@ impl fmt::Debug for ExecuteResult {
     }
 }
 
-
-
 impl Default for EnclaveReturn {
     fn default() -> EnclaveReturn { EnclaveReturn::Success }
 }
@@ -138,12 +138,15 @@ impl fmt::Display for EnclaveReturn {
             KeysError => "EnclaveReturn: KeysError",
             EncryptionError => "EnclaveReturn: EncryptionError",
             SigningError => "EnclaveReturn: SigningError",
+            RecoveringError => "EnclaveReturn: RecoveringError",
             PermissionError => "EnclaveReturn: PermissionError",
             SgxError => "EnclaveReturn: SgxError",
             StateError => "EnclaveReturn: StateError",
             OcallError => "EnclaveReturn: OcallError",
             OcallDBError => "EnclaveReturn: OcallDBError",
             MessagingError => "EnclaveReturn: MessagingError",
+            WorkerAuthError => "EnclaveReturn: WorkerAuthError",
+            KeyProvisionError => "EnclaveReturn: KeyProvisionError",
             Other => "EnclaveReturn: Other",
         };
         write!(f, "{}", p)
