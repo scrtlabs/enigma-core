@@ -32,7 +32,7 @@ pub struct Opt {
     #[structopt(short = "k", long = "get-state-keys")]
     pub get_state_keys: Option<String>,
 
-    ///Optional: The Enigma contract address, use the config if not provided
+    /// Optional: The Enigma contract address, use the config if not provided
     #[structopt(short = "c", long = "contract-address")]
     pub contract_address: Option<String>,
 
@@ -44,7 +44,7 @@ pub struct Opt {
     #[structopt(short = "d", long = "deploy")]
     pub deploy: bool,
 
-    ///Optional currently ignored: Deploy to a different network (not the localhost:port)
+    /// Optional currently ignored: Deploy to a different network (not the localhost:port)
     #[structopt(short = "n", long = "network", default_value = "http://.c")]
     pub network: Url,
 
@@ -65,7 +65,7 @@ pub struct Opt {
     pub principal_config: String,
 }
 
-//fn all_colours() {
+// fn all_colours() {
 //    black!("black ");
 //    red!("red ");
 //    green!("green ");
@@ -88,7 +88,7 @@ pub struct Opt {
 pub fn print_logo() {
     yellow!("<>------------------------------------------<>\n");
     magenta!(
-             "
+        "
 \t╔═╗ ┌┐┌ ┬ ┌─┐ ┌┬┐ ┌─┐
 \t║╣  │││ │ │ ┬ │││ ├─┤
 \t╚═╝ ┘└┘ ┴ └─┘ ┴ ┴ ┴ ┴ \n
@@ -117,7 +117,7 @@ pub fn print_info(signing_address: &str) {
     green!("--network                              => Currently ignored, use a custom network (use config file instead).\n");
     green!("--mine <speed>                         => Optional, simulate new blocks, speed = seconds interval.\n");
     green!("--time-to-live <time>                  => Optional, kill the principal node after aprox <time> seconds.\n");
-    green!("--deploy-config <path from current>    => Optional, if --deploy load deployment config from custom path.\n" );
+    green!("--deploy-config <path from current>    => Optional, if --deploy load deployment config from custom path.\n");
     green!("--principal-config <path from current> => Optional, load the principal config from custom path.\n");
     yellow!("<>------------------------------------------<>\n");
     red!("Enclave Signing address                => 0x{}\n", signing_address);

@@ -1,13 +1,10 @@
-use std::clone::Clone;
-use std::collections::HashMap;
-
+use enigma_tools_m::keeper_types::InputWorkerParams;
+use enigma_types::ContractAddress;
 use ethabi::{Event, EventParam, ParamType};
 use failure::Error;
-pub use rlp::{decode, Encodable, encode, RlpStream};
+pub use rlp::{decode, encode, Encodable, RlpStream};
+use std::collections::HashMap;
 use web3::types::{Address, Bytes, H160, U256};
-use enigma_types::ContractAddress;
-
-use enigma_tools_m::keeper_types::InputWorkerParams;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ConfirmedEpochState {
@@ -24,9 +21,7 @@ pub struct EpochState {
 }
 
 impl EpochState {
-    pub fn new(seed: U256, sig: Bytes, nonce: U256) -> Self {
-        Self { seed, sig, nonce, confirmed_state: None }
-    }
+    pub fn new(seed: U256, sig: Bytes, nonce: U256) -> Self { Self { seed, sig, nonce, confirmed_state: None } }
 
     /// Build a local mapping of smart contract address => selected worker for the epoch
     ///
@@ -34,14 +29,15 @@ impl EpochState {
     ///
     /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
     /// * `sc_addresses` - The Secret Contract addresses for which to retrieve the selected worker
-    ///
     #[logfn(DEBUG)]
-    pub fn confirm(&mut self, block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<ContractAddress>) -> Result<(), Error> {
+    pub fn confirm(
+        &mut self, block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<ContractAddress>,
+    ) -> Result<(), Error> {
         println!("Confirmed epoch with worker params: {:?}", worker_params);
         let mut selected_workers: HashMap<ContractAddress, Address> = HashMap::new();
         for sc_address in sc_addresses {
             println!("Getting the selected worker for: {:?}", sc_address);
-            match worker_params.get_selected_worker(sc_address.clone(), self.seed.clone()) {
+            match worker_params.get_selected_worker(sc_address, self.seed) {
                 Some(worker) => {
                     println!("Found selected worker: {:?} for contract: {:?}", worker, sc_address);
                     match selected_workers.insert(sc_address, worker) {
@@ -68,9 +64,9 @@ impl EpochState {
         let addrs = match &self.confirmed_state {
             Some(state) => {
                 let mut addrs: Vec<ContractAddress> = Vec::new();
-                for (addr, account) in &state.selected_workers {
+                for (&addr, account) in &state.selected_workers {
                     if account == worker {
-                        addrs.push(addr.clone());
+                        addrs.push(addr);
                     }
                 }
                 addrs
@@ -88,31 +84,14 @@ impl WorkersParameterizedEvent {
     pub fn new() -> Self {
         WorkersParameterizedEvent(Event {
             name: "WorkersParameterized".to_string(),
-            inputs: vec![EventParam {
-                name: "seed".to_string(),
-                kind: ParamType::Uint(256),
-                indexed: false,
-            }, EventParam {
-                name: "firstBlockNumber".to_string(),
-                kind: ParamType::Uint(256),
-                indexed: false,
-            }, EventParam {
-                name: "inclusionBlockNumber".to_string(),
-                kind: ParamType::Uint(256),
-                indexed: false,
-            }, EventParam {
-                name: "workers".to_string(),
-                kind: ParamType::Array(Box::new(ParamType::Address)),
-                indexed: false,
-            }, EventParam {
-                name: "stakes".to_string(),
-                kind: ParamType::Array(Box::new(ParamType::Uint(256))),
-                indexed: false,
-            }, EventParam {
-                name: "nonce".to_string(),
-                kind: ParamType::Uint(256),
-                indexed: false,
-            }],
+            inputs: vec![
+                EventParam { name: "seed".to_string(), kind: ParamType::Uint(256), indexed: false },
+                EventParam { name: "firstBlockNumber".to_string(), kind: ParamType::Uint(256), indexed: false },
+                EventParam { name: "inclusionBlockNumber".to_string(), kind: ParamType::Uint(256), indexed: false },
+                EventParam { name: "workers".to_string(), kind: ParamType::Array(Box::new(ParamType::Address)), indexed: false },
+                EventParam { name: "stakes".to_string(), kind: ParamType::Array(Box::new(ParamType::Uint(256))), indexed: false },
+                EventParam { name: "nonce".to_string(), kind: ParamType::Uint(256), indexed: false },
+            ],
             anonymous: false,
         })
     }
