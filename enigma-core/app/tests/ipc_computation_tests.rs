@@ -7,13 +7,14 @@ extern crate enigma_types;
 
 use integration_utils::{conn_and_call_ipc, is_hex, run_core, get_msg_format_update_contract,
                         get_encryption_msg, full_simple_deployment, full_addition_compute, decrypt_output_to_uint,
-                        send_update_contract, run_ptt_round, contract_compute, get_update_deltas_msg, decrypt_addr_delta, encrypt_addr_delta};
+                        send_update_contract, run_ptt_round, contract_compute, get_update_deltas_msg,
+                        decrypt_addr_delta, encrypt_addr_delta, replace_previous_hash_in_delta_data};
 use cross_test_utils::generate_contract_address;
 use self::app::serde_json;
 use app::serde_json::*;
 use hex::{ToHex, FromHex};
 use integration_utils::ethabi::{Token};
-use integration_utils::enigma_crypto::asymmetric::KeyPair;
+use integration_utils::enigma_crypto::{asymmetric::KeyPair, hash::Keccak256};
 
 #[test]
 fn test_new_task_encryption_key(){
@@ -118,8 +119,8 @@ fn test_execute_on_existing_contract_with_constructor() {
 
     let (deployed_res, _old_addr) = full_simple_deployment(port);
     let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
-    let deployed_delta = deployed_res["result"]["delta"].as_object().unwrap();
-    let deployed_data = deployed_delta["data"].as_str().unwrap();
+    let delta0 = deployed_res["result"]["delta"].as_object().unwrap();
+    let delta0_data = delta0["data"].as_str().unwrap();
 
     // done this execution in order to check if the new worker would be able to use data stored in the state
     let a = Token::Uint(1051.into());
@@ -134,13 +135,15 @@ fn test_execute_on_existing_contract_with_constructor() {
     let _msg = get_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
     let _res_a = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
 
-    let decrypt_dep_data_from_old = decrypt_addr_delta(_old_addr, &deployed_data.from_hex().unwrap());
-    let encrypted_dep_data_new = encrypt_addr_delta(new_addr.into(), &decrypt_dep_data_from_old);
-    let decrypt_exe_data_from_old = decrypt_addr_delta(_old_addr, &computed_data.from_hex().unwrap());
-    let encrypted_exe_data_new = encrypt_addr_delta(new_addr.into(), &decrypt_exe_data_from_old);
+    let decrypted_delta0_data = decrypt_addr_delta(_old_addr, &delta0_data.from_hex().unwrap());
+    let encrypted_delta0_data_new = encrypt_addr_delta(new_addr.into(), &decrypted_delta0_data);
+    let decrypted_delta1_data = decrypt_addr_delta(_old_addr, &computed_data.from_hex().unwrap());
+    let decrypted_delta1_data = replace_previous_hash_in_delta_data(&decrypted_delta1_data, encrypted_delta0_data_new.keccak256());
+
+    let encrypted_delta1_data_new = encrypt_addr_delta(new_addr.into(), &decrypted_delta1_data);
     let deltas = vec![
-        (new_addr.to_hex(), deployed_delta["key"].as_u64().unwrap(), encrypted_dep_data_new),
-        (new_addr.to_hex(),add_delta["key"].as_u64().unwrap(), encrypted_exe_data_new)
+        (new_addr.to_hex(), delta0["key"].as_u64().unwrap(), encrypted_delta0_data_new.to_hex()),
+        (new_addr.to_hex(),add_delta["key"].as_u64().unwrap(), encrypted_delta1_data_new.to_hex())
     ];
     let msg = get_update_deltas_msg(&deltas);
     let _update_deltas_res: Value = conn_and_call_ipc(&msg.to_string(), port);
