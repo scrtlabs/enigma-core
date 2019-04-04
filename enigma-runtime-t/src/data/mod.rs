@@ -22,7 +22,7 @@ pub mod tests {
     use crate::data::*;
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
-    use enigma_types::{ContractAddress, Hash256};
+    use enigma_types::ContractAddress;
     use json_patch;
     use serde_json::{self, Map, Value};
     use std::string::String;
@@ -145,21 +145,24 @@ pub mod tests {
     pub fn test_apply_delta() {
         let p = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
         let contract_address = b"Enigma".sha256();
-        let patch = StatePatch { patch: serde_json::from_str(p).unwrap(), previous_hash: [0u8; 32].into(), contract_address, index: 0 };
+        let key = [1u8; 32];
+        let patch = StatePatch { patch: serde_json::from_str(p).unwrap(), previous_hash: [4u8; 32].into(), contract_address, index: 1 };
+        let enc_patch = patch.encrypt(&key).unwrap();
+        let delta_hash = enc_patch.keccak256_patch();
         let mut contract = ContractState {
             contract_address,
             json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] }),
-            .. Default::default()
+            delta_hash: [4u8; 32].into(),
+            delta_index: 0,
         };
-        contract.apply_delta(&patch).unwrap();
-        let delta_hash: Hash256 = [157, 249, 235, 217, 57, 137, 72, 110, 132, 82, 163, 120, 85, 102, 111, 76, 1, 85, 24, 73, 63, 250, 219, 179, 132, 135, 42, 14, 207, 48, 173, 74].into();
+        contract.apply_delta(enc_patch, &key).unwrap();
         assert_eq!(
             contract,
             ContractState {
                 contract_address,
                 json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] }),
                 delta_hash,
-                delta_index: 0,
+                delta_index: 1,
             }
         );
     }
@@ -167,19 +170,23 @@ pub mod tests {
     pub fn test_generate_delta() {
         let p = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
         let contract_address = b"Enigma".sha256();
-        let result = StatePatch { patch: serde_json::from_str(p).unwrap(), previous_hash: [0u8; 32].into(), contract_address, index: 1 };
+        let key = [1u8; 32];
+        let result = StatePatch { patch: serde_json::from_str(p).unwrap(), previous_hash: [4u8; 32].into(), contract_address, index: 1 };
         let before = ContractState {
             contract_address,
             json: json!({ "title": "Goodbye!","author" : { "name1" : "John", "name2" : "Doe"}, "tags":[ "first", "second" ] }),
-            .. Default::default()
+            delta_hash: [4u8; 32].into(),
+            delta_index: 0,
         };
         let mut after = ContractState {
             contract_address,
             json: json!({ "author" : {"name1" : "John", "name2" : "Lennon"},"tags": [ "first", "second", "third"] }),
-            .. Default::default()
+            delta_hash: [4u8; 32].into(),
+            delta_index: 0,
         };
 
-        let delta = ContractState::generate_delta_and_update_state(&before, &mut after).unwrap();
+        let delta = ContractState::generate_delta_and_update_state(&before, &mut after, &key).unwrap();
+        let delta = StatePatch::decrypt(delta, &key).unwrap();
         assert_eq!(delta, result);
     }
 }
