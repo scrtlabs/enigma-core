@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{from_value, Error, Value};
 use std::string::ToString;
 use std::vec::Vec;
+use data::EncryptedPatch;
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
 pub struct ContractState {
@@ -54,28 +55,34 @@ impl IOInterface<EnclaveError, u8> for ContractState {
     }
 }
 
-impl DeltasInterface<EnclaveError, StatePatch> for ContractState {
-    fn apply_delta(&mut self, delta: &StatePatch) -> Result<(), EnclaveError> {
-        if delta.previous_hash != self.delta_hash {
-            return Err(SystemError(StateError { err: "Applying the delta".to_string() }));
+impl<'a> DeltasInterface<EnclaveError, EncryptedPatch, &'a StateKey> for ContractState {
+    fn apply_delta(&mut self, delta: EncryptedPatch, key: &'a StateKey) -> Result<(), EnclaveError> {
+        let delta_hash = delta.keccak256_patch();
+        let dec_delta = StatePatch::decrypt(delta.clone(), key)?;
+        if dec_delta.previous_hash != self.delta_hash {
+            return Err(SystemError(StateError { err: "Hashes don't match, Failed Applying the delta".to_string() }));
         }
-        json_patch::patch(&mut self.json, &delta.patch)?;
-        self.delta_hash = delta.sha256_patch()?;
-        self.delta_index = delta.index;
+        json_patch::patch(&mut self.json, &dec_delta.patch)?;
+        self.delta_hash = delta_hash;
+        self.delta_index = dec_delta.index;
         Ok(())
     }
 
-    fn generate_delta_and_update_state(old: &Self, new: &mut Self) -> Result<StatePatch, EnclaveError> {
-        new.delta_index = &old.delta_index+1;
-        let result = StatePatch{
+    fn generate_delta_and_update_state(old: &Self, new: &mut Self, key: &'a StateKey) -> Result<EncryptedPatch, EnclaveError> {
+        if old.delta_hash.is_zero() {
+            new.delta_index = 0;
+        } else {
+            new.delta_index = &old.delta_index+1;
+        }
+        let delta = StatePatch{
             patch: json_patch::diff(&old.json, &new.json),
             previous_hash: old.delta_hash,
             contract_address: old.contract_address,
-            index: old.delta_index + 1,
+            index: new.delta_index,
         };
-
-        new.delta_hash = result.sha256_patch()?;
-        Ok(result)
+        let enc_delta = delta.encrypt(key)?;
+        new.delta_hash = enc_delta.keccak256_patch();
+        Ok(enc_delta)
     }
 }
 
