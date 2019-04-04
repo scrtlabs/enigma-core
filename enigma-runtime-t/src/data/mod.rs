@@ -9,6 +9,7 @@ use serde_json::{Error, Value};
 pub trait IOInterface<E, U> {
     fn read_key<T>(&self, key: &str) -> Result<T, Error> where for<'de> T: Deserialize<'de>;
     fn write_key(&mut self, key: &str, value: &Value) -> Result<(), E>;
+    fn remove_key(&mut self, key: &str);
 }
 
 pub trait DeltasInterface<E, T> {

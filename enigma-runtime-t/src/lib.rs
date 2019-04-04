@@ -150,7 +150,7 @@ impl Runtime {
     /// * `key_len` - the length of key
     ///
     /// Read `key` from the memory, then read from the state the value under the `key`
-    /// and copy it to the memory at address 0.
+    /// and copy it to `value_holder`.
     pub fn read_state (&mut self, args: RuntimeArgs) -> Result<()> {
         // TODO: Handle the error here, should we return len=0?;
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
@@ -159,6 +159,18 @@ impl Runtime {
         let value_vec =
             serde_json::to_vec(&self.post_execution_state.json[key]).expect("Failed converting Value to vec in Runtime while reading state");
         self.memory.set(value_holder, &value_vec)?;
+        Ok(())
+    }
+
+    /// args:
+    /// * `key` - the start address of key in memory
+    /// * `key_len` - the length of key
+    ///
+    /// Read `key` from the memory, then remove the `key` from the state
+    pub fn remove_from_state (&mut self, args: RuntimeArgs) -> Result<()> {
+        let key = self.read_state_key_from_memory(&args, 0, 1)?;
+
+        self.post_execution_state.remove_key(&key);
         Ok(())
     }
 
@@ -298,6 +310,10 @@ mod ext_impl {
                 }
                 eng_resolver::ids::READ_STATE_FUNC => {
                     Runtime::read_state(self, args)?;
+                    Ok(None)
+                }
+                eng_resolver::ids::REMOVE_STATE_FUNC => {
+                    Runtime::remove_from_state(self, args)?;
                     Ok(None)
                 }
                 eng_resolver::ids::EPRINT_FUNC => {

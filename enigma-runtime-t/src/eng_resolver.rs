@@ -19,6 +19,7 @@ pub mod ids {
     pub const TYPES_LENGTH_FUNC: usize = 10;
     pub const TYPES_FUNC: usize = 11;
     pub const WRITE_ETH_BRIDGE_FUNC: usize = 12;
+    pub const REMOVE_STATE_FUNC: usize = 13;
     pub const GAS_FUNC: usize = 14;
     pub const RAND_FUNC: usize = 15;
 }
@@ -36,6 +37,8 @@ pub mod signatures {
     pub const READ_STATE_LEN: StaticSignature = StaticSignature(&[I32, I32], Some(I32));
 
     pub const READ_STATE: StaticSignature = StaticSignature(&[I32, I32, I32], None);
+
+    pub const REMOVE_STATE: StaticSignature = StaticSignature(&[I32, I32], None);
 
     pub const EPRINT: StaticSignature = StaticSignature(&[I32, I32], None);
 
@@ -105,6 +108,7 @@ impl ModuleImportResolver for ImportResolver {
             "write_state" => FuncInstance::alloc_host(signatures::WRITE_STATE.into(), ids::WRITE_STATE_FUNC),
             "read_state_len" => FuncInstance::alloc_host(signatures::READ_STATE_LEN.into(), ids::READ_STATE_LEN_FUNC),
             "read_state" => FuncInstance::alloc_host(signatures::READ_STATE.into(), ids::READ_STATE_FUNC),
+            "remove_from_state" => FuncInstance::alloc_host(signatures::REMOVE_STATE.into(), ids::REMOVE_STATE_FUNC),
             "eprint" => FuncInstance::alloc_host(signatures::EPRINT.into(), ids::EPRINT_FUNC),
             "fetch_function_name_length" => FuncInstance::alloc_host(signatures::NAME_LENGTH.into(), ids::NAME_LENGTH_FUNC),
             "fetch_function_name" => FuncInstance::alloc_host(signatures::NAME.into(), ids::NAME_FUNC),
