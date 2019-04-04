@@ -44,7 +44,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: retval, status }.into());
+        bail!("{:?} encountered in the enclave", retval);
     }
     let box_ptr = response_ptr as *mut Box<[u8]>;
     let response = unsafe { Box::from_raw(box_ptr) };

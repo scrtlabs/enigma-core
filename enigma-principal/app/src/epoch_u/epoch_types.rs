@@ -5,10 +5,43 @@ use failure::Error;
 pub use rlp::{decode, encode, Encodable, RlpStream};
 use std::collections::HashMap;
 use web3::types::{Address, Bytes, H160, U256};
+use enigma_types::Hash256;
+use serde::{Serializer, Deserializer, Serialize, Deserialize};
+use serde::ser::SerializeMap;
+use rustc_hex::ToHex;
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+mod selected_workers {
+    use super::*;
+
+    pub fn serialize<S>(workers: &HashMap<Hash256, H160>, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+    {
+        let mut workers_map = serializer.serialize_map(Some(workers.len()))?;
+        for (k, v) in workers {
+            workers_map.serialize_entry(&k.to_hex(), &v)?;
+        }
+        workers_map.end()
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<HashMap<Hash256, H160>, D::Error>
+        where
+            D: Deserializer<'de>,
+    {
+        use serde::de::Error;
+        let m = HashMap::<String, H160>::deserialize(deserializer)?;
+        let mut workers_map = HashMap::<Hash256, H160>::new();
+        for (k, v) in &m {
+            workers_map.insert(Hash256::from_hex(&k).map_err(Error::custom)?, *v);
+        }
+        Ok(workers_map)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfirmedEpochState {
-    pub selected_workers: HashMap<ContractAddress, H160>,
+    #[serde(with = "selected_workers")]
+    pub selected_workers: HashMap<Hash256, H160>,
     pub block_number: U256,
 }
 

@@ -177,7 +177,4 @@ mod test {
         let sig = key_pair.sign(&msg).unwrap();
         Ok(sig)
     }
-
-    #[test]
-    pub fn test_get_state_keys() {}
 }

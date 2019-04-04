@@ -7,7 +7,7 @@ use crate::ethabi::{encode, Address, Bytes, Token};
 use crate::ethereum_types::{H160, U256};
 use enigma_crypto::hash::Keccak256;
 use enigma_types::ContractAddress;
-pub use rlp::{decode, Encodable, Decodable, DecoderError, UntrustedRlp, RlpStream};
+pub use rlp::{decode, encode as rlpEncode, Encodable, Decodable, DecoderError, UntrustedRlp, RlpStream};
 
 pub trait FromBigint<T>: Sized {
     fn from_bigint(_: T) -> Self;
@@ -16,6 +16,7 @@ pub trait FromBigint<T>: Sized {
 impl FromBigint<bigint::H160> for H160 {
     fn from_bigint(b: bigint::H160) -> Self { H160(b.0) }
 }
+
 impl FromBigint<bigint::U256> for U256 {
     fn from_bigint(b: bigint::U256) -> Self { U256(b.0) }
 }
@@ -54,24 +55,30 @@ impl InputWorkerParams {
     /// * `sc_addr` - The Secret Contract address
     /// * `seed` - The random seed for the selected epoch
     ///
+    #[logfn(DEBUG)]
     pub fn get_selected_worker(&self, sc_addr: ContractAddress, seed: U256) -> Option<Address> {
+        debug!("Finding selected worker for sc_addr: {:?} and seed: {:?}", sc_addr, seed);
         let workers = self.get_selected_workers(sc_addr, seed, None);
         if workers.is_empty() {
             None
         } else {
-            Some(workers[0])
+            Some(workers[0].clone())
         }
     }
 
     #[logfn(DEBUG)]
     fn get_selected_workers(&self, sc_addr: ContractAddress, seed: U256, group_size: Option<u64>) -> Vec<Address> {
+        let mut selected_workers = Vec::new();
+        if self.workers.is_empty() || self.workers.len() != self.stakes.len() {
+            debug!("Invalid worker selection parameters {:?}", self);
+            return selected_workers;
+        }
         let mut balance_sum = U256::zero();
         for &balance in &self.stakes {
             balance_sum += balance;
         }
         // Using the same type as the Enigma contract
         let mut nonce = U256::zero();
-        let mut selected_workers = Vec::new();
         let group_size = group_size.unwrap_or(1);
 
         while selected_workers.len() < group_size as usize {

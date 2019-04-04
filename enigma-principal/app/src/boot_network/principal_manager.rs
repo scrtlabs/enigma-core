@@ -115,7 +115,7 @@ impl PrincipalManager {
 pub trait Sampler {
     /// load with config from file
     fn new(config: PrincipalConfig, contract: Arc<EnigmaContract>, report_manager: ReportManager) -> Result<Self, Error>
-    where Self: Sized;
+        where Self: Sized;
 
     fn get_signing_address(&self) -> Result<String, Error>;
 

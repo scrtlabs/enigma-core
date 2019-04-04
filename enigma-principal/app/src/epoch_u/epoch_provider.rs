@@ -28,10 +28,11 @@ pub struct EpochProvider {
 impl EpochProvider {
     pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
         let epoch_state_val = Self::read_epoch_state()?;
-        // TODO: If the state is not empty, get the active workers and prove them to the enclave
         println!("Initializing EpochProvider with EpochState: {:?}", epoch_state_val);
         let epoch_state = Arc::new(Mutex::new(epoch_state_val));
-        Ok(Self { contract, epoch_state, eid })
+        let epoch_provider = Self { contract, epoch_state, eid };
+        epoch_provider.verify_worker_params()?;
+        Ok(epoch_provider)
     }
 
     fn get_state_file_path() -> PathBuf {
@@ -47,7 +48,7 @@ impl EpochProvider {
     }
 
     #[logfn(DEBUG)]
-    fn read_epoch_state() -> Result<Option<EpochState>, Error> {
+    pub fn read_epoch_state() -> Result<Option<EpochState>, Error> {
         let epoch_state = match File::open(Self::get_state_file_path()) {
             Ok(mut f) => {
                 let mut data = String::new();
@@ -69,10 +70,12 @@ impl EpochProvider {
         Ok(epoch_state)
     }
 
-    fn write_epoch_state(epoch_state: Option<EpochState>) -> Result<(), Error> {
+    #[logfn(DEBUG)]
+    pub fn write_epoch_state(epoch_state: Option<EpochState>) -> Result<(), Error> {
         let path = Self::get_state_file_path();
         if epoch_state.is_some() {
-            let mut file = File::create(path)?;
+            let mut file = File::create(path.clone())?;
+            println!("Writing epoch state {:?} to file: {:?}", epoch_state, path);
             let contents = serde_json::to_string(&epoch_state.unwrap())?;
             file.write_all(contents.as_bytes())?;
         } else {
@@ -146,6 +149,25 @@ impl EpochProvider {
         Ok(confirmed_state)
     }
 
+    fn verify_worker_params(&self) -> Result<(), Error> {
+        let epoch_state = self.get_state()?;
+        println!("Verifying existing epoch state in the enclave: {:?}", epoch_state);
+        let confirmed = match self.get_confirmed() {
+            Ok(confirmed) => confirmed,
+            Err(_) => {
+                println!("Cannot use an unconfirmed epoch state");
+                self.reset_epoch_state()?;
+                return Ok(());
+            }
+        };
+        let block_number = confirmed.block_number;
+        let result = self.contract.get_active_workers(block_number)?;
+        let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
+        set_worker_params(*self.eid, &worker_params, Some(epoch_state.nonce))?;
+        Ok(())
+    }
+
+
     /// Seal the epoch data in the enclave, get a random seed and submit to the Enigma contract
     /// The enclave signs on:
     ///  - The worker parameters active at the specified block number
@@ -166,9 +188,9 @@ impl EpochProvider {
     /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
     pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
         let result = self.contract.get_active_workers(block_number)?;
-        let worker_params: InputWorkerParams = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
+        let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
         println!("The active workers: {:?}", worker_params);
-        let mut epoch_state = set_worker_params(*self.eid, &worker_params)?;
+        let mut epoch_state = set_worker_params(*self.eid, &worker_params, None)?;
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
         // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
         let receipt =
@@ -208,12 +230,31 @@ impl EpochProvider {
 
 #[cfg(test)]
 mod test {
-    use std::env;
+    use super::*;
+    use std::collections::HashMap;
+    use enigma_types::ContractAddress;
+    use web3::types::{Bytes, H160};
+    use enigma_crypto::KeyPair;
+    use rustc_hex::FromHex;
 
-    /// This function is important to enable testing both on the CI server and local.
-    /// On the CI Side:
-    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-    /// The default is set to ganache cli "http://localhost:8545"
-    pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:9545")) }
+    pub const WORKER_SIGN_ADDRESS: [u8; 20] =
+        [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
+
+    #[test]
+    fn test_write_epoch_state() {
+        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        let mock_address: [u8; 32] = [1; 32];
+        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
+        let block_number = U256::from(1);
+        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+        let seed = U256::from(1);
+        let mock_sig: [u8; 65] = [1; 65];
+        let sig = Bytes::from(mock_sig.to_vec());
+        let nonce = U256::from(0);
+        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        EpochProvider::write_epoch_state(Some(epoch_state.clone())).unwrap();
+
+        let saved_epoch_state = EpochProvider::read_epoch_state().unwrap();
+        assert_eq!(format!("{:?}", saved_epoch_state.unwrap()), format!("{:?}", epoch_state));
+    }
 }

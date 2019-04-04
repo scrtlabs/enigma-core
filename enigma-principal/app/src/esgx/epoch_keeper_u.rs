@@ -1,10 +1,11 @@
-use common_u::errors::EnclaveFailError;
 use enigma_tools_m::keeper_types::InputWorkerParams;
-use enigma_types::{traits::SliceCPtr, EnclaveReturn};
-use epoch_u::epoch_types::{encode, EpochState};
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use web3::types::{Bytes, U256};
+use web3::types::{Bytes, U256, H256};
+
+use common_u::errors::EnclaveFailError;
+use enigma_types::{EnclaveReturn, traits::SliceCPtr};
+use epoch_u::epoch_types::{encode, EpochState};
 
 extern "C" {
     fn ecall_set_worker_params(
@@ -21,9 +22,12 @@ extern "C" {
 /// let worker_params: InputWorkerParams = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
 /// let sig = set_worker_params(enclave.geteid(), worker_params).unwrap();
 /// ```
-pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams) -> Result<EpochState, Error> {
+pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, nonce: Option<U256>) -> Result<EpochState, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
-    let mut nonce_out: [u8; 32] = [0; 32];
+    let mut nonce_out: [u8; 32] = match nonce {
+        Some(nonce) => H256::from(nonce).0,
+        None => [0; 32],
+    };
     let mut rand_out: [u8; 32] = [0; 32];
     let mut sig_out: [u8; 65] = [0; 65];
     // Serialize the InputWorkerParams into RLP
@@ -50,11 +54,12 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParam
 
 #[cfg(test)]
 pub mod tests {
-
-    use super::*;
-    use esgx::general::init_enclave_wrapper;
     use ethabi::Uint;
     use web3::types::Address;
+
+    use esgx::general::init_enclave_wrapper;
+
+    use super::*;
 
     pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t) -> (EpochState) {
         let worker_params = InputWorkerParams {
@@ -62,7 +67,7 @@ pub mod tests {
             workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],
             stakes: vec![U256::from(1)],
         };
-        set_worker_params(eid, &worker_params).unwrap()
+        set_worker_params(eid, &worker_params, None).unwrap()
     }
 
     #[test]

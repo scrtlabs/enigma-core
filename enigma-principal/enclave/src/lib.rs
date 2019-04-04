@@ -5,6 +5,7 @@
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 #![feature(tool_lints)]
 #![feature(try_from)]
+#![feature(slice_concat_ext)]
 #![deny(unused_extern_crates)]
 
 extern crate enigma_crypto;
@@ -80,7 +81,7 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
     let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, sig_out) {
         Ok(response) => response,
         Err(err) => {
-            println!("{:?}", err);
+            println!("get_enc_state_keys error: {:?}", err);
             return err.into();
         }
     };

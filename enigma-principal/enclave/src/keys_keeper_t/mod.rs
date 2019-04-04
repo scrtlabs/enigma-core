@@ -19,6 +19,7 @@ use enigma_types::{ContractAddress, Hash256, StateKey};
 use ocalls_t;
 use sgx_trts::trts::rsgx_read_rand;
 use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec};
+use epoch_keeper_t::ecall_get_epoch_worker_internal;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
@@ -115,7 +116,7 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
         }
     }
     new_state_keys(&mut guard, &new_addrs)?; // If the vector is empty this won't do anything.
-                                             // Now we have keys for all addresses in cache
+    // Now we have keys for all addresses in cache
     for addr in sc_addrs {
         match guard.get(&addr) {
             Some(&key) => response_data.push((addr, key)),
@@ -143,8 +144,13 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
         }
     };
     let recovered = KeyPair::recover(&msg_bytes, sig)?;
-    println!("Recovered signer address from the message signature: {:?}", recovered.address());
-    // TODO: Verify that the worker is selected for all addresses or throw
+    let recovered_addr = recovered.address();
+    for sc_addr in sc_addrs.clone() {
+        let worker_addr = ecall_get_epoch_worker_internal(sc_addr, None)?;
+        if worker_addr != recovered_addr {
+            return Err(SystemError(KeyProvisionError { err: format!("Selected worker for contract: {:?} is not the message signer {} != {}", sc_addr, worker_addr.to_hex(), recovered_addr.to_hex()) }));
+        }
+    }
     let response_data = build_get_state_keys_response(sc_addrs)?;
 
     // Generate the encryption key material

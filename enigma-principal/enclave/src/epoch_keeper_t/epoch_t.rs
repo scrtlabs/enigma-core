@@ -9,6 +9,7 @@ use ethereum_types::{H160, U256};
 use std::string::ToString;
 
 pub type EpochNonce = [u8; 32];
+pub type EpochMarker = [u8; 64];
 
 #[derive(Debug, Clone)]
 pub struct Epoch {
