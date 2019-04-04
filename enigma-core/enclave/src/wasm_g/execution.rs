@@ -1,10 +1,10 @@
 use crate::km_t;
-use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
-use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeResult};
+use enigma_runtime_t::{ocalls_t as runtime_ocalls_t, RuntimeResult};
+use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*};
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_crypto::{CryptoError, Encryption};
-use enigma_types::{ContractAddress, RawPointer};
+use enigma_types::{ContractAddress, RawPointer, StateKey};
 use parity_wasm::elements::{self, Deserialize};
 use parity_wasm::io::Cursor;
 use std::boxed::Box;
@@ -93,7 +93,7 @@ fn create_module(code: &[u8]) -> Result<Box<Module>, EnclaveError> {
 }
 
 fn execute(module: &Module, gas_limit: u64, state: ContractState,
-           function_name: String, types: String, params: Vec<u8>) -> Result<RuntimeResult, EnclaveError> {
+           function_name: String, types: String, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError> {
     let instantiation_resolver = eng_resolver::ImportResolver::with_limit(128);
 
     let imports = ImportsBuilder::new().with_resolver("env", &instantiation_resolver);
@@ -102,7 +102,7 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
     // TODO: Change the assert here: https://github.com/paritytech/wasmi/issues/172
     let instance = ModuleInstance::new(module, &imports)?.assert_no_start();
 
-    let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types);
+    let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types, key);
 
     let invocation_result = instance.invoke_export("call", &[], &mut runtime);
     if let Err(err) = invocation_result {
@@ -114,20 +114,18 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
             return Err(err)
         }
     }
-
-    let result = runtime.into_result()?;
-    Ok(result)
+    runtime.into_result()
 }
 
 pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
-                    function_name: String, types: String, params: Vec<u8>) -> Result<RuntimeResult, EnclaveError>{
+                    function_name: String, types: String, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
     let module = create_module(code)?;
-    execute(&module, gas_limit, state, function_name, types, params)
+    execute(&module, gas_limit, state, function_name, types, params, key)
 }
 
-pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, params: Vec<u8>) -> Result<RuntimeResult, EnclaveError>{
+pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
     let module = create_module(code)?;
-    execute(&module, gas_limit, state, "".to_string(), "".to_string(), params)
+    execute(&module, gas_limit, state, "".to_string(), "".to_string(), params, key)
 }
 
 pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<ContractState, EnclaveError> {

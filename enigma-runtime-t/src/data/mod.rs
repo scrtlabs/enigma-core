@@ -12,9 +12,9 @@ pub trait IOInterface<E, U> {
     fn remove_key(&mut self, key: &str);
 }
 
-pub trait DeltasInterface<E, T> {
-    fn apply_delta(&mut self, delta: &T) -> Result<(), E>;
-    fn generate_delta_and_update_state(old: &Self, new: &mut Self) -> Result<T, E> where Self: Sized;
+pub trait DeltasInterface<E, T, K> {
+    fn apply_delta(&mut self, delta: T, key: K) -> Result<(), E>;
+    fn generate_delta_and_update_state(old: &Self, new: &mut Self, key: K) -> Result<T, E> where Self: Sized;
 }
 
 #[cfg(debug_assertions)]

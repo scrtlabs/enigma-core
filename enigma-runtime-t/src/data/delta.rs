@@ -1,5 +1,5 @@
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_crypto::hash::Sha256;
+use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{symmetric, Encryption};
 use enigma_types::{Hash256, ContractAddress, StateKey};
 use json_patch;
@@ -24,11 +24,9 @@ pub struct EncryptedPatch {
     pub index: u32,
 }
 
-impl StatePatch {
-    pub fn sha256_patch(&self) -> Result<Hash256, EnclaveError> {
-        let mut buf = Vec::new();
-        self.patch.serialize(&mut Serializer::new(&mut buf))?;
-        Ok(buf.sha256())
+impl EncryptedPatch {
+    pub fn keccak256_patch(&self) -> Hash256 {
+        self.data.keccak256()
     }
 }
 
