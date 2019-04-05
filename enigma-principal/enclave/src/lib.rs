@@ -60,12 +60,13 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 #[no_mangle]
 pub unsafe extern "C" fn ecall_set_worker_params(worker_params_rlp: *const u8, worker_params_rlp_len: usize,
+                                                 seed_in: &[u8; 32], nonce_in: &[u8; 32],
                                                  rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32],
                                                  sig_out: &mut [u8; 65]) -> EnclaveReturn {
     // Assembling byte arrays with the RLP data
     let worker_params_rlp = slice::from_raw_parts(worker_params_rlp, worker_params_rlp_len);
 
-    match ecall_set_worker_params_internal(worker_params_rlp, rand_out, nonce_out, sig_out) {
+    match ecall_set_worker_params_internal(worker_params_rlp, seed_in, nonce_in, rand_out, nonce_out, sig_out) {
         Ok(_) => println!("Worker parameters set successfully"),
         Err(err) => return err.into(),
     };

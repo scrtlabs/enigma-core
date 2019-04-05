@@ -29,9 +29,11 @@ impl EpochProvider {
     pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
         let epoch_state_val = Self::read_epoch_state()?;
         println!("Initializing EpochProvider with EpochState: {:?}", epoch_state_val);
-        let epoch_state = Arc::new(Mutex::new(epoch_state_val));
+        let epoch_state = Arc::new(Mutex::new(epoch_state_val.clone()));
         let epoch_provider = Self { contract, epoch_state, eid };
-        epoch_provider.verify_worker_params()?;
+        if epoch_state_val.is_some() {
+            epoch_provider.verify_worker_params()?;
+        }
         Ok(epoch_provider)
     }
 
@@ -161,9 +163,9 @@ impl EpochProvider {
             }
         };
         let block_number = confirmed.block_number;
-        let result = self.contract.get_active_workers(block_number)?;
-        let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
-        set_worker_params(*self.eid, &worker_params, Some(epoch_state.nonce))?;
+        let (workers, stakes) = self.contract.get_active_workers(block_number)?;
+        let worker_params = InputWorkerParams { block_number, workers, stakes };
+        set_worker_params(*self.eid, &worker_params, Some(epoch_state))?;
         Ok(())
     }
 
