@@ -208,12 +208,31 @@ impl EpochProvider {
 
 #[cfg(test)]
 mod test {
-    use std::env;
+    use super::*;
+    use std::collections::HashMap;
+    use enigma_types::ContractAddress;
+    use web3::types::{Bytes, H160};
+    use enigma_crypto::KeyPair;
+    use rustc_hex::FromHex;
 
-    /// This function is important to enable testing both on the CI server and local.
-    /// On the CI Side:
-    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-    /// The default is set to ganache cli "http://localhost:8545"
-    pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:9545")) }
+    pub const WORKER_SIGN_ADDRESS: [u8; 20] =
+        [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
+
+    #[test]
+    fn test_write_epoch_state() {
+        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        let mock_address: [u8; 32] = [1; 32];
+        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
+        let block_number = U256::from(1);
+        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+        let seed = U256::from(1);
+        let mock_sig: [u8; 65] = [1; 65];
+        let sig = Bytes::from(mock_sig.to_vec());
+        let nonce = U256::from(0);
+        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        EpochProvider::write_epoch_state(Some(epoch_state.clone())).unwrap();
+
+        let saved_epoch_state = EpochProvider::read_epoch_state().unwrap();
+        assert_eq!(format!("{:?}", saved_epoch_state.unwrap()), format!("{:?}", epoch_state));
+    }
 }
