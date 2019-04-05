@@ -20,6 +20,10 @@ impl Hash256 {
         result.copy_from_slice(&hex_vec);
         Ok(result)
     }
+
+    pub fn is_zero(&self) -> bool {
+        self.0 == [0u8;32]
+    }
 }
 
 

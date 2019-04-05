@@ -36,3 +36,4 @@ cross-test-utils = { path = "cross-test-utils" }
 regex = "1"
 rand = "0.6.5"
 tempfile = "3.0"
+itertools = "0.8"

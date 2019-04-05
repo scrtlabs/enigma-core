@@ -9,9 +9,6 @@ pipeline:
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-core && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
-#    volumes:
-#      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
-#      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
   principal:
     group: tests
@@ -24,9 +21,6 @@ pipeline:
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-principal && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
-#    volumes:
-#      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
-#      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
   tools_u:
     group: tests
@@ -36,9 +30,6 @@ pipeline:
       - export NODE_URL="http://ganache:8545"
       - cd enigma-tools-u
       - RUSTFLAGS=-Awarnings cargo test
-#    volumes:
-#      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
-#      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
 
   enigma_crypto:
     group: tests
@@ -47,9 +38,16 @@ pipeline:
       - . /root/.cargo/env
       - cd enigma-crypto
       - RUSTFLAGS=-Awarnings cargo test
-#    volumes:
-#      - /home/eng-user/.drone-cargo-cache/git:/root/.cargo/git
-#      - /home/eng-user/.drone-cargo-cache/registry:/root/.cargo/registry
+      - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
+
+  tools_m:
+    group: tests
+    image: enigmampc/enigma-core:0.0.5
+    commands:
+      - . /root/.cargo/env
+      - cd enigma-tools-m
+      - RUSTFLAGS=-Awarnings cargo test
+      - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
 
 services:
   ganache:

@@ -6,12 +6,14 @@ description = "Tools used by the trusted part of the Enigma core and Principal n
 
 [dependencies]
 enigma-types = { path = "../enigma-types", default-features = false, features = ["sgx"] }
+enigma-tools-m = { path = "../enigma-tools-m", default-features = false, features = ["sgx"] }
 enigma-crypto = { path = "../enigma-crypto", default-features = false, features = ["sgx", "asymmetric"] }
 
 failure = { version = "0.1", default-features = false, features = ["derive"] }
 etcommon-rlp = {version = "0.2", default-features = false}
 etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
+
 parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
 pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", default-features = false }
 
@@ -27,5 +29,3 @@ sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_tse = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_tseal = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-
-

@@ -57,12 +57,12 @@ Enclave_EDL_Files := enclave/Enclave_t.c enclave/Enclave_t.h app/Enclave_u.c app
 
 App_Rust_Flags += $(if $(JOBS),-j$(JOBS), )
 App_SRC_Files := $(shell find app/ -type f -name '*.rs') $(shell find app/ -type f -name 'Cargo.toml')
-App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
+App_Include_Paths := -I ./app -I./include -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH) -I./enclave
 App_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(App_Include_Paths)
 
 App_Rust_Path := ./app/target/$(Rust_target_dir)
 App_Enclave_u_Object :=app/libEnclave_u.a
-App_Name := enigma_principal_app
+App_Name := enigma-principal-app
 
 ######## Enclave Settings ########
 
@@ -96,7 +96,7 @@ RustEnclave_Name := enclave/enclave.so
 Signed_RustEnclave_Name := bin/enclave.signed.so
 
 .PHONY: all
-all: $(App_Name) $(Signed_RustEnclave_Name)
+all: $(Signed_RustEnclave_Name)
 
 ######## EDL Objects ########
 
@@ -113,7 +113,6 @@ app/Enclave_u.o: $(Enclave_EDL_Files)
 
 $(App_Enclave_u_Object): app/Enclave_u.o
 	$(AR) rcsD $@ $^
-	mkdir -p ./lib
 	cp $(App_Enclave_u_Object) ./lib
 
 $(App_Name): $(App_Enclave_u_Object) $(App_SRC_Files)
@@ -128,7 +127,7 @@ enclave/Enclave_t.o: $(Enclave_EDL_Files)
 	@$(CC) $(RustEnclave_Compile_Flags) -c enclave/Enclave_t.c -o $@
 	@echo "CC   <=  $<"
 
-$(RustEnclave_Name): enclave compiler-rt enclave/Enclave_t.o
+$(RustEnclave_Name): enclave compiler-rt $(App_Name) enclave/Enclave_t.o
 	mkdir -p ./lib
 	cp $(SGX_SDK_RUST)/compiler-rt/libcompiler-rt-patch.a ./lib
 	@$(CXX) enclave/Enclave_t.o -o $@ $(RustEnclave_Link_Flags)
@@ -141,11 +140,16 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 
 .PHONY: enclave
 enclave:
+	mkdir -p ./lib
 	$(MAKE) -C ./enclave/ CARGO_FLAGS=$(App_Rust_Flags) Rust_target_dir=$(Rust_target_dir)
 
 .PHONY: compiler-rt
 compiler-rt:
 	$(MAKE) -C $(SGX_SDK_RUST)/compiler-rt/ 2> /dev/null
+
+.PHONY: test
+test: all
+	@cd app && cargo test $(App_Rust_Flags)
 
 .PHONY: clean
 clean:
@@ -153,6 +157,7 @@ clean:
 
 .PHONY: full-clean
 full-clean:
-	@rm -f $(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
+	@rm -f ./bin/$(App_Name) $(RustEnclave_Name) $(Signed_RustEnclave_Name) enclave/*_t.* app/*_u.* lib/*.a
+	@rm -rf enclave/enigma-types.h app/enigma-types.h
 	@cd enclave && cargo clean && rm -f Cargo.lock
 	@cd app && cargo clean && rm -f Cargo.lock

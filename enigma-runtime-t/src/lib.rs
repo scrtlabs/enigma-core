@@ -19,9 +19,9 @@ extern crate rmp_serde as rmps;
 extern crate serde;
 extern crate wasmi;
 
-use crate::data::{ContractState, DeltasInterface, IOInterface, StatePatch};
+use crate::data::{ContractState, DeltasInterface, IOInterface, EncryptedPatch};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError};
-use enigma_types::ContractAddress;
+use enigma_types::{ContractAddress, StateKey};
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
 use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
@@ -39,7 +39,7 @@ pub struct EthereumData{
 
 #[derive(Debug, Clone)]
 pub struct RuntimeResult {
-    pub state_delta: Option<StatePatch>,
+    pub state_delta: Option<EncryptedPatch>,
     pub updated_state: ContractState,
     pub result: Vec<u8>,
     pub ethereum_bridge: Option<EthereumData>,
@@ -57,31 +57,22 @@ pub struct Runtime {
     result: RuntimeResult,
     pre_execution_state: ContractState,
     post_execution_state: ContractState,
+    key: StateKey,
 }
 
 type Result<T> = ::std::result::Result<T, WasmError>;
 
 impl Runtime {
     pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_address: ContractAddress,
-               function_name: String, args_types: String) -> Runtime {
-
-        let init_state = ContractState::new(contract_address);
-        let current_state = ContractState::new(contract_address);
-        let result = RuntimeResult {
-            result: Vec::new(),
-            state_delta: None,
-            updated_state: Default::default(),
-            ethereum_bridge: Default::default(),
-            used_gas: 0,
-        };
-
-        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, pre_execution_state: init_state, post_execution_state: current_state }
+               function_name: String, args_types: String, key: StateKey) -> Runtime {
+        let state = ContractState::new(contract_address);
+        Self::new_with_state(gas_limit, memory, args, state, function_name, args_types, key)
     }
 
     pub fn new_with_state(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, state: ContractState,
-                          function_name: String, args_types: String ) -> Runtime {
-        let init_state = state.clone();
-        let current_state = state;
+                          function_name: String, args_types: String, key: StateKey) -> Runtime {
+        let pre_execution_state = state.clone();
+        let post_execution_state = state;
         let result = RuntimeResult {
             result: Vec::new(),
             state_delta: None,
@@ -89,8 +80,7 @@ impl Runtime {
             ethereum_bridge: Default::default(),
             used_gas: 0,
         };
-
-        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, pre_execution_state: init_state, post_execution_state: current_state }
+        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, pre_execution_state, post_execution_state, key }
     }
 
     pub fn get_used_gas(&self) -> u64 {
@@ -150,7 +140,7 @@ impl Runtime {
     /// * `key_len` - the length of key
     ///
     /// Read `key` from the memory, then read from the state the value under the `key`
-    /// and copy it to the memory at address 0.
+    /// and copy it to `value_holder`.
     pub fn read_state (&mut self, args: RuntimeArgs) -> Result<()> {
         // TODO: Handle the error here, should we return len=0?;
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
@@ -159,6 +149,18 @@ impl Runtime {
         let value_vec =
             serde_json::to_vec(&self.post_execution_state.json[key]).expect("Failed converting Value to vec in Runtime while reading state");
         self.memory.set(value_holder, &value_vec)?;
+        Ok(())
+    }
+
+    /// args:
+    /// * `key` - the start address of key in memory
+    /// * `key_len` - the length of key
+    ///
+    /// Read `key` from the memory, then remove the `key` from the state
+    pub fn remove_from_state (&mut self, args: RuntimeArgs) -> Result<()> {
+        let key = self.read_state_key_from_memory(&args, 0, 1)?;
+
+        self.post_execution_state.remove_key(&key);
         Ok(())
     }
 
@@ -235,14 +237,14 @@ impl Runtime {
         self.result.state_delta = {
             // The delta is always generated after a deployment.
             // The delta is generated after an execution only if there is a state change.
-            if (&self.pre_execution_state != &self.post_execution_state) || (self.pre_execution_state.is_initial()){
-                Some(ContractState::generate_delta_and_update_state(&self.pre_execution_state, &mut self.post_execution_state)?)
-            } else{
+            if (&self.pre_execution_state != &self.post_execution_state) || (self.pre_execution_state.is_initial()) {
+                Some(ContractState::generate_delta_and_update_state(&self.pre_execution_state, &mut self.post_execution_state, &self.key)?)
+            } else {
                 None
             }
         };
         self.result.updated_state = self.post_execution_state;
-        Ok(self.result.clone())
+        Ok(self.result)
     }
 
     pub fn eprint(&mut self, args: RuntimeArgs) -> Result<()> {
@@ -298,6 +300,10 @@ mod ext_impl {
                 }
                 eng_resolver::ids::READ_STATE_FUNC => {
                     Runtime::read_state(self, args)?;
+                    Ok(None)
+                }
+                eng_resolver::ids::REMOVE_STATE_FUNC => {
+                    Runtime::remove_from_state(self, args)?;
                     Ok(None)
                 }
                 eng_resolver::ids::EPRINT_FUNC => {

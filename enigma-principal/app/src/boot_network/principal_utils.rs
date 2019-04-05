@@ -1,92 +1,51 @@
-// general
-use failure::Error;
-use sgx_types::sgx_enclave_id_t;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::thread;
-use std::time;
-use web3::contract::{CallFuture, Contract, Options};
-use web3::futures::Future;
-use web3::transports::Http;
-use web3::types::{Address, H256, U256};
-use web3::Transport;
-
-use crate::esgx::random_u;
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
+use epoch_u::epoch_provider::EpochProvider;
+use failure::Error;
+use std::{sync::Arc, thread, time};
+use web3::{futures::Future, types::U256};
 
 // this trait should extend the EnigmaContract into Principal specific functions.
-pub trait Principal<G: Into<U256>> {
+pub trait Principal {
     fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error>
-        where Self: Sized;
+    where Self: Sized;
 
-    fn set_worker_params(&self, eid: sgx_enclave_id_t, gas_limit: G) -> CallFuture<H256, <Http as Transport>::Out>;
-
-    fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
-                                  -> CallFuture<H256, <Http as Transport>::Out>;
-
-    fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
-                    max_epochs: Option<usize>);
+    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
+                                   confirmations: usize, max_epochs: Option<usize>);
 }
 
-impl<G: Into<U256>> Principal<G> for EnigmaContract {
+impl Principal for EnigmaContract {
     fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error> {
         Ok(Self::from_deployed(address, path, Some(account), url)?)
     }
 
-    // set (seed,signature(seed)) into the enigma smart contract
-    fn set_worker_params(&self, eid: sgx_enclave_id_t, gas_limit: G) -> CallFuture<H256, <Http as Transport>::Out> {
-        Self::set_worker_params_internal(&self.w3_contract, &self.account, eid, gas_limit)
-    }
-
-    fn set_worker_params_internal(contract: &Contract<Http>, account: &Address, eid: sgx_enclave_id_t, gas_limit: G)
-                                  -> CallFuture<H256, <Http as Transport>::Out> {
-        // get seed,signature
-        let (rand_seed, sig) = random_u::get_signed_random(eid);
-        let the_seed: U256 = U256::from_big_endian(&rand_seed);
-        println!("[---\u{25B6} seed: {} \u{25C0}---]", the_seed);
-        // set gas options for the tx
-        let mut options = Options::default();
-        options.gas = Some(gas_limit.into());
-        // set random seed
-        contract.call("setWorkersParams", (the_seed, sig.to_vec()), *account, options)
-    }
-
-    fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, eid: sgx_enclave_id_t, gas_limit: G,
-                    max_epochs: Option<usize>) {
-        // Make Arcs to support passing the refrence to multiple futures.
-        let prev_epoch = Arc::new(AtomicUsize::new(0));
-        let w3_contract = Arc::new(self.w3_contract.clone());
-        let account = Arc::new(self.account);
-
+    /// Watches the blocks for new epoch using the epoch size and the previous epoch block number.
+    /// For each new epoch, set the worker parameters.
+    #[logfn(INFO)]
+    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
+                                   confirmations: usize, max_epochs: Option<usize>) {
         let gas_limit: U256 = gas_limit.into();
         let max_epochs = max_epochs.unwrap_or(0);
         let mut epoch_counter = 0;
         loop {
-            // Clone these arcs to be moved into the future.
-            let account = Arc::clone(&account);
-            let prev_epoch = Arc::clone(&prev_epoch);
-            let w3_contract = Arc::clone(&w3_contract);
-
-            let future = self.web3.eth().block_number().and_then(move |num| {
-                    let curr_block = num.low_u64() as usize;
-                    let prev_block_ref = prev_epoch.load(Ordering::Relaxed);
-                    println!("previous: {}, current block: {}, next: {}", prev_block_ref, curr_block, (prev_block_ref + epoch_size));
-                    if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
-                        prev_epoch.swap(curr_block, Ordering::Relaxed);
-                        thread::sleep(time::Duration::from_secs(2));
-                        println!("[\u{1F50A} ] @ block {}, prev block @ {} [\u{1F50A} ]", curr_block, prev_block_ref);
-                        return Ok(());
-                    }
-                    Err(web3::Error::from_kind(web3::ErrorKind::InvalidResponse("not the right block".to_string())))
-            }).map_err(From::from)
-                .and_then(move |_| {
-                    println!("sending params!");
-                    EnigmaContract::set_worker_params_internal(&w3_contract, &account, eid, gas_limit)
-                });
-
-            self.eloop.remote().spawn(|_| { future.map_err(|err| eprintln!("Errored with: {:?}", err))
-                                                .map(|res| println!("Res: {:?}", res))
-                                      });
+            let block_number = self.web3.eth().block_number().wait().unwrap();
+            let curr_block = block_number.low_u64() as usize;
+            let prev_block = match epoch_provider.get_state() {
+                Ok(state) => match state.confirmed_state {
+                    Some(state) => state.block_number,
+                    None => U256::from(0),
+                },
+                Err(_) => U256::from(0),
+            };
+            let prev_block_ref = prev_block.low_u64() as usize;
+            println!("[\u{1F50A} ] Blocks @ previous: {}, current: {}, next: {} [\u{1F50A} ]", prev_block_ref, curr_block, (prev_block_ref + epoch_size));
+            if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
+                println!("[\u{263C} ] New epoch found [\u{263C} ]");
+                epoch_provider
+                    .set_worker_params(block_number, gas_limit, confirmations)
+                    .expect("Unable to set worker params. Please recover manually.");
+            } else {
+                println!("[\u{23f3} ] Epoch still active [\u{23f3} ]");
+            }
             thread::sleep(time::Duration::from_secs(polling_interval));
             epoch_counter += 1;
             if max_epochs != 0 && epoch_counter == max_epochs {

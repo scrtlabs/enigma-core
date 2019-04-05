@@ -13,6 +13,7 @@
 extern crate enigma_runtime_t;
 #[macro_use]
 extern crate enigma_tools_t;
+extern crate enigma_tools_m;
 extern crate enigma_types;
 extern crate enigma_crypto;
 
@@ -44,19 +45,19 @@ extern crate pwasm_utils as wasm_utils;
 
 mod evm_t;
 mod km_t;
-mod ocalls_t;
 mod wasm_g;
 
 use crate::evm_t::{abi::{create_callback, prepare_evm_input},
                    evm::call_sputnikvm};
 use crate::km_t::{ecall_build_state_internal, ecall_get_user_key_internal, ecall_ptt_req_internal, ecall_ptt_res_internal};
 use crate::wasm_g::execution;
-use enigma_runtime_t::data::{ContractState, StatePatch, EncryptedPatch};
+use enigma_runtime_t::data::{ContractState, EncryptedPatch};
 use enigma_runtime_t::EthereumData;
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
-use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}, LockExpectMutex, EthereumAddress};
-use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t};
+use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}, LockExpectMutex};
+use enigma_tools_m::utils::EthereumAddress;
+use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t, esgx::ocalls_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
 use wasm_utils::{build, SourceTarget};
 
@@ -182,8 +183,7 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
 #[no_mangle]
 pub unsafe extern "C" fn ecall_ptt_req(address: *const ContractAddress, len: usize, sig: &mut [u8; 65], serialized_ptr: *mut u64) -> EnclaveReturn {
     let address_list = slice::from_raw_parts(address, len/mem::size_of::<ContractAddress>());
-    let address_list: Vec<Hash256> = address_list.into_iter().map(|a| (*a).into()).collect();
-    let msg = match ecall_ptt_req_internal(&address_list, sig) {
+    let msg = match ecall_ptt_req_internal(address_list, sig) {
         Ok(msg) => msg,
         Err(e) => return e.into(),
     };
@@ -266,7 +266,7 @@ fn get_io_key(user_key: &PubKey) -> Result<DhKey, EnclaveError> {
         Ok(io_key)
 }
 
-fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: DhKey) -> Result<(Vec<u8>, Vec<u8>, String, String), EnclaveError>{
+fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: &DhKey) -> Result<(Vec<u8>, Vec<u8>, String, String), EnclaveError>{
     let decrypted_callable = decrypt_callable(callable, &inputs_key)?;
     let decrypted_args = decrypt_args(&args, &inputs_key)?;
     let (types, function_name) = {
@@ -276,13 +276,13 @@ fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: DhKey) -> Result<(Ve
     Ok((decrypted_args, decrypted_callable, types, function_name))
 }
 
-fn encrypt_and_save_delta(db_ptr: *const RawPointer, delta: &Option<StatePatch>) -> Result<(Option<EncryptedPatch>, Hash256), EnclaveError> {
+fn save_enc_delta(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>) -> Result<Hash256, EnclaveError> {
     if let Some(delta) = delta {
-        let enc_delta = km_t::encrypt_delta(delta.clone())?;
-        enigma_runtime_t::ocalls_t::save_delta(db_ptr, &enc_delta)?;
-        return Ok((Some(enc_delta.clone()), enc_delta.data.keccak256()))
+        enigma_runtime_t::ocalls_t::save_delta(db_ptr, delta)?;
+        Ok(delta.keccak256_patch())
+    } else {
+        Ok(Hash256::default())
     }
-    Ok((None, Default::default()))
 }
 
 fn encrypt_and_save_state(db_ptr: *const RawPointer, state: &ContractState) -> Result<(), EnclaveError>{
@@ -340,23 +340,22 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     let pre_execution_state = execution::get_state(db_ptr, address)?;
 
     let (decrypted_args, _decrypted_callable, types, function_name) =
-        decrypt_inputs(callable, args, *io_key).
+        decrypt_inputs(callable, args, io_key).
              map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
-    let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone())?;
+    let state_key = km_t::get_state_key(address)?;
+    let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone(), state_key)?;
 
-    let (delta, delta_hash) = encrypt_and_save_delta(db_ptr, &exec_res.state_delta)?;
-
+    let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
+    if exec_res.state_delta.is_some() {
+        encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
+    }
     let encrypted_output = symmetric::encrypt(&exec_res.result, io_key)?;
-    prepare_wasm_result(delta.clone(),
+    prepare_wasm_result(exec_res.state_delta,
                         &encrypted_output,
                         exec_res.ethereum_bridge.clone(),
                         exec_res.used_gas,
                         result)?;
-
-    if delta.is_some() {
-        encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
-    }
 
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
     // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, usedGas, optionalEthereumData, Success)
@@ -423,24 +422,24 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
     pre_execution_data.push(Box::new(*inputs_hash));
 
     let deploy_bytecode = build_constructor(bytecode)?;
-    let (decrypted_args, _, _types, _) = decrypt_inputs(constructor, args, *io_key).
+    let (decrypted_args, _, _types, _) = decrypt_inputs(constructor, args, io_key).
         map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let state = ContractState::new(address);
 
-    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, decrypted_args.clone())?;
+    let state_key = km_t::get_state_key(address)?;
+    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, decrypted_args.clone(), state_key)?;
 
     let exe_code = &exec_res.result[..];
 
-    let (delta, delta_hash) = encrypt_and_save_delta(db_ptr, &exec_res.state_delta)?;
+    let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
+    encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
 
-    prepare_wasm_result(delta.clone(),
+    prepare_wasm_result(exec_res.state_delta,
                         exe_code,
                         exec_res.ethereum_bridge.clone(),
                         exec_res.used_gas,
                         result)?;
-
-    encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
 
 //    let exe_code = &exec_res.result[..];
 //    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
@@ -518,7 +517,6 @@ pub mod tests {
         use crate::wasm_g::execution::tests::*;
         use enigma_runtime_t::data::tests::*;
         use enigma_runtime_t::ocalls_t::tests::*;
-        use enigma_tools_t::km_primitives::tests::*;
         use enigma_tools_t::storage_t::tests::*;
         use self::sgx_tunittest::*;
         use std::{vec::Vec, string::String};
@@ -546,12 +544,6 @@ pub mod tests {
             core_unitests(&mut ctr, &mut failures, test_generate_delta, "test_generate_delta" );
             core_unitests(&mut ctr, &mut failures, ||test_me(db_ptr), "test_me" );
             core_unitests(&mut ctr, &mut failures, test_execute_contract, "test_execute_contract" );
-            core_unitests(&mut ctr, &mut failures, test_to_message, "test_to_message" );
-            core_unitests(&mut ctr, &mut failures, test_from_message, "test_from_message" );
-            core_unitests(&mut ctr, &mut failures, test_from_to_message, "test_from_to_message" );
-            core_unitests(&mut ctr, &mut failures, test_encrypt_decrypt_response, "test_encrypt_decrypt_response" );
-            core_unitests(&mut ctr, &mut failures, test_encrypt_response, "test_encrypt_response" );
-            core_unitests(&mut ctr, &mut failures, test_decrypt_reponse, "test_decrypt_reponse" );
             core_unitests(&mut ctr, &mut failures, ||test_get_deltas(db_ptr), "test_get_deltas" );
             core_unitests(&mut ctr, &mut failures, ||test_get_deltas_more(db_ptr), "test_get_deltas_more" );
             core_unitests(&mut ctr, &mut failures, ||test_state_internal(db_ptr), "test_state_internal" );

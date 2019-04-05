@@ -6,6 +6,7 @@ pub extern crate ethabi;
 pub extern crate serde;
 extern crate rmp_serde as rmps;
 pub extern crate enigma_crypto;
+pub extern crate enigma_types;
 extern crate rustc_hex as hex;
 pub extern crate cross_test_utils;
 extern crate futures;
@@ -27,8 +28,8 @@ use std::thread;
 use self::regex::Regex;
 use self::hex::{ToHex, FromHex};
 use self::ethabi::{Token};
-use self::enigma_crypto::asymmetric::KeyPair;
-use self::enigma_crypto::symmetric;
+use self::enigma_crypto::{asymmetric::KeyPair, symmetric};
+use self::enigma_types::Hash256;
 use self::rand::{thread_rng, Rng};
 use app::db::DB;
 use self::tempfile::TempDir;
@@ -121,8 +122,8 @@ pub fn get_delta_msg(addr: &str, key: u64) -> Value {
     json!({"id": &generate_job_id(), "type": "GetDelta", "input": {"address": addr, "key": key}})
 }
 
-pub fn get_deltas_msg(_input: &[(String, u64, u64)]) -> Value {
-    let input: Vec<Value> = _input.iter().map(|(addr, from, to)| json!({"address": addr, "from": from, "to": to})).collect();
+pub fn get_deltas_msg(input: &[(String, u64, u64)]) -> Value {
+    let input: Vec<Value> = input.iter().map(|(addr, from, to)| json!({"address": addr, "from": from, "to": to})).collect();
     json!({"id": &generate_job_id(), "type": "GetDeltas", "input": input})
 }
 
@@ -143,7 +144,7 @@ pub fn parse_packed_msg(msg: &str) -> Value {
 
 pub fn mock_principal_res(msg: &str, addrs: Vec<ContractAddress>) -> Vec<u8> {
     let unpacked_msg: Value = parse_packed_msg(msg);
-    let enc_response: Value = make_encrypted_response(&unpacked_msg, addrs);
+    let enc_response: Value = make_encrypted_response(&unpacked_msg, addrs, None);
 
     let mut serialized_enc_response = Vec::new();
     enc_response.serialize(&mut Serializer::new(&mut serialized_enc_response)).unwrap();
@@ -272,10 +273,9 @@ fn encrypt_args( args:&[Token], callable: &str, key: [u8;32]) -> (Vec<u8>, Vec<u
      symmetric::encrypt(&ethabi::encode(args), &key).unwrap())
 }
 
-pub fn encrypt_addr_delta(addr: [u8; 32], delta: &[u8]) -> String {
+pub fn encrypt_addr_delta(addr: [u8; 32], delta: &[u8]) -> Vec<u8> {
     let state_key = get_fake_state_key(addr.into());
-    let enc = symmetric::encrypt(delta, &state_key).unwrap();
-    enc.to_hex()
+    symmetric::encrypt(delta, &state_key).unwrap()
 }
 
 pub fn decrypt_addr_delta(addr: [u8; 32], delta: &[u8]) -> Vec<u8> {
@@ -291,7 +291,17 @@ pub fn decrypt_delta_to_value(addr: [u8; 32], delta: &[u8]) -> Value {
 
 pub fn decrypt_output_to_uint(output: &[u8], key: &[u8; 32]) -> Token {
     let dec = symmetric::decrypt(output, key).unwrap();
+    println!("Decrypted output: {:?}", dec);
     ethabi::decode(&[ethabi::ParamType::Uint(256)], &dec).unwrap().pop().unwrap()
+}
+
+pub fn replace_previous_hash_in_delta_data(data: &[u8], hash: Hash256) -> Vec<u8> {
+    let mut des = Deserializer::new(data);
+    let mut val: Value = Deserialize::deserialize(&mut des).unwrap();
+    val.as_array_mut().unwrap()[1]  = json!(hash);
+    let mut buf = Vec::new();
+    val.serialize(&mut Serializer::new(&mut buf)).unwrap();
+    buf
 }
 
 pub fn deploy_and_compute_few_contracts(port: &'static str) -> Vec<[u8; 32]> {
