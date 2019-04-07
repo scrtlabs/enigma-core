@@ -290,7 +290,7 @@ mod test {
 
         let arr = [3u8; 32];
         //created an empty cf in the DB
-        let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
+        db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
         let v = b"Enigma";
         db.create(&Array32u8(arr), v).unwrap();
         assert_eq!(db.read(&Array32u8(arr)).unwrap(), v);
@@ -399,7 +399,7 @@ mod test {
         let (mut db, _dir) = create_test_db();
 
         let arr = [4u8; 32];
-        let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
+        db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
         db.update(&Array32u8(arr), b"Enigma").unwrap();
     }
 
@@ -418,7 +418,7 @@ mod test {
         let (mut db, _dir) = create_test_db();
 
         let arr = [5u8; 32];
-        let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
+        db.database.create_cf(&arr.to_hex(), &db.options).unwrap();
         db.delete(&Array32u8(arr)).unwrap();
     }
 

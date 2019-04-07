@@ -20,7 +20,7 @@ RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
 RUN git clone --depth 1  -b v1.0.4 https://github.com/baidu/rust-sgx-sdk.git  sgx
 
 
-RUN git clone --depth 1 --branch v5.14.2 https://github.com/facebook/rocksdb.git rocksdb && \
+RUN git clone --depth 1 --branch v5.17.2 https://github.com/facebook/rocksdb.git rocksdb && \
     cd rocksdb && make install-shared && rm -rf /root/rocksdb
 
 RUN echo '/opt/intel/libsgx-enclave-common/aesm/aesm_service &' >> /root/.bashrc

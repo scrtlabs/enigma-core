@@ -5,7 +5,7 @@ use enigma_types::ContractAddress;
 use failure::Error;
 use hex::{FromHex, ToHex};
 use rocksdb::DB as rocks_db;
-use rocksdb::{DBIterator, Direction, IteratorMode, ReadOptions, WriteBatch};
+use rocksdb::{Direction, IteratorMode, ReadOptions, WriteBatch};
 
 const DELTA_PREFIX: &[u8] = &[1];
 
@@ -361,7 +361,7 @@ impl P2PCalls<Vec<u8>> for DB {
                 read_opts.set_iterate_upper_bound(&to_key);
                 // build an iterator which will iterate from the first key
                 let db_iter =
-                    DBIterator::new_cf(&self.database, cf_key, &read_opts, IteratorMode::From(&from_key, Direction::Forward))?;
+                    self.database.iterator_cf_opt(cf_key, &read_opts, IteratorMode::From(&from_key, Direction::Forward))?;
                 let key_val: Vec<(K, Vec<u8>)> = db_iter
                     .map(|(key, val)| {
                         // creating from the string of the address and the
