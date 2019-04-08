@@ -12,11 +12,6 @@ extern crate serde;
 
 use eng_wasm::*;
 use eng_wasm_derive::pub_interface;
-use eng_wasm::String;
-use eng_wasm::from_utf8;
-use hex::ToHex;
-use hex::FromHex;
-use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 
 // State key name "millionaires" holding a vector of Millionaire structs
@@ -32,7 +27,6 @@ pub struct Millionaire {
 // Public-facing secret contract function declarations
 #[pub_interface]
 pub trait ContractInterface{
-    fn construct();
     fn add_millionaire(address: H256, net_worth: U256);
     fn compute_richest() -> H256;
 }
@@ -51,12 +45,6 @@ impl Contract {
 }
 
 impl ContractInterface for Contract {
-    // Empty constructor
-    #[no_mangle]
-    fn construct() {
-
-    }
-
     // Add millionaire with 32-byte hash type for address and 32-byte uint for net worth
     #[no_mangle]
     fn add_millionaire(address: H256, net_worth: U256) {
@@ -64,8 +52,8 @@ impl ContractInterface for Contract {
         let mut millionaires = Self::get_millionaires();
         // Append a new Millionaire struct to this vector
         millionaires.push(Millionaire {
-            address: address,
-            net_worth: net_worth,
+            address,
+            net_worth,
         });
         // Write the updated vector to contract's state
         write_state!(MILLIONAIRES => millionaires);
