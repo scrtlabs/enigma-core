@@ -80,13 +80,13 @@ impl EpochProvider {
             Some(epoch_state) => {
                 let mut file = File::create(path)?;
                 let mut buf = Vec::new();
-                epoch_state.serialize(&mut Serializer::new(&mut buf)).unwrap();
+                epoch_state.serialize(&mut Serializer::new(&mut buf))?;
                 file.write_all(&buf)?;
             }
             None => {
                 match fs::remove_file(path) {
                     Ok(res) => println!("Epoch state file removed: {:?}", res),
-                    Err(_err) => println!("No epoch state file to remove"),
+                    Err(_err) => eprintln!("No epoch state file to remove"),
                 }
             }
         };
