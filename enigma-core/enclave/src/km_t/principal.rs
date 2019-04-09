@@ -1,6 +1,6 @@
 use super::STATE_KEYS;
 use crate::SIGNING_KEY;
-use enigma_runtime_t::data::{ContractState, DeltasInterface, StatePatch};
+use enigma_runtime_t::data::{ContractState, DeltasInterface};
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_t::common::utils_t::LockExpectMutex;
@@ -57,26 +57,26 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
 pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Vec<ContractAddress>, EnclaveError> {
     let guard = STATE_KEYS.lock_expect("State Keys");
     let mut failed_contracts = Vec::with_capacity(guard.len());
+    debug_println!("building state for {} contracts", guard.len());
 
     'contract: for (addrs, key) in guard.iter() {
         // Get the state and decrypt it.
         // if no state exist create new one and if failed decrypting push to failed_contracts and move on.
-        let mut state = match runtime_ocalls_t::get_state(db_ptr, *addrs) {
+        let (mut start, mut state ) = match runtime_ocalls_t::get_state(db_ptr, *addrs) {
             Ok(enc_state) => match ContractState::decrypt(enc_state, &key) {
-                Ok(s) => s,
+                Ok(state) => (state.delta_index+1, state),
                 Err(_) => {
                     failed_contracts.push(*addrs);
                     continue 'contract;
                 }
             }, // don't throw error if only one failed, somehow tell that but continue
-            Err(_) => ContractState::new(*addrs),
+            Err(_) => (0, ContractState::new(*addrs)),
         };
 
-        let mut start = state.delta_index;
         'deltas: while start < u32::MAX {
             let mut end = start + 500;
             // Get deltas from start to end, if fails save the latest state and move on.
-            let deltas = match runtime_ocalls_t::get_deltas(db_ptr, *addrs, start+1, end) {
+            let deltas = match runtime_ocalls_t::get_deltas(db_ptr, *addrs, start, end) {
                 Ok(deltas) => deltas,
                 Err(_) => {
                     // If it failed to get deltas, encrypt the latest state and save it
@@ -96,13 +96,15 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
             // decrypt the deltas and apply them to the state.
             // If failed, encrypt the latest state and move on.
             for delta in deltas {
-                let patch = match StatePatch::decrypt(delta, key) {
-                    Ok(p) => p,
-                    Err(_) => {
+                match state.apply_delta(delta, key) {
+                    Ok(()) => (),
+                    Err(e) => {
+                        debug_println!("Failed applying delta: {:?}", e);
                         let enc = match state.encrypt(key) {
                             Ok(s) => s,
-                            Err(_) => {
+                            Err(e) => {
                                 // If Failed to encrypt the latest state push to failed_contracts and move on.
+                                debug_println!("Failed encrypting the state: {:?}", e);
                                 failed_contracts.push(*addrs);
                                 continue 'contract;
                             }
@@ -112,14 +114,6 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
                         continue 'contract;
                     }
                 };
-                match state.apply_delta(&patch) {
-                    Err(e) => {
-                        debug_println!("Failed applying delta: {:?}", e);
-                        failed_contracts.push(*addrs);
-                        continue 'contract;
-                    }
-                    _ => (),
-                }
             }
             if deltas_len == (end - start) as usize {
                 start = end;
@@ -157,20 +151,10 @@ pub mod tests {
         // Making the ground work
         let address = vec![b"meee".sha256(), b"moo".sha256(), b"maa".sha256()];
         let state_keys = vec![*b"first_key".sha256(), *b"second_key".sha256(), *b"third_key".sha256()];
-        let states_and_deltas = get_states_deltas(&address);
-        let enc_states: Vec<(EncryptedContractState<u8>, Vec<EncryptedPatch>)> = states_and_deltas
-            .into_iter()
-            .zip(state_keys.iter())
-            .map(|((state, delta_vec), key)| {
-                let enc_state = state.encrypt(key);
-                let enc_deltas = delta_vec.into_iter().map(|delta| delta.encrypt(key).unwrap()).collect();
-                (enc_state.unwrap(), enc_deltas)
-            })
-            .collect();
+        let enc_states_and_deltas = get_states_deltas(&address, &state_keys);
 
         //        // Saving the encrypted states and deltas to the db
-        for (enc_state, enc_deltas) in enc_states {
-            runtime_ocalls_t::save_state(db_ptr, &enc_state).unwrap();
+        for enc_deltas in enc_states_and_deltas {
             for delta in enc_deltas {
                 runtime_ocalls_t::save_delta(db_ptr, &delta).unwrap();
             }
@@ -199,31 +183,30 @@ pub mod tests {
         assert_eq!(ecall_build_state_internal(db_ptr).unwrap(), vec![address[2]])
     }
 
-    fn get_states_deltas(address: &[ContractAddress]) -> Vec<(ContractState, Vec<StatePatch>)> {
+    fn get_states_deltas(address: &[ContractAddress], keys: &[StateKey]) -> Vec<Vec<EncryptedPatch>> {
+        let jsons: Vec<serde_json::Value> = vec![
+            json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
+            serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#).unwrap(),
+        ];
         let states = vec![
-            ContractState {
-                contract_address: address[0],
-                json: json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
-                .. Default::default()
-            },
-            ContractState {
-                contract_address: address[1],
-                json: serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#).unwrap(),
-                .. Default::default()
-            },
+            ContractState::new(address[0]),
+            ContractState::new(address[1]),
         ];
 
         let mut result = Vec::with_capacity(states.len());
-        for mut state in states {
-            let original_state = state.clone();
+        for ((mut state, key), json) in states.into_iter().zip(keys.iter()).zip(jsons.into_iter()) {
             let mut patches = Vec::with_capacity(15);
-            for i in 0..15 {
+            let original_state = state.clone();
+            state.json = json;
+            let delta0 = ContractState::generate_delta_and_update_state(&original_state, &mut state, key).unwrap();
+            patches.push(delta0);
+            for i in 1..15 {
                 let old_state = state.clone();
                 state.write_key(&i.to_string(), &json!(i)).unwrap();
-                let delta = ContractState::generate_delta_and_update_state(&old_state, &mut state).unwrap();
+                let delta = ContractState::generate_delta_and_update_state(&old_state, &mut state, key).unwrap();
                 patches.push(delta);
             }
-            result.push((original_state, patches));
+            result.push(patches);
         }
         result
     }

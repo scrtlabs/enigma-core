@@ -26,7 +26,7 @@ fn test_ipc_get_tip() {
     let key = res["result"]["key"].as_u64().unwrap();
 
     assert_eq!(type_accepted, type_tip);
-    assert_eq!(key, 1);
+    assert_eq!(key, 0);
 }
 
 #[test]
@@ -45,7 +45,7 @@ fn test_ipc_get_tips() {
 
     let mut accepted_addrs = Vec::new();
     for val in tips {
-        assert_eq!(val["key"].as_u64().unwrap(), 2);
+        assert_eq!(val["key"].as_u64().unwrap(), 1);
         accepted_addrs.push(val["address"].as_str().unwrap())
     }
     assert_eq!(tips.len(), 2);
@@ -67,7 +67,7 @@ fn test_ipc_get_all_tips() {
     let tips = res["result"]["tips"].as_array().unwrap();
     assert_eq!(tips.len(), 3);
     for val in tips {
-        assert_eq!(val["key"].as_u64().unwrap(), 2)
+        assert_eq!(val["key"].as_u64().unwrap(), 1)
     }
     assert_eq!(type_accepted, type_tips);
 }
@@ -93,7 +93,7 @@ fn test_ipc_get_delta() {
 
     let addresses = deploy_and_compute_few_contracts(port);
 
-    let msg = get_delta_msg(&addresses[1].to_hex(), 2);
+    let msg = get_delta_msg(&addresses[1].to_hex(), 1);
     let res: Value = conn_and_call_ipc(&msg.to_string(), port);
     let delta_accepted = res["result"]["delta"].as_str().unwrap();
     let decrypted_delta = decrypt_delta_to_value(addresses[1], &delta_accepted.from_hex().unwrap());
@@ -110,8 +110,8 @@ fn test_ipc_get_deltas() {
     let addresses = deploy_and_compute_few_contracts(port);
 
     // receives only delta 2 from address 1 and delta 1 from address 0
-    let _input = vec![(addresses[1].to_hex(),2, 3), (addresses[0].to_hex(), 1, 2)];
-    let msg = get_deltas_msg(&_input);
+    let input = vec![(addresses[1].to_hex(), 1, 2), (addresses[0].to_hex(), 0, 1)];
+    let msg = get_deltas_msg(&input);
     let res: Value = conn_and_call_ipc(&msg.to_string(), port);
     let deltas_accepted = res["result"]["deltas"].as_array().unwrap();
     let first_address = deltas_accepted[0]["address"].as_str().unwrap();
@@ -121,8 +121,8 @@ fn test_ipc_get_deltas() {
     let delta= deltas_accepted[0]["data"].as_str().unwrap();
     assert_eq!(first_address, addresses[1].to_hex());
     assert_eq!(second_address, addresses[0].to_hex());
-    assert_eq!(first_key, 2);
-    assert_eq!(second_key, 1);
+    assert_eq!(first_key, 1);
+    assert_eq!(second_key, 0);
     assert!(is_hex(delta));
 }
 

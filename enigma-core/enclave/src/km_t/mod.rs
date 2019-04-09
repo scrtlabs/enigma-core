@@ -16,6 +16,13 @@ lazy_static! {
     pub static ref STATE_KEYS: SgxMutex<HashMap<ContractAddress, StateKey>> = SgxMutex::new(HashMap::new());
 }
 
+pub fn get_state_key(address: ContractAddress) -> Result<StateKey, EnclaveError> {
+    let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
+    Ok(*statekeys_guard
+        .get(&address)
+        .ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?)
+}
+
 pub fn encrypt_delta(del: StatePatch) -> Result<EncryptedPatch, EnclaveError> {
     let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
     let key = statekeys_guard

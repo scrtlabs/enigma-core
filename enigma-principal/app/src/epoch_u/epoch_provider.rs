@@ -1,14 +1,3 @@
-use enigma_tools_m::keeper_types::InputWorkerParams;
-use enigma_tools_u::{
-    esgx::general::storage_dir,
-    web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract},
-};
-use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
-use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
-use ethabi::{Log, RawLog};
-use failure::Error;
-use serde_json;
-use sgx_types::sgx_enclave_id_t;
 use std::{
     fs::{self, File},
     io::prelude::*,
@@ -17,7 +6,22 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
-use web3::types::{TransactionReceipt, H256, U256};
+use std::collections::HashMap;
+
+use enigma_tools_m::keeper_types::InputWorkerParams;
+use ethabi::{Log, RawLog};
+use failure::Error;
+use serde::{Deserialize, Serialize};
+use sgx_types::sgx_enclave_id_t;
+use web3::types::{H256, TransactionReceipt, U256};
+
+use enigma_tools_u::{
+    esgx::general::storage_dir,
+    web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract},
+};
+use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
+use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
+use rmp_serde::{Deserializer, Serializer};
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
@@ -39,7 +43,7 @@ impl EpochProvider {
 
     fn get_state_file_path() -> PathBuf {
         let mut path = storage_dir(ENCLAVE_DIR).unwrap();
-        path.push("epoch-state.json");
+        path.push("epoch-state.msgpack");
         path
     }
 
@@ -53,9 +57,10 @@ impl EpochProvider {
     pub fn read_epoch_state() -> Result<Option<EpochState>, Error> {
         let epoch_state = match File::open(Self::get_state_file_path()) {
             Ok(mut f) => {
-                let mut data = String::new();
-                f.read_to_string(&mut data)?;
-                let epoch_state: Option<EpochState> = match serde_json::from_str(&data) {
+                let mut buf = Vec::new();
+                f.read_to_end(&mut buf)?;
+                let mut des = Deserializer::new(&buf[..]);
+                let epoch_state: Option<EpochState> = match Deserialize::deserialize(&mut des) {
                     Ok(value) => Some(value),
                     Err(err) => {
                         eprintln!("Unable to read block state file: {:?}", err);
@@ -75,17 +80,20 @@ impl EpochProvider {
     #[logfn(DEBUG)]
     pub fn write_epoch_state(epoch_state: Option<EpochState>) -> Result<(), Error> {
         let path = Self::get_state_file_path();
-        if epoch_state.is_some() {
-            let mut file = File::create(path.clone())?;
-            println!("Writing epoch state {:?} to file: {:?}", epoch_state, path);
-            let contents = serde_json::to_string(&epoch_state.unwrap())?;
-            file.write_all(contents.as_bytes())?;
-        } else {
-            match fs::remove_file(path) {
-                Ok(res) => println!("Epoch state file removed: {:?}", res),
-                Err(_err) => println!("No epoch state file to remove"),
+        match epoch_state {
+            Some(epoch_state) => {
+                let mut file = File::create(path)?;
+                let mut buf = Vec::new();
+                epoch_state.serialize(&mut Serializer::new(&mut buf))?;
+                file.write_all(&buf)?;
             }
-        }
+            None => {
+                match fs::remove_file(path) {
+                    Ok(res) => println!("Epoch state file removed: {:?}", res),
+                    Err(_err) => eprintln!("No epoch state file to remove"),
+                }
+            }
+        };
         Ok(())
     }
 
@@ -232,12 +240,12 @@ impl EpochProvider {
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use std::collections::HashMap;
-    use enigma_types::ContractAddress;
     use web3::types::{Bytes, H160};
+
     use enigma_crypto::KeyPair;
-    use rustc_hex::FromHex;
+    use enigma_types::ContractAddress;
+
+    use super::*;
 
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
