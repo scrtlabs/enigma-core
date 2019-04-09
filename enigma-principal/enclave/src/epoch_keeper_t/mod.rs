@@ -42,9 +42,10 @@ fn get_epoch_marker_path() -> path::PathBuf { get_epoch_root_path().join("epoch-
 fn get_epoch_marker(epoch_map: &HashMap<U256, Epoch>) -> Result<Option<(U256, Hash256)>, EnclaveError> {
     let path = get_epoch_marker_path();
     if !is_document(&path) {
+        println!("Sealed epoch marker not found in path: {:?}", path);
         return Ok(None);
     }
-    println!("Unsealing epoch marker");
+    println!("Unsealing epoch marker: {:?}", path);
     let mut sealed_log_out = [0u8; SEAL_LOG_SIZE];
     load_sealed_document(&path, &mut sealed_log_out)?;
     let doc = SealedDocumentStorage::<EpochMarker>::unseal(&mut sealed_log_out)?;
@@ -59,7 +60,12 @@ fn get_epoch_marker(epoch_map: &HashMap<U256, Epoch>) -> Result<Option<(U256, Ha
             println!("Split marker into nonce / hash: {:?} {:?}", nonce.to_vec(), hash.to_vec());
             Some((nonce.into(), hash.into()))
         }
-        _ => None
+        _ => {
+            println!("Sealed epoch marker is empty");
+            return Err(SystemError(WorkerAuthError {
+                err: format!("Failed to unseal epoch marker: {:?}", path),
+            }));
+        }
     };
     Ok(marker)
 }
@@ -118,8 +124,10 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
             let nonce = U256::from(nonce_in.as_ref());
             let worker_params = worker_params.clone();
             let epoch = Epoch { nonce, seed, worker_params };
+            println!("Verifying epoch: {:?}", epoch);
             let hash = epoch.raw_encode().keccak256();
             if hash != marker_hash {
+                println!("Given epoch nonce {:?} do not match the marker {:?}: {:?}", nonce, marker_nonce, marker_hash);
                 return Err(SystemError(WorkerAuthError {
                     err: format!("Given epoch parameters {:?} do not match the marker {:?}: {:?}", nonce, marker_nonce, marker_hash),
                 }));

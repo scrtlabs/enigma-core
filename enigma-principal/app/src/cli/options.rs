@@ -28,6 +28,10 @@ pub struct Opt {
     #[structopt(short = "p", long = "set-worker-params")]
     pub set_worker_params: bool,
 
+    /// Confirm the Worker Params in the local state and shutdown
+    #[structopt(short = "f", long = "confirm-worker-params")]
+    pub confirm_worker_params: bool,
+
     /// Get state keys and shutdown
     #[structopt(short = "k", long = "get-state-keys")]
     pub get_state_keys: Option<String>,
@@ -106,10 +110,11 @@ pub fn print_info(signing_address: &str) {
     yellow!("<>------------------------------------------<>\n");
     green!("--info                                 => Print the signing address and help.\n");
     green!("--verbose                              => Verbosity of the log output.\n");
-    green!("--debug-stdout                              => Print the debugging directly to stdout.\n");
+    green!("--debug-stdout                         => Print the debugging directly to stdout.\n");
     green!("--write-sign-address                   => Write the signing address to ~/.enigma/principal-sign-addr.txt.\n");
     green!("--register                             => Run the Register procedure and shutdown.\n");
     green!("--set-worker-params                    => Run the Set Worker Params procedure and shutdown.\n");
+    green!("--confirm-worker-params                => Confirm the Worker Params in the local state and shutdown.\n");
     green!("--get-state-keys                       => Get the state keys from the message and shutdown.\n");
     green!("--contract-address                     => The Enigma contract address, use the config if not provided.\n");
     green!("--reset-epoch-state                    => Optional: Reset the Epoch state in storage.\n");
