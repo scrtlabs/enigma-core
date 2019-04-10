@@ -76,6 +76,8 @@ impl Contract {
     // todo: change this function in enigma-crypto so it will
     // todo: be able to run without std and then remove it from here.
     fn prepare_hash_multiple<B: AsRef<[u8]>>(messages: &[B]) -> Vec<u8> {
+        // wasmi is using a 32 bit target as oppose to the actual machine that
+        // is a 64 bit target. therefore using u64 and not usize
         let mut res = Vec::with_capacity(messages.len() * mem::size_of::<u64>());
         for msg in messages {
             let msg = msg.as_ref();
