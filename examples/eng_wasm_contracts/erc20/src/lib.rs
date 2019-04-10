@@ -73,15 +73,27 @@ impl Contract {
         read_state!(&user.to_hex::<String>()).unwrap_or_default()
     }
 
+    // todo: change this function in enigma-crypto so it will
+    // todo: be able to run without std and then remove it from here.
+    fn prepare_hash_multiple<B: AsRef<[u8]>>(messages: &[B]) -> Vec<u8> {
+        let mut res = Vec::with_capacity(messages.len() * mem::size_of::<u64>());
+        for msg in messages {
+            let msg = msg.as_ref();
+            let len = (msg.len() as u64).to_be_bytes();
+            res.extend_from_slice(&len);
+            res.extend_from_slice(&msg);
+        }
+        res
+    }
+
     /// verify if the address that is sending the tokens is the one who actually sent the transfer.
     fn verify(signer: H256, addr: H256, amount: U256, sig: Vec<u8>) -> bool {
-        let mut msg = addr.to_vec();
-        msg.extend_from_slice(&amount.as_u64().to_be_bytes());
-
+        let msg = [&addr.to_vec()[..], &amount.as_u64().to_be_bytes()];
+        let to_verify = Self::prepare_hash_multiple(&msg);
         let mut new_sig: [u8; 65] = [0u8; 65];
         new_sig.copy_from_slice(&sig[..65]);
 
-        let accepted_pubkey = KeyPair::recover(&msg, new_sig).unwrap();
+        let accepted_pubkey = KeyPair::recover(&to_verify, new_sig).unwrap();
         *signer == *accepted_pubkey.keccak256()
     }
 }

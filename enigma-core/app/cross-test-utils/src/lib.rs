@@ -31,9 +31,8 @@ pub fn generate_user_address() -> (ERC20UserAddress, KeyPair) {
 }
 
 pub fn sign_message(key: KeyPair, address: ERC20UserAddress, amount: u64) -> [u8;65] {
-    let mut msg = address.to_vec();
-    msg.extend_from_slice(&amount.to_be_bytes());
-    key.sign(&msg).unwrap()
+    let to_sign = [&address.to_vec()[..], &amount.to_be_bytes()] ;
+    key.sign_multiple(&to_sign).unwrap()
 }
 
 pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
