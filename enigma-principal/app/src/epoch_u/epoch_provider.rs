@@ -48,11 +48,6 @@ impl EpochProvider {
         path
     }
 
-    /// Reset the `EpochState` stores in memory
-    pub fn reset_epoch_state(&self) -> Result<(), Error> {
-        self.set_or_clear_epoch_state(None)
-    }
-
     #[logfn(DEBUG)]
     pub fn read_epoch_state() -> Result<Option<EpochState>, Error> {
         let epoch_state = match File::open(Self::get_state_file_path()) {
@@ -122,6 +117,11 @@ impl EpochProvider {
         };
         mem::drop(guard);
         Ok(epoch_state)
+    }
+
+    /// Reset the `EpochState` stores in memory
+    pub fn reset_epoch_state(&self) -> Result<(), Error> {
+        self.set_or_clear_epoch_state(None)
     }
 
     fn set_epoch_state(&self, epoch_state: EpochState) -> Result<(), Error> {

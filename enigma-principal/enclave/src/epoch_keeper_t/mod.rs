@@ -83,7 +83,7 @@ fn get_current_epoch(epoch_map: &HashMap<U256, Epoch>) -> Result<Epoch, EnclaveE
 }
 
 /// Creates new epoch both in the cache and as sealed documents
-fn store_epoch(nonce_map: &mut HashMap<U256, Epoch>, epoch: Epoch) -> Result<(), EnclaveError> {
+fn store_epoch(epoch: Epoch) -> Result<(), EnclaveError> {
     let hash: [u8; 32] = epoch.raw_encode().keccak256().into();
     let nonce = epoch.nonce.clone();
     let mut data = H256::from(nonce).0.to_vec();
@@ -100,11 +100,6 @@ fn store_epoch(nonce_map: &mut HashMap<U256, Epoch>, epoch: Epoch) -> Result<(),
     let marker_path = get_epoch_marker_path();
     save_sealed_document(&marker_path, &sealed_log_in)?;
     println!("Sealed the epoch marker: {:?}", marker_path);
-    println!("Storing epoch in cache: {:?}", epoch);
-    match nonce_map.insert(nonce, epoch.clone()) {
-        Some(prev) => println!("New epoch stored successfully, previous epoch: {:?}", prev),
-        None => println!("Initial epoch stored successfully"),
-    }
     Ok(())
 }
 
@@ -132,6 +127,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
                     err: format!("Given epoch parameters {:?} do not match the marker {:?}: {:?}", nonce, marker_nonce, marker_hash),
                 }));
             }
+            println!("Epoch verified against the marker successfully");
             Some(epoch)
         }
         None if seed_in != &empty_slice => {
@@ -154,10 +150,15 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
             let seed = U256::from(rand_out.as_ref());
             let epoch = Epoch { nonce, seed, worker_params };
             println!("Generated random seed: {:?}", seed);
-            store_epoch(&mut guard, epoch.clone())?;
+            store_epoch(epoch.clone())?;
             epoch
         }
     };
+    println!("Storing epoch in cache: {:?}", epoch);
+    match guard.insert(epoch.nonce.clone(), epoch.clone()) {
+        Some(prev) => println!("New epoch stored successfully, previous epoch: {:?}", prev),
+        None => println!("Initial epoch stored successfully"),
+    }
     let msg = epoch.raw_encode();
     *sig_out = SIGNING_KEY.sign(&msg)?;
     println!("Signed the message : 0x{}", msg.to_hex());

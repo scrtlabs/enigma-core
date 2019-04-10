@@ -26,11 +26,11 @@ extern "C" {
 pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<EpochState>) -> Result<EpochState, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     println!("Evaluating nonce/seed based on EpochState: {:?}", epoch_state);
-    let (nonce_in, mut seed_in) = match epoch_state.clone() {
+    let (nonce_in, seed_in) = match epoch_state.clone() {
         Some(e) => (H256::from(e.nonce).0, H256::from(e.seed).0),
         None => ([0; 32], [0; 32])
     };
-    println!("Calling enclave set_worker_params with nonce/seed: {:?}/{:?}", nonce_in, rand_in);
+    println!("Calling enclave set_worker_params with nonce/seed: {:?}/{:?}", nonce_in, seed_in);
     let (mut nonce_out, mut rand_out) = ([0; 32], [0; 32]);
     let mut sig_out: [u8; 65] = [0; 65];
     // Serialize the InputWorkerParams into RLP
@@ -49,7 +49,7 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParam
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: retval, status }.into());
+        bail!("{:?} encountered in the enclave", retval);
     }
     let epoch_state_out = match epoch_state {
         Some(epoch_state) => epoch_state,
