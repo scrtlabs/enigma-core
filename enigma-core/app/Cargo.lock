@@ -583,7 +583,7 @@ dependencies = [
  "sgx_urts 1.0.4 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.4)",
  "simplelog 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 2.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "web3 0.6.0 (git+https://github.com/tomusdrw/rust-web3.git)",
+ "web3 0.6.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=5503acb265eee45f58c0baaed8d0eca158388eb1)",
 ]
 
 [[package]]
@@ -901,7 +901,7 @@ dependencies = [
 
 [[package]]
 name = "hyper"
-version = "0.12.26"
+version = "0.12.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -933,7 +933,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bytes 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.26 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.12.26 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.12.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "native-tls 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio-io 0.1.12 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1628,7 +1628,7 @@ dependencies = [
  "flate2 1.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.26 (registry+https://github.com/rust-lang/crates.io-index)",
  "http 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.12.26 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.12.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper-tls 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2386,7 +2386,7 @@ dependencies = [
 [[package]]
 name = "web3"
 version = "0.6.0"
-source = "git+https://github.com/tomusdrw/rust-web3.git#5503acb265eee45f58c0baaed8d0eca158388eb1"
+source = "git+https://github.com/tomusdrw/rust-web3.git?rev=5503acb265eee45f58c0baaed8d0eca158388eb1#5503acb265eee45f58c0baaed8d0eca158388eb1"
 dependencies = [
  "arrayvec 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.10.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2394,7 +2394,7 @@ dependencies = [
  "ethabi 6.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures 0.1.26 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.12.26 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.12.27 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-core 8.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2585,7 +2585,7 @@ dependencies = [
 "checksum http 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)" = "eed324f0f0daf6ec10c474f150505af2c143f251722bf9dbd1261bd1f2ee2c1a"
 "checksum httparse 1.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "e8734b0cfd3bc3e101ec59100e101c2eecd19282202e87808b3037b442777a83"
 "checksum humantime 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "3ca7e5f2e110db35f93b837c81797f3714500b81d517bf20c431b16d3ca4f114"
-"checksum hyper 0.12.26 (registry+https://github.com/rust-lang/crates.io-index)" = "3811a1fe10f3cc132124099150fabb15b22530bdbc3e15f35371335b91c4766a"
+"checksum hyper 0.12.27 (registry+https://github.com/rust-lang/crates.io-index)" = "4f2777434f26af6e4ce4fdcdccd3bed9d861d11e87bcbe72c0f51ddaca8ff848"
 "checksum hyper-tls 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3a800d6aa50af4b5850b2b0f659625ce9504df908e9733b635720483be26174f"
 "checksum idna 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "38f09e0f0b1fb55fdee1f17470ad800da77af5186a1a76c026b679358b7e844e"
 "checksum indexmap 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7e81a7c05f79578dbc15793d8b619db9ba32b4577003ef3af1a91c416798c58d"
@@ -2751,7 +2751,7 @@ dependencies = [
 "checksum vec_map 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)" = "05c78687fb1a80548ae3250346c3db86a80a7cdd77bda190189f2d0a0987c81a"
 "checksum version_check 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "914b1a6776c4c929a602fafd8bc742e06365d4bcbe48c30f9cca5824f70dc9dd"
 "checksum want 0.0.6 (registry+https://github.com/rust-lang/crates.io-index)" = "797464475f30ddb8830cc529aaaae648d581f99e2036a928877dfde027ddf6b3"
-"checksum web3 0.6.0 (git+https://github.com/tomusdrw/rust-web3.git)" = "<none>"
+"checksum web3 0.6.0 (git+https://github.com/tomusdrw/rust-web3.git?rev=5503acb265eee45f58c0baaed8d0eca158388eb1)" = "<none>"
 "checksum which 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b57acb10231b9493c8472b20cb57317d0679a49e0bdbee44b3b803a6473af164"
 "checksum winapi 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "167dc9d6949a9b857f3451275e911c3f44255842c1f7a76f33c55103a909087a"
 "checksum winapi 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)" = "f10e386af2b13e47c89e7236a7a14a086791a2b88ebad6df9bf42040195cf770"
