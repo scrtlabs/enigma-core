@@ -170,6 +170,7 @@ pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, block_nu
     let epoch = get_current_epoch(&guard)?;
     println!("Running worker selection using Epoch: {:?}", epoch);
     let worker = epoch.get_selected_worker(sc_addr)?;
+    println!("Found selected worker: {:?}", worker);
     Ok(worker.0)
 }
 
