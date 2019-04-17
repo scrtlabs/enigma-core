@@ -207,6 +207,66 @@ mod tests {
 
     }
 
+    fn compile_deploy_contract_execute(db: &mut DB,
+                              test_path: &str,
+                              contract_address: ContractAddress,
+                              constructor: &str,
+                              constructor_arguments: &[Token]) -> (sgx_urts::SgxEnclave, WasmTaskResult) {
+        let enclave = init_enclave_wrapper().unwrap();
+        instantiate_encryption_key(vec![contract_address], enclave.geteid());
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_construct = symmetric::encrypt(constructor.as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&constructor_arguments), &shared_key).unwrap();
+
+        let deploy_res = compile_and_deploy_wasm_contract(
+            db,
+            enclave.geteid(),
+            test_path,
+            contract_address,
+            &encrypted_construct,
+            &encrypted_args,
+            &keys.get_pubkey()
+        );
+
+        if let WasmResult::WasmTaskResult(v) = deploy_res {
+            (enclave, v)
+        } else {
+            panic!("Deploy Failure");
+        }
+    }
+
+    fn compile_compute_task_execute(db: &mut DB,
+                              enclave: &sgx_urts::SgxEnclave,
+                              deploy_res: &WasmTaskResult,
+                              func: &str,
+                              func_args: &[Token],
+                              contract_address: ContractAddress) -> (WasmTaskResult,
+                                                                     DhKey) {
+        let exe_code = &deploy_res.output;
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(func.as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&func_args), &shared_key).unwrap();
+
+        let result = wasm::execute(
+            db,
+            enclave.geteid(),
+            &exe_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &contract_address,
+            GAS_LIMIT
+        ).expect("Execution failed");
+
+        if let WasmResult::WasmTaskResult(v) = result {
+            (v, shared_key)
+        }
+        else {
+            panic!("Task Failure");
+        }
+    }
+
     #[test]
     fn test_print_simple() {
         let (mut db, _dir) = create_test_db();
@@ -681,5 +741,48 @@ mod tests {
             "div(uint256,uint256)",
             &[a.clone(), b.clone()]
         );
+    }
+
+    #[test]
+    fn test_millionaires_problem(){
+        let (mut db, _dir) = create_test_db();
+        let contract_address = generate_contract_address();
+        let (enclave, deploy_res) = compile_deploy_contract_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/millionaires_problem_demo",
+            contract_address,
+            "construct()",
+            &[],
+        );
+
+        let millionaire_one_addr = generate_user_address().0;
+        let (_, _) = compile_compute_task_execute(
+            &mut db,
+            &enclave,
+            &deploy_res,
+            "add_millionaire(bytes32,uint256)",
+            &[Token::FixedBytes(millionaire_one_addr.to_vec()), Token::Uint(1_000_000.into())],
+            contract_address,
+        );
+
+        let millionaire_two_addr = generate_user_address().0;
+        let (_, _) = compile_compute_task_execute(
+            &mut db,
+            &enclave,
+            &deploy_res,
+            "add_millionaire(bytes32,uint256)",
+            &[Token::FixedBytes(millionaire_two_addr.to_vec()), Token::Uint(2_000_000.into())],
+            contract_address,
+        );
+
+        let (result, shared_key) = compile_compute_task_execute(
+            &mut db,
+            &enclave,
+            &deploy_res,
+            "compute_richest()",
+            &[],
+            contract_address,
+        );
+        assert_eq!(symmetric::decrypt(&result.output, &shared_key).unwrap(), *millionaire_two_addr);
     }
 }

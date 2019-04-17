@@ -263,14 +263,23 @@ mod test {
 
     use enigma_crypto::KeyPair;
     use enigma_types::ContractAddress;
+    use esgx::general::{init_enclave_wrapper};
 
     use super::*;
 
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
 
+    // TODO: This test runs before the enclave warms up and create the storage directories.
+    // The fix below is temporary. Organize unit tests to warm up storage first.
+    fn setup() {
+        let enclave = init_enclave_wrapper().unwrap();
+        enclave.destroy();
+    }
+
     #[test]
     fn test_write_epoch_state() {
+        setup();
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
         let mock_address: [u8; 32] = [1; 32];
         selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
