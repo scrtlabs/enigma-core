@@ -221,6 +221,7 @@ mod test {
 
     use enigma_crypto::KeyPair;
     use enigma_types::ContractAddress;
+    use esgx::general::{init_enclave_wrapper};
 
     use super::*;
     use esgx::general::init_enclave_wrapper;
