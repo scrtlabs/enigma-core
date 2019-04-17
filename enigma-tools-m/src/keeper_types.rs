@@ -1,3 +1,5 @@
+#![allow(missing_docs)] // This should be removed after @fredfortier will document this module.
+
 use crate::localstd::{vec, vec::Vec};
 use log::debug;
 use log_derive::logfn;

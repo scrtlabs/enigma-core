@@ -1,5 +1,11 @@
 #![cfg_attr(all(not(feature = "std"), not(test)), no_std)]
-#![deny(unused_extern_crates)]
+#![deny(unused_extern_crates, missing_docs)]
+//! # Enigma Tools Mutual
+//! This library provides tools for both untrusted and trusted sides of the SGX. <br>
+//! It should supersede both `enigma-tools-t` and `enigma-tools-u`. <br?
+//! it abstracts std as `localstd` to and a lot of other library are abstracted via cfg conditions. <br>
+//! This crate is Rust 2018 Edition,
+//! meaning there's no `extern crate` and `use` statements need to start with `crate`/`self`/`super`.
 
 mod common;
 pub mod keeper_types;
