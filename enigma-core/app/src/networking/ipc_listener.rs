@@ -304,7 +304,7 @@ pub(self) mod handling {
         Ok(IpcResponse::PTTResponse {result})
     }
 
-    //#[logfn(INFO)]
+    #[logfn(INFO)]
     pub fn deploy_contract(db: &mut DB, input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let bytecode = input.pre_code.expect("Bytecode Missing");
         let contract_address = ContractAddress::from_hex(&input.address)?;
