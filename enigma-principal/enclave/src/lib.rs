@@ -6,6 +6,7 @@
 #![feature(tool_lints)]
 #![feature(try_from)]
 #![feature(slice_concat_ext)]
+#![feature(int_to_from_bytes)]
 #![deny(unused_extern_crates)]
 
 extern crate enigma_crypto;
@@ -107,7 +108,8 @@ pub mod tests {
             test_full_sealing_storage,
             test_document_sealing_storage,
             test_get_epoch_worker_internal,
-            test_state_keys_storage
+            test_state_keys_storage,
+            test_create_epoch_image
         );
     }
 }

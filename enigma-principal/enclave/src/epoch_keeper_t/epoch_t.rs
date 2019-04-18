@@ -5,8 +5,9 @@ use enigma_tools_t::common::errors_t::{
 };
 use enigma_types::ContractAddress;
 use ethabi::{encode, Bytes, Token};
-use ethereum_types::{H160, U256};
+use ethereum_types::{H160, U256, H256};
 use std::string::ToString;
+use std::prelude::v1::Vec;
 
 pub type EpochNonce = [u8; 32];
 pub type EpochMarker = [u8; 64];
@@ -29,12 +30,27 @@ impl Epoch {
 impl RawEncodable for Epoch {
     /// Encode the Epoch as Ethereum ABI parameters
     fn raw_encode(&self) -> Bytes {
-        let tokens = vec![
-            Token::Uint(self.seed),
-            Token::Uint(self.nonce),
-            Token::Array(self.worker_params.workers.iter().map(|a| Token::Address(*a)).collect()),
-            Token::Array(self.worker_params.stakes.iter().map(|s| Token::Uint(*s)).collect()),
-        ];
-        encode(&tokens)
+        let raw_seed = H256::from(self.seed).0.to_vec();
+        let mut image = raw_seed.len().to_be_bytes().to_vec();
+        image.extend(raw_seed);
+
+        let raw_nonce = H256::from(self.nonce).0.to_vec();
+        image.extend(raw_nonce.len().to_be_bytes().to_vec());
+        image.extend(raw_nonce);
+
+        image.extend(self.worker_params.workers.len().to_be_bytes().to_vec());
+        for addr in self.worker_params.workers.clone() {
+            let raw_addr = addr.0.to_vec();
+            image.extend(raw_addr.len().to_be_bytes().to_vec());
+            image.extend(raw_addr);
+        }
+
+        image.extend(self.worker_params.stakes.len().to_be_bytes().to_vec());
+        for amount in self.worker_params.stakes.clone() {
+            let raw_amount = H256::from(amount).0.to_vec();
+            image.extend(raw_amount.len().to_be_bytes().to_vec());
+            image.extend(raw_amount);
+        }
+        image
     }
 }

@@ -177,6 +177,10 @@ pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, block_nu
 pub mod tests {
     use super::*;
     use ethereum_types::{H160, U256};
+    use std::string::String;
+    use enigma_tools_t::common::FromHex;
+    use ethabi::token::{StrictTokenizer, Tokenizer};
+    use std::prelude::v1::Vec;
 
     // noinspection RsTypeCheck
     pub fn test_get_epoch_worker_internal() {
@@ -190,5 +194,54 @@ pub mod tests {
         let sc_addr = ContractAddress::from([1u8; 32]);
         let worker = epoch.get_selected_worker(sc_addr).unwrap();
         println!("The selected workers: {:?}", worker);
+    }
+
+    fn to_address(addr: &str) -> H160 {
+        let mut raw_addr: [u8; 20] = [0; 20];
+        raw_addr.copy_from_slice(&addr.from_hex().unwrap());
+        println!("The reversed address: {}", raw_addr.to_hex());
+        H160(raw_addr)
+    }
+
+    pub fn test_create_epoch_image() {
+        let reference_image_hex1 = String::from("0000000000000020000000000000000000000000000000000000000000000000000000000001622a0000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+        let worker_params1 = InputWorkerParams {
+            block_number: U256::from(1),
+            workers: vec![],
+            stakes: vec![],
+        };
+        let epoch1 = Epoch { nonce: U256::from(0), seed: U256::from(90666), worker_params: worker_params1 };
+        let image1 = epoch1.raw_encode();
+        println!("Comparing epoch: \n{} == \n{}", image1.to_hex(), reference_image_hex1);
+        assert_eq!(image1, reference_image_hex1.from_hex().unwrap());
+
+        let reference_image_hex2 = String::from("0000000000000020000000000000000000000000000000000000000000000000000000000000b64500000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000700000000000000149c1ac1fca5a7bff4fb7e359a9e0e40c2a430e7b30000000000000014151d1caa3e3a1c0b31d1fd64b6d520ef610bf99c00000000000000141bece83ac1a195cdf6ba8f99dfb9b0a7c05b4b9b0000000000000014be49a926dc3e39173d85c80b87b78cd3971cb16f0000000000000014903cd5c2a29f6c319f58c7f9c6ad6903a13660e200000000000000148f7bfd7185add79c44e45be3bf1f72238ef5b3200000000000000014fead1eb428bf84b61ccbaadb2d3e003e968c28470000000000000007000000000000002000000000000000000000000000000000000000000000000000000014f46b0400000000000000002000000000000000000000000000000000000000000000000000000002540be4000000000000000020000000000000000000000000000000000000000000000000000000003b9aca0000000000000000200000000000000000000000000000000000000000000000000000000077359400000000000000002000000000000000000000000000000000000000000000000000000002540be400000000000000002000000000000000000000000000000000000000000000000000000004a817c800000000000000002000000000000000000000000000000000000000000000000000000000ee6b2800");
+        let workers = vec![
+            "9c1Ac1fcA5a7bfF4FB7e359a9e0E40c2A430E7B3",
+            "151D1CAA3e3A1C0b31d1FD64B6D520EF610BF99c",
+            "1bECe83AC1a195cdf6bA8f99DFb9B0a7c05b4B9B",
+            "be49a926Dc3e39173d85c80b87B78cd3971cb16F",
+            "903cd5C2A29F6C319f58c7f9c6aD6903A13660e2",
+            "8f7BfD7185ADd79C44e45be3BF1F72238eF5B320",
+            "FEAD1EB428bF84b61cCbAAdb2d3E003e968c2847",
+        ];
+        let stakes: Vec<u64> = vec![
+            90000000000,
+            10000000000,
+            1000000000,
+            2000000000,
+            10000000000,
+            20000000000,
+            4000000000,
+        ];
+        let worker_params2 = InputWorkerParams {
+            block_number: U256::from(1),
+            workers: workers.into_iter().map(|a| to_address(a)).collect(),
+            stakes: stakes.into_iter().map(|s| U256::from(s.clone())).collect(),
+        };
+        let epoch2 = Epoch { nonce: U256::from(1), seed: U256::from(46661), worker_params: worker_params2 };
+        let image2 = epoch2.raw_encode();
+        println!("Comparing epoch: \n{} == \n{}", image2.to_hex(), reference_image_hex2);
+        assert_eq!(image2, reference_image_hex2.from_hex().unwrap());
     }
 }
