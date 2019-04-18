@@ -120,7 +120,7 @@ pub enum IpcRequest {
 pub struct IpcTask {
     #[serde(rename = "preCode")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub pre_code: Option<String>,
+    pub pre_code: Option<Vec<u8>>,
     #[serde(rename = "encryptedArgs")]
     pub encrypted_args: String,
     #[serde(rename = "encryptedFn")]

@@ -306,7 +306,7 @@ pub(self) mod handling {
 
     #[logfn(INFO)]
     pub fn deploy_contract(db: &mut DB, input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
-        let bytecode = input.pre_code.expect("Bytecode Missing").from_hex()?;
+        let bytecode = input.pre_code.expect("Bytecode Missing");
         let contract_address = ContractAddress::from_hex(&input.address)?;
         let enc_args = input.encrypted_args.from_hex()?;
         let constructor = input.encrypted_fn.from_hex()?;
