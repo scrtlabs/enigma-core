@@ -1,14 +1,18 @@
+use std::collections::HashMap;
+
 use enigma_tools_m::keeper_types::InputWorkerParams;
-use enigma_types::ContractAddress;
 use ethabi::{Event, EventParam, ParamType};
 use failure::Error;
-pub use rlp::{decode, encode, Encodable, RlpStream};
-use std::collections::HashMap;
+pub use rlp::{decode, Encodable, encode, RlpStream};
+use serde::{Deserialize, Serialize};
 use web3::types::{Address, Bytes, H160, U256};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+use enigma_types::ContractAddress;
+use enigma_types::Hash256;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfirmedEpochState {
-    pub selected_workers: HashMap<ContractAddress, H160>,
+    pub selected_workers: HashMap<Hash256, H160>,
     pub block_number: U256,
 }
 
