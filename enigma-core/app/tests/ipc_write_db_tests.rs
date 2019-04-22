@@ -52,7 +52,7 @@ fn test_ipc_update_deltas() {
     let deployed_delta_a = deployed_res_a["result"]["delta"].as_object().unwrap();
     let deployed_delta_b = deployed_res_b["result"]["delta"].as_object().unwrap();
     let computed_delta_a = compute_res_a["result"]["delta"].as_object().unwrap();
-    let mut deltas: Vec<(String, u64, String)> = Vec::new();
+    let mut deltas: Vec<(String, u64, Vec<u8>)> = Vec::new();
     deltas.push((new_addr_a.to_hex(), deployed_delta_a["key"].as_u64().unwrap(), serde_json::from_value(deployed_delta_a["data"].clone()).unwrap()));
     deltas.push((new_addr_b.to_hex(), serde_json::from_value(deployed_delta_b["key"].clone()).unwrap(), serde_json::from_value(deployed_delta_b["data"].clone()).unwrap()));
     deltas.push((new_addr_a.to_hex(), serde_json::from_value(computed_delta_a["key"].clone()).unwrap(), serde_json::from_value(computed_delta_a["data"].clone()).unwrap()));

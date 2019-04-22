@@ -120,7 +120,7 @@ pub enum IpcRequest {
 pub struct IpcTask {
     #[serde(rename = "preCode")]
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub pre_code: Option<String>,
+    pub pre_code: Option<Vec<u8>>,
     #[serde(rename = "encryptedArgs")]
     pub encrypted_args: String,
     #[serde(rename = "encryptedFn")]
@@ -148,7 +148,7 @@ pub struct IpcDelta {
     pub contract_address: Option<String>,
     pub key: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub data: Option<String>,
+    pub data: Option<Vec<u8>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -190,7 +190,7 @@ impl IpcMessageRequest {
 impl IpcDelta {
     pub fn from_delta_key(k: DeltaKey, v: &[u8]) -> Result<Self, Error> {
         if let Stype::Delta(indx) = k.key_type {
-            Ok( IpcDelta { contract_address: Some(k.contract_address.to_hex()), key: indx, data: Some(v.to_hex()) } )
+            Ok( IpcDelta { contract_address: Some(k.contract_address.to_hex()), key: indx, data: Some(v.to_vec()) } )
         } else {
             bail!("This isn't a delta")
         }
@@ -199,7 +199,7 @@ impl IpcDelta {
 
 impl From<Delta> for IpcDelta {
     fn from(delta: Delta) -> Self {
-        let value = delta.value.to_hex();
+        let value = delta.value;
         let key = delta.key.key_type.unwrap_delta();
 
         IpcDelta { contract_address: None, key, data: Some(value) }

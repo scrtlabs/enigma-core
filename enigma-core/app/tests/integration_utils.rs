@@ -101,7 +101,7 @@ pub fn get_ptt_res_msg(response: &[u8]) -> Value {
     json!({"id" : &generate_job_id(), "type" : "PTTResponse", "input": {"response": response.to_hex() }})
 }
 
-pub fn get_deploy_msg(pre_code: &str, args: &str, callable: &str, usr_pubkey: &str, gas_limit: u64, addr: &str) -> Value {
+pub fn get_deploy_msg(pre_code: &[u8], args: &str, callable: &str, usr_pubkey: &str, gas_limit: u64, addr: &str) -> Value {
     json!({"id" : &generate_job_id(), "type" : "DeploySecretContract", "input":
             {"preCode": &pre_code, "encryptedArgs": args,
             "encryptedFn": callable, "userDHKey": usr_pubkey,
@@ -131,7 +131,7 @@ pub fn get_msg_format_update_contract(addr: &str, bytecode: &str) -> Value {
     json!({"id": &generate_job_id(), "type": "UpdateNewContract", "address": addr, "bytecode": bytecode})
 }
 
-pub fn get_update_deltas_msg(_input: &[(String, u64, String)]) -> Value {
+pub fn get_update_deltas_msg(_input: &[(String, u64, Vec<u8>)]) -> Value {
     let input: Vec<Value> = _input.iter().map(|(addr, key, data)| json!({"address": addr, "key": key, "data": data})).collect();
     json!({"id": &generate_job_id(), "type": "UpdateDeltas", "deltas": input})
 }
@@ -193,7 +193,7 @@ pub fn full_erc20_deployment(port: &'static str, owner: ERC20UserAddress, total_
     let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, _shared_key.clone());
     let gas_limit = gas_limit.unwrap_or(100_000_000);
 
-    let msg = get_deploy_msg(&pre_code.to_hex(), &encrypted_args.to_hex(),
+    let msg = get_deploy_msg(&pre_code, &encrypted_args.to_hex(),
                              &encrypted_callable.to_hex(), &_user_pubkey.to_hex(), gas_limit, &address.to_hex());
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
 
@@ -210,7 +210,7 @@ pub fn erc20_deployment_without_ptt_to_addr(port: &'static str, _address: &str) 
     let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, shared_key);
     let gas_limit = 100_000_000;
 
-    let msg = get_deploy_msg(&pre_code.to_hex(), &encrypted_args.to_hex(),
+    let msg = get_deploy_msg(&pre_code, &encrypted_args.to_hex(),
                              &encrypted_callable.to_hex(), &user_pubkey.to_hex(), gas_limit, _address);
     conn_and_call_ipc(&msg.to_string(), port)
 }
@@ -229,7 +229,7 @@ pub fn full_simple_deployment(port: &'static str) -> (Value, [u8; 32]) {
     let (encrypted_callable, encrypted_args) = encrypt_args(&args_deploy, fn_deploy, shared_key);
     let gas_limit = 100_000_000;
 
-    let msg = get_deploy_msg(&pre_code.to_hex(), &encrypted_args.to_hex(),
+    let msg = get_deploy_msg(&pre_code, &encrypted_args.to_hex(),
                              &encrypted_callable.to_hex(), &user_pubkey.to_hex(), gas_limit, &address.to_hex());
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
 
