@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use enigma_tools_m::keeper_types::InputWorkerParams;
 use ethabi::{Log, RawLog};
 use failure::Error;
+use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_types::sgx_enclave_id_t;
 use web3::types::{H256, TransactionReceipt, U256};
@@ -21,7 +22,6 @@ use enigma_tools_u::{
 };
 use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
 use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
-use rmp_serde::{Deserializer, Serializer};
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
@@ -262,24 +262,24 @@ mod test {
     use web3::types::{Bytes, H160};
 
     use enigma_crypto::KeyPair;
+    use enigma_tools_u::{esgx::general::storage_dir};
     use enigma_types::ContractAddress;
-    use esgx::general::{init_enclave_wrapper};
+    use esgx::general::EPOCH_DIR;
 
     use super::*;
 
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
 
-    // TODO: This test runs before the enclave warms up and create the storage directories.
-    // The fix below is temporary. Organize unit tests to warm up storage first.
-    fn setup() {
-        let enclave = init_enclave_wrapper().unwrap();
-        enclave.destroy();
+    fn setup_storage() {
+        let mut storage_path = storage_dir(ENCLAVE_DIR).unwrap();
+        storage_path.push(EPOCH_DIR);
+        fs::create_dir_all(storage_path).unwrap();
     }
 
     #[test]
     fn test_write_epoch_state() {
-        setup();
+        setup_storage();
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
         let mock_address: [u8; 32] = [1; 32];
         selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
