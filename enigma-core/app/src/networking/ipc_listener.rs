@@ -150,7 +150,7 @@ pub(self) mod handling {
         let (tip_key, tip_data) = db.get_tip::<DeltaKey>(&address)?;
 
         let key = tip_key.key_type.unwrap_delta();
-        let delta = IpcDelta { contract_address: None, key, data: Some(tip_data.to_hex()) };
+        let delta = IpcDelta { contract_address: None, key, data: Some(tip_data) };
         Ok(IpcResponse::GetTip { result: delta })
     }
 
@@ -238,7 +238,7 @@ pub(self) mod handling {
             let address = delta.contract_address.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Address Missing".to_string() })?;
             let address = ContractAddress::from_hex(&address)?;
             let data =
-                delta.data.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Delta Data Missing".to_string() })?.from_hex()?;
+                delta.data.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Delta Data Missing".to_string() })?;
             let delta_key = DeltaKey::new(address, Stype::Delta(delta.key));
             tuples.push((delta_key, data));
         }
