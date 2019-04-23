@@ -74,10 +74,10 @@ impl StateKeyRequest {
 impl PrincipalHttpServer {
     pub fn new(epoch_provider: Arc<EpochProvider>, port: u16) -> PrincipalHttpServer { PrincipalHttpServer { epoch_provider, port } }
 
-    fn find_epoch_contract_addresses(request: &StateKeyRequest, epoch_state: &EpochState) -> Result<Vec<ContractAddress>, Error> {
-        let msg_slice = request.get_data()?;
+    fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &EpochState) -> Result<Vec<ContractAddress>, Error> {
+        let image = msg.to_sign()?;
         let sig = request.get_sig()?;
-        let worker = KeyPair::recover(&msg_slice, sig)?.address();
+        let worker = KeyPair::recover(&image, sig)?.address();
         let addrs = epoch_state.get_contract_addresses(&worker.into())?;
         Ok(addrs)
     }
@@ -95,7 +95,7 @@ impl PrincipalHttpServer {
             PrincipalMessageType::Request(None) => {
                 println!("No addresses in message, reading from epoch state...");
                 let epoch_state = epoch_provider.get_state()?;
-                let epoch_addrs = Self::find_epoch_contract_addresses(&request, &epoch_state)?;
+                let epoch_addrs = Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?;
                 get_enc_state_keys(*epoch_provider.eid, request, Some(&epoch_addrs))?
             }
             _ => bail!("Invalid Principal message request"),

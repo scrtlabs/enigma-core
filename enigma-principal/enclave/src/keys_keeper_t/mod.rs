@@ -136,15 +136,17 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     let msg = PrincipalMessage::from_message(msg_bytes)?;
     let user_pubkey = msg.get_pubkey();
     let msg_id = msg.get_id();
-    let sc_addrs: Vec<ContractAddress> = match msg.data {
+    let sc_addrs: Vec<ContractAddress> = match msg.data.clone() {
         PrincipalMessageType::Request(Some(addrs)) => addrs,
         PrincipalMessageType::Request(None) => addrs_bytes,
         _ => {
             return Err(SystemError(KeyProvisionError { err: format!("Unable to deserialize message: {:?}", msg_bytes) }));
         }
     };
-    let recovered = KeyPair::recover(&msg_bytes, sig)?;
-    let recovered_addr = recovered.address();
+    println!("Generating image for request: {:?}", msg);
+    let image = msg.to_sign()?;
+    println!("The image: {:?}", image);
+    let recovered_addr = KeyPair::recover(&image, sig)?.address();
     for sc_addr in sc_addrs.clone() {
         let worker_addr = ecall_get_epoch_worker_internal(sc_addr, None)?;
         if worker_addr != recovered_addr {
