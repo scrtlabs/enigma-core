@@ -6,6 +6,7 @@ use web3::types::{Bytes, U256, H256};
 use common_u::errors::EnclaveFailError;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 use epoch_u::epoch_types::{encode, EpochState};
+use rustc_hex::ToHex;
 
 extern "C" {
     fn ecall_set_worker_params(
@@ -30,7 +31,7 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParam
         Some(e) => (H256::from(e.nonce).0, H256::from(e.seed).0),
         None => ([0; 32], [0; 32])
     };
-    println!("Calling enclave set_worker_params with nonce/seed: {:?}/{:?}", nonce_in, seed_in);
+    println!("Calling enclave set_worker_params with nonce/seed: {:?}/{:?}", nonce_in.to_vec().to_hex(), seed_in.to_vec().to_hex());
     let (mut nonce_out, mut rand_out) = ([0; 32], [0; 32]);
     let mut sig_out: [u8; 65] = [0; 65];
     // Serialize the InputWorkerParams into RLP
@@ -94,7 +95,6 @@ pub mod tests {
         let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
         println!("Got epoch seed params: {:?}", epoch_state);
         assert!(epoch_state.confirmed_state.is_none());
-
         enclave.destroy();
     }
 }

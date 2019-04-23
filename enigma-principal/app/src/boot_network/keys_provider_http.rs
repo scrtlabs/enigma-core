@@ -121,7 +121,7 @@ impl PrincipalHttpServer {
                         code: ErrorCode::InternalError,
                         message: format!("Unable to get keys: {:?}", err),
                         data: None,
-                    })
+                    });
                 }
             };
             Ok(body)
@@ -137,7 +137,6 @@ impl PrincipalHttpServer {
 
 #[cfg(test)]
 mod test {
-
     use web3::types::{H160, U256};
     use super::*;
     use enigma_types::ContractAddress;
@@ -145,6 +144,46 @@ mod test {
     use rustc_hex::FromHex;
     use std::collections::HashMap;
     use web3::types::Bytes;
+    use jsonrpc_test as test;
+    use esgx::epoch_keeper_u::tests::get_worker_params;
+    use esgx::epoch_keeper_u::set_worker_params;
+    use serde_json::error::ErrorCode::EofWhileParsingObject;
+    use epoch_u::epoch_provider::test::setup_epoch_storage;
+    use esgx::general::init_enclave_wrapper;
+    use std::thread;
+
+
+    #[test]
+    pub fn test_jsonrpc_get_state_keys() {
+        setup_epoch_storage();
+        let enclave = init_enclave_wrapper().unwrap();
+        let rpc = {
+            let mut io = IoHandler::new();
+            let eid = enclave.geteid();
+            io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
+                let request = params.parse::<StateKeyRequest>().unwrap();
+                println!("The request: {:?}", request);
+                let response = get_enc_state_keys(eid, request, None).unwrap();
+                let response_data = serde_json::to_value(&response).unwrap();
+                Ok(response_data)
+            });
+            test::Rpc::from(io)
+        };
+        let workers: Vec<[u8; 20]> = vec![[143, 123, 253, 113, 133, 173, 215, 156, 68, 228, 91, 227, 191, 31, 114, 35, 142, 245, 179, 32]];
+        let stakes: Vec<u64> = vec![20000000000];
+        let block_number = 1;
+        let worker_params = get_worker_params(block_number, workers, stakes);
+        let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        let ref_response_data = "83a46461746181b1456e63727970746564526573706f6e7365dc007eccf10c3a2037cccdccd71a453525ccea49cca7ccf151ccb115ccb400023364cc9d3accc72a21ccfcccd0cca8cc83cce4ccf1ccd8cc83ccc5ccdf28173d2062ccadcc885173ccef32cc96ccdf3a2c0562ccb27e2fccf951125ecc9e16cc860accf362cce3ccc107ccb42ccca7cc9036ccc0cca8cccccc84ccc473cc8629ccfb6665cc966d30ccb0cca9cca01970cce735cc98ccf07bccddccb6cc8701ccd2013ecca5000c4bcc8462cc9ccc8a08cc944f07ccff45ccf6cccd05ccfa6ba269649c000000000000000000000001a67075626b6579dc0040ccb3cc9a5dccddccb8cc8cccf1cc98cca2cca346cceacce14b26ccebccee3cccc60eccf9ccf5ccd24c5eccf7ccf0ccda367455ccffccfa78cc833b2a6b6944ccb7ccb31accd6cc8accac4acc83ccc9ccf61d265dccd82c43ccdb283cccf0cc9e4bcceacc82";
+        let ref_response_sig = "a2c212a4590f6ad80c9998699382a407e9acac8af75c6b664f0b89812e85b9bc72fe9fbbe774cfc4af402d4f7002852c7527eed828aa84734a98ab0ceb9fd2b31b";
+        for i in 0..100 {
+            println!("Calling `getStateKeys` in thread {}", i);
+            let msg = "84a67072656669789e456e69676d61204d657373616765a46461746181a75265717565737491dc0020ccfd1454ccbacca9334acc92415f3bcc850919ccaaccc121cc9fccc7cccc7a74ccbd7a25cc8475ccbc677867cc89a67075626b6579dc0040cce5195611cccb471ccc91cce77d30cc9c3b45cc9540ccbc627acc8eccc135ccf32bccaa1e63ccd914cc96ccaccc883a0c5c1b06ccb9cceecc8172cc93cca2cc8e0e631d22ccb7ccea5000525d76cc8b7dccc1cca213425bccdacca2a269649c000000000000000000000001";
+            let sig = "2a4b0d392937300edd36beed4fb1300aed487d5529b6c2f843b7f6f4625644516a8263e27a142171b5ebd5895d3903693c85c681505128529154e302a80bb97c1c";
+            let response = rpc.request(METHOD_GET_STATE_KEYS, &(msg, sig));
+        }
+        enclave.destroy();
+    }
 
     #[test]
     pub fn test_find_epoch_contract_addresses() {
@@ -168,6 +207,7 @@ mod test {
 
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
+
     pub(crate) fn sign_message(msg: &Vec<u8>) -> Result<[u8; 65], Error> {
         let pkey = "79191a46ad1ed7a15e2bf64264c4b41fe6167ea887a5f7de82f52be073539730".from_hex()?;
         let mut pkey_slice: [u8; 32] = [0; 32];

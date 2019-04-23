@@ -116,7 +116,10 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
         Some((marker_nonce, marker_hash)) if seed_in != &empty_slice => {
             println!("Verifying given parameters against the marker");
             let seed = U256::from(seed_in.as_ref());
+            println!("The seed: {:?}", seed);
+//            let seed = Token::Uint(seed_in);
             let nonce = U256::from(nonce_in.as_ref());
+            println!("The nonce: {:?}", nonce);
             let worker_params = worker_params.clone();
             let epoch = Epoch { nonce, seed, worker_params };
             println!("Verifying epoch: {:?}", epoch);
@@ -196,13 +199,6 @@ pub mod tests {
         println!("The selected workers: {:?}", worker);
     }
 
-    fn to_address(addr: &str) -> H160 {
-        let mut raw_addr: [u8; 20] = [0; 20];
-        raw_addr.copy_from_slice(&addr.from_hex().unwrap());
-        println!("The reversed address: {}", raw_addr.to_hex());
-        H160(raw_addr)
-    }
-
     pub fn test_create_epoch_image() {
         let reference_image_hex1 = String::from("0000000000000020000000000000000000000000000000000000000000000000000000000001622a0000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
         let worker_params1 = InputWorkerParams {
@@ -216,14 +212,14 @@ pub mod tests {
         assert_eq!(image1, reference_image_hex1.from_hex().unwrap());
 
         let reference_image_hex2 = String::from("0000000000000020000000000000000000000000000000000000000000000000000000000000b64500000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000700000000000000149c1ac1fca5a7bff4fb7e359a9e0e40c2a430e7b30000000000000014151d1caa3e3a1c0b31d1fd64b6d520ef610bf99c00000000000000141bece83ac1a195cdf6ba8f99dfb9b0a7c05b4b9b0000000000000014be49a926dc3e39173d85c80b87b78cd3971cb16f0000000000000014903cd5c2a29f6c319f58c7f9c6ad6903a13660e200000000000000148f7bfd7185add79c44e45be3bf1f72238ef5b3200000000000000014fead1eb428bf84b61ccbaadb2d3e003e968c28470000000000000007000000000000002000000000000000000000000000000000000000000000000000000014f46b0400000000000000002000000000000000000000000000000000000000000000000000000002540be4000000000000000020000000000000000000000000000000000000000000000000000000003b9aca0000000000000000200000000000000000000000000000000000000000000000000000000077359400000000000000002000000000000000000000000000000000000000000000000000000002540be400000000000000002000000000000000000000000000000000000000000000000000000004a817c800000000000000002000000000000000000000000000000000000000000000000000000000ee6b2800");
-        let workers = vec![
-            "9c1Ac1fcA5a7bfF4FB7e359a9e0E40c2A430E7B3",
-            "151D1CAA3e3A1C0b31d1FD64B6D520EF610BF99c",
-            "1bECe83AC1a195cdf6bA8f99DFb9B0a7c05b4B9B",
-            "be49a926Dc3e39173d85c80b87B78cd3971cb16F",
-            "903cd5C2A29F6C319f58c7f9c6aD6903A13660e2",
-            "8f7BfD7185ADd79C44e45be3BF1F72238eF5B320",
-            "FEAD1EB428bF84b61cCbAAdb2d3E003e968c2847",
+        let workers: Vec<[u8; 20]> = vec![
+            [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
+            [21, 29, 28, 170, 62, 58, 28, 11, 49, 209, 253, 100, 182, 213, 32, 239, 97, 11, 249, 156],
+            [27, 236, 232, 58, 193, 161, 149, 205, 246, 186, 143, 153, 223, 185, 176, 167, 192, 91, 75, 155],
+            [190, 73, 169, 38, 220, 62, 57, 23, 61, 133, 200, 11, 135, 183, 140, 211, 151, 28, 177, 111],
+            [144, 60, 213, 194, 162, 159, 108, 49, 159, 88, 199, 249, 198, 173, 105, 3, 161, 54, 96, 226],
+            [143, 123, 253, 113, 133, 173, 215, 156, 68, 228, 91, 227, 191, 31, 114, 35, 142, 245, 179, 32],
+            [254, 173, 30, 180, 40, 191, 132, 182, 28, 203, 170, 219, 45, 62, 0, 62, 150, 140, 40, 71],
         ];
         let stakes: Vec<u64> = vec![
             90000000000,
@@ -236,7 +232,7 @@ pub mod tests {
         ];
         let worker_params2 = InputWorkerParams {
             block_number: U256::from(1),
-            workers: workers.into_iter().map(|a| to_address(a)).collect(),
+            workers: workers.into_iter().map(|a| H160(a)).collect(),
             stakes: stakes.into_iter().map(|s| U256::from(s.clone())).collect(),
         };
         let epoch2 = Epoch { nonce: U256::from(1), seed: U256::from(46661), worker_params: worker_params2 };

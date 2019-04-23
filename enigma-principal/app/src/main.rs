@@ -13,6 +13,7 @@ extern crate ethabi;
 #[macro_use]
 extern crate failure;
 extern crate jsonrpc_http_server;
+extern crate jsonrpc_test;
 extern crate log;
 #[macro_use]
 extern crate log_derive;
