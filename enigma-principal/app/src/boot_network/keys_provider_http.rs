@@ -137,9 +137,8 @@ impl PrincipalHttpServer {
 
 #[cfg(test)]
 mod test {
-    extern crate ethereum_types;
 
-    use self::ethereum_types::{H160, U256};
+    use web3::types::{H160, U256};
     use super::*;
     use enigma_types::ContractAddress;
     use epoch_u::epoch_types::ConfirmedEpochState;

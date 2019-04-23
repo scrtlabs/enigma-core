@@ -66,27 +66,34 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParam
 #[cfg(test)]
 pub mod tests {
     use ethabi::Uint;
-    use web3::types::Address;
-
+    use web3::types::{Address, H160, H256};
+    use rustc_hex::{FromHex, ToHex};
+    use epoch_u::epoch_provider::test::setup_epoch_storage;
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
 
-    pub(crate) fn set_mock_worker_params(eid: sgx_enclave_id_t) -> (EpochState) {
-        let worker_params = InputWorkerParams {
-            block_number: U256::from(1),
-            workers: vec![Address::from("f25186B5081Ff5cE73482AD761DB0eB0d25abfBF")],
-            stakes: vec![U256::from(1)],
-        };
-        set_worker_params(eid, &worker_params, None).unwrap()
+    pub fn get_worker_params(block_number: u64, workers: Vec<[u8; 20]>, stakes: Vec<u64>) -> InputWorkerParams {
+        InputWorkerParams {
+            block_number: U256::from(block_number),
+            workers: workers.into_iter().map(|a| H160(a)).collect::<Vec<H160>>(),
+            stakes: stakes.into_iter().map(|s| U256::from(s)).collect::<Vec<U256>>(),
+        }
     }
 
     #[test]
     fn test_set_mock_worker_params() {
+        setup_epoch_storage();
         let enclave = init_enclave_wrapper().unwrap();
-        let epoch_seed = set_mock_worker_params(enclave.geteid());
-        println!("Got epoch seed params: {:?}", epoch_seed);
-        assert_eq!(epoch_seed.nonce, Uint::from(0));
+        let workers: Vec<[u8; 20]> = vec![
+            [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
+        ];
+        let stakes: Vec<u64> = vec![90000000000];
+        let block_number = 1;
+        let worker_params = get_worker_params(block_number, workers, stakes);
+        let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        println!("Got epoch seed params: {:?}", epoch_state);
+        assert!(epoch_state.confirmed_state.is_none());
 
         enclave.destroy();
     }

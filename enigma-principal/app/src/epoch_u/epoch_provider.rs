@@ -258,7 +258,7 @@ impl EpochProvider {
 //////////////////////// TESTS  /////////////////////////////////////////
 
 #[cfg(test)]
-mod test {
+pub mod test {
     use web3::types::{Bytes, H160};
 
     use enigma_crypto::KeyPair;
@@ -271,15 +271,20 @@ mod test {
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
 
-    fn setup_storage() {
+    pub fn setup_epoch_storage() {
         let mut storage_path = storage_dir(ENCLAVE_DIR).unwrap();
         storage_path.push(EPOCH_DIR);
+        // Cleaning-up the epoch data if it exists to start with new state
+        if storage_path.is_dir() {
+            println!("Deleting epoch directory: {:?}", storage_path);
+            fs::remove_dir_all(storage_path.clone()).unwrap_or_else(|_| println!("Epoch dir already removed"));
+        }
         fs::create_dir_all(storage_path).unwrap();
     }
 
     #[test]
     fn test_write_epoch_state() {
-        setup_storage();
+        setup_epoch_storage();
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
         let mock_address: [u8; 32] = [1; 32];
         selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
