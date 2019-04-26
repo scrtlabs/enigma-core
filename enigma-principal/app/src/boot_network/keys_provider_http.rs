@@ -174,7 +174,6 @@ mod test {
             let eid = enclave.geteid();
             io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
                 let request = params.parse::<StateKeyRequest>().unwrap();
-                println!("The request: {:?}", request);
                 let response = get_enc_state_keys(eid, request, None).unwrap();
                 let response_data = serde_json::to_value(&response).unwrap();
                 Ok(response_data)
@@ -187,9 +186,7 @@ mod test {
         let worker_params = get_worker_params(block_number, workers, stakes);
         let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
         for i in 0..5 {
-            println!("Calling `getStateKeys` in thread {}", i);
             let response = rpc.request(METHOD_GET_STATE_KEYS, &(REF_MSG, REF_SIG));
-            println!("The response: {:?}", response);
             assert!(response.contains(REF_RESPONSE));
         }
         enclave.destroy();
@@ -209,9 +206,7 @@ mod test {
         let nonce = U256::from(0);
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
         let msg = PrincipalMessage::from_message(&request.get_data().unwrap()).unwrap();
-        println!("The message: {:?}", msg);
         let results = PrincipalHttpServer::find_epoch_contract_addresses(&request, &msg, &epoch_state).unwrap();
-        println!("Found contract addresses: {:?}", results);
         assert_eq!(results, vec![address])
     }
 }
