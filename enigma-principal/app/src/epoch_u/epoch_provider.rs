@@ -21,6 +21,8 @@ use enigma_tools_u::{
 };
 use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
 use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
+use esgx::general::EPOCH_DIR;
+
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
@@ -40,8 +42,8 @@ impl EpochProvider {
     }
 
     fn get_state_file_path() -> PathBuf {
-        let mut path = storage_dir(ENCLAVE_DIR).unwrap();
-        path.push("epoch");
+        let mut path = storage_dir(ENCLAVE_DIR).expect(".enigma folder not found");
+        path.push(EPOCH_DIR);
         path.push("epoch-state.msgpack");
         path
     }
@@ -172,7 +174,7 @@ impl EpochProvider {
                 let (workers, stakes) = self.contract.get_active_workers(block_number)?;
                 let worker_params = InputWorkerParams { block_number, workers, stakes };
                 set_worker_params(*self.eid, &worker_params, Some(epoch_state))?;
-            },
+            }
             Err(_) => {
                 println!("Skipping verification of unconfirmed EpochState.");
             }
@@ -267,7 +269,6 @@ pub mod test {
     use enigma_crypto::KeyPair;
     use enigma_tools_u::{esgx::general::storage_dir};
     use enigma_types::ContractAddress;
-    use esgx::general::EPOCH_DIR;
 
     use super::*;
 
@@ -275,14 +276,24 @@ pub mod test {
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
 
     pub fn setup_epoch_storage() {
-        let mut storage_path = storage_dir(ENCLAVE_DIR).unwrap();
-        storage_path.push(EPOCH_DIR);
-        // Cleaning-up the epoch data if it exists to start with new state
-        if storage_path.is_dir() {
-            println!("Deleting epoch directory: {:?}", storage_path);
-            fs::remove_dir_all(storage_path.clone()).unwrap_or_else(|_| println!("Epoch dir already removed"));
-        }
-        fs::create_dir_all(storage_path).unwrap();
+        let mut path = storage_dir(ENCLAVE_DIR).unwrap();
+        path.push(EPOCH_DIR);
+        match fs::read_dir(path.clone()) {
+            Ok(dir) => {
+                for entry in dir {
+                    if let Ok(entry) = entry {
+                        if entry.path().is_file() {
+                            fs::remove_file(entry.path()).unwrap_or_else(
+                                |_| println!("Epoch dir already empty")
+                            );
+                        }
+                    }
+                }
+            }
+            Err(_) => {
+                fs::create_dir_all(path).unwrap();
+            }
+        };
     }
 
     #[test]
@@ -300,6 +311,7 @@ pub mod test {
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
         EpochProvider::write_epoch_state(Some(epoch_state.clone())).unwrap();
 
+        // TODO: This could fail if another test deleted the epoch files exactly here, give unique name
         let saved_epoch_state = EpochProvider::read_epoch_state().unwrap();
         assert_eq!(format!("{:?}", saved_epoch_state.unwrap()), format!("{:?}", epoch_state));
     }
