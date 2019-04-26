@@ -6,7 +6,6 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
-use std::collections::HashMap;
 
 use enigma_tools_m::keeper_types::InputWorkerParams;
 use ethabi::{Log, RawLog};

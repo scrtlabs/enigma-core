@@ -1,12 +1,11 @@
 use enigma_tools_m::keeper_types::InputWorkerParams;
 use failure::Error;
+use rustc_hex::ToHex;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use web3::types::{Bytes, U256, H256};
+use web3::types::{Bytes, H256, U256};
 
-use common_u::errors::EnclaveFailError;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 use epoch_u::epoch_types::{encode, EpochState};
-use rustc_hex::ToHex;
 
 extern "C" {
     fn ecall_set_worker_params(
@@ -67,8 +66,9 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParam
 #[cfg(test)]
 pub mod tests {
     use ethabi::Uint;
-    use web3::types::{Address, H160, H256};
     use rustc_hex::{FromHex, ToHex};
+    use web3::types::{Address, H160, H256};
+
     use epoch_u::epoch_provider::test::setup_epoch_storage;
     use esgx::general::init_enclave_wrapper;
 

@@ -5,7 +5,6 @@ use crate::serde::{Deserialize, Serialize};
 use crate::serde_json;
 use enigma_crypto::{rand, symmetric, CryptoError, Encryption, hash};
 use enigma_types::{ContractAddress, DhKey, PubKey, StateKey};
-use crate::common::utils::EthereumAddress;
 
 pub type MsgID = [u8; 12];
 

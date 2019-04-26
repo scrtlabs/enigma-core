@@ -1,11 +1,9 @@
-use enigma_crypto::KeyPair;
+use std::{convert::TryInto, sync::Arc};
+
 use enigma_tools_m::{
     primitives::km_primitives::{PrincipalMessage, PrincipalMessageType},
     utils::EthereumAddress,
 };
-use enigma_types::ContractAddress;
-use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
-use esgx::keys_keeper_u::get_enc_state_keys;
 use failure::Error;
 use jsonrpc_http_server::{
     jsonrpc_core::{Error as ServerError, ErrorCode, IoHandler, Params, Value},
@@ -13,7 +11,11 @@ use jsonrpc_http_server::{
 };
 use rustc_hex::{FromHex, ToHex};
 use serde::{Deserialize, Serialize};
-use std::{convert::TryInto, sync::Arc};
+
+use enigma_crypto::KeyPair;
+use enigma_types::ContractAddress;
+use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
+use esgx::keys_keeper_u::get_enc_state_keys;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
@@ -137,21 +139,23 @@ impl PrincipalHttpServer {
 
 #[cfg(test)]
 mod test {
-    use web3::types::{H160, U256};
-    use super::*;
-    use enigma_types::ContractAddress;
-    use epoch_u::epoch_types::ConfirmedEpochState;
-    use rustc_hex::FromHex;
     use std::collections::HashMap;
-    use web3::types::Bytes;
-    use jsonrpc_test as test;
-    use esgx::epoch_keeper_u::tests::get_worker_params;
-    use esgx::epoch_keeper_u::set_worker_params;
-    use serde_json::error::ErrorCode::EofWhileParsingObject;
-    use epoch_u::epoch_provider::test::setup_epoch_storage;
-    use esgx::general::init_enclave_wrapper;
     use std::thread;
 
+    use jsonrpc_test as test;
+    use rustc_hex::FromHex;
+    use serde_json::error::ErrorCode::EofWhileParsingObject;
+    use web3::types::{H160, U256};
+    use web3::types::Bytes;
+
+    use enigma_types::ContractAddress;
+    use epoch_u::epoch_provider::test::setup_epoch_storage;
+    use epoch_u::epoch_types::ConfirmedEpochState;
+    use esgx::epoch_keeper_u::set_worker_params;
+    use esgx::epoch_keeper_u::tests::get_worker_params;
+    use esgx::general::init_enclave_wrapper;
+
+    use super::*;
 
     #[test]
     pub fn test_jsonrpc_get_state_keys() {

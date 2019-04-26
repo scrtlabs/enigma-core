@@ -1,25 +1,27 @@
-use crate::SIGNING_KEY;
-use enigma_crypto::{asymmetric::KeyPair, Encryption};
 use enigma_tools_m::{
     primitives::km_primitives::{PrincipalMessage, PrincipalMessageType},
     utils::EthereumAddress,
 };
+use sgx_trts::trts::rsgx_read_rand;
+use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec};
+
+use enigma_crypto::{asymmetric::KeyPair, Encryption};
 use enigma_tools_t::{
     common::{
         errors_t::{
             EnclaveError::{self, *},
             EnclaveSystemError::*,
         },
-        utils_t::LockExpectMutex,
         ToHex,
+        utils_t::LockExpectMutex,
     },
-    document_storage_t::{is_document, load_sealed_document, save_sealed_document, SealedDocumentStorage, SEAL_LOG_SIZE},
+    document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
 use enigma_types::{ContractAddress, Hash256, StateKey};
-use ocalls_t;
-use sgx_trts::trts::rsgx_read_rand;
-use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec};
 use epoch_keeper_t::ecall_get_epoch_worker_internal;
+use ocalls_t;
+
+use crate::SIGNING_KEY;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
@@ -148,7 +150,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     println!("The image: {:?}", image);
     let recovered_addr = KeyPair::recover(&image, sig)?.address();
     for sc_addr in sc_addrs.clone() {
-        let worker_addr = ecall_get_epoch_worker_internal(sc_addr, None)?;
+        let worker_addr = ecall_get_epoch_worker_internal(sc_addr)?;
         if worker_addr != recovered_addr {
             return Err(SystemError(KeyProvisionError { err: format!("Selected worker for contract: {:?} is not the message signer {} != {}", sc_addr, worker_addr.to_hex(), recovered_addr.to_hex()) }));
         }
@@ -173,8 +175,9 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
 }
 
 pub mod tests {
-    use super::*;
     use enigma_tools_t::common::FromHex;
+
+    use super::*;
 
     // noinspection RsTypeCheck
     pub fn test_state_keys_storage() {

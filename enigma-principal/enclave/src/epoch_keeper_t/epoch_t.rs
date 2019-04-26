@@ -1,13 +1,13 @@
 use enigma_tools_m::keeper_types::{InputWorkerParams, RawEncodable};
+use ethabi::Bytes;
+use ethereum_types::{H160, H256, U256};
+use std::string::ToString;
+
 use enigma_tools_t::common::errors_t::{
     EnclaveError::{self, SystemError},
     EnclaveSystemError,
 };
 use enigma_types::ContractAddress;
-use ethabi::{encode, Bytes, Token};
-use ethereum_types::{H160, U256, H256};
-use std::string::ToString;
-use std::prelude::v1::Vec;
 
 pub type EpochNonce = [u8; 32];
 pub type EpochMarker = [u8; 64];

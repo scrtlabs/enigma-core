@@ -1,24 +1,26 @@
-use crate::SIGNING_KEY;
-use enigma_tools_m::keeper_types::{decode, rlpEncode, InputWorkerParams, RawEncodable};
+use enigma_tools_m::keeper_types::{decode, InputWorkerParams, RawEncodable};
+use ethereum_types::{H256, U256};
+use sgx_trts::trts::rsgx_read_rand;
+use sgx_types::*;
+use std::{collections::HashMap, path, str, sync::SgxMutex};
+
+use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::{
     common::{
         errors_t::{
             EnclaveError::{self, *},
             EnclaveSystemError::*,
         },
-        utils_t::LockExpectMutex,
         ToHex,
+        utils_t::LockExpectMutex,
     },
-    document_storage_t::{is_document, load_sealed_document, save_sealed_document, SealedDocumentStorage, SEAL_LOG_SIZE},
+    document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
 use enigma_types::{ContractAddress, Hash256};
 use epoch_keeper_t::epoch_t::{Epoch, EpochMarker, EpochNonce};
-use ethereum_types::{U256, H256};
 use ocalls_t;
-use sgx_trts::trts::rsgx_read_rand;
-use sgx_types::*;
-use std::{collections::HashMap, path, str, string::ToString, sync::SgxMutex};
-use enigma_crypto::hash::Keccak256;
+
+use crate::SIGNING_KEY;
 
 pub mod epoch_t;
 
@@ -39,7 +41,7 @@ fn get_epoch_root_path() -> path::PathBuf {
 
 fn get_epoch_marker_path() -> path::PathBuf { get_epoch_root_path().join("epoch-marker.sealed") }
 
-fn get_epoch_marker(epoch_map: &HashMap<U256, Epoch>) -> Result<Option<(U256, Hash256)>, EnclaveError> {
+fn get_epoch_marker() -> Result<Option<(U256, Hash256)>, EnclaveError> {
     let path = get_epoch_marker_path();
     if !is_document(&path) {
         println!("Sealed epoch marker not found in path: {:?}", path);
@@ -108,16 +110,14 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
                                                sig_out: &mut [u8; 65]) -> Result<(), EnclaveError> {
     // RLP decoding the necessary data
     let worker_params: InputWorkerParams = decode(worker_params_rlp);
-    let mut guard = EPOCH.lock_expect("Epoch");
-    let marker = get_epoch_marker(&*guard)?;
+    let marker = get_epoch_marker()?;
     println!("Marker {:?} / raw seed {:?} / raw nonce {:?}", marker, seed_in.to_vec(), nonce_in.to_vec());
-    const empty_slice: [u8; 32] = [0; 32];
+    const EMPTY_SLICE: [u8; 32] = [0; 32];
     let existing_epoch = match marker {
-        Some((marker_nonce, marker_hash)) if seed_in != &empty_slice => {
+        Some((marker_nonce, marker_hash)) if seed_in != &EMPTY_SLICE => {
             println!("Verifying given parameters against the marker");
             let seed = U256::from(seed_in.as_ref());
             println!("The seed: {:?}", seed);
-//            let seed = Token::Uint(seed_in);
             let nonce = U256::from(nonce_in.as_ref());
             println!("The nonce: {:?}", nonce);
             let worker_params = worker_params.clone();
@@ -133,7 +133,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
             println!("Epoch verified against the marker successfully");
             Some(epoch)
         }
-        None if seed_in != &empty_slice => {
+        None if seed_in != &EMPTY_SLICE => {
             return Err(SystemError(WorkerAuthError {
                 err: format!("Cannot verify given parameters without a sealed marker"),
             }));
@@ -158,6 +158,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
         }
     };
     println!("Storing epoch in cache: {:?}", epoch);
+    let mut guard = EPOCH.lock_expect("Epoch");
     match guard.insert(epoch.nonce.clone(), epoch.clone()) {
         Some(prev) => println!("New epoch stored successfully, previous epoch: {:?}", prev),
         None => println!("Initial epoch stored successfully"),
@@ -168,7 +169,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     Ok(())
 }
 
-pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, block_number: Option<U256>) -> Result<[u8; 20], EnclaveError> {
+pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress) -> Result<[u8; 20], EnclaveError> {
     let guard = EPOCH.lock_expect("Epoch");
     let epoch = get_current_epoch(&guard)?;
     println!("Running worker selection using Epoch: {:?}", epoch);
@@ -178,12 +179,13 @@ pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, block_nu
 }
 
 pub mod tests {
-    use super::*;
     use ethereum_types::{H160, U256};
-    use std::string::String;
-    use enigma_tools_t::common::FromHex;
-    use ethabi::token::{StrictTokenizer, Tokenizer};
     use std::prelude::v1::Vec;
+    use std::string::String;
+
+    use enigma_tools_t::common::FromHex;
+
+    use super::*;
 
     // noinspection RsTypeCheck
     pub fn test_get_epoch_worker_internal() {

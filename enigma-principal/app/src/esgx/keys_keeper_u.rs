@@ -1,9 +1,10 @@
-use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
-use common_u::errors::EnclaveFailError;
-use enigma_types::{traits::SliceCPtr, ContractAddress, EnclaveReturn};
+use std::{convert::TryInto, mem};
+
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use std::{convert::TryInto, mem};
+
+use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
+use enigma_types::{ContractAddress, EnclaveReturn, traits::SliceCPtr};
 
 extern "C" {
     fn ecall_get_enc_state_keys(
@@ -53,13 +54,15 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
 
 #[cfg(test)]
 pub mod tests {
-    use super::*;
-    use esgx::general::init_enclave_wrapper;
-    use sgx_urts::SgxEnclave;
     use enigma_tools_m::keeper_types::InputWorkerParams;
+    use sgx_urts::SgxEnclave;
+
+    use epoch_u::epoch_provider::test::setup_epoch_storage;
     use esgx::epoch_keeper_u::set_worker_params;
     use esgx::epoch_keeper_u::tests::get_worker_params;
-    use epoch_u::epoch_provider::test::setup_epoch_storage;
+    use esgx::general::init_enclave_wrapper;
+
+    use super::*;
 
     fn init_enclave() -> SgxEnclave {
         let enclave = match init_enclave_wrapper() {
