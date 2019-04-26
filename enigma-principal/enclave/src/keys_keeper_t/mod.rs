@@ -145,14 +145,16 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
             return Err(SystemError(KeyProvisionError { err: format!("Unable to deserialize message: {:?}", msg_bytes) }));
         }
     };
-    println!("Generating image for request: {:?}", msg);
     let image = msg.to_sign()?;
-    println!("The image: {:?}", image);
+    println!("Generated hash image: {:?} for request: {:?}", image, msg);
     let recovered_addr = KeyPair::recover(&image, sig)?.address();
     for sc_addr in sc_addrs.clone() {
         let worker_addr = ecall_get_epoch_worker_internal(sc_addr)?;
         if worker_addr != recovered_addr {
-            return Err(SystemError(KeyProvisionError { err: format!("Selected worker for contract: {:?} is not the message signer {} != {}", sc_addr, worker_addr.to_hex(), recovered_addr.to_hex()) }));
+            return Err(SystemError(KeyProvisionError {
+                err: format!("Selected worker for contract: {:?} is not the message signer {} != {}",
+                             sc_addr, worker_addr.to_hex(), recovered_addr.to_hex())
+            }));
         }
     }
     let response_data = build_get_state_keys_response(sc_addrs)?;

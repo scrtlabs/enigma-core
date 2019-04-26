@@ -1,3 +1,17 @@
+use std::{fs::File, io::prelude::*, str, sync::Arc, thread};
+
+use failure::Error;
+use rustc_hex::ToHex;
+use serde_derive::*;
+use serde_json;
+use sgx_types::sgx_enclave_id_t;
+use web3::{
+    futures::Future,
+    transports::Http,
+    types::{Address, H160, H256, U256},
+    Web3,
+};
+
 use boot_network::{deploy_scripts, keys_provider_http::PrincipalHttpServer, principal_utils::Principal};
 use enigma_tools_u::{
     attestation_service::service,
@@ -6,18 +20,6 @@ use enigma_tools_u::{
 };
 use epoch_u::epoch_provider::EpochProvider;
 use esgx;
-use failure::Error;
-use rustc_hex::ToHex;
-use serde_derive::*;
-use serde_json;
-use sgx_types::sgx_enclave_id_t;
-use std::{fs::File, io::prelude::*, str, sync::Arc, thread};
-use web3::{
-    futures::Future,
-    transports::Http,
-    types::{Address, H160, H256, U256},
-    Web3,
-};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
@@ -159,6 +161,7 @@ impl Sampler for PrincipalManager {
         Ok(block_number)
     }
 
+    #[logfn(DEBUG)]
     fn register<G: Into<U256>>(&self, signing_address: String, gas_limit: G) -> Result<H256, Error> {
         let registration_params = self.report_manager.get_registration_params()?;
         println!("Registering worker");
@@ -250,23 +253,26 @@ pub fn run_miner(account: Address, w3: Arc<Web3<Http>>, interval: u64) -> thread
 
 #[cfg(test)]
 mod test {
-    use super::*;
-    use enigma_tools_u::web3_utils::{enigma_contract::EnigmaContract, w3utils};
-    use epoch_u::epoch_types::WorkersParameterizedEvent;
-    use esgx::general::init_enclave_wrapper;
     use std::{env, path::Path, sync::Arc, thread, time};
+
     use web3::{
-        futures::{stream::Stream, Future},
+        futures::{Future, stream::Stream},
         transports::Http,
         types::{FilterBuilder, Log},
         Web3,
     };
 
+    use enigma_tools_u::web3_utils::{enigma_contract::EnigmaContract, w3utils};
+    use epoch_u::epoch_types::WorkersParameterizedEvent;
+    use esgx::general::init_enclave_wrapper;
+
+    use super::*;
+
     /// This function is important to enable testing both on the CI server and local.
-    /// On the CI Side:
-    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-    /// The default is set to ganache cli "http://localhost:8545"
+        /// On the CI Side:
+        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
+        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
+        /// The default is set to ganache cli "http://localhost:8545"
     pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:8545")) }
 
     /// helps in assertion to check if a random event was indeed broadcast.
@@ -285,7 +291,6 @@ mod test {
     pub fn init_no_deploy(eid: u64) -> Result<PrincipalManager, Error> {
         let mut config = get_config()?;
         let enclave_manager = ReportManager::new(config.clone(), eid)?;
-        println!("The Principal node signing address: {:?}", enclave_manager.get_signing_address().unwrap());
 
         let contract = Arc::new(EnigmaContract::from_deployed(
             &config.enigma_contract_address,
@@ -296,11 +301,6 @@ mod test {
         let _gas_limit = 5_999_999;
         config.max_epochs = None;
         let principal: PrincipalManager = PrincipalManager::new(config.clone(), contract, enclave_manager).unwrap();
-        println!(
-            "Connected to the Enigma contract: {:?} with account: {:?}",
-            &config.enigma_contract_address,
-            principal.get_account_address()
-        );
         Ok(principal)
     }
 

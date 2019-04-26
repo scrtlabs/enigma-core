@@ -31,7 +31,6 @@ pub struct EpochProvider {
 impl EpochProvider {
     pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
         let epoch_state_val = Self::read_epoch_state()?;
-        println!("Initializing EpochProvider with EpochState: {:?}", epoch_state_val);
         let epoch_state = Arc::new(Mutex::new(epoch_state_val.clone()));
         let epoch_provider = Self { contract, epoch_state, eid };
         if epoch_state_val.is_some() {
@@ -146,6 +145,7 @@ impl EpochProvider {
 
     /// Get the confirmed state if available. Bail if not.
     /// The confirmed state contains the selected worker cache.
+    #[logfn(DEBUG)]
     pub fn get_confirmed(&self) -> Result<ConfirmedEpochState, Error> {
         let guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
@@ -209,12 +209,14 @@ impl EpochProvider {
     /// * `block_number` - The block number marking the active worker list
     /// * `gas_limit` - The gas limit of the `setWorkersParams` transaction
     /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
+    #[logfn(DEBUG)]
     pub fn confirm_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
         let epoch_state = self.get_state()?;
         println!("Confirming EpochState by verifying with the enclave and calling setWorkerParams: {:?}", epoch_state);
         self.set_worker_params_internal(block_number, gas_limit, confirmations, Some(epoch_state))
     }
 
+    #[logfn(DEBUG)]
     fn set_worker_params_internal<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize, epoch_state: Option<EpochState>) -> Result<H256, Error> {
         let result = self.contract.get_active_workers(block_number)?;
         let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };

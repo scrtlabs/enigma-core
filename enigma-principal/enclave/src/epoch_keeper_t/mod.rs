@@ -117,9 +117,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
         Some((marker_nonce, marker_hash)) if seed_in != &EMPTY_SLICE => {
             println!("Verifying given parameters against the marker");
             let seed = U256::from(seed_in.as_ref());
-            println!("The seed: {:?}", seed);
             let nonce = U256::from(nonce_in.as_ref());
-            println!("The nonce: {:?}", nonce);
             let worker_params = worker_params.clone();
             let epoch = Epoch { nonce, seed, worker_params };
             println!("Verifying epoch: {:?}", epoch);
@@ -160,7 +158,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     println!("Storing epoch in cache: {:?}", epoch);
     let mut guard = EPOCH.lock_expect("Epoch");
     match guard.insert(epoch.nonce.clone(), epoch.clone()) {
-        Some(prev) => println!("New epoch stored successfully, previous epoch: {:?}", prev),
+        Some(prev) => println!("New epoch stored successfully"),
         None => println!("Initial epoch stored successfully"),
     }
     let msg = epoch.raw_encode();
@@ -195,7 +193,6 @@ pub mod tests {
             stakes: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
         };
         let epoch = Epoch { nonce: U256::from(0), seed: U256::from(1), worker_params };
-        println!("The epoch: {:?}", epoch);
         let sc_addr = ContractAddress::from([1u8; 32]);
         let worker = epoch.get_selected_worker(sc_addr).unwrap();
         println!("The selected workers: {:?}", worker);
@@ -210,7 +207,6 @@ pub mod tests {
         };
         let epoch1 = Epoch { nonce: U256::from(0), seed: U256::from(90666), worker_params: worker_params1 };
         let image1 = epoch1.raw_encode();
-        println!("Comparing epoch: \n{} == \n{}", image1.to_hex(), reference_image_hex1);
         assert_eq!(image1, reference_image_hex1.from_hex().unwrap());
 
         let reference_image_hex2 = String::from("0000000000000020000000000000000000000000000000000000000000000000000000000000b64500000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000700000000000000149c1ac1fca5a7bff4fb7e359a9e0e40c2a430e7b30000000000000014151d1caa3e3a1c0b31d1fd64b6d520ef610bf99c00000000000000141bece83ac1a195cdf6ba8f99dfb9b0a7c05b4b9b0000000000000014be49a926dc3e39173d85c80b87b78cd3971cb16f0000000000000014903cd5c2a29f6c319f58c7f9c6ad6903a13660e200000000000000148f7bfd7185add79c44e45be3bf1f72238ef5b3200000000000000014fead1eb428bf84b61ccbaadb2d3e003e968c28470000000000000007000000000000002000000000000000000000000000000000000000000000000000000014f46b0400000000000000002000000000000000000000000000000000000000000000000000000002540be4000000000000000020000000000000000000000000000000000000000000000000000000003b9aca0000000000000000200000000000000000000000000000000000000000000000000000000077359400000000000000002000000000000000000000000000000000000000000000000000000002540be400000000000000002000000000000000000000000000000000000000000000000000000004a817c800000000000000002000000000000000000000000000000000000000000000000000000000ee6b2800");
@@ -239,7 +235,6 @@ pub mod tests {
         };
         let epoch2 = Epoch { nonce: U256::from(1), seed: U256::from(46661), worker_params: worker_params2 };
         let image2 = epoch2.raw_encode();
-        println!("Comparing epoch: \n{} == \n{}", image2.to_hex(), reference_image_hex2);
         assert_eq!(image2, reference_image_hex2.from_hex().unwrap());
     }
 }

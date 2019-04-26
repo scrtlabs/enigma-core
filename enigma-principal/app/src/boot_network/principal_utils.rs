@@ -1,8 +1,10 @@
+use std::{sync::Arc, thread, time};
+
+use failure::Error;
+use web3::{futures::Future, types::U256};
+
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
 use epoch_u::epoch_provider::EpochProvider;
-use failure::Error;
-use std::{sync::Arc, thread, time};
-use web3::{futures::Future, types::U256};
 
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {

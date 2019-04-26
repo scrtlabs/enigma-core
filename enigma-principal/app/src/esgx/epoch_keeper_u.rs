@@ -23,6 +23,7 @@ extern "C" {
 /// let worker_params: InputWorkerParams = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
 /// let sig = set_worker_params(enclave.geteid(), worker_params).unwrap();
 /// ```
+#[logfn(DEBUG)]
 pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<EpochState>) -> Result<EpochState, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     println!("Evaluating nonce/seed based on EpochState: {:?}", epoch_state);
@@ -93,7 +94,6 @@ pub mod tests {
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
         let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
-        println!("Got epoch seed params: {:?}", epoch_state);
         assert!(epoch_state.confirmed_state.is_none());
         enclave.destroy();
     }
