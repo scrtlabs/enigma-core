@@ -258,6 +258,8 @@ impl EpochProvider {
 
 #[cfg(test)]
 pub mod test {
+    use std::collections::HashMap;
+
     use web3::types::{Bytes, H160};
 
     use enigma_crypto::KeyPair;

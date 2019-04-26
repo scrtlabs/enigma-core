@@ -83,17 +83,15 @@ pub mod tests {
         let enclave = init_enclave();
 
         // Since the seed is not predictable in advance, test with a single worker to predict the selected worker
-        let workers: Vec<[u8; 20]> = vec![
-            [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
-        ];
-        let stakes: Vec<u64> = vec![90000000000];
+        let workers: Vec<[u8; 20]> = vec![[143, 123, 253, 113, 133, 173, 215, 156, 68, 228, 91, 227, 191, 31, 114, 35, 142, 245, 179, 32]];
+        let stakes: Vec<u64> = vec![10000000000];
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
         set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
 
         // From the km_primitives uint tests
-        let msg = StringWrapper("84a67072656669789e456e69676d61204d657373616765a46461746181a75265717565737491dc0020ccfd1454ccbacca9334acc92415f3bcc850919ccaaccc121cc9fccc7cccc7a74ccbd7a25cc8475ccbc677867cc89a67075626b6579dc0040ccabcce7cce8cccaccdc2114ccbfccde2c52181accf258cce4ccba1ccca2ccb021ccc7cc944c4ecc8b02ccc5015431325342136cccbb1d7709cce7171dcc962accb14f5a67ccf8cca07505ccf8cca54dcce3ccad170b4ccc8fcce7cceda269649c000000000000000000000001".to_string());
-        let sig = StringWrapper("9fe3899d9ac0d7baf1873bd3ca43480f0e2a06b03df8b222937ea3bc663def242850f157dced9786d9c084112530312feeb3f0b48f7380a34b84f3044231c2be1c".to_string());
+        let msg = StringWrapper("84a67072656669789e456e69676d61204d657373616765a46461746181a75265717565737491dc0020ccfd1454ccbacca9334acc92415f3bcc850919ccaaccc121cc9fccc7cccc7a74ccbd7a25cc8475ccbc677867cc89a67075626b6579dc00400d02ccb405ccd5213cccd27e5b2ecc86ccf75e5acc812dccf64a37007a3bccf5cca45c7809cc8bcc94ccf22b50ccea3817cc9915ccaeccf51bcc97cce9ccc70a707a05cc880c436accff02cc8919cc9960023fccf0cce7ccf8ccf6a269649c000000000000000000000001".to_string());
+        let sig = StringWrapper("c5a40ca148e1048075d189371c522b202ab24143224cac3700c4f95fa922e5872ebb8dd867650c265e6f51a6c831081e0b5c3c5bb5a858f2b89fad2fd4facc0e1c".to_string());
         println!("The mock message: {:?}", msg);
         println!("The mock sig: {:?}", sig);
 
