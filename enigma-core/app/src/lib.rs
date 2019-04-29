@@ -45,3 +45,43 @@ pub mod cross_test_utils {
     use super::*;
 
 }
+
+#[cfg(test)]
+mod tests {
+    extern crate tempfile;
+    use crate::esgx::general::init_enclave_wrapper;
+    use sgx_types::*;
+    use crate::db::DB;
+    use enigma_types::{RawPointer, ResultStatus};
+    use simplelog::TermLogger;
+    use log::LevelFilter;
+    use self::tempfile::TempDir;
+
+    extern "C" {
+        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer, result: *mut ResultStatus) -> sgx_status_t;
+    }
+
+    /// It's important to save TempDir too, because when it gets dropped the directory will be removed.
+    fn create_test_db() -> (DB, TempDir) {
+        let tempdir = tempfile::tempdir().unwrap();
+        let db = DB::new(tempdir.path(), true).unwrap();
+        (db, tempdir)
+    }
+
+    pub fn log_to_stdout(level: Option<LevelFilter>) {
+        let level = level.unwrap_or_else(|| LevelFilter::max());
+        TermLogger::init(level, Default::default()).unwrap();
+    }
+
+    #[test]
+    pub fn test_enclave_internal() {
+        let (mut db, _dir) = create_test_db();
+        let enclave = init_enclave_wrapper().unwrap();
+        let db_ptr = unsafe { RawPointer::new_mut(&mut db) };
+        let mut result: ResultStatus = ResultStatus::Ok;
+        let ret = unsafe { ecall_run_tests(enclave.geteid(), &db_ptr as *const RawPointer, &mut result) };
+
+        assert_eq!(ret, sgx_status_t::SGX_SUCCESS);
+        assert_eq!(result,ResultStatus::Ok);
+    }
+}
