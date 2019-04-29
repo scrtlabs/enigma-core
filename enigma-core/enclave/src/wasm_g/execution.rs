@@ -1,6 +1,6 @@
 use crate::km_t;
 use enigma_runtime_t::{ocalls_t as runtime_ocalls_t, RuntimeResult};
-use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime};
+use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeWasmCosts};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*};
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_crypto::{CryptoError, Encryption};
@@ -102,7 +102,7 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
     // TODO: Change the assert here: https://github.com/paritytech/wasmi/issues/172
     let instance = ModuleInstance::new(module, &imports)?.assert_no_start();
 
-    let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types, key);
+    let mut runtime = Runtime::new_with_state(gas_limit, instantiation_resolver.memory_ref(), params, state, function_name, types, key, RuntimeWasmCosts::default());
 
     let invocation_result = instance.invoke_export("call", &[], &mut runtime);
     if let Err(err) = invocation_result {

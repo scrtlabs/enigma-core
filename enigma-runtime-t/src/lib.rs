@@ -47,6 +47,21 @@ pub struct RuntimeResult {
 }
 
 #[derive(Debug, Clone)]
+pub struct RuntimeWasmCosts {
+    write_value: u32,
+    write_additional_byte: u32,
+}
+
+impl Default for RuntimeWasmCosts {
+    fn default() -> Self {
+        RuntimeWasmCosts {
+            write_value: 10,
+            write_additional_byte: 1
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Runtime {
     gas_counter: u64,
     gas_limit: u64,
@@ -58,19 +73,21 @@ pub struct Runtime {
     pre_execution_state: ContractState,
     post_execution_state: ContractState,
     key: StateKey,
+    gas_costs: RuntimeWasmCosts,
 }
 
 type Result<T> = ::std::result::Result<T, WasmError>;
 
 impl Runtime {
+
     pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_address: ContractAddress,
                function_name: String, args_types: String, key: StateKey) -> Runtime {
         let state = ContractState::new(contract_address);
-        Self::new_with_state(gas_limit, memory, args, state, function_name, args_types, key)
+        Self::new_with_state(gas_limit, memory, args, state, function_name, args_types, key, RuntimeWasmCosts::default())
     }
 
     pub fn new_with_state(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, state: ContractState,
-                          function_name: String, args_types: String, key: StateKey) -> Runtime {
+                          function_name: String, args_types: String, key: StateKey, costs: RuntimeWasmCosts) -> Runtime {
         let pre_execution_state = state.clone();
         let post_execution_state = state;
         let result = RuntimeResult {
@@ -80,7 +97,7 @@ impl Runtime {
             ethereum_bridge: Default::default(),
             used_gas: 0,
         };
-        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, pre_execution_state, post_execution_state, key }
+        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, pre_execution_state, post_execution_state, key, gas_costs: costs }
     }
 
     pub fn get_used_gas(&self) -> u64 {
@@ -171,18 +188,51 @@ impl Runtime {
     /// * `value_len` - the length of the value
     ///
     /// Read `key` and `value` from memory, and write (key, value) pair to the state
+    /// the cost of writing into the state is calculated by `calculate_gas_for_writing`
     pub fn write_state (&mut self, args: RuntimeArgs) -> Result<()>{
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value: u32 = args.nth_checked(2)?;
         let value_len: u32 = args.nth_checked(3)?;
 
         let mut val = vec![0u8; value_len as usize];
+        let gas_amount = self.calculate_gas_for_writing(value_len, &key)?;
+        self.charge_gas(gas_amount)?;
         self.memory.get_into(value, &mut val[..])?;
 
         let value: serde_json::Value =
             serde_json::from_slice(&val).expect("Failed converting into Value while writing state in Runtime");
         self.post_execution_state.write_key(&key, &value)?;
         Ok(())
+    }
+
+    /// args:
+   /// * `new_value_len` - the length of of the new value to be written under the `key`
+   /// * `key` - the key to write the new value
+   /// calculate the gas to be charged for the writing of the new value.
+   /// There is an initial constant value charged for the writing
+   /// If the new value is larger than the old one, then gas is charged for each new byte.
+   /// If the new value is smaller than the old one, then the charge for each saved byte
+   /// is subtracted from the initial value until 0.
+    fn calculate_gas_for_writing(&mut self, new_value_len: u32, key: &str) -> Result<u64> {
+        let mut result = 0;
+        let val = &self.post_execution_state.json[key];
+        let mut old_value_len = 0;
+        // forcing the length of Null value to be 0, since it is not 0.
+        if !val.is_null() {
+            let old_value_vec =
+                serde_json::to_vec(val).expect("Failed converting Value to vec in Runtime while reading state");
+            old_value_len = old_value_vec.len() as u32;
+        }
+        if new_value_len >= old_value_len {
+            result = self.gas_costs.write_value + (new_value_len - old_value_len)*self.gas_costs.write_additional_byte;
+        }
+        else {
+            let decrease_cost = (old_value_len - new_value_len)*self.gas_costs.write_additional_byte;
+            if decrease_cost < self.gas_costs.write_value {
+                result = self.gas_costs.write_value - decrease_cost;
+            }
+        }
+        Ok(result as u64)
     }
 
     /// args:
@@ -259,7 +309,11 @@ impl Runtime {
 
     pub fn gas(&mut self, args: RuntimeArgs) -> Result<()> {
         let amount: u32 = args.nth_checked(0)?;
-        if self.charge_gas(amount as u64) {
+        self.charge_gas(amount as u64)
+    }
+
+    fn charge_gas(&mut self, amount: u64) -> Result<()> {
+        if self.charge_gas_if_enough(amount) {
             Ok(())
         } else {
             self.gas_counter = self.gas_limit;
@@ -267,7 +321,7 @@ impl Runtime {
         }
     }
 
-    fn charge_gas(&mut self, amount: u64) -> bool {
+    fn charge_gas_if_enough(&mut self, amount: u64) -> bool {
         let prev = self.gas_counter;
         match prev.checked_add(amount) {
             None => false,
