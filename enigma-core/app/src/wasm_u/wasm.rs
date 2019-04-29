@@ -155,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn test_charge_for_deploy() {
+    fn test_charge_for_deploy_and_execute() {
         let (mut db, _dir) = create_test_db();
         let contract_address = generate_contract_address();
         let enclave = init_enclave_wrapper().unwrap();
@@ -176,6 +176,23 @@ mod tests {
         ).unwrap_result();
 
         assert!(deploy_res.used_gas > deploy_res.bytecode.len() as u64);
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(b"flip()", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
+        let result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &deploy_res.output,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &contract_address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        assert!(result.used_gas > 10_000);
+
     }
 
     #[test]
