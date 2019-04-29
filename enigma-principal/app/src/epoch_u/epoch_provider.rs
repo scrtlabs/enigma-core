@@ -1,12 +1,11 @@
 use std::{
     fs::{self, File},
-    io::prelude::*,
+    io::{self, prelude::*},
     mem,
     ops::Deref,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
-use std::collections::HashMap;
 
 use enigma_tools_m::keeper_types::InputWorkerParams;
 use ethabi::{Log, RawLog};
@@ -38,10 +37,17 @@ impl EpochProvider {
         Ok(Self { contract, epoch_state, eid })
     }
 
-    fn get_state_file_path() -> PathBuf {
-        let mut path = storage_dir(ENCLAVE_DIR).unwrap();
+    fn get_state_file_path() -> Result<PathBuf, Error> {
+        let mut path = storage_dir(ENCLAVE_DIR)?;
+        match fs::create_dir(&path) {
+            Ok(_) => (),
+            Err(e) => match e.kind() {
+                io::ErrorKind::AlreadyExists => (),
+                _ => return Err(e.into())
+            }
+        };
         path.push("epoch-state.msgpack");
-        path
+        Ok(path)
     }
 
     /// Reset the `EpochState` stores in memory
@@ -52,7 +58,8 @@ impl EpochProvider {
 
     #[logfn(DEBUG)]
     fn read_epoch_state() -> Result<Option<EpochState>, Error> {
-        let epoch_state = match File::open(Self::get_state_file_path()) {
+        let path = Self::get_state_file_path()?;
+        let epoch_state = match File::open(path) {
             Ok(mut f) => {
                 let mut buf = Vec::new();
                 f.read_to_end(&mut buf)?;
@@ -75,7 +82,7 @@ impl EpochProvider {
     }
 
     fn write_epoch_state(epoch_state: Option<EpochState>) -> Result<(), Error> {
-        let path = Self::get_state_file_path();
+        let path = Self::get_state_file_path()?;
         match epoch_state {
             Some(epoch_state) => {
                 let mut file = File::create(path)?;
@@ -218,8 +225,7 @@ impl EpochProvider {
 #[cfg(test)]
 mod test {
     use web3::types::{Bytes, H160};
-
-    use enigma_crypto::KeyPair;
+    use std::collections::HashMap;
     use enigma_types::ContractAddress;
 
     use super::*;
