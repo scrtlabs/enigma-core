@@ -50,13 +50,17 @@ pub struct RuntimeResult {
 pub struct RuntimeWasmCosts {
     write_value: u32,
     write_additional_byte: u32,
+    deploy_byte: u64,
+    execution: u64,
 }
 
 impl Default for RuntimeWasmCosts {
     fn default() -> Self {
         RuntimeWasmCosts {
             write_value: 10,
-            write_additional_byte: 1
+            write_additional_byte: 1,
+            deploy_byte: 1,
+            execution: 10_000,
         }
     }
 }
@@ -310,6 +314,17 @@ impl Runtime {
     pub fn gas(&mut self, args: RuntimeArgs) -> Result<()> {
         let amount: u32 = args.nth_checked(0)?;
         self.charge_gas(amount as u64)
+    }
+
+    pub fn charge_deployment(&mut self) -> Result<()> {
+        let deployed_bytecode_len = self.result.result.len() as u64;
+        let gas_for_byte = self.gas_costs.deploy_byte;
+        self.charge_gas(deployed_bytecode_len * gas_for_byte)
+    }
+
+    pub fn charge_execution(&mut self) -> Result<()> {
+        let initial_execution_gas = self.gas_costs.execution;
+        self.charge_gas(initial_execution_gas)
     }
 
     fn charge_gas(&mut self, amount: u64) -> Result<()> {

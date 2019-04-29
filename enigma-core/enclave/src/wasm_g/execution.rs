@@ -1,7 +1,7 @@
 use crate::km_t;
 use enigma_runtime_t::{ocalls_t as runtime_ocalls_t, RuntimeResult};
 use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeWasmCosts};
-use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*};
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*, FailedTaskError};
 use enigma_tools_t::common::utils_t::LockExpectMutex;
 use enigma_crypto::{CryptoError, Encryption};
 use enigma_types::{ContractAddress, RawPointer, StateKey};
@@ -93,7 +93,7 @@ fn create_module(code: &[u8]) -> Result<Box<Module>, EnclaveError> {
 }
 
 fn execute(module: &Module, gas_limit: u64, state: ContractState,
-           function_name: String, types: String, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError> {
+           function_name: String, types: String, params: Vec<u8>, key: StateKey) -> Result<Runtime, EnclaveError> {
     let instantiation_resolver = eng_resolver::ImportResolver::with_limit(128);
 
     let imports = ImportsBuilder::new().with_resolver("env", &instantiation_resolver);
@@ -114,18 +114,29 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
             return Err(err)
         }
     }
-    runtime.into_result()
+    Ok(runtime)
 }
 
 pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
                     function_name: String, types: String, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
     let module = create_module(code)?;
-    execute(&module, gas_limit, state, function_name, types, params, key)
+    let mut runtime = execute(&module, gas_limit, state, function_name, types, params, key)?;
+    let charge_result = runtime.charge_execution();
+    if let Err(err) = charge_result {
+        return Err(EnclaveError::FailedTaskErrorWithGas { used_gas: runtime.get_used_gas(), err: FailedTaskError::GasLimitError });
+    }
+    runtime.into_result()
+
 }
 
 pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
     let module = create_module(code)?;
-    execute(&module, gas_limit, state, "".to_string(), "".to_string(), params, key)
+    let mut runtime = execute(&module, gas_limit, state, "".to_string(), "".to_string(), params, key)?;
+    let charge_result = runtime.charge_deployment();
+    if let Err(err) = charge_result {
+        return Err(EnclaveError::FailedTaskErrorWithGas { used_gas: runtime.get_used_gas(), err: FailedTaskError::GasLimitError  });
+    }
+    runtime.into_result()
 }
 
 pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<ContractState, EnclaveError> {
