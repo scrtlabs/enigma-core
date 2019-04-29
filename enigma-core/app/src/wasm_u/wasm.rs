@@ -155,6 +155,39 @@ mod tests {
     }
 
     #[test]
+    fn test_charge_for_write() {
+        let (mut db, _dir) = create_test_db();
+        let address = generate_contract_address();
+
+        let (enclave, contract_code, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            address,
+            "construct(uint)",
+            &[Token::Uint(1.into())],
+            "write()",
+            &[]
+        );
+
+        let used_gas_for_write_new_value = result.used_gas;
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(b"write()", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
+        let result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        assert_eq!(used_gas_for_write_new_value - result.used_gas, 5);
+    }
+
+    #[test]
     fn test_flip() {
         let (mut db, _dir) = create_test_db();
         let address = generate_contract_address();
