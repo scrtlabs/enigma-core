@@ -155,6 +155,30 @@ mod tests {
     }
 
     #[test]
+    fn test_charge_for_deploy() {
+        let (mut db, _dir) = create_test_db();
+        let contract_address = generate_contract_address();
+        let enclave = init_enclave_wrapper().unwrap();
+        instantiate_encryption_key(vec![contract_address], enclave.geteid());
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_construct = symmetric::encrypt("construct()".as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
+
+        let deploy_res = compile_and_deploy_wasm_contract(
+            &mut db,
+            enclave.geteid(),
+            "../../examples/eng_wasm_contracts/flip_coin",
+            contract_address,
+            &encrypted_construct,
+            &encrypted_args,
+            &keys.get_pubkey()
+        ).unwrap_result();
+
+        assert!(deploy_res.used_gas > deploy_res.bytecode.len() as u64);
+    }
+
+    #[test]
     fn test_charge_for_write() {
         let (mut db, _dir) = create_test_db();
         let address = generate_contract_address();
