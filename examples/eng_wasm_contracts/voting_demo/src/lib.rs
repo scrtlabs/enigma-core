@@ -15,7 +15,6 @@ use eng_wasm_derive::pub_interface;
 use eng_wasm_derive::eth_contract;
 use eng_wasm::String;
 use std::collections::HashMap;
-use serde::{Serialize, Deserialize};
 use std::string::ToString;
 
 #[eth_contract("VotingETH.json")]
@@ -25,18 +24,6 @@ struct EthContract;
 static POLLS: &str = "polls";
 // State key name "voting_eth_addr" holding eth address of VotingETH contract
 static VOTING_ETH_ADDR: &str = "voting_eth_addr";
-
-// Struct representing a Voter
-#[derive(Serialize, Deserialize, Debug)]
-pub enum PollStatus {
-    InProgress,
-    Passed,
-    Rejected,
-}
-
-impl Default for PollStatus {
-    fn default() -> Self { PollStatus::InProgress }
-}
 
 // Public-facing secret contract function declarations
 #[pub_interface]
