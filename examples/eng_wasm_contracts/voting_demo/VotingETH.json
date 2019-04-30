@@ -1,0 +1,102 @@
+[
+  {
+    "constant": true,
+    "inputs": [
+      {
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "name": "polls",
+    "outputs": [
+      {
+        "name": "creator",
+        "type": "address"
+      },
+      {
+        "name": "quorumPercentage",
+        "type": "uint256"
+      },
+      {
+        "name": "expirationTime",
+        "type": "uint256"
+      },
+      {
+        "name": "status",
+        "type": "uint8"
+      },
+      {
+        "name": "description",
+        "type": "string"
+      }
+    ],
+    "payable": false,
+    "stateMutability": "view",
+    "type": "function",
+    "signature": "0xac2f0074"
+  },
+  {
+    "inputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "constructor",
+    "signature": "constructor"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_quorumPercentage",
+        "type": "uint256"
+      },
+      {
+        "name": "_description",
+        "type": "string"
+      },
+      {
+        "name": "_pollLength",
+        "type": "uint256"
+      }
+    ],
+    "name": "createPoll",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x236e1b93"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_pollId",
+        "type": "uint256"
+      }
+    ],
+    "name": "validateCastVote",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x40a7dba9"
+  },
+  {
+    "constant": false,
+    "inputs": [
+      {
+        "name": "_pollId",
+        "type": "uint256"
+      },
+      {
+        "name": "_talliedQuorum",
+        "type": "uint256"
+      }
+    ],
+    "name": "validateTallyPoll",
+    "outputs": [],
+    "payable": false,
+    "stateMutability": "nonpayable",
+    "type": "function",
+    "signature": "0x796f5606"
+  }
+]

@@ -22,7 +22,7 @@ fn test_ipc_get_tip() {
     let res: Value = conn_and_call_ipc(&msg.to_string(), port);
 
     let type_accepted = res["type"].as_str().unwrap();
-    let _delta_str: String = serde_json::from_value(res["result"]["data"].clone()).unwrap();
+    let _delta: Vec<u8> = serde_json::from_value(res["result"]["data"].clone()).unwrap();
     let key = res["result"]["key"].as_u64().unwrap();
 
     assert_eq!(type_accepted, type_tip);
@@ -118,12 +118,11 @@ fn test_ipc_get_deltas() {
     let second_address = deltas_accepted[1]["address"].as_str().unwrap();
     let first_key = deltas_accepted[0]["key"].as_u64().unwrap();
     let second_key = deltas_accepted[1]["key"].as_u64().unwrap();
-    let delta= deltas_accepted[0]["data"].as_str().unwrap();
+    let _delta: Vec<u8> = serde_json::from_value(deltas_accepted[0]["data"].clone()).unwrap();
     assert_eq!(first_address, addresses[1].to_hex());
     assert_eq!(second_address, addresses[0].to_hex());
     assert_eq!(first_key, 1);
     assert_eq!(second_key, 0);
-    assert!(is_hex(delta));
 }
 
 #[test]

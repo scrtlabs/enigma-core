@@ -790,78 +790,45 @@ mod tests {
     fn test_voting(){
         let (mut db, _dir) = create_test_db();
         let contract_address = generate_contract_address();
+        let voter_one_addr = generate_user_address().0;
+        println!("VOTER ADDR = {:?}", voter_one_addr);
         let (enclave, deploy_res) = compile_deploy_contract_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/voting_demo",
             contract_address,
-            "construct()",
-            &[],
+            "construct(bytes32)",
+            &[Token::FixedBytes(voter_one_addr.to_vec())],
         );
 
-        let poll_creator_one_addr = generate_user_address().0;
-        let (_, _) = compile_compute_task_execute(
-            &mut db,
-            &enclave,
-            &deploy_res,
-            "create_poll(bytes32,uint256,String)",
-            &[Token::FixedBytes(poll_creator_one_addr.to_vec()), Token::Uint(50.into()), Token::String(String::from("My first poll"))],
-            contract_address,
-        );
-
-        let voter_one_addr = generate_user_address().0;
-        let (_, _) = compile_compute_task_execute(
-            &mut db,
-            &enclave,
-            &deploy_res,
-            "cast_vote(uint256,bytes32,uint256)",
-            &[Token::Uint(0.into()), Token::FixedBytes(voter_one_addr.to_vec()), Token::Uint(1.into())],
-            contract_address,
-        );
-
-        let voter_two_addr = generate_user_address().0;
-        let (_, _) = compile_compute_task_execute(
-            &mut db,
-            &enclave,
-            &deploy_res,
-            "cast_vote(uint256,bytes32,uint256)",
-            &[Token::Uint(0.into()), Token::FixedBytes(voter_two_addr.to_vec()), Token::Uint(0.into())],
-            contract_address,
-        );
-
-        let (result, shared_key) = compile_compute_task_execute(
-            &mut db,
-            &enclave,
-            &deploy_res,
-            "compute_result(uint256)",
-            &[Token::Uint(0.into())],
-            contract_address,
-        );
-        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
-        let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Bool], &encoded_output).unwrap())[0];
-        let res = decoded_output.clone().to_bool().unwrap();
-        assert_eq!(res, true);
-
-        let voter_three_addr = generate_user_address().0;
-        let (_, _) = compile_compute_task_execute(
-            &mut db,
-            &enclave,
-            &deploy_res,
-            "cast_vote(uint256,bytes32,uint256)",
-            &[Token::Uint(0.into()), Token::FixedBytes(voter_three_addr.to_vec()), Token::Uint(0.into())],
-            contract_address,
-        );
-
-        let (result, shared_key) = compile_compute_task_execute(
-            &mut db,
-            &enclave,
-            &deploy_res,
-            "compute_result(uint256)",
-            &[Token::Uint(0.into())],
-            contract_address,
-        );
-        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
-        let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Bool], &encoded_output).unwrap())[0];
-        let res = decoded_output.clone().to_bool().unwrap();
-        assert_eq!(res, false);
+//        let voter_one_addr = generate_user_address().0;
+//        let (_, _) = compile_compute_task_execute(
+//            &mut db,
+//            &enclave,
+//            &deploy_res,
+//            "cast_vote(uint256,bytes32,uint256)",
+//            &[Token::Uint(0.into()), Token::FixedBytes(voter_one_addr.to_vec()), Token::Uint(1.into())],
+//            contract_address,
+//        );
+//
+//        let voter_two_addr = generate_user_address().0;
+//        let (_, _) = compile_compute_task_execute(
+//            &mut db,
+//            &enclave,
+//            &deploy_res,
+//            "cast_vote(uint256,bytes32,uint256)",
+//            &[Token::Uint(0.into()), Token::FixedBytes(voter_two_addr.to_vec()), Token::Uint(0.into())],
+//            contract_address,
+//        );
+//
+//        let (result, shared_key) = compile_compute_task_execute(
+//            &mut db,
+//            &enclave,
+//            &deploy_res,
+//            "compute_result(uint256)",
+//            &[Token::Uint(0.into())],
+//            contract_address,
+//        );
+//        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+//        let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Uint(256)], &encoded_output).unwrap())[0];
     }
 }

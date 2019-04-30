@@ -5,22 +5,26 @@
 
 extern crate eng_wasm;
 extern crate eng_wasm_derive;
-extern crate rustc_hex as hex;
+extern crate rustc_hex;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde;
 
 use eng_wasm::*;
 use eng_wasm_derive::pub_interface;
+use eng_wasm_derive::eth_contract;
 use eng_wasm::String;
 use std::collections::HashMap;
 use serde::{Serialize, Deserialize};
 use std::string::ToString;
 
+#[eth_contract("VotingETH.json")]
+struct EthContract;
+
 // State key name "polls" holding a vector of Poll structs
 static POLLS: &str = "polls";
-// State key name "poll_count" holding number of polls
-static POLL_COUNT: &str = "poll_count";
+// State key name "voting_eth_addr" holding eth address of VotingETH contract
+static VOTING_ETH_ADDR: &str = "voting_eth_addr";
 
 // Struct representing a Voter
 #[derive(Serialize, Deserialize, Debug)]
@@ -34,24 +38,12 @@ impl Default for PollStatus {
     fn default() -> Self { PollStatus::InProgress }
 }
 
-// Struct representing a Poll
-#[derive(Serialize, Deserialize, Default, Debug)]
-pub struct Poll {
-    creator: H256, // field containing bool for whether Voter has voted yet
-    status: PollStatus, // field containing bool for whether Voter has voted yet
-    quorum_percentage: U256, // field containing bool for whether Voter has voted yet
-    yay_votes: U256, // field containing bool for whether Voter has voted yet
-    nay_votes: U256, // field containing bool for whether Voter has voted yet
-    description: String, // field containing bool for whether Voter has voted yet
-    voter_info : HashMap<String, U256>, // field containing bool for whether Voter has voted yet
-}
-
 // Public-facing secret contract function declarations
 #[pub_interface]
 pub trait ContractInterface{
-    fn create_poll(creator: H256, quorum_percentage: U256, description: String);
+    fn construct(voting_eth_addr: H160);
     fn cast_vote(poll_id: U256, voter: H256, vote: U256);
-    fn compute_result(poll_id: U256) -> bool;
+    fn tally_poll(poll_id: U256);
 }
 
 pub struct Contract;
@@ -59,56 +51,52 @@ pub struct Contract;
 // Private functions accessible only by the secret contract
 impl Contract {
     // Read secret contract state to obtain vector of Millionaires (or new vector if uninitialized)
-    fn get_polls() -> Vec<Poll> {
+    fn get_polls() -> HashMap<u64, HashMap<String, U256>> {
         read_state!(POLLS).unwrap_or_default()
     }
 
-    // Read secret contract state to obtain vector of Millionaires (or new vector if uninitialized)
-    fn get_poll_count() -> U256 {
-        read_state!(POLL_COUNT).unwrap_or_default()
+    fn get_voting_eth_addr() -> String {
+        read_state!(VOTING_ETH_ADDR).unwrap_or_default()
     }
 }
 
 impl ContractInterface for Contract {
-    // Create a new poll
     #[no_mangle]
-    fn create_poll(creator: H256, quorum_percentage: U256, description: String) {
-        assert!(quorum_percentage <= U256::from(100), "quorum percentage must be less than or equal to 100%");
-        let mut polls = Self::get_polls();
-        polls.push(Poll {
-            creator,
-            quorum_percentage,
-            description: description.clone(),
-            ..Default::default()
-        });
-        let poll_count = Self::get_poll_count() + 1;
-        write_state!(POLLS => polls, POLL_COUNT => poll_count);
+    fn construct(voting_eth_addr: H160) {
+        let voting_eth_addr_str: String = eformat!("{:?}", voting_eth_addr);
+        write_state!(VOTING_ETH_ADDR => voting_eth_addr_str);
     }
 
-    // Cast a new vote
     #[no_mangle]
     fn cast_vote(poll_id: U256, voter: H256, vote: U256) {
         let mut polls = Self::get_polls();
-        if let Some(poll) = polls.get_mut(poll_id.as_usize()) {
+        eprint!("POLLS = {:?}", polls);
+        {
+            let voter_info = polls.entry(poll_id.as_u64()).or_insert(HashMap::new());
             let key = eformat!("{:?}", voter);
-            assert!(!(*poll).voter_info.contains_key(&key), "user has already voted in poll");
-            (*poll).voter_info.insert(key, vote);
+            assert!(!(*voter_info).contains_key(&key), "user has already voted in poll");
+            (*voter_info).insert(key, vote);
         }
         write_state!(POLLS => polls);
+        let voting_eth_addr: String = Self::get_voting_eth_addr();
+        eprint!("voting_eth_addr = {:?}", &voting_eth_addr);
+        let c = EthContract::new(&voting_eth_addr);
+        c.validateCastVote(poll_id);
     }
 
     // Create a new poll
     #[no_mangle]
-    fn compute_result(poll_id: U256) -> bool {
+    fn tally_poll(poll_id: U256) {
         let polls = Self::get_polls();
-        let mut sum: U256 = 0.into();
-        if let Some(poll) = polls.get(poll_id.as_usize()) {
-            for val in poll.voter_info.values() {
-                sum = sum.checked_add(*val).unwrap();
+        let mut tallied_quorum: U256 = 0.into();
+        if let Some(voter_info) = polls.get(&poll_id.as_u64()) {
+            for val in voter_info.values() {
+                tallied_quorum = tallied_quorum.checked_add(*val).unwrap();
             }
-            sum.checked_mul(100.into()).unwrap() >= poll.quorum_percentage.checked_mul(poll.voter_info.len().into()).unwrap()
-        } else {
-            false
+            tallied_quorum = tallied_quorum.checked_mul(100.into()).unwrap().checked_div(voter_info.len().into()).unwrap()
         }
+        let voting_eth_addr: String = Self::get_voting_eth_addr();
+        let c = EthContract::new(&voting_eth_addr);
+        c.validateTallyPoll(poll_id, tallied_quorum);
     }
 }
