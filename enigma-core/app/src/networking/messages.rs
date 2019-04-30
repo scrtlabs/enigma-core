@@ -164,13 +164,14 @@ pub struct PrincipalResponse {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct Addresses (pub Vec<String>);
+pub struct Addresses {
+    pub addresses: Vec<String>,
+}
 
 impl std::ops::Deref for Addresses {
     type Target = Vec<String>;
     fn deref(&self) -> &Vec<String> {
-        &self.0
+        &self.addresses
     }
 }
 
