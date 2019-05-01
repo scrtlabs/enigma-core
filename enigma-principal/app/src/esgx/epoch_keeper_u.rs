@@ -51,7 +51,7 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParam
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: ret, status }.into());
+        return Err(EnclaveFailError { err: retval, status }.into());
     }
     let epoch_state_out = match epoch_state {
         Some(epoch_state) => epoch_state,
