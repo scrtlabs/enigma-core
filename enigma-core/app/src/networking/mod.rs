@@ -1,3 +1,5 @@
-pub mod surface_server;
 pub mod constants;
-pub mod attestation_service;
+pub mod ipc_listener;
+pub mod messages;
+
+pub use self::ipc_listener::IpcListener;

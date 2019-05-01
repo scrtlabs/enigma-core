@@ -1,35 +1,53 @@
 pipeline:
   core:
     group: tests
-    image: enigmampc/enigma-core:0.0.1
+    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
     devices:
       - "/dev/isgx:/dev/isgx"
     commands:
-      - /opt/intel/sgxpsw/aesm/aesm_service
+      - /opt/intel/libsgx-enclave-common/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
-      - cd enigma-core && RUSTFLAGS=-Awarnings make
+      - cd enigma-core && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
 
   principal:
     group: tests
-    image: enigmampc/enigma-core:0.0.1
+    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
     devices:
       - "/dev/isgx:/dev/isgx"
     commands:
       - export NODE_URL="http://ganache:8545"
-      - /opt/intel/sgxpsw/aesm/aesm_service
+      - /opt/intel/libsgx-enclave-common/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
-      - cd enigma-principal && RUSTFLAGS=-Awarnings make
+      - cd enigma-principal && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
 
   tools_u:
     group: tests
-    image: enigmampc/enigma-core:0.0.1
+    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
     commands:
       - . /root/.cargo/env
       - export NODE_URL="http://ganache:8545"
       - cd enigma-tools-u
       - RUSTFLAGS=-Awarnings cargo test
+
+  enigma_crypto:
+    group: tests
+    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
+    commands:
+      - . /root/.cargo/env
+      - cd enigma-crypto
+      - RUSTFLAGS=-Awarnings cargo test
+      - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
+
+  tools_m:
+    group: tests
+    image: enigmampc/enigma-core:0.0.5
+    commands:
+      - . /root/.cargo/env
+      - cd enigma-tools-m
+      - RUSTFLAGS=-Awarnings cargo test
+      - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
 
 services:
   ganache:

@@ -1,0 +1,13 @@
+[package]
+name = "cross-test-utils"
+version = "0.1.0"
+authors = ["Enigma <support@enigma.co>"]
+
+[dependencies]
+enigma-types = { path = "../../../enigma-types" }
+enigma-crypto = { path = "../../../enigma-crypto" }
+futures = "0.1.25"
+serde_json = "1.0"
+serde = "1.0"
+serde_derive = "1.0"
+rmp-serde = { git = "https://github.com/3Hren/msgpack-rust.git" } # This is because of a bug of incompatibility https://github.com/3Hren/msgpack-rust/issues/189

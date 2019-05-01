@@ -1,366 +1,372 @@
-#![allow(non_snake_case)]
-//sgx 
-use sgx_types::{uint8_t, uint32_t};
-use sgx_types::{sgx_enclave_id_t, sgx_status_t};
+use boot_network::{deploy_scripts, keys_provider_http::PrincipalHttpServer, principal_utils::Principal};
+use enigma_tools_u::{
+    attestation_service::service,
+    esgx::equote::retry_quote,
+    web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract},
+};
+use epoch_u::epoch_provider::EpochProvider;
 use esgx;
-// general 
-use rlp;
-use enigma_tools_u;
-use enigma_tools_u::attestation_service::service;
-use enigma_tools_u::attestation_service::service::*;
-use enigma_tools_u::attestation_service::constants;
 use failure::Error;
-//web3
-use web3;
-use web3::futures::{Future, Stream};
-use web3::contract::{Contract, Options};
-use web3::types::{Address, U256, Bytes};
-use web3::types::FilterBuilder;
-use web3::transports::Http;
-use web3::Web3;
-// tokio+polling blocks 
-use rustc_hex::FromHex;
-use tokio_core;
-use std::time;
-use std::thread;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-// formal 
-use enigma_tools_u::web3_utils::enigma_contract;
-use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
-use enigma_tools_u::web3_utils::w3utils;
-use enigma_tools_u::esgx::equote::retry_quote;
-use boot_network::deploy_scripts;
-use boot_network::principal_utils::Principal;
-use boot_network::principal_utils::{EmittParams};
-
-// files 
-use std::fs::File;
-use std::io::prelude::*;
+use rustc_hex::ToHex;
 use serde_derive::*;
 use serde_json;
-use serde_json::{Value};
+use sgx_types::sgx_enclave_id_t;
+use std::{fs::File, io::prelude::*, str, sync::Arc, thread};
+use web3::{
+    futures::Future,
+    transports::Http,
+    types::{Address, H160, H256, U256},
+    Web3,
+};
 
-
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
-
-    pub ENIGMA_CONTRACT_PATH : String,
-    pub ENIGMA_CONTRACT_REMOTE_PATH : String,
-    pub ENIGMA_CONTRACT_ADDRESS : String,
-    pub ACCOUNT_ADDRESS : String,
-    pub TEST_NET : bool,
-    pub WITH_PRIVATE_KEY : bool,
-    pub PRIVATE_KEY : String,
-    pub URL : String,
-    pub EPOCH_SIZE : usize,
-    pub POLLING_INTERVAL : u64,
-    pub SPID : String,
-    pub ATTESTATION_SERVICE_URL : String,
-
+    pub enigma_contract_path: String,
+    pub enigma_contract_remote_path: String,
+    pub enigma_contract_address: String,
+    pub account_address: String,
+    pub test_net: bool,
+    pub with_private_key: bool,
+    pub private_key: String,
+    pub url: String,
+    pub epoch_size: usize,
+    pub polling_interval: u64,
+    pub max_epochs: Option<usize>,
+    pub spid: String,
+    pub attestation_service_url: String,
+    pub http_port: u16,
+    pub confirmations: u64,
 }
 
-impl PrincipalConfig {
-    pub fn set_enigma_contract_address(&mut self,new_address : String){
-        self.ENIGMA_CONTRACT_ADDRESS = new_address;
-    }
-    pub fn set_accounts_address(&mut self, new_account : String){
-        self.ACCOUNT_ADDRESS = new_account;
-    }
-    pub fn set_ethereum_url(&mut self, ethereum_url : String){
-        self.URL = ethereum_url;
-    }
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct RegistrationParams {
+    pub signing_address: String,
+    pub report: String,
+    pub signature: String,
+}
+
+pub struct ReportManager {
+    pub config: PrincipalConfig,
+    as_service: service::AttestationService,
+    pub eid: sgx_enclave_id_t,
 }
 
 pub struct PrincipalManager {
-    custom_contract_address : Option<Address>,
-    config_path : String,
-    pub config : PrincipalConfig,
-    emitt_params : EmittParams,
-    as_service : service::AttestationService,
+    pub config: PrincipalConfig,
+    pub contract: Arc<EnigmaContract>,
+    pub report_manager: ReportManager,
+    pub eid: sgx_enclave_id_t,
 }
 
-impl PrincipalManager{
-    pub fn load_config(config_path : &str)-> PrincipalConfig {
-       
-        let mut f = File::open(config_path)
-        .expect("file not found.");
+impl ReportManager {
+    pub fn new(config: PrincipalConfig, eid: sgx_enclave_id_t) -> Result<Self, Error> {
+        let as_service = service::AttestationService::new(&config.attestation_service_url);
+        Ok(ReportManager { config, as_service, eid })
+    }
 
-       let mut contents = String::new();
-        f.read_to_string(&mut contents)
-            .expect("canno't read file");
-
-       serde_json::from_str(&contents).unwrap()
-    }
-}
-
-/*
-    General interface of a Sampler == The entity that manages the principal node logic.
-*/
-pub trait Sampler {
-    /// load with config from file 
-    fn new(config : &str, emit : EmittParams, custom_contract_address : Option<Address>)->Self;
-    /// load with config passed from the caller (for mutation purposes)
-    fn new_delegated(config_path : &str,emit : EmittParams, the_config : PrincipalConfig)->Self;
-    fn get_contract_address(&self)->String;
-    fn get_quote(&self)->Result<String,Error>;
-    fn get_report(&self,quote : &String)->Result<(Vec<u8>,service::ASResponse),Error>;
-    /// connect to the ethereum network 
-    fn connect(&self)->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>;
-    fn enigma_contract(&self,web3::transports::EventLoopHandle, Web3<Http>)->Result<EnigmaContract,Error>;
-    fn get_signing_address(&self)->Result<String,Error>;
-    fn get_account_address(&self)-> Result<Address,Error>;
-    fn get_network_url(&self)-> String;
-    /// after initiation, this will run the principal node and block.
-    fn run(&self)->Result<(),Error>;
-}   
-
-impl Sampler for PrincipalManager {
-    fn new(config_path : &str,emit : EmittParams, custom_contract_address : Option<Address>)-> Self{
-
-        let config = PrincipalManager::load_config(config_path);
-        let connection_str = config.ATTESTATION_SERVICE_URL.clone();
-        PrincipalManager{
-            custom_contract_address : custom_contract_address,
-            config_path : config_path.to_string(),
-            config : config,
-            emitt_params : emit,
-            as_service : service::AttestationService::new(&connection_str),
-        }
-    }
-    fn new_delegated(config_path : &str,emit : EmittParams,the_config : PrincipalConfig)->Self{
-        let config = the_config;
-        let connection_str = config.ATTESTATION_SERVICE_URL.clone();
-        PrincipalManager{
-            custom_contract_address : None,
-            config_path : config_path.to_string(),
-            config : config,
-            emitt_params : emit,
-            as_service : service::AttestationService::new(&connection_str),
-        }
-    }
-    fn get_contract_address(&self)->String{
-
-        if self.custom_contract_address.is_none(){
-            return self.config.ENIGMA_CONTRACT_ADDRESS.clone();
-        }else{
-            let addr =  self.custom_contract_address.unwrap();
-            return w3utils::address_to_string_addr(&addr);
-        }
-    }
-    fn get_quote(&self)->Result<String,Error>{
-
-        let eid = self.emitt_params.eid;
-         match retry_quote(eid, &self.config.SPID, 8){
-             Ok(quote) =>{
-                Ok(quote)
-             },
-             Err(e)=>{
-                Err(e)
-             }
-         }
-    }
-    fn get_report(&self, quote : &String)->Result<(Vec<u8>,service::ASResponse),Error>{
-        let (rlp_encoded, as_response ) = self.as_service.rlp_encode_registration_params(quote)?;
-        Ok((rlp_encoded,as_response))
-    }
-    fn connect(&self)->Result<(web3::transports::EventLoopHandle, Web3<Http>),Error>{
-        let (_eloop, http) = web3::transports::Http::new(&self.config.URL.clone())
-            .expect("unable to create Web3 HTTP provider");
-        let w3 = web3::Web3::new(http);
-        Ok((_eloop, w3))
-    }
-    fn get_account_address(&self)-> Result<Address,Error>{
-        Ok
-        (
-            self.config.ACCOUNT_ADDRESS
-            .clone()
-            .parse()
-            .expect("[-] error parsing account address")
-        )
-    }
-    fn enigma_contract(&self,eloop : web3::transports::EventLoopHandle, web3 : Web3<Http>)->Result<EnigmaContract,Error>{
-        // deployed contract address
-        let address = self.get_contract_address();
-        // path to the build file of the contract 
-        let path = self.config.ENIGMA_CONTRACT_PATH.clone();
-        // the account owner that initializes 
-        let account = self.config.ACCOUNT_ADDRESS.clone();
-        // the ethereum node url
-        let url = self.config.URL.clone();
-        let enigma_contract = Principal::new(web3,eloop, &address, &path, &account, &url);
-        Ok(enigma_contract)
-    }
-    fn get_signing_address(&self)->Result<String,Error>{
-        let eid = self.emitt_params.eid;
-        let mut signing_address = esgx::equote::get_register_signing_address(eid)?;
-        // remove 0x
-        signing_address = signing_address[2..].to_string();
+    pub fn get_signing_address(&self) -> Result<String, Error> {
+        let _signing_address = esgx::equote::get_register_signing_address(self.eid)?;
+        let signing_address = _signing_address.to_vec().to_hex();
         Ok(signing_address)
     }
-    fn run(&self)->Result<(),Error>{
-        // get quote 
-        let quote = self.get_quote()?;
-        // get report 
-        let (rlp_encoded, as_response ) = self.get_report(&quote)?;
-        // get enigma contract 
-        let (eloop, w3) = self.connect()?;
-        let enigma_contract = self.enigma_contract(eloop,w3)?;
-        // register worker 
-        //0xc44205c3aFf78e99049AfeAE4733a3481575CD26
-        let signer = self.get_signing_address()?;
-        println!("signing address = {}", signer);
-        let gas_limit = &self.emitt_params.gas_limit;
-        enigma_contract.register_as_worker(&signer,&rlp_encoded,&gas_limit)?;
-        // watch blocks 
-        let polling_interval = self.config.POLLING_INTERVAL;
-        let epoch_size = self.config.EPOCH_SIZE;
-        let eid = self.emitt_params.eid;
-        let gas_limit = gas_limit.clone();
-        enigma_contract.watch_blocks(epoch_size, polling_interval, eid, gas_limit,self.emitt_params.max_epochs);
+
+    #[logfn(DEBUG)]
+    pub fn get_registration_params(&self) -> Result<RegistrationParams, Error> {
+        let signing_address = self.get_signing_address()?;
+        let sim_mode = option_env!("SGX_MODE").unwrap_or_default();
+        println!("Using SGX_MODE: {:?}", sim_mode);
+        println!("Fetching quote with SPID: {:?}", self.config.spid);
+        let enc_quote = retry_quote(self.eid, &self.config.spid, 18)?;
+
+        let report: String;
+        let signature: String;
+        if sim_mode == "SW" {
+            // Software Mode
+            println!("Simulation mode, using quote as report: {}", &enc_quote);
+            report = enc_quote;
+            signature = String::new();
+        } else {
+            // Hardware Mode
+            println!("Hardware mode, fetching report from the Attestation Service");
+            let response = self.as_service.get_report(enc_quote)?;
+            report = response.result.report_string;
+            signature = response.result.signature;
+        }
+        Ok(RegistrationParams { signing_address, report, signature })
+    }
+}
+
+impl PrincipalManager {
+    // load json config into the struct
+    pub fn load_config(config_path: &str) -> Result<PrincipalConfig, Error> {
+        println!("Loading Principal config: {:?}", config_path);
+        let mut f = File::open(config_path)?;
+
+        let mut contents = String::new();
+        f.read_to_string(&mut contents)?;
+
+        Ok(serde_json::from_str(&contents)?)
+    }
+
+    pub fn get_web3(&self) -> Arc<Web3<Http>> { Arc::clone(&self.contract.web3) }
+}
+
+// General interface of a Sampler == The entity that manages the principal node logic.
+pub trait Sampler {
+    /// load with config from file
+    fn new(config: PrincipalConfig, contract: Arc<EnigmaContract>, report_manager: ReportManager) -> Result<Self, Error>
+    where Self: Sized;
+
+    fn get_signing_address(&self) -> Result<String, Error>;
+
+    fn get_contract_address(&self) -> Address;
+
+    fn get_account_address(&self) -> Address;
+
+    fn get_network_url(&self) -> String;
+
+    fn get_block_number(&self) -> Result<U256, Error>;
+
+    fn register<G: Into<U256>>(&self, signing_address: String, gas_limit: G) -> Result<H256, Error>;
+
+    fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error>;
+
+    /// after initiation, this will run the principal node and block.
+    fn run<G: Into<U256>>(&self, reset_epoch: bool, gas: G) -> Result<(), Error>;
+}
+
+impl Sampler for PrincipalManager {
+    fn new(config: PrincipalConfig, contract: Arc<EnigmaContract>, report_manager: ReportManager) -> Result<Self, Error> {
+        let eid = report_manager.eid;
+        //        let registration_params = report_manager.get_registration_params()?;
+        Ok(PrincipalManager { config, contract, report_manager, eid })
+    }
+
+    fn get_signing_address(&self) -> Result<String, Error> { Ok(self.report_manager.get_signing_address()?) }
+
+    fn get_contract_address(&self) -> Address { self.contract.address() }
+
+    // noinspection RsBorrowChecker
+    fn get_account_address(&self) -> Address { self.contract.account }
+
+    fn get_network_url(&self) -> String { self.config.url.clone() }
+
+    fn get_block_number(&self) -> Result<U256, Error> {
+        let block_number = match self.get_web3().eth().block_number().wait() {
+            Ok(block_number) => block_number,
+            Err(err) => bail!("Current block number not available: {:?}", err),
+        };
+        Ok(block_number)
+    }
+
+    fn register<G: Into<U256>>(&self, signing_address: String, gas_limit: G) -> Result<H256, Error> {
+        let registration_params = self.report_manager.get_registration_params()?;
+        println!("Registering worker");
+        let receipt = self.contract.register(
+            signing_address,
+            registration_params.report,
+            registration_params.signature,
+            gas_limit,
+            self.config.confirmations as usize,
+        )?;
+        Ok(receipt.transaction_hash)
+    }
+
+    /// Verifies whether the worker is registered in the Enigma contract.
+    /// If not, create a `register` transaction.
+    ///
+    /// # Arguments
+    ///
+    /// * `gas_limit` - The gas limit of the `register` transaction
+    #[logfn(DEBUG)]
+    fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error> {
+        let signing_address = self.get_signing_address()?;
+        let enclave_signing_address: H160 = signing_address.parse()?;
+        let registered_signing_address = self.contract.get_signing_address()?;
+        if enclave_signing_address == registered_signing_address {
+            println!("Signing address already registered: {:?}", registered_signing_address);
+            Ok(None)
+        } else {
+            let tx = self.register(signing_address, gas_limit)?;
+            println!("Registered worker tx: {:?}", tx);
+            Ok(Some(tx))
+        }
+    }
+
+    /// Warms up the application.
+    /// 1. Register the worker if not already registered
+    /// 2. Create an `EpochProvider` which loads the local `EpochState` if available
+    /// 3. Start the JSON-RPC server
+    /// 4. Watch the blocks for new epochs
+    ///
+    /// # Arguments
+    ///
+    /// * `reset_epoch` - If true, reset the epoch state
+    /// * `gas_limit` - The gas limit for all Enigma contract transactions
+    #[logfn(INFO)]
+    fn run<G: Into<U256>>(&self, reset_epoch: bool, gas_limit: G) -> Result<(), Error> {
+        let gas_limit: U256 = gas_limit.into();
+        self.verify_identity_or_register(gas_limit)?;
+        // get enigma contract
+        // Start the WorkerParameterized Web3 log filter
+        let eid: Arc<sgx_enclave_id_t> = Arc::new(self.eid);
+        let epoch_provider = Arc::new(EpochProvider::new(eid, self.contract.clone())?);
+        if reset_epoch {
+            epoch_provider.reset_epoch_state()?;
+        }
+
+        // Start the JSON-RPC Server
+        let port = self.config.http_port;
+        let server_ep = Arc::clone(&epoch_provider);
+        thread::spawn(move || {
+            println!("Starting the JSON RPC Server");
+            let server = PrincipalHttpServer::new(server_ep, port);
+            server.start();
+        });
+
+        // watch blocks
+        let polling_interval = self.config.polling_interval;
+        let epoch_size = self.config.epoch_size;
+        self.contract.watch_blocks(
+            epoch_size,
+            polling_interval,
+            epoch_provider,
+            gas_limit,
+            self.config.confirmations as usize,
+            self.config.max_epochs,
+        );
         Ok(())
     }
-    fn get_network_url(&self)-> String{
-        self.config.URL.clone()
-    }
+}
+
+/// Helper method to start 'miner' that simulates blocks.
+pub fn run_miner(account: Address, w3: Arc<Web3<Http>>, interval: u64) -> thread::JoinHandle<()> {
+    thread::spawn(move || {
+        deploy_scripts::forward_blocks(&Arc::clone(&w3), interval, account).unwrap();
+    })
 }
 
 //////////////////////// TESTS  /////////////////////////////////////////
 
-#[cfg(test)]  
- mod test {
+#[cfg(test)]
+mod test {
     use super::*;
-    use boot_network::principal_manager;
-    use boot_network::principal_manager::*;
-    use enigma_tools_u::web3_utils::w3utils;
-    use boot_network::deploy_scripts;
-    use web3::types::{Log,H256};
+    use enigma_tools_u::web3_utils::{enigma_contract::EnigmaContract, w3utils};
+    use epoch_u::epoch_types::WorkersParameterizedEvent;
     use esgx::general::init_enclave_wrapper;
-    use std::env;
+    use std::{env, path::Path, sync::Arc, thread, time};
+    use web3::{
+        futures::{stream::Stream, Future},
+        transports::Http,
+        types::{FilterBuilder, Log},
+        Web3,
+    };
 
-    /// This function is important to enable testing both on the CI server and local. 
-    /// On the CI Side: 
-    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there. 
+    /// This function is important to enable testing both on the CI server and local.
+    /// On the CI Side:
+    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
     /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
     /// The default is set to ganache cli "http://localhost:8545"
-    fn get_node_url()-> String {
-        env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string())
-    }
-    
-    fn connect()->(web3::transports::EventLoopHandle, Web3<Http>,Vec<Address>){
-        let uri = get_node_url();
-        let (eloop,w3) = w3utils::connect(&uri).unwrap();
-        let accounts = w3.eth().accounts().wait().unwrap();
-        (eloop,w3, accounts)
-    }
-    /// Helper method to start 'miner' that simulates blocks. 
-    pub fn run_miner(accounts : &Vec<Address> ){
-        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
-        let child = thread::spawn(move || {
-            let url = get_node_url();
-            deploy_scripts::forward_blocks(1,deployer, url);
-        });
-    }
+    pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:8545")) }
+
     /// helps in assertion to check if a random event was indeed broadcast.
-    pub fn filter_random(contract_addr : Option<String>, url : String , event_name : String)->Result<Vec<Log>,Error>{
-        let logs = w3utils::filter_blocks(contract_addr,event_name, url)?;
+    pub fn filter_random(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_name: &str) -> Result<Vec<Log>, Error> {
+        let logs = w3utils::filter_blocks(w3, contract_addr, event_name)?;
         Ok(logs)
     }
-    /// This test is more like a system-test than a unit-test. 
-    /// It is only dependent on an ethereum node running under the NODE_URL evn var or the default localhost:8545
-    /// First it deploys all the contracts related (EnigmaToken, Enigma) and runs miner to simulate blocks. 
-    /// Second, it spawns a background thread to poll for events and searchses for the WorkersParameterized event. 
-    /// Then, the principal register (full process including quote) and then,
-    ///  starts watching blocks and emits random with WorkersParameterized event.
-    /// The testing is looking for atleast 2 emmits of the WorkersParameterized event and compares the event triggerd 
-    /// If the event name is different or if it takes more than 30 seconds then the test will fail.
-    #[test]
-    //#[ignore]
-    fn test_full_principal_logic(){
-                // init enclave 
-        
-        let enclave = match init_enclave_wrapper() {
-            Ok(r) => {
-                println!("[+] Init Enclave Successful {}!", r.geteid());
-                r
-            },
-            Err(x) => {
-                println!("[-] Init Enclave Failed {}!", x.as_str());
-                assert_eq!(0,1);
-                return;
-            },
-        };
 
-        let eid = enclave.geteid();
-        let (eloop,w3,accounts) = connect();
-        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
-        // load the config 
-        let deploy_config = "../app/tests/principal_node/contracts/deploy_config.json";
-        let mut config = deploy_scripts::load_config(deploy_config);
-        // modify to dynamic address
-        config.set_accounts_address(deployer);
-        config.set_ethereum_url(get_node_url());
-        // deploy all contracts. (Enigma & EnigmaToken)
-        let (enigma_contract, enigma_token ) = deploy_scripts::deploy_base_contracts_delegated
-        (
-            eid, 
-            config, 
-            None
-        )
-        .expect("cannot deploy Enigma,EnigmaToken");
-
-        // run simulated miner 
-        run_miner(&accounts);
-
-        // build the config 
-
-        let mut params : EmittParams = EmittParams{ 
-            eid : eid, 
-            gas_limit : String::from("5999999"),
-            max_epochs : Some(5), 
-            ..Default::default()
-        };
-        
-        let principal_config = "../app/tests/principal_node/contracts/principal_test_config.json";
-        let mut the_config = PrincipalManager::load_config(principal_config);
-        let deployer : String = w3utils::address_to_string_addr(&accounts[0]);
-        let contract_addr : String = w3utils::address_to_string_addr(&enigma_contract.address());
-        the_config.set_accounts_address(deployer);
-        the_config.set_enigma_contract_address(contract_addr.clone());
-        the_config.set_ethereum_url(get_node_url());
-        let url = the_config.URL.clone();
-        // run event filter in the background 
-        
-        let event_name : String =  String::from("WorkersParameterized(uint256,address[],bool)");
-        let child = thread::spawn(move || {
-            
-            let mut counter = 0;
-            
-            loop{   
-                counter +=1;
-                let logs = filter_random(Some(contract_addr.clone()), url.clone(), event_name.clone()).expect("err filtering random"); 
-                // the test: if events recieved >2 (more than 2 emitts of random)
-                // assert topic (keccack(event_name))
-                if logs.len() > 2 {
-                    for (idx, log) in logs.iter().enumerate(){
-                        let expected_topic = w3utils::to_keccak256(event_name.clone().into_bytes());
-                        assert!(log.topics[0].contains(&H256::from_slice(&expected_topic)));
-                    }
-                    break;
-                }
-                thread::sleep(time::Duration::from_secs(1));
-                let max_time = 30;
-                if counter > max_time {
-                    println!("more than {} seconds without events" ,max_time);
-                    assert!(false);
-                    break;
-                }
-            }
-        });
-
-        // run principal 
-        let principal = PrincipalManager::new_delegated(principal_config, params, the_config);
-        principal.run().unwrap();
+    #[logfn(DEBUG)]
+    pub fn get_config() -> Result<PrincipalConfig, Error> {
+        let config_path = "../app/tests/principal_node/config/principal_test_config.json";
+        let config = PrincipalManager::load_config(config_path)?;
+        Ok(config)
     }
 
- }
+    pub fn init_no_deploy(eid: u64) -> Result<PrincipalManager, Error> {
+        let mut config = get_config()?;
+        let enclave_manager = ReportManager::new(config.clone(), eid)?;
+        println!("The Principal node signing address: {:?}", enclave_manager.get_signing_address().unwrap());
+
+        let contract = Arc::new(EnigmaContract::from_deployed(
+            &config.enigma_contract_address,
+            Path::new(&config.enigma_contract_path),
+            Some(&config.account_address),
+            &config.url,
+        )?);
+        let _gas_limit = 5_999_999;
+        config.max_epochs = None;
+        let principal: PrincipalManager = PrincipalManager::new(config.clone(), contract, enclave_manager).unwrap();
+        println!(
+            "Connected to the Enigma contract: {:?} with account: {:?}",
+            &config.enigma_contract_address,
+            principal.get_account_address()
+        );
+        Ok(principal)
+    }
+
+    // TODO: The two tests below require the Enigma contract to be deployed
+    /// Not a standalone unit test, must be coordinated with the Enigma Contract tests
+    #[test]
+    #[ignore]
+    fn test_set_worker_params() {
+        let gas_limit: U256 = 5999999.into();
+        let enclave = init_enclave_wrapper().unwrap();
+        let eid = enclave.geteid();
+        let principal = init_no_deploy(eid).unwrap();
+        principal.verify_identity_or_register(gas_limit).unwrap();
+
+        let block_number = principal.get_block_number().unwrap();
+        let eid_safe = Arc::new(eid);
+        let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone()).unwrap();
+        epoch_provider.reset_epoch_state().unwrap();
+        epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();
+    }
+
+    /// This test is more like a system-test than a unit-test.
+    /// It is only dependent on an ethereum node running under the NODE_URL evn var or the default localhost:8545
+    /// First it deploys all the contracts related (EnigmaToken, Enigma) and runs miner to simulate blocks.
+    /// Second, it spawns a background thread to poll for events and searchses for the WorkersParameterized event.
+    /// Then, the principal register (full process including quote) and then,
+    ///  starts watching blocks and emits random with WorkersParameterized event.
+    /// The testing is looking for atleast 2 emmits of the WorkersParameterized event and compares the event triggerd
+    /// If the event name is different or if it takes more than 30 seconds then the test will fail.
+    #[test]
+    #[ignore]
+    fn test_full_principal_logic() {
+        let _gas_limit: U256 = 5999999.into();
+        let enclave = init_enclave_wrapper().unwrap();
+        let eid = enclave.geteid();
+        let principal = init_no_deploy(eid).unwrap();
+        let account = principal.get_account_address();
+
+        // run simulated miner
+        run_miner(account, Arc::clone(&principal.contract.web3), 1);
+
+        let contract = Arc::clone(&principal.contract);
+        let child = thread::spawn(move || {
+            let event = WorkersParameterizedEvent::new();
+            let event_sig = event.0.signature();
+            let filter = FilterBuilder::default()
+                .address(vec![contract.address()])
+                .topics(Some(vec![event_sig.into()]), None, None, None)
+                .build();
+
+            let event_future = contract
+                .web3
+                .eth_filter()
+                .create_logs_filter(filter)
+                .then(|filter| {
+                    filter.unwrap().stream(time::Duration::from_secs(1)).for_each(|log| {
+                        println!("Got WorkerParameterized log: {:?}", log);
+                        Ok(())
+                    })
+                })
+                .map_err(|err| eprintln!("Unable to process WorkersParameterized log: {:?}", err));
+            event_future.wait().unwrap();
+        });
+
+        // run principal
+        principal.run(true, 5999999).unwrap();
+        child.join().unwrap();
+    }
+}

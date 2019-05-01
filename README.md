@@ -151,15 +151,31 @@ TBD
 
 ## Troubleshooting
 
-* Error while building with make 
+#### Errors while building with make 
+##### 1. wrong sgx_tstd:
 ```
 error[E0463]: can't find crate for `std`
   --> /root/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/sgx_tunittest/../../sgx_tunittest/src/lib.rs:88:1
 ```
 * Temp Solution: 
 ```
-rm -rf /root/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/
+rm -rf ~/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/
 ```
+##### 1. wrong wasmi:
+```
+error[E0599]: no function or associated item named `new` found for type `std::ops::RangeInclusive<_>` in the current scope
+    --> /root/.cargo/registry/src/github.com-1ecc6299db9ec823/serde-1.0.76/src/de/impls.rs:2084:12
+     |
+2084 |         Ok(RangeInclusive::new(start, end))
+     |            ^^^^^^^^^^^^^^^^^^^ function or associated item not found in `std::ops::RangeInclusive<_>`
+
+```
+* Temp Solution:  
+```
+rm -rf ~/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/samplecode/wasmi
+```
+
+
 ## Authors
 
 * **Enigma Team** - [enigma](https://enigma.co/)

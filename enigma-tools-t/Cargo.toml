@@ -5,30 +5,27 @@ authors = ["Elichai-Turkel <elichai@enigma.co>"]
 description = "Tools used by the trusted part of the Enigma core and Principal node."
 
 [dependencies]
-tiny-keccak = "1.4.1"
-libsecp256k1 = { git = "https://github.com/enigmampc/libsecp256k1-rs.git" }
-ring = { git = "https://github.com/enigmampc/ring.git", rev = "sgx-0.12.1" }
-# errors handling 
-failure_derive="=0.1.1"
-failure = { version = "=0.1.1", default-features = false, features = ["derive"] }
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tstd]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+enigma-types = { path = "../enigma-types", default-features = false, features = ["sgx"] }
+enigma-tools-m = { path = "../enigma-tools-m", default-features = false, features = ["sgx"] }
+enigma-crypto = { path = "../enigma-crypto", default-features = false, features = ["sgx", "asymmetric"] }
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_trts]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+failure = { version = "0.1", default-features = false, features = ["derive"] }
+etcommon-rlp = {version = "0.2", default-features = false}
+etcommon-hexutil = { version = "0.2", default-features = false }
+etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
 
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_types]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
+pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", default-features = false }
 
-# quote
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tse]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "sgx-v1.0.4" }
+serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", default-features = false, features=["serde_derive"] }
+serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2-v1.0.4", default-features = false }
+wasmi = { git = "https://github.com/enigmampc/wasmi", default-features = false, features = ["core"] }
+hashmap_core = "=0.1.9"
 
-# sealing 
-[target.'cfg(not(target_env = "sgx"))'.dependencies.sgx_tseal]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tse = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_tseal = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
