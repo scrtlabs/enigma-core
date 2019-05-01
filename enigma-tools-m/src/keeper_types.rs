@@ -62,7 +62,7 @@ impl InputWorkerParams {
         if workers.is_empty() {
             None
         } else {
-            Some(workers[0].clone())
+            Some(workers[0])
         }
     }
 
