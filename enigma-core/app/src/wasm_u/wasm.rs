@@ -206,15 +206,16 @@ mod tests {
             address,
             "construct(uint)",
             &[Token::Uint(1.into())],
-            "write()",
-            &[]
+            "addition(uint256,uint256)",
+            &[Token::Uint(100.into()), Token::Uint(100.into())]
         );
 
-        let used_gas_for_write_new_value = result.used_gas;
+        // Testing writing exactly the same value under the same key
+        let mut used_gas_for_write_new_value = result.used_gas;
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
-        let encrypted_callable = symmetric::encrypt(b"write()", &shared_key).unwrap();
-        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
-        let result = wasm::execute(
+        let mut encrypted_callable = symmetric::encrypt(b"addition(uint256,uint256)", &shared_key).unwrap();
+        let mut encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Uint(100.into()), Token::Uint(100.into())]), &shared_key).unwrap();
+        let mut result = wasm::execute(
             &mut db,
             enclave.geteid(),
             &contract_code,
@@ -225,7 +226,25 @@ mod tests {
             GAS_LIMIT
         ).expect("Execution failed").unwrap_result();
 
-        assert_eq!(used_gas_for_write_new_value - result.used_gas, 5);
+        assert_eq!(used_gas_for_write_new_value - result.used_gas, 3);
+
+        // Testing writing smaller value under the same key
+        used_gas_for_write_new_value = result.used_gas;
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        encrypted_callable = symmetric::encrypt(b"addition(uint256,uint256)", &shared_key).unwrap();
+        encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Uint(10.into()), Token::Uint(10.into())]), &shared_key).unwrap();
+        result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        assert!(used_gas_for_write_new_value - result.used_gas >= 1);
     }
 
     #[test]
