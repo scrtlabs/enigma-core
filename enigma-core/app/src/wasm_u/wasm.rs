@@ -155,6 +155,99 @@ mod tests {
     }
 
     #[test]
+    fn test_charge_for_deploy_and_execute() {
+        let (mut db, _dir) = create_test_db();
+        let contract_address = generate_contract_address();
+        let enclave = init_enclave_wrapper().unwrap();
+        instantiate_encryption_key(vec![contract_address], enclave.geteid());
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_construct = symmetric::encrypt("construct()".as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
+
+        let deploy_res = compile_and_deploy_wasm_contract(
+            &mut db,
+            enclave.geteid(),
+            "../../examples/eng_wasm_contracts/flip_coin",
+            contract_address,
+            &encrypted_construct,
+            &encrypted_args,
+            &keys.get_pubkey()
+        ).unwrap_result();
+
+        assert!(deploy_res.used_gas > deploy_res.bytecode.len() as u64);
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(b"flip()", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
+        let result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &deploy_res.output,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &contract_address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        assert!(result.used_gas > 10_000);
+
+    }
+
+    #[test]
+    fn test_charge_for_write() {
+        let (mut db, _dir) = create_test_db();
+        let address = generate_contract_address();
+
+        let (enclave, contract_code, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            address,
+            "construct(uint)",
+            &[Token::Uint(1.into())],
+            "addition(uint256,uint256)",
+            &[Token::Uint(100.into()), Token::Uint(100.into())]
+        );
+
+        // Testing writing exactly the same value under the same key
+        let mut used_gas_for_write_new_value = result.used_gas;
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let mut encrypted_callable = symmetric::encrypt(b"addition(uint256,uint256)", &shared_key).unwrap();
+        let mut encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Uint(100.into()), Token::Uint(100.into())]), &shared_key).unwrap();
+        let mut result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        assert_eq!(used_gas_for_write_new_value - result.used_gas, 3);
+
+        // Testing writing smaller value under the same key
+        used_gas_for_write_new_value = result.used_gas;
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        encrypted_callable = symmetric::encrypt(b"addition(uint256,uint256)", &shared_key).unwrap();
+        encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Uint(10.into()), Token::Uint(10.into())]), &shared_key).unwrap();
+        result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        assert!(used_gas_for_write_new_value - result.used_gas >= 1);
+    }
+
+    #[test]
     fn test_flip() {
         let (mut db, _dir) = create_test_db();
         let address = generate_contract_address();
