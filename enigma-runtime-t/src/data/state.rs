@@ -33,7 +33,7 @@ impl ContractState {
     }
 
     pub fn is_initial(&self) -> bool{
-        self.delta_index == 0
+        self.delta_index == 0 && self.delta_hash.is_zero()
     }
 }
 

@@ -23,5 +23,7 @@ RUN git clone --depth 1  -b v1.0.4 https://github.com/baidu/rust-sgx-sdk.git  sg
 RUN git clone --depth 1 --branch v5.17.2 https://github.com/facebook/rocksdb.git rocksdb && \
     cd rocksdb && make install-shared && rm -rf /root/rocksdb
 
+RUN ldconfig
+
 RUN echo '/opt/intel/libsgx-enclave-common/aesm/aesm_service &' >> /root/.bashrc
 RUN echo 'export ROCKSDB_LIB_DIR=/usr/local/lib' >> /root/.bashrc
