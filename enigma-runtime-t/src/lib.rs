@@ -220,13 +220,14 @@ impl Runtime {
         }
     }
 
-    fn treat_gas_underflow(&mut self, val: &Option<u64>) -> (bool, u64){
+    fn treat_gas_underflow(&mut self, val: &Option<u64>) -> (bool, u64) {
         let mut result = 0;
-        if val.is_none() {
+        if let Some(v) = val {
+            (false, *v)
+        }
+        else {
             self.gas_return = self.gas_limit;
             (true, result)
-        } else {
-            (false, val.unwrap())
         }
     }
 
