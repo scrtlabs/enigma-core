@@ -48,8 +48,8 @@ pub struct RuntimeResult {
 
 #[derive(Debug, Clone)]
 pub struct RuntimeWasmCosts {
-    write_value: u32,
-    write_additional_byte: u32,
+    write_value: u64,
+    write_additional_byte: u64,
     deploy_byte: u64,
     execution: u64,
 }
@@ -69,6 +69,7 @@ impl Default for RuntimeWasmCosts {
 pub struct Runtime {
     gas_counter: u64,
     gas_limit: u64,
+    gas_return: u64,
     memory: MemoryRef,
     function_name: String,
     args_types: String,
@@ -101,7 +102,7 @@ impl Runtime {
             ethereum_bridge: Default::default(),
             used_gas: 0,
         };
-        Runtime { gas_counter: 0, gas_limit, memory, function_name, args_types, args, result, pre_execution_state, post_execution_state, key, gas_costs: costs }
+        Runtime { gas_counter: 0, gas_limit, gas_return: 0, memory, function_name, args_types, args, result, pre_execution_state, post_execution_state, key, gas_costs: costs }
     }
 
     pub fn get_used_gas(&self) -> u64 {
@@ -199,7 +200,7 @@ impl Runtime {
         let value_len: u32 = args.nth_checked(3)?;
 
         let mut val = vec![0u8; value_len as usize];
-        let gas_amount = self.calculate_gas_for_writing(value_len, &key)?;
+        let gas_amount = self.calculate_gas_for_writing(value_len as u64, &key)?;
         self.charge_gas(gas_amount)?;
         self.memory.get_into(value, &mut val[..])?;
 
@@ -209,34 +210,62 @@ impl Runtime {
         Ok(())
     }
 
+    fn treat_gas_overflow(&mut self, val: &Option<u64>) -> Result<()>{
+        if val.is_none() {
+            self.gas_counter = self.gas_limit;
+            Err(WasmError::GasLimit)
+        }
+        else {
+            Ok(())
+        }
+    }
+
+    fn treat_gas_underflow(&mut self, val: &Option<u64>) -> (bool, u64){
+        let mut result = 0;
+        if val.is_none() {
+            self.gas_return = self.gas_limit;
+            (true, result)
+        } else {
+            (false, val.unwrap())
+        }
+    }
+
     /// args:
    /// * `new_value_len` - the length of of the new value to be written under the `key`
    /// * `key` - the key to write the new value
    /// calculate the gas to be charged for the writing of the new value.
    /// There is an initial constant value charged for the writing
-   /// If the new value is larger than the old one, then gas is charged for each new byte.
-   /// If the new value is smaller than the old one, then the charge for each saved byte
-   /// is subtracted from the initial value until 0.
-    fn calculate_gas_for_writing(&mut self, new_value_len: u32, key: &str) -> Result<u64> {
-        let mut result = 0;
-        let val = &self.post_execution_state.json[key];
+   /// If the new value is larger than the old one, then gas is charged for the new bytes.
+   /// If the new value is smaller than the old one, then the gas is returned for the removed bytes.
+    fn calculate_gas_for_writing(&mut self, new_value_len: u64, key: &str) -> Result<u64> {
+        let mut result = Some(0);
+        let val = self.post_execution_state.json[key].clone();
         let mut old_value_len = 0;
         // forcing the length of Null value to be 0, since it is not 0.
         if !val.is_null() {
             let old_value_vec =
-                serde_json::to_vec(val).expect("Failed converting Value to vec in Runtime while reading state");
-            old_value_len = old_value_vec.len() as u32;
+                serde_json::to_vec(&val).expect("Failed converting Value to vec in Runtime while reading state");
+            old_value_len = old_value_vec.len() as u64;
         }
+        // If the new value is larger than the old one, the gas should be charged
         if new_value_len >= old_value_len {
-            result = self.gas_costs.write_value + (new_value_len - old_value_len)*self.gas_costs.write_additional_byte;
-        }
+            let checked_val = (new_value_len - old_value_len).checked_mul(self.gas_costs.write_additional_byte);
+            self.treat_gas_overflow(&checked_val)?;
+            result = self.gas_costs.write_value.checked_add(checked_val.unwrap());
+            self.treat_gas_overflow(&result)?;
+        } // If the new value is smaller than the old one, the gas should be returned
         else {
-            let decrease_cost = (old_value_len - new_value_len)*self.gas_costs.write_additional_byte;
-            if decrease_cost < self.gas_costs.write_value {
-                result = self.gas_costs.write_value - decrease_cost;
+            let decrease_cost = (old_value_len - new_value_len).checked_mul(self.gas_costs.write_additional_byte);
+            let (underflow, val) = self.treat_gas_underflow(&decrease_cost);
+            if !underflow {
+                let tmp = self.gas_return.checked_add(decrease_cost.unwrap());
+                let (underflow, val) = self.treat_gas_underflow(&tmp);
+                if !underflow {
+                    self.gas_return = val;
+                }
             }
         }
-        Ok(result as u64)
+        Ok(result.unwrap())
     }
 
     /// args:
@@ -287,7 +316,12 @@ impl Runtime {
 
     /// Destroy the runtime, returning currently recorded result of the execution
     pub fn into_result(mut self) -> ::std::result::Result<RuntimeResult, EnclaveError> {
-        self.result.used_gas = self.gas_counter;
+            if self.gas_counter >= self.gas_return {
+            self.result.used_gas = self.gas_counter - self.gas_return;
+        }
+        else {
+            self.result.used_gas = 0;
+        }
         self.result.state_delta = {
             // The delta is always generated after a deployment.
             // The delta is generated after an execution only if there is a state change.
