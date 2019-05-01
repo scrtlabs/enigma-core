@@ -141,11 +141,10 @@ impl PrincipalHttpServer {
 
 #[cfg(test)]
 mod test {
-    extern crate jsonrpc_test;
+    extern crate jsonrpc_test as test;
     use std::collections::HashMap;
     use std::thread;
 
-    use jsonrpc_test as test;
     use rustc_hex::FromHex;
     use serde_json::error::ErrorCode::EofWhileParsingObject;
     use web3::types::{H160, U256};
