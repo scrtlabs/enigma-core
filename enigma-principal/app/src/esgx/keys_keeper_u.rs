@@ -5,6 +5,7 @@ use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use enigma_types::{ContractAddress, EnclaveReturn, traits::SliceCPtr};
+use common_u::errors::EnclaveFailError;
 
 extern "C" {
     fn ecall_get_enc_state_keys(
@@ -45,7 +46,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        bail!("{:?} encountered in the enclave", retval);
+        return Err(EnclaveFailError { err: ret, status }.into());
     }
     let box_ptr = response_ptr as *mut Box<[u8]>;
     let response = unsafe { Box::from_raw(box_ptr) };
@@ -77,8 +78,10 @@ pub mod tests {
         enclave
     }
 
+    //TODO: Test error scenario with `get_state_keys`
+
     #[test]
-    fn test_get_state_key() {
+    fn test_get_state_keys() {
         setup_epoch_storage();
         let enclave = init_enclave();
 

@@ -6,6 +6,7 @@ use web3::types::{Bytes, H256, U256};
 
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 use epoch_u::epoch_types::{encode, EpochState};
+use common_u::errors::EnclaveFailError;
 
 extern "C" {
     fn ecall_set_worker_params(
@@ -50,7 +51,7 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParam
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        bail!("{:?} encountered in the enclave", retval);
+        return Err(EnclaveFailError { err: ret, status }.into());
     }
     let epoch_state_out = match epoch_state {
         Some(epoch_state) => epoch_state,
@@ -82,6 +83,8 @@ pub mod tests {
             stakes: stakes.into_iter().map(|s| U256::from(s)).collect::<Vec<U256>>(),
         }
     }
+
+    //TODO: Test error scenario with `set_mock_worker_params`
 
     #[test]
     fn test_set_mock_worker_params() {
