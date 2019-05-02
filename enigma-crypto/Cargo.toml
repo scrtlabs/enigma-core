@@ -23,6 +23,9 @@ sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", 
 sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", optional = true }
 
+bitflags = "=1.0.4"
+
+
 # Right now symmetric encryption requires regular std or sgx std.
 [features]
 default = ["std", "symmetric", "asymmetric", "hash"]
