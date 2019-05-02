@@ -23,6 +23,7 @@ log-derive = "0.2.0"
 simplelog = "0.5.3"
 dirs = "1.0.4"
 rustc-demangle = "=0.1.13"
+bitflags = "=1.0.4"
 
 # TODO: Change after a new version is released.
 # Add more transport layers via features if needed.
