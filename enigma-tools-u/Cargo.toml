@@ -17,6 +17,7 @@ etcommon-rlp = { version = "0.2.4", default-features = false }
 etcommon-bigint = "0.2"
 base64 = "0.10.0"
 openssl = "0.10"
+openssl-sys = "=0.9.44" # TODO: Remove after upgradding rustc.
 rustc-hex = "1.0.0" # 2.0.1?
 log = "0.4"
 log-derive = "0.2.0"
