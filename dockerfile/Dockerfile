@@ -23,7 +23,12 @@ RUN git clone --depth 1  -b v1.0.4 https://github.com/baidu/rust-sgx-sdk.git  sg
 RUN git clone --depth 1 --branch v5.17.2 https://github.com/facebook/rocksdb.git rocksdb && \
     cd rocksdb && make install-shared && rm -rf /root/rocksdb
 
+# this is done for a run-time linker, it creates the link and cache to the installed rocksdb
+# (see http://man7.org/linux/man-pages/man8/ldconfig.8.html)
 RUN ldconfig
 
 RUN echo '/opt/intel/libsgx-enclave-common/aesm/aesm_service &' >> /root/.bashrc
+
+# Add env variable for dynamic linking of rocksdb
+# (see https://github.com/rust-rocksdb/rust-rocksdb/issues/217)
 RUN echo 'export ROCKSDB_LIB_DIR=/usr/local/lib' >> /root/.bashrc
