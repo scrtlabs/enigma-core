@@ -1,55 +1,65 @@
-pipeline:
-  core:
-    group: tests
+kind: pipeline
+name: default
+steps:
+  - name: ganache
+    image: trufflesuite/ganache-cli:v6.4.3
+    detach: true
+
+  - name: core
     image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
-    devices:
-      - "/dev/isgx:/dev/isgx"
+    depends_on: [clone]
+    privileged: true
     commands:
       - /opt/intel/libsgx-enclave-common/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-core && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
+    volumes:
+      - name: isgx
+        path: /dev/isgx
 
-  principal:
-    group: tests
+  - name: principal
     image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
-    devices:
-      - "/dev/isgx:/dev/isgx"
+    depends_on: [clone]
+    privileged: true
     commands:
-      - export NODE_URL="http://ganache:8545"
       - /opt/intel/libsgx-enclave-common/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
+      - export NODE_URL="http://ganache:8545"
       - cd enigma-principal && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
+    volumes:
+      - name: isgx
+        path: /dev/isgx
 
-  tools_u:
-    group: tests
+  - name: tools_u
     image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
+    depends_on: [clone]
     commands:
       - . /root/.cargo/env
       - export NODE_URL="http://ganache:8545"
       - cd enigma-tools-u
       - RUSTFLAGS=-Awarnings cargo test
 
-  enigma_crypto:
-    group: tests
+  - name: enigma_crypto
     image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
+    depends_on: [clone]
     commands:
       - . /root/.cargo/env
       - cd enigma-crypto
       - RUSTFLAGS=-Awarnings cargo test
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
 
-  tools_m:
-    group: tests
-    image: enigmampc/enigma-core:0.0.5
+  - name: tools_m
+    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
+    depends_on: [clone]
     commands:
       - . /root/.cargo/env
       - cd enigma-tools-m
       - RUSTFLAGS=-Awarnings cargo test
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
 
-services:
-  ganache:
-    image: trufflesuite/ganache-cli:v6.1.6
-    command: ["-h", "0.0.0.0"]
+volumes:
+  - name: isgx
+    host:
+      path: /dev/isgx
