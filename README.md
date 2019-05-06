@@ -2,7 +2,7 @@
 
 | Service | Master | Develop |
 |---------|--------|---------|
-| CI Badge | <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core-internal/status.svg?branch=master"/> | <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core-internal/status.svg?branch=develop"/> |
+| CI Badge | [![Build Status](https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg)](https://drone.enigma.co/enigmampc/enigma-core) | [![Build Status](https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?ref=/refs/heads/develop)](https://drone.enigma.co/enigmampc/enigma-core) |
 
 Pure Rust Enclave && Untrusted in Rust. 
 Core is part of the Enigma node software stack. The Core component as it's name suggests is responsible for the core operations. The core includes Remote Attestation (SGX SDK), Cryptography and the Ethereum EVM.
