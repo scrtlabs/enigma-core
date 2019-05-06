@@ -22,7 +22,10 @@ serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", def
 serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2-v1.0.4", default-features = false }
 wasmi = { git = "https://github.com/enigmampc/wasmi", default-features = false, features = ["core"] }
+
 hashmap_core = "=0.1.9"
+bitflags = "=1.0.4"
+
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
