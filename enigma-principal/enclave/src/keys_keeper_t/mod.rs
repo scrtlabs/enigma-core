@@ -1,24 +1,27 @@
-use crate::SIGNING_KEY;
-use enigma_crypto::{asymmetric::KeyPair, Encryption};
 use enigma_tools_m::{
     primitives::km_primitives::{PrincipalMessage, PrincipalMessageType},
     utils::EthereumAddress,
 };
+use sgx_trts::trts::rsgx_read_rand;
+use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec};
+
+use enigma_crypto::{asymmetric::KeyPair, Encryption};
 use enigma_tools_t::{
     common::{
         errors_t::{
             EnclaveError::{self, *},
             EnclaveSystemError::*,
         },
-        utils_t::LockExpectMutex,
         ToHex,
+        utils_t::LockExpectMutex,
     },
-    document_storage_t::{is_document, load_sealed_document, save_sealed_document, SealedDocumentStorage, SEAL_LOG_SIZE},
+    document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
 use enigma_types::{ContractAddress, Hash256, StateKey};
+use epoch_keeper_t::ecall_get_epoch_worker_internal;
 use ocalls_t;
-use sgx_trts::trts::rsgx_read_rand;
-use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec};
+
+use crate::SIGNING_KEY;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
@@ -115,7 +118,7 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
         }
     }
     new_state_keys(&mut guard, &new_addrs)?; // If the vector is empty this won't do anything.
-                                             // Now we have keys for all addresses in cache
+    // Now we have keys for all addresses in cache
     for addr in sc_addrs {
         match guard.get(&addr) {
             Some(&key) => response_data.push((addr, key)),
@@ -135,6 +138,9 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     let msg = PrincipalMessage::from_message(msg_bytes)?;
     let user_pubkey = msg.get_pubkey();
     let msg_id = msg.get_id();
+    // Create the request image before the worker selection guard to avoid cloning the message data
+    let image = msg.to_sign()?;
+    println!("Generated hash image: {:?} for request: {:?}", image, msg);
     let sc_addrs: Vec<ContractAddress> = match msg.data {
         PrincipalMessageType::Request(Some(addrs)) => addrs,
         PrincipalMessageType::Request(None) => addrs_bytes,
@@ -142,9 +148,16 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
             return Err(SystemError(KeyProvisionError { err: format!("Unable to deserialize message: {:?}", msg_bytes) }));
         }
     };
-    let recovered = KeyPair::recover(&msg_bytes, sig)?;
-    println!("Recovered signer address from the message signature: {:?}", recovered.address());
-    // TODO: Verify that the worker is selected for all addresses or throw
+    let recovered_addr = KeyPair::recover(&image, sig)?.address();
+    for sc_addr in sc_addrs.clone() {
+        let worker_addr = ecall_get_epoch_worker_internal(sc_addr)?;
+        if worker_addr != recovered_addr {
+            return Err(SystemError(KeyProvisionError {
+                err: format!("Selected worker for contract: {:?} is not the message signer {} != {}",
+                             sc_addr, worker_addr.to_hex(), recovered_addr.to_hex())
+            }));
+        }
+    }
     let response_data = build_get_state_keys_response(sc_addrs)?;
 
     // Generate the encryption key material
@@ -165,8 +178,9 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
 }
 
 pub mod tests {
-    use super::*;
     use enigma_tools_t::common::FromHex;
+
+    use super::*;
 
     // noinspection RsTypeCheck
     pub fn test_state_keys_storage() {

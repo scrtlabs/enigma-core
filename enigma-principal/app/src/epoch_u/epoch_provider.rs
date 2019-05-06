@@ -10,6 +10,7 @@ use std::{
 use enigma_tools_m::keeper_types::InputWorkerParams;
 use ethabi::{Log, RawLog};
 use failure::Error;
+use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_types::sgx_enclave_id_t;
 use web3::types::{H256, TransactionReceipt, U256};
@@ -20,7 +21,8 @@ use enigma_tools_u::{
 };
 use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
 use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
-use rmp_serde::{Deserializer, Serializer};
+use esgx::general::EPOCH_DIR;
+
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
@@ -31,10 +33,12 @@ pub struct EpochProvider {
 impl EpochProvider {
     pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
         let epoch_state_val = Self::read_epoch_state()?;
-        // TODO: If the state is not empty, get the active workers and prove them to the enclave
-        println!("Initializing EpochProvider with EpochState: {:?}", epoch_state_val);
-        let epoch_state = Arc::new(Mutex::new(epoch_state_val));
-        Ok(Self { contract, epoch_state, eid })
+        let epoch_state = Arc::new(Mutex::new(epoch_state_val.clone()));
+        let epoch_provider = Self { contract, epoch_state, eid };
+        if epoch_state_val.is_some() {
+            epoch_provider.verify_worker_params()?;
+        }
+        Ok(epoch_provider)
     }
 
     fn get_state_file_path() -> Result<PathBuf, Error> {
@@ -50,16 +54,9 @@ impl EpochProvider {
         Ok(path)
     }
 
-    /// Reset the `EpochState` stores in memory
-    pub fn reset_epoch_state(&self) -> Result<(), Error> {
-        self.set_epoch_state(None)?;
-        Ok(())
-    }
-
     #[logfn(DEBUG)]
-    fn read_epoch_state() -> Result<Option<EpochState>, Error> {
-        let path = Self::get_state_file_path()?;
-        let epoch_state = match File::open(path) {
+    pub fn read_epoch_state() -> Result<Option<EpochState>, Error> {
+        let epoch_state = match File::open(Self::get_state_file_path()?) {
             Ok(mut f) => {
                 let mut buf = Vec::new();
                 f.read_to_end(&mut buf)?;
@@ -81,6 +78,7 @@ impl EpochProvider {
         Ok(epoch_state)
     }
 
+    #[logfn(DEBUG)]
     fn write_epoch_state(epoch_state: Option<EpochState>) -> Result<(), Error> {
         let path = Self::get_state_file_path()?;
         match epoch_state {
@@ -127,15 +125,24 @@ impl EpochProvider {
         Ok(epoch_state)
     }
 
+    /// Reset the `EpochState` stores in memory
+    pub fn reset_epoch_state(&self) -> Result<(), Error> {
+        self.set_or_clear_epoch_state(None)
+    }
+
+    fn set_epoch_state(&self, epoch_state: EpochState) -> Result<(), Error> {
+        self.set_or_clear_epoch_state(Some(epoch_state))
+    }
+
     #[logfn(DEBUG)]
-    fn set_epoch_state(&self, epoch_state: Option<EpochState>) -> Result<(), Error> {
-        println!("Replacing EpochMaker mutex: {:?}", epoch_state);
+    fn set_or_clear_epoch_state(&self, epoch_state: Option<EpochState>) -> Result<(), Error> {
+        println!("Replacing EpochState mutex: {:?}", epoch_state);
         let mut guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
             Err(_) => bail!("Unable to lock Epoch Marker Mutex"),
         };
         let prev = mem::replace(&mut *guard, epoch_state.clone());
-        println!("Replaced EpochMaker: {:?} with: {:?}", prev, epoch_state);
+        println!("Replaced EpochState: {:?} with: {:?}", prev, epoch_state);
         mem::drop(guard);
         match Self::write_epoch_state(epoch_state) {
             Ok(_) => println!("Stored the Epoch Marker to disk"),
@@ -146,6 +153,7 @@ impl EpochProvider {
 
     /// Get the confirmed state if available. Bail if not.
     /// The confirmed state contains the selected worker cache.
+    #[logfn(DEBUG)]
     pub fn get_confirmed(&self) -> Result<ConfirmedEpochState, Error> {
         let guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
@@ -160,6 +168,24 @@ impl EpochProvider {
         };
         mem::drop(guard);
         Ok(confirmed_state)
+    }
+
+    #[logfn(DEBUG)]
+    fn verify_worker_params(&self) -> Result<(), Error> {
+        let epoch_state = self.get_state()?;
+        println!("Verifying existing epoch state in the enclave: {:?}", epoch_state);
+        match self.get_confirmed() {
+            Ok(confirmed) => {
+                let block_number = confirmed.block_number;
+                let (workers, stakes) = self.contract.get_active_workers(block_number)?;
+                let worker_params = InputWorkerParams { block_number, workers, stakes };
+                set_worker_params(*self.eid, &worker_params, Some(epoch_state))?;
+            }
+            Err(_) => {
+                println!("Skipping verification of unconfirmed EpochState.");
+            }
+        };
+        Ok(())
     }
 
     /// Seal the epoch data in the enclave, get a random seed and submit to the Enigma contract
@@ -181,22 +207,40 @@ impl EpochProvider {
     /// * `gas_limit` - The gas limit of the `setWorkersParams` transaction
     /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
     pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
+        self.set_worker_params_internal(block_number, gas_limit, confirmations, None)
+    }
+
+    /// Similar to `set_worker_params` but using the EpochState in storage
+    ///
+    /// # Arguments
+    ///
+    /// * `block_number` - The block number marking the active worker list
+    /// * `gas_limit` - The gas limit of the `setWorkersParams` transaction
+    /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
+    #[logfn(DEBUG)]
+    pub fn confirm_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
+        let epoch_state = self.get_state()?;
+        println!("Confirming EpochState by verifying with the enclave and calling setWorkerParams: {:?}", epoch_state);
+        self.set_worker_params_internal(block_number, gas_limit, confirmations, Some(epoch_state))
+    }
+
+    #[logfn(DEBUG)]
+    fn set_worker_params_internal<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize, epoch_state: Option<EpochState>) -> Result<H256, Error> {
         let result = self.contract.get_active_workers(block_number)?;
-        let worker_params: InputWorkerParams = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
-        println!("The active workers: {:?}", worker_params);
-        let mut epoch_state = set_worker_params(*self.eid, &worker_params)?;
+        let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
+        let mut epoch_state = set_worker_params(*self.eid, &worker_params, epoch_state)?;
+        println!("Storing unconfirmed EpochState: {:?}", epoch_state);
+        self.set_epoch_state(epoch_state.clone())?;
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
-        // TODO: Consider a retry mechanism, either store the EpochSeed or add a getter ecall
-        let receipt =
-            self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
+        let receipt = self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
         println!("Got the receipt: {:?}", receipt);
         let log = self.parse_worker_parameterized(&receipt)?;
         match log.params.into_iter().find(|x| x.name == "firstBlockNumber") {
             Some(param) => {
-                println!("Caching selected workers");
                 let block_number = param.value.to_uint().unwrap();
                 self.confirm_epoch(&mut epoch_state, block_number, worker_params)?;
-                self.set_epoch_state(Some(epoch_state))?;
+                println!("Storing confirmed EpochState: {:?}", epoch_state);
+                self.set_epoch_state(epoch_state)?;
                 Ok(receipt.transaction_hash)
             }
             None => bail!("firstBlockNumber not found in receipt log"),
@@ -223,9 +267,13 @@ impl EpochProvider {
 //////////////////////// TESTS  /////////////////////////////////////////
 
 #[cfg(test)]
-mod test {
-    use web3::types::{Bytes, H160};
+pub mod test {
     use std::collections::HashMap;
+
+    use web3::types::{Bytes, H160};
+
+    use enigma_crypto::KeyPair;
+    use enigma_tools_u::{esgx::general::storage_dir};
     use enigma_types::ContractAddress;
 
     use super::*;
@@ -233,8 +281,15 @@ mod test {
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
 
+    pub fn setup_epoch_storage() {
+        let mut path = storage_dir(ENCLAVE_DIR).unwrap();
+        path.push(EPOCH_DIR);
+        fs::remove_dir_all(path).unwrap_or_else(|_| println!("Epoch dir already empty"));
+    }
+
     #[test]
     fn test_write_epoch_state() {
+        setup_epoch_storage();
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
         let mock_address: [u8; 32] = [1; 32];
         selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
@@ -247,6 +302,7 @@ mod test {
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
         EpochProvider::write_epoch_state(Some(epoch_state.clone())).unwrap();
 
+        // TODO: This could fail if another test deleted the epoch files exactly here, give unique name
         let saved_epoch_state = EpochProvider::read_epoch_state().unwrap();
         assert_eq!(format!("{:?}", saved_epoch_state.unwrap()), format!("{:?}", epoch_state));
     }

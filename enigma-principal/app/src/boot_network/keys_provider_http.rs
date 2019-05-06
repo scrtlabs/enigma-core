@@ -1,11 +1,9 @@
-use enigma_crypto::KeyPair;
+use std::{convert::TryInto, sync::Arc};
+
 use enigma_tools_m::{
     primitives::km_primitives::{PrincipalMessage, PrincipalMessageType},
     utils::EthereumAddress,
 };
-use enigma_types::ContractAddress;
-use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
-use esgx::keys_keeper_u::get_enc_state_keys;
 use failure::Error;
 use jsonrpc_http_server::{
     jsonrpc_core::{Error as ServerError, ErrorCode, IoHandler, Params, Value},
@@ -13,7 +11,11 @@ use jsonrpc_http_server::{
 };
 use rustc_hex::{FromHex, ToHex};
 use serde::{Deserialize, Serialize};
-use std::{convert::TryInto, sync::Arc};
+
+use enigma_crypto::KeyPair;
+use enigma_types::ContractAddress;
+use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
+use esgx::keys_keeper_u::get_enc_state_keys;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
@@ -46,7 +48,7 @@ pub struct StateKeyRequest {
     pub sig: StringWrapper,
 }
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StateKeyResponse {
     pub data: StringWrapper,
     pub sig: StringWrapper,
@@ -74,10 +76,12 @@ impl StateKeyRequest {
 impl PrincipalHttpServer {
     pub fn new(epoch_provider: Arc<EpochProvider>, port: u16) -> PrincipalHttpServer { PrincipalHttpServer { epoch_provider, port } }
 
-    fn find_epoch_contract_addresses(request: &StateKeyRequest, epoch_state: &EpochState) -> Result<Vec<ContractAddress>, Error> {
-        let msg_slice = request.get_data()?;
+    #[logfn(DEBUG)]
+    fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &EpochState) -> Result<Vec<ContractAddress>, Error> {
+        let image = msg.to_sign()?;
         let sig = request.get_sig()?;
-        let worker = KeyPair::recover(&msg_slice, sig)?.address();
+        let worker = KeyPair::recover(&image, sig)?.address();
+        println!("Searching contract addresses for recovered worker: {:?}", worker.to_vec());
         let addrs = epoch_state.get_contract_addresses(&worker.into())?;
         Ok(addrs)
     }
@@ -85,8 +89,7 @@ impl PrincipalHttpServer {
     #[logfn(DEBUG)]
     pub fn get_state_keys(epoch_provider: Arc<EpochProvider>, request: StateKeyRequest) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
-        let msg_slice = request.get_data()?;
-        let msg = PrincipalMessage::from_message(&msg_slice)?;
+        let msg = PrincipalMessage::from_message(&request.get_data()?)?;
         let response = match msg.data {
             PrincipalMessageType::Request(Some(addrs)) => {
                 println!("Found addresses in message: {:?}", addrs);
@@ -95,7 +98,7 @@ impl PrincipalHttpServer {
             PrincipalMessageType::Request(None) => {
                 println!("No addresses in message, reading from epoch state...");
                 let epoch_state = epoch_provider.get_state()?;
-                let epoch_addrs = Self::find_epoch_contract_addresses(&request, &epoch_state)?;
+                let epoch_addrs = Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?;
                 get_enc_state_keys(*epoch_provider.eid, request, Some(&epoch_addrs))?
             }
             _ => bail!("Invalid Principal message request"),
@@ -108,6 +111,7 @@ impl PrincipalHttpServer {
     ///
     /// Example:
     /// curl -X POST --data '{"jsonrpc": "2.0", "method": "get_state_keys", "params": ["84a46461746181a75265717565737493dc0020cca7cc937b64ccb8cccacca5cc8f03721bccb6ccbacccf5c78cccb235fccebcce0cce70b1bcc84cccdcc99541461cca0cc8edc002016367accacccb67a4a017ccc8dcca8ccabcc95682ccccb390863780f7114ccddcca0cca0cce0ccc55644ccc7ccc4dc0020ccb1cce9cc9324505bccd32dcca0cce1ccf85dcccf5e19cca0cc9dccb0481ecc8a15ccf62c41cceb320304cca8cce927a269649c1363ccb3301c101f33cce1cc9a0524a67072656669789e456e69676d61204d657373616765a67075626b6579dc0040cce5ccbe28cc9dcc9a2eccbd08ccc0457a5f16ccdfcc9fccdc256c5d5f6c3514cccdcc95ccb47c11ccc4cccd3e31ccf0cce4ccefccc83ccc80cce8121c3939ccbb2561cc80ccec48ccbecca8ccc569ccd2cca3ccda6bcce415ccfa20cc9bcc98ccda", "43f19586b0a0ae626b9418fe8355888013be1c9b4263a4b3a27953de641991e936ed6c4076a2a383b3b001936bf0eb6e23c78fbec1ee36f19c6a9d24d75e9e081c"]' -H "Content-Type: application/json" http://127.0.0.1:3040/
+    #[logfn(INFO)]
     pub fn start(&self) {
         let mut io = IoHandler::default();
         let epoch_provider = Arc::clone(&self.epoch_provider);
@@ -121,7 +125,7 @@ impl PrincipalHttpServer {
                         code: ErrorCode::InternalError,
                         message: format!("Unable to get keys: {:?}", err),
                         data: None,
-                    })
+                    });
                 }
             };
             Ok(body)
@@ -137,47 +141,73 @@ impl PrincipalHttpServer {
 
 #[cfg(test)]
 mod test {
-    extern crate ethereum_types;
-
-    use self::ethereum_types::{H160, U256};
-    use super::*;
-    use enigma_types::ContractAddress;
-    use epoch_u::epoch_types::ConfirmedEpochState;
-    use rustc_hex::FromHex;
+    extern crate jsonrpc_test as test;
     use std::collections::HashMap;
+    use std::thread;
+
+    use rustc_hex::FromHex;
+    use serde_json::error::ErrorCode::EofWhileParsingObject;
+    use web3::types::{H160, U256};
     use web3::types::Bytes;
+
+    use enigma_types::ContractAddress;
+    use epoch_u::epoch_provider::test::setup_epoch_storage;
+    use epoch_u::epoch_types::ConfirmedEpochState;
+    use esgx::epoch_keeper_u::set_worker_params;
+    use esgx::epoch_keeper_u::tests::get_worker_params;
+    use esgx::general::init_enclave_wrapper;
+
+    use super::*;
+
+    // Data generated by an external client
+    const REF_MSG: &str = "84a67072656669789e456e69676d61204d657373616765a46461746181a75265717565737491dc0020ccfd1454ccbacca9334acc92415f3bcc850919ccaaccc121cc9fccc7cccc7a74ccbd7a25cc8475ccbc677867cc89a67075626b6579dc00400d02ccb405ccd5213cccd27e5b2ecc86ccf75e5acc812dccf64a37007a3bccf5cca45c7809cc8bcc94ccf22b50ccea3817cc9915ccaeccf51bcc97cce9ccc70a707a05cc880c436accff02cc8919cc9960023fccf0cce7ccf8ccf6a269649c000000000000000000000001";
+    const REF_SIG: &str = "c5a40ca148e1048075d189371c522b202ab24143224cac3700c4f95fa922e5872ebb8dd867650c265e6f51a6c831081e0b5c3c5bb5a858f2b89fad2fd4facc0e1c";
+    const REF_RESPONSE: &str = "83a46461746181b1456e6372";
+    const REF_WORKER: [u8; 20] = [143, 123, 253, 113, 133, 173, 215, 156, 68, 228, 91, 227, 191, 31, 114, 35, 142, 245, 179, 32];
+    const REF_CONTRACT_ADDR: [u8; 32] = [253, 20, 84, 186, 169, 51, 74, 146, 65, 95, 59, 133, 9, 25, 170, 193, 33, 159, 199, 204, 122, 116, 189, 122, 37, 132, 117, 188, 103, 120, 103, 137];
+
+    #[test]
+    pub fn test_jsonrpc_get_state_keys() {
+        setup_epoch_storage();
+        let enclave = init_enclave_wrapper().unwrap();
+        let rpc = {
+            let mut io = IoHandler::new();
+            let eid = enclave.geteid();
+            io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
+                let request = params.parse::<StateKeyRequest>().unwrap();
+                let response = get_enc_state_keys(eid, request, None).unwrap();
+                let response_data = serde_json::to_value(&response).unwrap();
+                Ok(response_data)
+            });
+            test::Rpc::from(io)
+        };
+        let workers: Vec<[u8; 20]> = vec![REF_WORKER];
+        let stakes: Vec<u64> = vec![10000000000];
+        let block_number = 1;
+        let worker_params = get_worker_params(block_number, workers, stakes);
+        let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        for i in 0..5 {
+            let response = rpc.request(METHOD_GET_STATE_KEYS, &(REF_MSG, REF_SIG));
+            assert!(response.contains(REF_RESPONSE));
+        }
+        enclave.destroy();
+    }
 
     #[test]
     pub fn test_find_epoch_contract_addresses() {
-        let msg = vec![132, 164, 100, 97, 116, 97, 129, 167, 82, 101, 113, 117, 101, 115, 116, 192, 162, 105, 100, 156, 75, 52, 85, 204, 160, 204, 254, 16, 9, 204, 130, 50, 81, 204, 252, 204, 231, 166, 112, 114, 101, 102, 105, 120, 158, 69, 110, 105, 103, 109, 97, 32, 77, 101, 115, 115, 97, 103, 101, 166, 112, 117, 98, 107, 101, 121, 220, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        let sig = sign_message(&msg).unwrap();
-        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(sig.to_hex()) };
-        let address = ContractAddress::from([0u8; 32]);
-
+        let msg = REF_MSG.from_hex().unwrap();
+        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(REF_SIG.to_string()) };
+        let address = ContractAddress::from(REF_CONTRACT_ADDR);
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
-        selected_workers.insert(address, H160(WORKER_SIGN_ADDRESS));
+        selected_workers.insert(address, H160(REF_WORKER));
         let block_number = U256::from(1);
         let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
         let seed = U256::from(1);
-        let sig = Bytes::from(sig.to_vec());
+        let sig = Bytes::from(REF_SIG.from_hex().unwrap());
         let nonce = U256::from(0);
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
-        let results = PrincipalHttpServer::find_epoch_contract_addresses(&request, &epoch_state).unwrap();
-        println!("Found contract addresses: {:?}", results);
+        let msg = PrincipalMessage::from_message(&request.get_data().unwrap()).unwrap();
+        let results = PrincipalHttpServer::find_epoch_contract_addresses(&request, &msg, &epoch_state).unwrap();
         assert_eq!(results, vec![address])
     }
-
-    pub const WORKER_SIGN_ADDRESS: [u8; 20] =
-        [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
-    pub(crate) fn sign_message(msg: &Vec<u8>) -> Result<[u8; 65], Error> {
-        let pkey = "79191a46ad1ed7a15e2bf64264c4b41fe6167ea887a5f7de82f52be073539730".from_hex()?;
-        let mut pkey_slice: [u8; 32] = [0; 32];
-        pkey_slice.copy_from_slice(&pkey);
-        let key_pair = KeyPair::from_slice(&pkey_slice).unwrap();
-        let sig = key_pair.sign(&msg).unwrap();
-        Ok(sig)
-    }
-
-    #[test]
-    pub fn test_get_state_keys() {}
 }

@@ -129,7 +129,7 @@ pub mod tests {
     /* Test functions */
     pub fn test_document_sealing_storage() {
         // generate mock data
-        let mut doc: SealedDocumentStorage<[u8; 32]> = SealedDocumentStorage {
+        let doc: SealedDocumentStorage<[u8; 32]> = SealedDocumentStorage {
             version: 0x1234,
             data: [b'i'; 32],
         };

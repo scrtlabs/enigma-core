@@ -70,7 +70,11 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             let block_number = principal.get_block_number()?;
             let tx = epoch_provider.set_worker_params(block_number, gas_limit, principal_config.confirmations as usize)?;
             println!("The setWorkersParams tx: {:?}", tx);
-        } else if opt.get_state_keys.is_some() {
+        }  else if opt.confirm_worker_params {
+            let block_number = principal.get_block_number()?;
+            let tx = epoch_provider.confirm_worker_params(block_number, gas_limit, principal_config.confirmations as usize)?;
+            println!("The setWorkersParams tx: {:?}", tx);
+        }else if opt.get_state_keys.is_some() {
             let request: StateKeyRequest = serde_json::from_str(&opt.get_state_keys.unwrap())?;
             let response = PrincipalHttpServer::get_state_keys(Arc::new(epoch_provider), request)?;
             println!("The getStateKeys response: {}", serde_json::to_string(&response)?);
