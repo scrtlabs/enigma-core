@@ -13,9 +13,12 @@ extern crate ethabi;
 #[macro_use]
 extern crate failure;
 extern crate jsonrpc_http_server;
+
+#[macro_use]
 extern crate log;
 #[macro_use]
 extern crate log_derive;
+
 extern crate rlp;
 extern crate rustc_hex;
 extern crate serde;
@@ -43,27 +46,16 @@ mod esgx;
 
 fn main() {
     let opt: Opt = Opt::from_args();
-    println!("CLI params: {:?}", opt);
+    debug!("CLI params: {:?}", opt);
 
     let datadir = dirs::home_dir().unwrap().join(".enigma");
     let loggers = logging::get_logger(opt.debug_stdout, datadir.clone(), opt.verbose).expect("Failed Creating the loggers");
     CombinedLogger::init(loggers).expect("Failed initializing the logger");
 
-    // init enclave
-    let enclave = match esgx::general::init_enclave_wrapper() {
-        Ok(r) => {
-            println!("[+] Init Enclave Successful {}!", r.geteid());
-            r
-        }
-        Err(x) => {
-            println!("[-] Init Enclave Failed {}!", x.as_str());
-            return;
-        }
-    };
-
-    // run THE app
+    let enclave = esgx::general::init_enclave_wrapper().expect("[-] Init Enclave Failed");
     let eid = enclave.geteid();
     cli::app::start(eid).unwrap();
+    info!("[+] Init Enclave Successful {}!", eid);
 
     // drop enclave when done
     enclave.destroy();

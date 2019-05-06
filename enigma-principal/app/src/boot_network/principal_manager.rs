@@ -100,6 +100,7 @@ impl ReportManager {
 
 impl PrincipalManager {
     // load json config into the struct
+    #[logfn(DEBUG)]
     pub fn load_config(config_path: &str) -> Result<PrincipalConfig, Error> {
         println!("Loading Principal config: {:?}", config_path);
         let mut f = File::open(config_path)?;

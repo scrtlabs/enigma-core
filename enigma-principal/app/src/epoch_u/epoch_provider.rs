@@ -23,7 +23,6 @@ use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterized
 use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
 use esgx::general::EPOCH_DIR;
 
-
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
     pub epoch_state: Arc<Mutex<Option<EpochState>>>,

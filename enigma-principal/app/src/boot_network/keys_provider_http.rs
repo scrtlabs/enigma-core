@@ -142,6 +142,7 @@ impl PrincipalHttpServer {
 #[cfg(test)]
 mod test {
     extern crate jsonrpc_test as test;
+
     use std::collections::HashMap;
     use std::thread;
 
