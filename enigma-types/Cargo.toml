@@ -16,7 +16,7 @@ serde_std = { package = "serde", version = "1.0", default-features = false }
 bitflags = "=1.0.4"
 
 [build-dependencies]
-cbindgen = "=0.8.4" # TODO: Fix. https://github.com/eqrion/cbindgen/issues/335
+cbindgen = "0.8"
 
 [features]
 default = ["std"]
