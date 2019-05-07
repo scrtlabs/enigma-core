@@ -15,7 +15,7 @@ use eng_wasm_derive::pub_interface;
 use eng_wasm_derive::eth_contract;
 use eng_wasm::String;
 use std::collections::HashMap;
-use std::string::ToString;
+use rustc_hex::ToHex;
 
 #[eth_contract("VotingETH.json")]
 struct EthContract;
@@ -37,11 +37,12 @@ pub struct Contract;
 
 // Private functions accessible only by the secret contract
 impl Contract {
-    // Read secret contract state to obtain vector of Millionaires (or new vector if uninitialized)
+    // Read secret contract state to obtain vector of Poll structs (or new vector if uninitialized)
     fn get_polls() -> HashMap<u64, HashMap<String, U256>> {
         read_state!(POLLS).unwrap_or_default()
     }
 
+    // Read voting address of VotingETH contract
     fn get_voting_eth_addr() -> String {
         read_state!(VOTING_ETH_ADDR).unwrap_or_default()
     }
@@ -50,28 +51,24 @@ impl Contract {
 impl ContractInterface for Contract {
     #[no_mangle]
     fn construct(voting_eth_addr: H160) {
-        let voting_eth_addr_str: String = eformat!("{:?}", voting_eth_addr);
-        write_state!(VOTING_ETH_ADDR => voting_eth_addr_str);
+        write_state!(VOTING_ETH_ADDR => voting_eth_addr.to_hex());
     }
 
     #[no_mangle]
     fn cast_vote(poll_id: U256, voter: H256, vote: U256) {
         let mut polls = Self::get_polls();
-        eprint!("POLLS = {:?}", polls);
         {
             let voter_info = polls.entry(poll_id.as_u64()).or_insert(HashMap::new());
-            let key = eformat!("{:?}", voter);
+            let key: String = voter.to_hex();
             assert!(!(*voter_info).contains_key(&key), "user has already voted in poll");
             (*voter_info).insert(key, vote);
         }
         write_state!(POLLS => polls);
         let voting_eth_addr: String = Self::get_voting_eth_addr();
-        eprint!("voting_eth_addr = {:?}", &voting_eth_addr);
         let c = EthContract::new(&voting_eth_addr);
         c.validateCastVote(poll_id);
     }
 
-    // Create a new poll
     #[no_mangle]
     fn tally_poll(poll_id: U256) {
         let polls = Self::get_polls();

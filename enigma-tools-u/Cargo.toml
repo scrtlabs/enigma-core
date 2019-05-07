@@ -17,12 +17,14 @@ etcommon-rlp = { version = "0.2.4", default-features = false }
 etcommon-bigint = "0.2"
 base64 = "0.10.0"
 openssl = "0.10"
+openssl-sys = "=0.9.44" # TODO: Remove after upgradding rustc.
 rustc-hex = "1.0.0" # 2.0.1?
 log = "0.4"
 log-derive = "0.2.0"
 simplelog = "0.5.3"
 dirs = "1.0.4"
 rustc-demangle = "=0.1.13"
+bitflags = "=1.0.4"
 
 # TODO: Change after a new version is released.
 # Add more transport layers via features if needed.

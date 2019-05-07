@@ -5,6 +5,8 @@
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 #![feature(tool_lints)]
 #![feature(try_from)]
+#![feature(slice_concat_ext)]
+#![feature(int_to_from_bytes)]
 #![deny(unused_extern_crates)]
 
 extern crate enigma_crypto;
@@ -21,13 +23,15 @@ extern crate sgx_tstd as std;
 extern crate sgx_tunittest;
 extern crate sgx_types;
 
-use crate::{epoch_keeper_t::ecall_set_worker_params_internal, keys_keeper_t::ecall_get_enc_state_keys_internal};
-use enigma_crypto::asymmetric;
 use enigma_tools_m::utils::EthereumAddress;
-use enigma_tools_t::{esgx::ocalls_t, quote_t, storage_t};
-use enigma_types::{ContractAddress, EnclaveReturn};
 use sgx_types::{sgx_report_t, sgx_status_t, sgx_target_info_t};
 use std::{mem, slice};
+
+use enigma_crypto::asymmetric;
+use enigma_tools_t::{esgx::ocalls_t, quote_t, storage_t};
+use enigma_types::{ContractAddress, EnclaveReturn};
+
+use crate::{epoch_keeper_t::ecall_set_worker_params_internal, keys_keeper_t::ecall_get_enc_state_keys_internal};
 
 mod epoch_keeper_t;
 mod keys_keeper_t;
@@ -59,12 +63,13 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
 
 #[no_mangle]
 pub unsafe extern "C" fn ecall_set_worker_params(worker_params_rlp: *const u8, worker_params_rlp_len: usize,
+                                                 seed_in: &[u8; 32], nonce_in: &[u8; 32],
                                                  rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32],
                                                  sig_out: &mut [u8; 65]) -> EnclaveReturn {
     // Assembling byte arrays with the RLP data
     let worker_params_rlp = slice::from_raw_parts(worker_params_rlp, worker_params_rlp_len);
 
-    match ecall_set_worker_params_internal(worker_params_rlp, rand_out, nonce_out, sig_out) {
+    match ecall_set_worker_params_internal(worker_params_rlp, seed_in, nonce_in, rand_out, nonce_out, sig_out) {
         Ok(_) => println!("Worker parameters set successfully"),
         Err(err) => return err.into(),
     };
@@ -80,7 +85,7 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
     let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, sig_out) {
         Ok(response) => response,
         Err(err) => {
-            println!("{:?}", err);
+            println!("get_enc_state_keys error: {:?}", err);
             return err.into();
         }
     };
@@ -93,11 +98,12 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
 }
 
 pub mod tests {
-
-    use crate::{epoch_keeper_t::tests::*, keys_keeper_t::tests::*};
-    use enigma_tools_t::{document_storage_t::tests::*, storage_t::tests::*};
     use sgx_tunittest::*;
     use std::{string::String, vec::Vec};
+
+    use enigma_tools_t::{document_storage_t::tests::*, storage_t::tests::*};
+
+    use crate::{epoch_keeper_t::tests::*, keys_keeper_t::tests::*};
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
@@ -105,7 +111,8 @@ pub mod tests {
             test_full_sealing_storage,
             test_document_sealing_storage,
             test_get_epoch_worker_internal,
-            test_state_keys_storage
+            test_state_keys_storage,
+            test_create_epoch_image
         );
     }
 }

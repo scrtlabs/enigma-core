@@ -40,7 +40,7 @@ fn test_deploy_with_no_ptt() {
     run_core(port);
     let _val = erc20_deployment_without_ptt_to_addr(port, &generate_contract_address().to_hex());
     let accepted_err =  _val["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "EnclaveFailError { err: KeysError, status: SGX_SUCCESS }");
+    assert_eq!(accepted_err, "Error inside the Enclave = (KeysError)");
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn test_compute_on_empty_address() {
     let callable  = "mint(bytes32,uint256)";
     let (_val,_) = contract_compute(port, _address.into(), &args, callable);
     let accepted_err =  _val["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "DBErr { command: \"read\", kind: MissingKey }");
+    assert_eq!(accepted_err, "Error while trying to read, Because: The Key doesn\'t exist");
 }
 
 #[test]
@@ -96,7 +96,7 @@ fn test_deploy_same_contract_twice() {
     let _deploy_first = erc20_deployment_without_ptt_to_addr(port, &address.to_hex());
     let _deploy_second = erc20_deployment_without_ptt_to_addr(port, &address.to_hex());
     let accepted_err =  _deploy_second["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "DBErr { command: \"create\", kind: KeyExists }");
+    assert_eq!(accepted_err, "Error while trying to create, Because: The Key already exists");
 }
 
 #[test]

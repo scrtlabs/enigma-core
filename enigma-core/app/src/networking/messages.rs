@@ -226,13 +226,13 @@ pub(crate) trait UnwrapError<T> {
     fn unwrap_or_error(self) -> T;
 }
 
-impl<E: std::fmt::Debug> UnwrapError<IpcResponse> for Result<IpcResponse, E> {
+impl<E: std::fmt::Display> UnwrapError<IpcResponse> for Result<IpcResponse, E> {
     fn unwrap_or_error(self) -> IpcResponse {
         match self {
             Ok(m) => m,
             Err(e) => {
-                error!("Unwrapped p2p Message failed: {:?}", e);
-                IpcResponse::Error {msg: format!("{:?}", e)}
+                error!("Unwrapped p2p Message failed: {}", e);
+                IpcResponse::Error {msg: format!("{}", e)}
             }
         }
     }

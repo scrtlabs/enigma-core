@@ -86,10 +86,12 @@ mod tests {
     use crate::km_u::tests::instantiate_encryption_key;
     use crate::db::{DB, tests::create_test_db};
     use crate::wasm_u::wasm;
-    use self::ethabi::{Token};
+    use self::ethabi::{Contract, Function, Token, token::{LenientTokenizer, Tokenizer}};
     use enigma_types::{ContractAddress, DhKey, PubKey};
     use enigma_crypto::symmetric;
+    use hex::FromHex;
     use sgx_types::*;
+    use std::fs::File;
     use wasm_u::{WasmResult, WasmTaskResult};
     use self::ethabi::Uint;
 
@@ -152,6 +154,114 @@ mod tests {
         ).expect("Execution failed").unwrap_result();
 
         (enclave, exe_code, result, shared_key)
+    }
+
+    fn create_eth_payload(path: &str, function: &str, values: &[String]) -> Vec<u8> {
+        let file = File::open(path).expect(&format!("Failed to open contract ABI file {}", path));
+        let contract = Contract::load(file).expect(&format!("Failed to load the contract from ABI file {}", path));
+        let function = contract.function(function).expect(&format!("Bad function {} in contract {}", function, path));
+
+        let params: Vec<_> = function.inputs.iter()
+            .map(|param| param.kind.clone())
+            .zip(values.iter().map(|v| v as &str))
+            .collect();
+        let tokens: Vec<Token> = params.iter()
+            .map(|&(ref param, value)| LenientTokenizer::tokenize(param, value).expect("Bad token"))
+            .collect();
+        function.encode_input(&tokens).expect(&format!("Failed to encode the function {}", function.name))
+    }
+
+    #[test]
+    fn test_charge_for_deploy_and_execute() {
+        let (mut db, _dir) = create_test_db();
+        let contract_address = generate_contract_address();
+        let enclave = init_enclave_wrapper().unwrap();
+        instantiate_encryption_key(vec![contract_address], enclave.geteid());
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_construct = symmetric::encrypt("construct()".as_bytes(), &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
+
+        let deploy_res = compile_and_deploy_wasm_contract(
+            &mut db,
+            enclave.geteid(),
+            "../../examples/eng_wasm_contracts/flip_coin",
+            contract_address,
+            &encrypted_construct,
+            &encrypted_args,
+            &keys.get_pubkey()
+        ).unwrap_result();
+
+        assert!(deploy_res.used_gas > deploy_res.bytecode.len() as u64);
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(b"flip()", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[]), &shared_key).unwrap();
+        let result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &deploy_res.output,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &contract_address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        assert!(result.used_gas > 10_000);
+
+    }
+
+    #[test]
+    fn test_charge_for_write() {
+        let (mut db, _dir) = create_test_db();
+        let address = generate_contract_address();
+
+        let (enclave, contract_code, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            address,
+            "construct(uint)",
+            &[Token::Uint(1.into())],
+            "addition(uint256,uint256)",
+            &[Token::Uint(100.into()), Token::Uint(100.into())]
+        );
+
+        // Testing writing exactly the same value under the same key
+        let mut used_gas_for_write_new_value = result.used_gas;
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let mut encrypted_callable = symmetric::encrypt(b"addition(uint256,uint256)", &shared_key).unwrap();
+        let mut encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Uint(100.into()), Token::Uint(100.into())]), &shared_key).unwrap();
+        let mut result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        assert_eq!(used_gas_for_write_new_value - result.used_gas, 3);
+
+        // Testing writing smaller value under the same key
+        used_gas_for_write_new_value = result.used_gas;
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        encrypted_callable = symmetric::encrypt(b"addition(uint256,uint256)", &shared_key).unwrap();
+        encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Uint(10.into()), Token::Uint(10.into())]), &shared_key).unwrap();
+        result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        assert!(used_gas_for_write_new_value - result.used_gas >= 1);
     }
 
     #[test]
@@ -574,7 +684,7 @@ mod tests {
     fn test_eth_bridge(){
         let (mut db, _dir) = create_test_db();
 
-        compile_deploy_execute(
+        let (_, _, result, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/contract_with_eth_calls",
             generate_contract_address(),
@@ -583,6 +693,11 @@ mod tests {
             "test()",
             &[]
         );
+
+        let payload = create_eth_payload("../../examples/eng_wasm_contracts/contract_with_eth_calls/Test.json",
+                                         "getBryn", &["1".to_string(), "[]".to_string()]);
+        assert_eq!(&payload[..], &*result.eth_payload);
+        assert_eq!("123f681646d4a755815f9cb19e1acc8565a0c2ac".from_hex().unwrap(), result.eth_contract_addr);
     }
 
     #[test]
@@ -790,45 +905,54 @@ mod tests {
     fn test_voting(){
         let (mut db, _dir) = create_test_db();
         let contract_address = generate_contract_address();
-        let voter_one_addr = generate_user_address().0;
-        println!("VOTER ADDR = {:?}", voter_one_addr);
+        let voting_eth_addr = generate_user_address().0;
         let (enclave, deploy_res) = compile_deploy_contract_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/voting_demo",
             contract_address,
-            "construct(bytes32)",
-            &[Token::FixedBytes(voter_one_addr.to_vec())],
+            "construct(address)",
+            &[Token::FixedBytes(voting_eth_addr.to_vec())],
         );
 
-//        let voter_one_addr = generate_user_address().0;
-//        let (_, _) = compile_compute_task_execute(
-//            &mut db,
-//            &enclave,
-//            &deploy_res,
-//            "cast_vote(uint256,bytes32,uint256)",
-//            &[Token::Uint(0.into()), Token::FixedBytes(voter_one_addr.to_vec()), Token::Uint(1.into())],
-//            contract_address,
-//        );
-//
-//        let voter_two_addr = generate_user_address().0;
-//        let (_, _) = compile_compute_task_execute(
-//            &mut db,
-//            &enclave,
-//            &deploy_res,
-//            "cast_vote(uint256,bytes32,uint256)",
-//            &[Token::Uint(0.into()), Token::FixedBytes(voter_two_addr.to_vec()), Token::Uint(0.into())],
-//            contract_address,
-//        );
-//
-//        let (result, shared_key) = compile_compute_task_execute(
-//            &mut db,
-//            &enclave,
-//            &deploy_res,
-//            "compute_result(uint256)",
-//            &[Token::Uint(0.into())],
-//            contract_address,
-//        );
-//        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
-//        let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Uint(256)], &encoded_output).unwrap())[0];
+        let voter_one_addr = generate_user_address().0;
+        let (compute_res, _) = compile_compute_task_execute(
+            &mut db,
+            &enclave,
+            &deploy_res,
+            "cast_vote(uint256,bytes32,uint256)",
+            &[Token::Uint(0.into()), Token::FixedBytes(voter_one_addr.to_vec()), Token::Uint(1.into())],
+            contract_address,
+        );
+
+        let payload = create_eth_payload("../../examples/eng_wasm_contracts/voting_demo/VotingETH.json",
+                                         "validateCastVote", &["0".to_string()]);
+        assert_eq!(&payload[..], &*compute_res.eth_payload);
+
+        let voter_two_addr = generate_user_address().0;
+        let (compute_res, _) = compile_compute_task_execute(
+            &mut db,
+            &enclave,
+            &deploy_res,
+            "cast_vote(uint256,bytes32,uint256)",
+            &[Token::Uint(0.into()), Token::FixedBytes(voter_two_addr.to_vec()), Token::Uint(0.into())],
+            contract_address,
+        );
+
+        let payload = create_eth_payload("../../examples/eng_wasm_contracts/voting_demo/VotingETH.json",
+                                         "validateCastVote", &["0".to_string()]);
+        assert_eq!(&payload[..], &*compute_res.eth_payload);
+
+        let (compute_res, _) = compile_compute_task_execute(
+            &mut db,
+            &enclave,
+            &deploy_res,
+            "tally_poll(uint256)",
+            &[Token::Uint(0.into())],
+            contract_address,
+        );
+
+        let payload = create_eth_payload("../../examples/eng_wasm_contracts/voting_demo/VotingETH.json",
+                                         "validateTallyPoll", &["0".to_string(), "50".to_string()]);
+        assert_eq!(&payload[..], &*compute_res.eth_payload);
     }
 }
