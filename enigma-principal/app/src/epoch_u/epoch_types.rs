@@ -9,6 +9,9 @@ use web3::types::{Address, Bytes, H160, U256};
 
 use enigma_types::ContractAddress;
 use enigma_types::Hash256;
+use common_u::errors::EpochStateTransitionErr;
+
+pub const EPOCH_STATE_UNCONFIRMED: &str = "UNCONFIRMED";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfirmedEpochState {
@@ -75,7 +78,7 @@ impl EpochState {
                 }
                 addrs
             }
-            None => bail!("Cannot get contract addresses until the EpochState is confirmed."),
+            None => return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into()),
         };
         Ok(addrs)
     }

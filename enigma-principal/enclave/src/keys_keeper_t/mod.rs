@@ -6,6 +6,7 @@ use sgx_trts::trts::rsgx_read_rand;
 use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec};
 
 use enigma_crypto::{asymmetric::KeyPair, Encryption};
+use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::{
     common::{
         errors_t::{
@@ -152,9 +153,10 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     for sc_addr in sc_addrs.clone() {
         let worker_addr = ecall_get_epoch_worker_internal(sc_addr)?;
         if worker_addr != recovered_addr {
-            return Err(SystemError(KeyProvisionError {
-                err: format!("Selected worker for contract: {:?} is not the message signer {} != {}",
-                             sc_addr, worker_addr.to_hex(), recovered_addr.to_hex())
+            println!("Recovered message signer address with:\nHash image: {}\nHash: {}", image.to_hex(), image.keccak256().to_hex());
+            return Err(SystemError(WorkerAuthError {
+                err: format!("Selected worker for contract: {} is not the message signer {} != {}",
+                             sc_addr.to_hex(), worker_addr.to_hex(), recovered_addr.to_hex())
             }));
         }
     }

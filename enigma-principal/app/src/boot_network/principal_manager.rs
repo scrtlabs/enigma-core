@@ -20,6 +20,7 @@ use enigma_tools_u::{
 };
 use epoch_u::epoch_provider::EpochProvider;
 use esgx;
+use enigma_tools_u::common_u::errors::Web3Error;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
@@ -156,7 +157,9 @@ impl Sampler for PrincipalManager {
     fn get_block_number(&self) -> Result<U256, Error> {
         let block_number = match self.get_web3().eth().block_number().wait() {
             Ok(block_number) => block_number,
-            Err(err) => bail!("Current block number not available: {:?}", err),
+            Err(err) => return Err(Web3Error {
+                message: format!("Current block number not available: {:?}", err),
+            }.into()),
         };
         Ok(block_number)
     }
