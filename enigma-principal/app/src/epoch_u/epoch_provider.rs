@@ -100,7 +100,7 @@ impl EpochProvider {
         Ok(())
     }
 
-    //    #[logfn(DEBUG)]
+    #[logfn(DEBUG)]
     fn parse_worker_parameterized(&self, receipt: &TransactionReceipt) -> Result<Log, Error> {
         let log = receipt.logs[0].clone();
         let raw_log = RawLog { topics: log.topics, data: log.data.0 };
@@ -255,7 +255,7 @@ impl EpochProvider {
                 self.set_epoch_state(epoch_state)?;
                 Ok(receipt.transaction_hash)
             }
-            None => return Err(Web3Error {message: "firstBlockNumber not found in receipt log".to_string()}.into()),
+            None => return Err(Web3Error { message: "firstBlockNumber not found in receipt log".to_string() }.into()),
         }
     }
 
