@@ -19,7 +19,7 @@ use enigma_tools_u::{
     esgx::general::storage_dir,
     web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract},
 };
-use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent, EPOCH_STATE_UNCONFIRMED};
+use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent, EPOCH_STATE_UNCONFIRMED, WORKER_PARAMETERIZED_EVENT};
 use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
 use esgx::general::EPOCH_DIR;
 use common_u::errors::{EpochStateIOErr, EpochStateTransitionErr, EpochStateUndefinedErr};
@@ -108,10 +108,10 @@ impl EpochProvider {
         let result = match event.0.parse_log(raw_log) {
             Ok(result) => result,
             Err(err) => return Err(Web3Error {
-                message: format!("Unable to parse WorkerParameterizedEvent: {:?}", err),
+                message: format!("Unable to parse {} event: {:?}", WORKER_PARAMETERIZED_EVENT, err),
             }.into()),
         };
-        println!("Parsed the WorkerParameterized event: {:?}", result);
+        println!("Parsed the {} event: {:?}", WORKER_PARAMETERIZED_EVENT, result);
         Ok(result)
     }
 

@@ -12,6 +12,7 @@ use enigma_types::Hash256;
 use common_u::errors::EpochStateTransitionErr;
 
 pub const EPOCH_STATE_UNCONFIRMED: &str = "UNCONFIRMED";
+pub const WORKER_PARAMETERIZED_EVENT: &str = "WorkersParameterized";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfirmedEpochState {
@@ -90,7 +91,7 @@ pub struct WorkersParameterizedEvent(pub Event);
 impl WorkersParameterizedEvent {
     pub fn new() -> Self {
         WorkersParameterizedEvent(Event {
-            name: "WorkersParameterized".to_string(),
+            name: WORKER_PARAMETERIZED_EVENT.to_string(),
             inputs: vec![
                 EventParam { name: "seed".to_string(), kind: ParamType::Uint(256), indexed: false },
                 EventParam { name: "firstBlockNumber".to_string(), kind: ParamType::Uint(256), indexed: false },
