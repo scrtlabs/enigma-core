@@ -37,7 +37,7 @@ impl TryInto<[u8; 65]> for StringWrapper {
         if bytes.len() != 65 {
             return Err(RequestValueErr {
                 request: METHOD_GET_STATE_KEYS.to_string(),
-                message: "Cannot create a 65 bytes array from mismatching mismatching size slice.".to_string(),
+                message: "Cannot create a 65 bytes array from mismatching size slice.".to_string(),
             }.into());
         }
         let mut slice: [u8; 65] = [0; 65];
