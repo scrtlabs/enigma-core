@@ -130,7 +130,7 @@ pub(self) mod handling {
         // *Important* `option_env!()` runs on *Compile* time.
         // This means that if you want Simulation mode you need to run `export SGX_MODE=SW` Before compiling.
         if option_env!("SGX_MODE").unwrap_or_default() == "SW" { // Simulation Mode
-            report_hex = enc_quote;
+            report_hex = enc_quote.as_bytes().to_hex();
             signature = String::new();
         } else { // Hardware Mode
             let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
