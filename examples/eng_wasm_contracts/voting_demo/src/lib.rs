@@ -17,6 +17,7 @@ use eng_wasm::String;
 use std::collections::HashMap;
 use rustc_hex::ToHex;
 
+// VotingETH contract abi
 #[eth_contract("VotingETH.json")]
 struct EthContract;
 
@@ -49,16 +50,19 @@ impl Contract {
 }
 
 impl ContractInterface for Contract {
+    // Constructor function that takes in VotingETH ethereum contract address
     #[no_mangle]
     fn construct(voting_eth_addr: H160) {
-        write_state!(VOTING_ETH_ADDR => voting_eth_addr.to_hex());
+        let voting_eth_addr_str: String = voting_eth_addr.to_hex();
+        write_state!(VOTING_ETH_ADDR => voting_eth_addr_str);
     }
 
+    // Cast vote function that takes poll ID, voter address, and vote - calls back to ETH
     #[no_mangle]
     fn cast_vote(poll_id: U256, voter: H256, vote: U256) {
         let mut polls = Self::get_polls();
         {
-            let voter_info = polls.entry(poll_id.as_u64()).or_insert(HashMap::new());
+            let voter_info = polls.entry(poll_id.as_u64()).or_insert_with(HashMap::new);
             let key: String = voter.to_hex();
             assert!(!(*voter_info).contains_key(&key), "user has already voted in poll");
             (*voter_info).insert(key, vote);
@@ -69,6 +73,7 @@ impl ContractInterface for Contract {
         c.validateCastVote(poll_id);
     }
 
+    // Tally poll function that takes poll ID - calls back to ETH
     #[no_mangle]
     fn tally_poll(poll_id: U256) {
         let polls = Self::get_polls();
