@@ -77,7 +77,7 @@ impl ContractInterface for Contract {
     #[no_mangle]
     fn tally_poll(poll_id: U256) {
         let polls = Self::get_polls();
-        let mut tallied_quorum: U256 = 0.into();
+        let mut tallied_quorum: U256 = U256::zero();
         if let Some(voter_info) = polls.get(&poll_id.as_u64()) {
             for val in voter_info.values() {
                 tallied_quorum = tallied_quorum.checked_add(*val).unwrap();
