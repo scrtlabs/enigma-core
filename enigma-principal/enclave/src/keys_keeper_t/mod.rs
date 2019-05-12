@@ -13,10 +13,10 @@ use enigma_tools_t::{
             EnclaveSystemError::*,
         },
         ToHex,
-        utils_t::LockExpectMutex,
     },
     document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
+use enigma_tools_m::utils::LockExpectMutex;
 use enigma_types::{ContractAddress, Hash256, StateKey};
 use epoch_keeper_t::ecall_get_epoch_worker_internal;
 use ocalls_t;

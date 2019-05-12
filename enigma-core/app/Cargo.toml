@@ -6,6 +6,7 @@ build = "build.rs"
 
 [dependencies]
 enigma-tools-u = {path = "../../enigma-tools-u"}
+enigma-tools-m = {path = "../../enigma-tools-m"}
 enigma-types = { path = "../../enigma-types" }
 enigma-crypto = { path = "../../enigma-crypto" }
 futures = { version = "0.1.25", default-features = false }

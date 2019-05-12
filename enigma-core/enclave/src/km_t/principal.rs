@@ -3,7 +3,7 @@ use crate::SIGNING_KEY;
 use enigma_runtime_t::data::{ContractState, DeltasInterface};
 use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::utils_t::LockExpectMutex;
+use enigma_tools_m::utils::LockExpectMutex;
 use enigma_crypto::asymmetric::KeyPair;
 use enigma_crypto::{Encryption, CryptoError};
 use enigma_tools_m::primitives::km_primitives::MsgID;
