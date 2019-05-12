@@ -37,7 +37,7 @@ impl TryInto<[u8; 65]> for StringWrapper {
         if bytes.len() != 65 {
             return Err(RequestValueErr {
                 request: METHOD_GET_STATE_KEYS.to_string(),
-                message: "Cannot create a 65 bytes array from mismatching size slice.".to_string(),
+                message: format!("Cannot create a 65 bytes array from a {} size slice.", bytes.len()),
             }.into());
         }
         let mut slice: [u8; 65] = [0; 65];
@@ -71,9 +71,7 @@ impl StateKeyRequest {
     pub fn get_data(&self) -> Result<Vec<u8>, Error> { Ok(self.data.0.from_hex()?) }
 
     pub fn get_sig(&self) -> Result<[u8; 65], Error> {
-        let mut sig = [0u8; 65];
-        sig.copy_from_slice(&self.sig.0.from_hex()?);
-        Ok(sig)
+        self.sig.clone().try_into()
     }
 }
 
@@ -130,7 +128,7 @@ impl PrincipalHttpServer {
                 Err(err) => {
                     return Err(ServerError {
                         code: ErrorCode::InternalError,
-                        message: format!("Unable to get keys: {:?}", err),
+                        message: format!("Unable to get keys: {}", err),
                         data: None,
                     });
                 }
