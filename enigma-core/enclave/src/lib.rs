@@ -37,7 +37,7 @@ extern crate parity_wasm;
 extern crate sputnikvm;
 extern crate sputnikvm_network_classic;
 extern crate wasmi;
-
+extern crate rustc_hex;
 /// This module builds Wasm code for contract deployment from the Wasm contract.
 /// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
 /// The code is based on Parity wasm_utils::cli.

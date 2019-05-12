@@ -1,6 +1,6 @@
 use bigint::U256;
 use common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*};
-use common::utils_t::ToHex;
+use rustc_hex::ToHex;
 use enigma_crypto::symmetric::decrypt;
 use hexutil::read_hex;
 use rlp::DecoderError;
