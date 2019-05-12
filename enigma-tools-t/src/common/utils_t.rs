@@ -15,17 +15,7 @@ pub use self::FromHexError::*;
 use std::error;
 use std::fmt;
 use std::string::String;
-use std::sync::{SgxMutex, SgxMutexGuard};
 use std::vec::Vec;
-
-pub trait LockExpectMutex<T> {
-    fn lock_expect(&self, name: &str) -> SgxMutexGuard<T>;
-}
-
-impl<T> LockExpectMutex<T> for SgxMutex<T> {
-    fn lock_expect(&self, name: &str) -> SgxMutexGuard<T> { self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name)) }
-}
-
 // TODO: Remove this and use rtustc-hex instead.
 
 /// A trait for converting a value to hexadecimal encoding
