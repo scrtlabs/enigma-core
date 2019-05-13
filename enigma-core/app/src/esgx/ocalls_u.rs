@@ -1,6 +1,6 @@
 use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DB};
 use enigma_crypto::hash::Sha256;
-use enigma_tools_u::common_u::LockExpectMutex;
+use enigma_tools_m::utils::LockExpectMutex;
 use enigma_types::{ContractAddress, EnclaveReturn, Hash256, RawPointer};
 use lru_cache::LruCache;
 use std::sync::Mutex;

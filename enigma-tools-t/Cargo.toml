@@ -13,6 +13,7 @@ failure = { version = "0.1", default-features = false, features = ["derive"] }
 etcommon-rlp = {version = "0.2", default-features = false}
 etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
+rustc-hex = { version = "2.0", default-features = false }
 
 parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
 pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", default-features = false }

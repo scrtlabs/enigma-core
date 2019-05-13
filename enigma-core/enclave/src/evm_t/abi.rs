@@ -1,7 +1,7 @@
 use crate::evm_t::error::Error;
 use crate::evm_t::preprocessor;
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*};
-use enigma_tools_t::common::utils_t::ToHex;
+use rustc_hex::ToHex;
 use ethabi;
 use ethabi::param_type::{ParamType, Reader};
 use ethabi::signature::short_signature;
