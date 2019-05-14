@@ -1,5 +1,4 @@
 #![feature(integer_atomics)]
-#![feature(try_from)]
 #![feature(arbitrary_self_types)]
 
 #[macro_use]

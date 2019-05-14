@@ -2,9 +2,6 @@
 #![crate_type = "staticlib"]
 #![no_std]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![cfg_attr(not(feature = "std"), feature(alloc))]
-#![feature(tool_lints)]
-#![feature(try_from)]
 #![feature(slice_concat_ext)]
 
 #![deny(unused_extern_crates)]
