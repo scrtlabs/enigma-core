@@ -21,8 +21,10 @@ use enigma_tools_t::{
 use enigma_types::{ContractAddress, Hash256, StateKey};
 use epoch_keeper_t::ecall_get_epoch_worker_internal;
 use ocalls_t;
+use ethereum_types::U256;
 
 use crate::SIGNING_KEY;
+use sgx_types::uint8_t;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
@@ -132,10 +134,9 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
 }
 
 /// Get encrypted state keys
-
 pub(crate) fn ecall_get_enc_state_keys_internal(
-    msg_bytes: &[u8], addrs_bytes: Vec<ContractAddress>, sig: [u8; 65], sig_out: &mut [u8; 65],
-) -> Result<Vec<u8>, EnclaveError> {
+    msg_bytes: &[u8], addrs_bytes: Vec<ContractAddress>, sig: [u8; 65], epoch_nonce: [u8; 32],
+    sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let msg = PrincipalMessage::from_message(msg_bytes)?;
     let user_pubkey = msg.get_pubkey();
     let msg_id = msg.get_id();
@@ -150,8 +151,9 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
         }
     };
     let recovered_addr = KeyPair::recover(&image, sig)?.address();
+    let nonce = U256::from(epoch_nonce.as_ref());
     for sc_addr in sc_addrs.clone() {
-        let worker_addr = ecall_get_epoch_worker_internal(sc_addr)?;
+        let worker_addr = ecall_get_epoch_worker_internal(sc_addr, nonce)?;
         if worker_addr != recovered_addr {
             println!("Recovered message signer address with:\nHash image: {}\nHash: {}", image.to_hex(), image.keccak256().to_hex());
             return Err(SystemError(WorkerAuthError {

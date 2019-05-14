@@ -16,7 +16,8 @@ use enigma_crypto::KeyPair;
 use enigma_types::ContractAddress;
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
-use common_u::errors::RequestValueErr;
+use common_u::errors::{RequestValueErr, EpochStateTransitionErr};
+use epoch_u::epoch_types::EPOCH_STATE_UNCONFIRMED;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
@@ -97,13 +98,17 @@ impl PrincipalHttpServer {
         let response = match msg.data {
             PrincipalMessageType::Request(Some(addrs)) => {
                 println!("Found addresses in message: {:?}", addrs);
-                get_enc_state_keys(*epoch_provider.eid, request, None)?
+                let epoch_state = epoch_provider.epoch_state_manager.get_latest(true)?;
+                get_enc_state_keys(*epoch_provider.eid, request, epoch_state.nonce, None)?
             }
             PrincipalMessageType::Request(None) => {
                 println!("No addresses in message, reading from epoch state...");
-                let epoch_state = epoch_provider.get_state()?;
+                if epoch_provider.epoch_state_manager.is_latest_unconfirmed()? {
+                    return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into());
+                }
+                let epoch_state = epoch_provider.epoch_state_manager.get_latest(true)?;
                 let epoch_addrs = Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?;
-                get_enc_state_keys(*epoch_provider.eid, request, Some(&epoch_addrs))?
+                get_enc_state_keys(*epoch_provider.eid, request, epoch_state.nonce, Some(&epoch_addrs))?
             }
             _ => return Err(RequestValueErr {
                 request: METHOD_GET_STATE_KEYS.to_string(),
@@ -178,22 +183,23 @@ mod test {
     pub fn test_jsonrpc_get_state_keys() {
         setup_epoch_storage();
         let enclave = init_enclave_wrapper().unwrap();
-        let rpc = {
-            let mut io = IoHandler::new();
-            let eid = enclave.geteid();
-            io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
-                let request = params.parse::<StateKeyRequest>().unwrap();
-                let response = get_enc_state_keys(eid, request, None).unwrap();
-                let response_data = serde_json::to_value(&response).unwrap();
-                Ok(response_data)
-            });
-            test::Rpc::from(io)
-        };
         let workers: Vec<[u8; 20]> = vec![REF_WORKER];
         let stakes: Vec<u64> = vec![10000000000];
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
         let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        let rpc = {
+            let mut io = IoHandler::new();
+            let eid = enclave.geteid();
+            io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
+                let request = params.parse::<StateKeyRequest>().unwrap();
+                println!("Calling get_enc_state_keys");
+                let response = get_enc_state_keys(eid, request, epoch_state.nonce, None).unwrap();
+                let response_data = serde_json::to_value(&response).unwrap();
+                Ok(response_data)
+            });
+            test::Rpc::from(io)
+        };
         for i in 0..5 {
             let response = rpc.request(METHOD_GET_STATE_KEYS, &(REF_MSG, REF_SIG));
             assert!(response.contains(REF_RESPONSE));

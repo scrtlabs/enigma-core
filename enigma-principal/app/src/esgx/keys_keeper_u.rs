@@ -1,16 +1,17 @@
 use std::{convert::TryInto, mem};
 
 use failure::Error;
-use sgx_types::{sgx_enclave_id_t, sgx_status_t};
+use sgx_types::{sgx_enclave_id_t, sgx_status_t, uint8_t};
+use web3::types::{H256, U256};
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
-use enigma_types::{ContractAddress, EnclaveReturn, traits::SliceCPtr};
 use common_u::errors::EnclaveFailError;
+use enigma_types::{ContractAddress, EnclaveReturn, traits::SliceCPtr};
 
 extern "C" {
     fn ecall_get_enc_state_keys(
         eid: sgx_enclave_id_t, retval: &mut EnclaveReturn, msg: *const u8, msg_len: usize, addrs: *const u8, addrs_len: usize,
-        sig: &[u8; 65], serialized_ptr: *mut u64, sig_out: &mut [u8; 65],
+        sig: &[u8; 65], epoch_nonce: &[u8; 32], serialized_ptr: *mut u64, sig_out: &mut [u8; 65],
     ) -> sgx_status_t;
 }
 
@@ -25,11 +26,12 @@ extern "C" {
 /// let response = get_enc_state_keys(enclave.geteid(), request, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_addrs: Option<&[ContractAddress]>) -> Result<StateKeyResponse, Error> {
+pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_nonce: U256, epoch_addrs: Option<&[ContractAddress]>) -> Result<StateKeyResponse, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
     let mut response_ptr = 0u64;
     let epoch_addrs = epoch_addrs.unwrap_or_default();
+    let epoch_nonce: [u8; 32] = H256::from(epoch_nonce).0;
 
     let msg_bytes: Vec<u8> = request.data.try_into()?;
     let status = unsafe {
@@ -41,6 +43,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
             epoch_addrs.as_c_ptr() as *const u8,
             mem::size_of_val(epoch_addrs),
             &request.sig.try_into()?,
+            &epoch_nonce,
             &mut response_ptr as *mut u64,
             &mut sig_out,
         )
@@ -90,7 +93,7 @@ pub mod tests {
         let stakes: Vec<u64> = vec![10000000000];
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
-        set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
 
         // From the km_primitives uint tests
         let msg = StringWrapper("84a67072656669789e456e69676d61204d657373616765a46461746181a75265717565737491dc0020ccfd1454ccbacca9334acc92415f3bcc850919ccaaccc121cc9fccc7cccc7a74ccbd7a25cc8475ccbc677867cc89a67075626b6579dc00400d02ccb405ccd5213cccd27e5b2ecc86ccf75e5acc812dccf64a37007a3bccf5cca45c7809cc8bcc94ccf22b50ccea3817cc9915ccaeccf51bcc97cce9ccc70a707a05cc880c436accff02cc8919cc9960023fccf0cce7ccf8ccf6a269649c000000000000000000000001".to_string());
@@ -99,7 +102,7 @@ pub mod tests {
         println!("The mock sig: {:?}", sig);
 
         let request = StateKeyRequest { data: msg, sig };
-        let response = get_enc_state_keys(enclave.geteid(), request, None).unwrap();
+        let response = get_enc_state_keys(enclave.geteid(), request, epoch_state.nonce, None).unwrap();
         println!("Got response: {:?}", response);
         enclave.destroy();
     }

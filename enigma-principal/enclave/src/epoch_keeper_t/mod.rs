@@ -72,16 +72,11 @@ fn get_epoch_marker() -> Result<Option<(U256, Hash256)>, EnclaveError> {
     Ok(marker)
 }
 
-fn get_current_epoch(epoch_map: &HashMap<U256, Epoch>) -> Result<Epoch, EnclaveError> {
-    let epoch = match epoch_map.keys().max() {
-        Some(nonce) => epoch_map.get(&nonce).unwrap().clone(),
-        None => {
-            return Err(SystemError(WorkerAuthError {
-                err: format!("Epoch cache is empty"),
-            }));
-        }
-    };
-    Ok(epoch)
+fn get_epoch_from_cache(epoch_map: &HashMap<U256, Epoch>, nonce: U256) -> Result<Epoch, EnclaveError> {
+    match epoch_map.get(&nonce) {
+        Some(epoch) => Ok(epoch.clone()),
+        None => Err(SystemError(WorkerAuthError { err: format!("Epoch nonce {:?} not found in cache.", nonce) })),
+    }
 }
 
 /// Creates new epoch both in the cache and as sealed documents
@@ -167,9 +162,9 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     Ok(())
 }
 
-pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress) -> Result<[u8; 20], EnclaveError> {
+pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, nonce: U256) -> Result<[u8; 20], EnclaveError> {
     let guard = EPOCH.lock_expect("Epoch");
-    let epoch = get_current_epoch(&guard)?;
+    let epoch = get_epoch_from_cache(&guard, nonce)?;
     println!("Running worker selection using Epoch: {:?}", epoch);
     let worker = epoch.get_selected_worker(sc_addr)?;
     println!("Found selected worker: {:?}", worker);
