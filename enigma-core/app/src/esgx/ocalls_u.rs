@@ -1,3 +1,4 @@
+#![allow(unused_attributes)]
 use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DB};
 use enigma_crypto::hash::Sha256;
 use enigma_tools_m::utils::LockExpectMutex;

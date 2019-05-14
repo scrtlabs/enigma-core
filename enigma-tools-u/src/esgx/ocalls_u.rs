@@ -1,3 +1,5 @@
+#![allow(unused_attributes)]
+
 use std::{ptr, slice};
 use enigma_types::traits::SliceCPtr;
 use crate::esgx::general;

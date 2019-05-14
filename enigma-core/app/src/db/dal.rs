@@ -377,7 +377,7 @@ mod test {
     #[test]
     #[should_panic]
     fn test_fail_cf_exists_no_key_read() {
-        let (mut db, _dir) = create_test_db();
+        let (db, _dir) = create_test_db();
 
         let arr = [3u8; 32];
         let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();

@@ -86,7 +86,7 @@ mod tests {
     use crate::km_u::tests::instantiate_encryption_key;
     use crate::db::{DB, tests::create_test_db};
     use crate::wasm_u::wasm;
-    use self::ethabi::{Contract, Function, Token, token::{LenientTokenizer, Tokenizer}};
+    use self::ethabi::{Contract, Token, token::{LenientTokenizer, Tokenizer}};
     use enigma_types::{ContractAddress, DhKey, PubKey};
     use enigma_crypto::symmetric;
     use hex::FromHex;
@@ -217,7 +217,7 @@ mod tests {
         let (mut db, _dir) = create_test_db();
         let address = generate_contract_address();
 
-        let (enclave, contract_code, result, shared_key) = compile_deploy_execute(
+        let (enclave, contract_code, result, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simplest",
             address,
@@ -285,7 +285,7 @@ mod tests {
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let mut encrypted_callable = symmetric::encrypt(b"commit(bool)", &shared_key).unwrap();
         let mut encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Bool(commitment)]), &shared_key).unwrap();
-        let mut result = wasm::execute(
+        let _ = wasm::execute(
             &mut db,
             enclave.geteid(),
             &contract_code,
@@ -299,7 +299,7 @@ mod tests {
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         encrypted_callable = symmetric::encrypt(b"guess(bool)", &shared_key).unwrap();
         encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Bool(commitment.into())]), &shared_key).unwrap();
-        result = wasm::execute(
+        let result = wasm::execute(
             &mut db,
             enclave.geteid(),
             &contract_code,
@@ -769,7 +769,7 @@ mod tests {
         let (mut db, _dir) = create_test_db();
         let a = Token::Uint(10.into());
         let b = Token::Uint(20.into());
-        let (_, _, result, shared_key) = compile_deploy_execute(
+        let _ = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simple_calculator",
             generate_contract_address(),
@@ -808,7 +808,7 @@ mod tests {
         let (mut db, _dir) = create_test_db();
         let a = Token::Uint(Uint::MAX);
         let b = Token::Uint(76.into());
-        let (_, _, result, shared_key) = compile_deploy_execute(
+        let _ = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simple_calculator",
             generate_contract_address(),
@@ -847,7 +847,7 @@ mod tests {
         let (mut db, _dir) = create_test_db();
         let a = Token::Uint(76.into());
         let b = Token::Uint(0.into());
-        let (_, _, result, shared_key) = compile_deploy_execute(
+        let _ = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/simple_calculator",
             generate_contract_address(),

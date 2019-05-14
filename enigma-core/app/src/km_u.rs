@@ -243,10 +243,10 @@ pub mod tests {
         ];
 
         let mut keys = Vec::with_capacity(addresses.len());
-        for ((mut state, deltas, key), address) in encrypted_data().into_iter().zip(addresses.iter()) {
+        for ((state, deltas, key), address) in encrypted_data().into_iter().zip(addresses.iter()) {
             let state = symmetric::encrypt(&state, &key).unwrap();
             stuff.push((DeltaKey { contract_address: *address, key_type: State}, state));
-            for (j, mut delta) in deltas.into_iter().enumerate() {
+            for (j, delta) in deltas.into_iter().enumerate() {
                 stuff.push((DeltaKey { contract_address: *address, key_type: Delta(j as u32)}, delta));
             }
             keys.push(key);
