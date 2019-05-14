@@ -8,6 +8,7 @@ use std::{ptr, slice};
 
 lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(500)); }
 
+
 #[no_mangle]
 pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &ContractAddress, enc_state: *const u8, state_len: usize) -> EnclaveReturn {
     let encrypted_state = slice::from_raw_parts(enc_state, state_len);
@@ -28,6 +29,7 @@ pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &Cont
         }
     }
 }
+
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
@@ -52,6 +54,7 @@ pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
     }
 }
 
+
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &ContractAddress, state_size: *mut usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
@@ -74,6 +77,7 @@ pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &
         Err(_) => EnclaveReturn::OcallDBError,
     }
 }
+
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_state(db_ptr: *const RawPointer, addr: &ContractAddress, state_ptr: *mut u8, state_size: usize) -> EnclaveReturn {
@@ -106,6 +110,7 @@ pub unsafe extern "C" fn ocall_get_state(db_ptr: *const RawPointer, addr: &Contr
         }
     }
 }
+
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_deltas_sizes(db_ptr: *const RawPointer, addr: &ContractAddress,
@@ -146,6 +151,7 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(db_ptr: *const RawPointer, addr:
     enigma_types::write_ptr(&sizes, res_ptr, res_len);
     EnclaveReturn::Success
 }
+
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &ContractAddress,

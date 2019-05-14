@@ -1,4 +1,4 @@
-#![feature(int_to_from_bytes)]
+
 extern crate enigma_types;
 #[cfg_attr(test, macro_use)]
 extern crate serde_json;
