@@ -9,8 +9,6 @@ enigma-crypto = { path = "../../../enigma-crypto", default-features = false, fea
 rustc-hex = "2.0.1"
 serde = { version = "1.0", default-features = false, features=["serde_derive"] }
 
-bitflags = "=1.0.4"
-
 [lib]
 crate-type = ["cdylib"]
 
