@@ -15,7 +15,6 @@ extern crate enigma_crypto;
 extern crate enigma_types;
 extern crate json_patch;
 extern crate rmp_serde as rmps;
-#[macro_use]
 extern crate serde;
 extern crate wasmi;
 
@@ -221,7 +220,7 @@ impl Runtime {
     }
 
     fn treat_gas_underflow(&mut self, val: &Option<u64>) -> (bool, u64) {
-        let mut result = 0;
+        let result = 0;
         if let Some(v) = val {
             (false, *v)
         }
@@ -257,7 +256,7 @@ impl Runtime {
         } // If the new value is smaller than the old one, the gas should be returned
         else {
             let decrease_cost = (old_value_len - new_value_len).checked_mul(self.gas_costs.write_additional_byte);
-            let (underflow, val) = self.treat_gas_underflow(&decrease_cost);
+            let (underflow, _val) = self.treat_gas_underflow(&decrease_cost);
             if !underflow {
                 let tmp = self.gas_return.checked_add(decrease_cost.unwrap());
                 let (underflow, val) = self.treat_gas_underflow(&tmp);

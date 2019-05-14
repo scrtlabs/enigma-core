@@ -52,7 +52,7 @@ impl SecretKeyStorage {
         let unsealed_result = sealed_data.unseal_data();
         match unsealed_result {
             Ok(unsealed_data) => {
-                let mut udata = unsealed_data.get_decrypt_txt();
+                let udata = unsealed_data.get_decrypt_txt();
                 Some(*udata)
             }
             Err(err) => {

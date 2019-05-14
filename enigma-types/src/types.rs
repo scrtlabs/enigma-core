@@ -93,9 +93,10 @@ impl RawPointer {
 
 impl From<bool> for ResultStatus {
     fn from(i: bool) -> Self {
-        match i{
-            true => ResultStatus::Ok,
-            false => ResultStatus::Failure,
+        if i {
+            ResultStatus::Ok
+        } else {
+            ResultStatus::Failure
         }
     }
 }

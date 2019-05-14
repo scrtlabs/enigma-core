@@ -1,7 +1,7 @@
 #![no_std]
 
 
-#![feature(int_to_from_bytes)]
+
 
 extern crate eng_wasm;
 extern crate eng_wasm_derive;
