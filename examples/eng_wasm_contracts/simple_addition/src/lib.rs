@@ -3,8 +3,8 @@
 // do not have these features, so we tell Rust that we don’t want to use the standard library
 #![no_std]
 
-#![feature(proc_macro_gen)]
-#![feature(proc_macro_non_items)]
+
+
 
 // The eng_wasm crate allows to use the Enigma runtime, which provides:
 //     - Read from state      read_state!(key)        

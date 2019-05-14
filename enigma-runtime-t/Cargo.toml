@@ -8,14 +8,15 @@ enigma-types = { path = "../enigma-types", default-features = false, features = 
 enigma-crypto = { path = "../enigma-crypto", default-features = false, features = ["sgx", "asymmetric"] }
 enigma-tools-t = { path = "../enigma-tools-t" }
 
-rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "sgx-v1.0.4" }
-json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.2-v1.0.4" }
+rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "sgx-v1.0.7" }
+json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "sgx-0.2.5-v1.0.7" }
 
-serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4", default-features = false, features=["serde_derive"] }
-wasmi = { git = "https://github.com/enigmampc/wasmi", default-features = false, features = ["core"] }
-hashmap_core = "=0.1.9"
 
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+serde_json = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
+serde = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7", default-features = false, features=["serde_derive"] }
+wasmi = { git = "https://github.com/enigmampc/wasmi", rev = "sgx-1.0.7" }
+
+
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
