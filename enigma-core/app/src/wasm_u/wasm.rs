@@ -86,10 +86,12 @@ mod tests {
     use crate::km_u::tests::instantiate_encryption_key;
     use crate::db::{DB, tests::create_test_db};
     use crate::wasm_u::wasm;
-    use self::ethabi::{Token};
+    use self::ethabi::{Contract, Function, Token, token::{LenientTokenizer, Tokenizer}};
     use enigma_types::{ContractAddress, DhKey, PubKey};
     use enigma_crypto::symmetric;
+    use hex::FromHex;
     use sgx_types::*;
+    use std::fs::File;
     use wasm_u::{WasmResult, WasmTaskResult};
     use self::ethabi::Uint;
 
@@ -152,6 +154,21 @@ mod tests {
         ).expect("Execution failed").unwrap_result();
 
         (enclave, exe_code, result, shared_key)
+    }
+
+    fn create_eth_payload(path: &str, function: &str, values: &[String]) -> Vec<u8> {
+        let file = File::open(path).expect(&format!("Failed to open contract ABI file {}", path));
+        let contract = Contract::load(file).expect(&format!("Failed to load the contract from ABI file {}", path));
+        let function = contract.function(function).expect(&format!("Bad function {} in contract {}", function, path));
+
+        let params: Vec<_> = function.inputs.iter()
+            .map(|param| param.kind.clone())
+            .zip(values.iter().map(|v| v as &str))
+            .collect();
+        let tokens: Vec<Token> = params.iter()
+            .map(|&(ref param, value)| LenientTokenizer::tokenize(param, value).expect("Bad token"))
+            .collect();
+        function.encode_input(&tokens).expect(&format!("Failed to encode the function {}", function.name))
     }
 
     #[test]
@@ -667,7 +684,7 @@ mod tests {
     fn test_eth_bridge(){
         let (mut db, _dir) = create_test_db();
 
-        compile_deploy_execute(
+        let (_, _, result, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/contract_with_eth_calls",
             generate_contract_address(),
@@ -676,6 +693,11 @@ mod tests {
             "test()",
             &[]
         );
+
+        let payload = create_eth_payload("../../examples/eng_wasm_contracts/contract_with_eth_calls/Test.json",
+                                         "getBryn", &["1".to_string(), "[]".to_string()]);
+        assert_eq!(&payload[..], &*result.eth_payload);
+        assert_eq!("123f681646d4a755815f9cb19e1acc8565a0c2ac".from_hex().unwrap(), result.eth_contract_addr);
     }
 
     #[test]
