@@ -16,6 +16,7 @@ use enigma_crypto::KeyPair;
 use enigma_types::ContractAddress;
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
+use common_u::errors::RequestValueErr;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
@@ -34,7 +35,10 @@ impl TryInto<[u8; 65]> for StringWrapper {
     fn try_into(self) -> Result<[u8; 65], Self::Error> {
         let bytes = self.0.from_hex()?;
         if bytes.len() != 65 {
-            bail!("Cannot create a 65 bytes array from mismatching mismatching size slice.")
+            return Err(RequestValueErr {
+                request: METHOD_GET_STATE_KEYS.to_string(),
+                message: "Cannot create a 65 bytes array from mismatching size slice.".to_string(),
+            }.into());
         }
         let mut slice: [u8; 65] = [0; 65];
         slice.copy_from_slice(&bytes);
@@ -101,7 +105,10 @@ impl PrincipalHttpServer {
                 let epoch_addrs = Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?;
                 get_enc_state_keys(*epoch_provider.eid, request, Some(&epoch_addrs))?
             }
-            _ => bail!("Invalid Principal message request"),
+            _ => return Err(RequestValueErr {
+                request: METHOD_GET_STATE_KEYS.to_string(),
+                message: "Request data not found in PrincipalMessage".to_string(),
+            }.into()),
         };
         let response_data = serde_json::to_value(&response)?;
         Ok(response_data)
@@ -142,6 +149,7 @@ impl PrincipalHttpServer {
 #[cfg(test)]
 mod test {
     extern crate jsonrpc_test as test;
+
     use std::collections::HashMap;
     use std::thread;
 

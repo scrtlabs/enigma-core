@@ -9,6 +9,10 @@ use web3::types::{Address, Bytes, H160, U256};
 
 use enigma_types::ContractAddress;
 use enigma_types::Hash256;
+use common_u::errors::EpochStateTransitionErr;
+
+pub const EPOCH_STATE_UNCONFIRMED: &str = "UNCONFIRMED";
+pub const WORKER_PARAMETERIZED_EVENT: &str = "WorkersParameterized";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfirmedEpochState {
@@ -75,7 +79,7 @@ impl EpochState {
                 }
                 addrs
             }
-            None => bail!("Cannot get contract addresses until the EpochState is confirmed."),
+            None => return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into()),
         };
         Ok(addrs)
     }
@@ -87,7 +91,7 @@ pub struct WorkersParameterizedEvent(pub Event);
 impl WorkersParameterizedEvent {
     pub fn new() -> Self {
         WorkersParameterizedEvent(Event {
-            name: "WorkersParameterized".to_string(),
+            name: WORKER_PARAMETERIZED_EVENT.to_string(),
             inputs: vec![
                 EventParam { name: "seed".to_string(), kind: ParamType::Uint(256), indexed: false },
                 EventParam { name: "firstBlockNumber".to_string(), kind: ParamType::Uint(256), indexed: false },
