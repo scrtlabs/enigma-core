@@ -25,7 +25,6 @@ use esgx::general::EPOCH_DIR;
 use common_u::errors::{EpochStateIOErr, EpochStateTransitionErr, EpochStateUndefinedErr};
 use enigma_tools_u::common_u::errors::Web3Error;
 
-
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
     pub epoch_state: Arc<Mutex<Option<EpochState>>>,

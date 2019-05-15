@@ -11,6 +11,7 @@
 
 extern crate enigma_crypto;
 extern crate enigma_tools_m;
+#[macro_use]
 extern crate enigma_tools_t;
 extern crate enigma_types;
 extern crate ethabi;

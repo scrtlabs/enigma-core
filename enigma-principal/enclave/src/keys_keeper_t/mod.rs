@@ -51,7 +51,7 @@ fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
                 println!("State key not found in cache, fetching sealed document.");
                 let path = get_document_path(&addr);
                 if is_document(&path) {
-                    println!("Unsealing state key.");
+                    debug_println!("Unsealing state key.");
                     let mut sealed_log_out = [0u8; SEAL_LOG_SIZE];
                     load_sealed_document(&path, &mut sealed_log_out)?;
                     let doc = SealedDocumentStorage::<StateKey>::unseal(&mut sealed_log_out)?;
@@ -61,7 +61,7 @@ fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
                             Some(doc.data)
                         }
                         None => {
-                            println!("State key {:?} does not exist", addr);
+                            debug_println!("State key {:?} does not exist", addr);
                             None
                         }
                     }
@@ -94,7 +94,7 @@ fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
         save_sealed_document(&path, &sealed_log_in)?;
         // Add to cache
         match keys_map.insert(addr, doc.data) {
-            Some(prev) => println!("New key stored successfully, previous key: {:?}", prev), // TODO: What is that?
+            Some(prev) => println!("New key stored successfully"),
             None => println!("Initial key stored successfully"),
         }
         results.push(doc.data);
@@ -139,7 +139,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     let msg_id = msg.get_id();
     // Create the request image before the worker selection guard to avoid cloning the message data
     let image = msg.to_sign()?;
-    println!("Generated hash image: {:?} for request: {:?}", image, msg);
+    debug_println!("Generated hash image: {:?} for request: {:?}", image, msg);
     let sc_addrs: Vec<ContractAddress> = match msg.data {
         PrincipalMessageType::Request(Some(addrs)) => addrs,
         PrincipalMessageType::Request(None) => addrs_bytes,

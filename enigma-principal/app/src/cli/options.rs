@@ -109,7 +109,7 @@ pub fn print_info(signing_address: &str) {
     print_logo();
     yellow!("<>------------------------------------------<>\n");
     green!("--info                                 => Print the signing address and help.\n");
-    green!("--verbose                              => Verbosity of the log output.\n");
+    green!("--verbose                              => Verbosity of the log output (up to 5 -vvvvv).\n");
     green!("--debug-stdout                         => Print the debugging directly to stdout.\n");
     green!("--write-sign-address                   => Write the signing address to ~/.enigma/principal-sign-addr.txt.\n");
     green!("--register                             => Run the Register procedure and shutdown.\n");
