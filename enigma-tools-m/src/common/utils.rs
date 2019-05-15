@@ -2,6 +2,21 @@ use crate::localstd::string::String;
 use enigma_crypto::hash::Keccak256;
 use rustc_hex::ToHex;
 
+#[cfg(feature = "sgx")]
+use crate::localstd::sync::{SgxMutex as Mutex, SgxMutexGuard as MutexGuard};
+
+#[cfg(feature = "std")]
+use crate::localstd::sync::{Mutex, MutexGuard};
+
+
+pub trait LockExpectMutex<T> {
+    fn lock_expect(&self, name: &str) -> MutexGuard<T>;
+}
+
+impl<T> LockExpectMutex<T> for Mutex<T> {
+    fn lock_expect(&self, name: &str) -> MutexGuard<T> { self.lock().unwrap_or_else(|_| panic!("{} mutex is poison", name)) }
+}
+
 pub trait EthereumAddress<T, P> {
     fn address_string(&self) -> T
     where T: Sized;

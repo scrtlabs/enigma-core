@@ -3,24 +3,22 @@ use enigma_tools_m::{
     utils::EthereumAddress,
 };
 use sgx_trts::trts::rsgx_read_rand;
-use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec};
+use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec, string::String};
 
 use enigma_crypto::{asymmetric::KeyPair, Encryption};
 use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::{
-    common::{
-        errors_t::{
+    common::errors_t::{
             EnclaveError::{self, *},
             EnclaveSystemError::*,
         },
-        ToHex,
-        utils_t::LockExpectMutex,
-    },
     document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
+use enigma_tools_m::utils::LockExpectMutex;
 use enigma_types::{ContractAddress, Hash256, StateKey};
 use epoch_keeper_t::ecall_get_epoch_worker_internal;
 use ocalls_t;
+use rustc_hex::ToHex;
 
 use crate::SIGNING_KEY;
 
@@ -38,7 +36,7 @@ fn get_state_keys_root_path() -> path::PathBuf {
 }
 
 fn get_document_path(sc_addr: &ContractAddress) -> path::PathBuf {
-    get_state_keys_root_path().join(format!("{}.{}", sc_addr.to_hex(), "sealed"))
+    get_state_keys_root_path().join(format!("{}.{}", sc_addr.to_hex::<String>(), "sealed"))
 }
 
 /// Read state keys from the cache and sealed documents.
@@ -124,7 +122,7 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
         match guard.get(&addr) {
             Some(&key) => response_data.push((addr, key)),
             None => {
-                return Err(SystemError(KeyProvisionError { err: format!("State key not found in cache: {:?}", addr.to_hex()) }));
+                return Err(SystemError(KeyProvisionError { err: format!("State key not found in cache: {:?}", addr.to_hex::<String>()) }));
             }
         }
     }
@@ -153,10 +151,9 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     for sc_addr in sc_addrs.clone() {
         let worker_addr = ecall_get_epoch_worker_internal(sc_addr)?;
         if worker_addr != recovered_addr {
-            println!("Recovered message signer address with:\nHash image: {}\nHash: {}", image.to_hex(), image.keccak256().to_hex());
             return Err(SystemError(WorkerAuthError {
                 err: format!("Selected worker for contract: {} is not the message signer {} != {}",
-                             sc_addr.to_hex(), worker_addr.to_hex(), recovered_addr.to_hex())
+                             sc_addr.to_hex::<String>(), worker_addr.to_hex::<String>(), recovered_addr.to_hex::<String>())
             }));
         }
     }
@@ -172,7 +169,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     let response_msg = PrincipalMessage::new_id(response_msg_data, msg_id, pubkey);
     // Generate the iv from the first 12 bytes of a new random number
     let response = response_msg.encrypt(&derived_key)?.into_message()?;
-    println!("The partially encrypted response: {:?}", response.to_hex());
+    println!("The partially encrypted response: {:?}", response.to_hex::<String>());
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
     *sig_out = SIGNING_KEY.sign(&response)?;
@@ -180,13 +177,13 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
 }
 
 pub mod tests {
-    use enigma_tools_t::common::FromHex;
+    use rustc_hex::FromHex;
 
     use super::*;
 
     // noinspection RsTypeCheck
     pub fn test_state_keys_storage() {
-        let data = vec![
+        let data: Vec<Vec<u8>> = vec![
             "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08".from_hex().unwrap(),
             "60303AE22B998861BCE3B28F33EEC1BE758A213C86C93C076DBE9F558C11C752".from_hex().unwrap(),
         ];

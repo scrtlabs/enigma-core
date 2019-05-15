@@ -37,7 +37,7 @@ extern crate parity_wasm;
 extern crate sputnikvm;
 extern crate sputnikvm_network_classic;
 extern crate wasmi;
-
+extern crate rustc_hex;
 /// This module builds Wasm code for contract deployment from the Wasm contract.
 /// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
 /// The code is based on Parity wasm_utils::cli.
@@ -55,8 +55,8 @@ use enigma_runtime_t::data::{ContractState, EncryptedPatch};
 use enigma_runtime_t::EthereumData;
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
-use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}, LockExpectMutex};
-use enigma_tools_m::utils::EthereumAddress;
+use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}};
+use enigma_tools_m::utils::{EthereumAddress, LockExpectMutex};
 use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t, esgx::ocalls_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
 use wasm_utils::{build, SourceTarget};

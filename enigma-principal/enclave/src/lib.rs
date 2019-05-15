@@ -22,6 +22,7 @@ extern crate sgx_trts;
 extern crate sgx_tstd as std;
 extern crate sgx_tunittest;
 extern crate sgx_types;
+extern crate rustc_hex;
 
 use enigma_tools_m::utils::EthereumAddress;
 use sgx_types::{sgx_report_t, sgx_status_t, sgx_target_info_t};
