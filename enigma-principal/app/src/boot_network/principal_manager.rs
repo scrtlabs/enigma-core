@@ -20,6 +20,7 @@ use enigma_tools_u::{
 };
 use epoch_u::epoch_provider::EpochProvider;
 use esgx;
+use enigma_tools_u::common_u::errors::Web3Error;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
@@ -157,7 +158,9 @@ impl Sampler for PrincipalManager {
     fn get_block_number(&self) -> Result<U256, Error> {
         let block_number = match self.get_web3().eth().block_number().wait() {
             Ok(block_number) => block_number,
-            Err(err) => bail!("Current block number not available: {:?}", err),
+            Err(err) => return Err(Web3Error {
+                message: format!("Current block number not available: {:?}", err),
+            }.into()),
         };
         Ok(block_number)
     }
@@ -264,7 +267,7 @@ mod test {
     };
 
     use enigma_tools_u::web3_utils::{enigma_contract::EnigmaContract, w3utils};
-    use epoch_u::epoch_types::WorkersParameterizedEvent;
+    use epoch_u::epoch_types::{WorkersParameterizedEvent, WORKER_PARAMETERIZED_EVENT};
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
@@ -358,7 +361,7 @@ mod test {
                 .create_logs_filter(filter)
                 .then(|filter| {
                     filter.unwrap().stream(time::Duration::from_secs(1)).for_each(|log| {
-                        println!("Got WorkerParameterized log: {:?}", log);
+                        println!("Got {} log: {:?}", WORKER_PARAMETERIZED_EVENT, log);
                         Ok(())
                     })
                 })

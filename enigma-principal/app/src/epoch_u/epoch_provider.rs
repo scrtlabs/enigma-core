@@ -19,9 +19,11 @@ use enigma_tools_u::{
     esgx::general::storage_dir,
     web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract},
 };
-use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent};
+use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent, EPOCH_STATE_UNCONFIRMED, WORKER_PARAMETERIZED_EVENT};
 use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
 use esgx::general::EPOCH_DIR;
+use common_u::errors::{EpochStateIOErr, EpochStateTransitionErr, EpochStateUndefinedErr};
+use enigma_tools_u::common_u::errors::Web3Error;
 
 pub struct EpochProvider {
     pub contract: Arc<EnigmaContract>,
@@ -104,9 +106,11 @@ impl EpochProvider {
         let event = WorkersParameterizedEvent::new();
         let result = match event.0.parse_log(raw_log) {
             Ok(result) => result,
-            Err(_) => bail!("Unable to parse WorkersParameterized"),
+            Err(err) => return Err(Web3Error {
+                message: format!("Unable to parse {} event: {:?}", WORKER_PARAMETERIZED_EVENT, err),
+            }.into()),
         };
-        println!("Parsed the WorkerParameterized event: {:?}", result);
+        println!("Parsed the {} event: {:?}", WORKER_PARAMETERIZED_EVENT, result);
         Ok(result)
     }
 
@@ -114,11 +118,13 @@ impl EpochProvider {
     pub fn get_state(&self) -> Result<EpochState, Error> {
         let guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
-            Err(_) => bail!("Unable to lock Epoch Marker Mutex."),
+            Err(err) => return Err(EpochStateIOErr {
+                message: format!("Cannot lock EpochState: {:?}", err),
+            }.into()),
         };
         let epoch_state = match guard.deref() {
             Some(epoch_state) => epoch_state.clone(),
-            None => bail!("EpochState not set."),
+            None => return Err(EpochStateUndefinedErr {}.into()),
         };
         mem::drop(guard);
         Ok(epoch_state)
@@ -138,14 +144,18 @@ impl EpochProvider {
         println!("Replacing EpochState mutex: {:?}", epoch_state);
         let mut guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
-            Err(_) => bail!("Unable to lock Epoch Marker Mutex"),
+            Err(err) => return Err(EpochStateIOErr {
+                message: format!("Cannot lock EpochState: {:?}", err),
+            }.into()),
         };
         let prev = mem::replace(&mut *guard, epoch_state.clone());
         println!("Replaced EpochState: {:?} with: {:?}", prev, epoch_state);
         mem::drop(guard);
         match Self::write_epoch_state(epoch_state) {
             Ok(_) => println!("Stored the Epoch Marker to disk"),
-            Err(err) => bail!(err),
+            Err(err) => return Err(EpochStateIOErr {
+                message: format!("Unable to write the EpochState: {:?}", err),
+            }.into()),
         };
         Ok(())
     }
@@ -156,14 +166,16 @@ impl EpochProvider {
     pub fn get_confirmed(&self) -> Result<ConfirmedEpochState, Error> {
         let guard = match self.epoch_state.try_lock() {
             Ok(guard) => guard,
-            Err(_) => bail!("Unable to lock Epoch Marker Mutex."),
+            Err(err) => return Err(EpochStateIOErr {
+                message: format!("Cannot lock EpochState: {:?}", err),
+            }.into()),
         };
         let confirmed_state = match guard.deref() {
             Some(epoch_state) => match &epoch_state.confirmed_state {
                 Some(confirmed_state) => confirmed_state.clone(),
-                None => bail!("Epoch Marker not confirmed yet."),
+                None => return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into()),
             },
-            None => bail!("Unable to get seed without an Epoch Marker."),
+            None => return Err(EpochStateUndefinedErr {}.into()),
         };
         mem::drop(guard);
         Ok(confirmed_state)
@@ -242,7 +254,7 @@ impl EpochProvider {
                 self.set_epoch_state(epoch_state)?;
                 Ok(receipt.transaction_hash)
             }
-            None => bail!("firstBlockNumber not found in receipt log"),
+            None => return Err(Web3Error { message: "firstBlockNumber not found in receipt log".to_string() }.into()),
         }
     }
 

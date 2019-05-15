@@ -6,6 +6,7 @@ build = "build.rs"
 
 [dependencies]
 enigma-tools-u = {path = "../../enigma-tools-u"}
+enigma-tools-m = {path = "../../enigma-tools-m"}
 enigma-types = { path = "../../enigma-types" }
 enigma-crypto = { path = "../../enigma-crypto" }
 futures = { version = "0.1.25", default-features = false }
@@ -26,8 +27,8 @@ log-derive = "0.2"
 simplelog = "0.5.3"
 structopt = "0.2"
 
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.4" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
+sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
 
 [dev-dependencies]
 ethabi = "6.1.0"

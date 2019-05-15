@@ -6,7 +6,7 @@ pub(crate) use self::users::ecall_get_user_key_internal;
 
 use enigma_runtime_t::data::{ContractState, EncryptedContractState, EncryptedPatch, StatePatch};
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::LockExpectMutex;
+use enigma_tools_m::utils::LockExpectMutex;
 use enigma_crypto::{Encryption, CryptoError};
 use enigma_types::{ContractAddress, StateKey};
 use std::collections::HashMap;
