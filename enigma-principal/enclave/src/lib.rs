@@ -11,6 +11,7 @@
 
 extern crate enigma_crypto;
 extern crate enigma_tools_m;
+#[macro_use]
 extern crate enigma_tools_t;
 extern crate enigma_types;
 extern crate ethabi;
@@ -22,6 +23,7 @@ extern crate sgx_trts;
 extern crate sgx_tstd as std;
 extern crate sgx_tunittest;
 extern crate sgx_types;
+extern crate rustc_hex;
 
 use enigma_tools_m::utils::EthereumAddress;
 use sgx_types::{sgx_report_t, sgx_status_t, sgx_target_info_t, uint8_t};

@@ -86,10 +86,12 @@ mod tests {
     use crate::km_u::tests::instantiate_encryption_key;
     use crate::db::{DB, tests::create_test_db};
     use crate::wasm_u::wasm;
-    use self::ethabi::{Token};
+    use self::ethabi::{Contract, Function, Token, token::{LenientTokenizer, Tokenizer}};
     use enigma_types::{ContractAddress, DhKey, PubKey};
     use enigma_crypto::symmetric;
+    use hex::FromHex;
     use sgx_types::*;
+    use std::fs::File;
     use wasm_u::{WasmResult, WasmTaskResult};
     use self::ethabi::Uint;
 
@@ -103,7 +105,7 @@ mod tests {
             }
         }
     }
-    
+
     fn compile_and_deploy_wasm_contract(db: &mut DB, eid: sgx_enclave_id_t, test_path: &str, contract_address: ContractAddress, constructor: &[u8], args: &[u8],  user_pubkey: &PubKey) -> WasmResult {
         let wasm_code = get_bytecode_from_path(test_path);
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
@@ -152,6 +154,21 @@ mod tests {
         ).expect("Execution failed").unwrap_result();
 
         (enclave, exe_code, result, shared_key)
+    }
+
+    fn create_eth_payload(path: &str, function: &str, values: &[String]) -> Vec<u8> {
+        let file = File::open(path).expect(&format!("Failed to open contract ABI file {}", path));
+        let contract = Contract::load(file).expect(&format!("Failed to load the contract from ABI file {}", path));
+        let function = contract.function(function).expect(&format!("Bad function {} in contract {}", function, path));
+
+        let params: Vec<_> = function.inputs.iter()
+            .map(|param| param.kind.clone())
+            .zip(values.iter().map(|v| v as &str))
+            .collect();
+        let tokens: Vec<Token> = params.iter()
+            .map(|&(ref param, value)| LenientTokenizer::tokenize(param, value).expect("Bad token"))
+            .collect();
+        function.encode_input(&tokens).expect(&format!("Failed to encode the function {}", function.name))
     }
 
     #[test]
@@ -667,7 +684,7 @@ mod tests {
     fn test_eth_bridge(){
         let (mut db, _dir) = create_test_db();
 
-        compile_deploy_execute(
+        let (_, _, result, _) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/contract_with_eth_calls",
             generate_contract_address(),
@@ -676,6 +693,11 @@ mod tests {
             "test()",
             &[]
         );
+
+        let payload = create_eth_payload("../../examples/eng_wasm_contracts/contract_with_eth_calls/Test.json",
+                                         "getBryn", &["1".to_string(), "[]".to_string()]);
+        assert_eq!(&payload[..], &*result.eth_payload);
+        assert_eq!("123f681646d4a755815f9cb19e1acc8565a0c2ac".from_hex().unwrap(), result.eth_contract_addr);
     }
 
     #[test]
@@ -877,5 +899,60 @@ mod tests {
             contract_address,
         );
         assert_eq!(symmetric::decrypt(&result.output, &shared_key).unwrap(), *millionaire_two_addr);
+    }
+
+    #[test]
+    fn test_voting(){
+        let (mut db, _dir) = create_test_db();
+        let contract_address = generate_contract_address();
+        let voting_eth_addr = generate_user_address().0;
+        let (enclave, deploy_res) = compile_deploy_contract_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/voting_demo",
+            contract_address,
+            "construct(address)",
+            &[Token::FixedBytes(voting_eth_addr.to_vec())],
+        );
+
+        let voter_one_addr = generate_user_address().0;
+        let (compute_res, _) = compile_compute_task_execute(
+            &mut db,
+            &enclave,
+            &deploy_res,
+            "cast_vote(uint256,bytes32,uint256)",
+            &[Token::Uint(0.into()), Token::FixedBytes(voter_one_addr.to_vec()), Token::Uint(1.into())],
+            contract_address,
+        );
+
+        let payload = create_eth_payload("../../examples/eng_wasm_contracts/voting_demo/VotingETH.json",
+                                         "validateCastVote", &["0".to_string()]);
+        assert_eq!(&payload[..], &*compute_res.eth_payload);
+
+        let voter_two_addr = generate_user_address().0;
+        let (compute_res, _) = compile_compute_task_execute(
+            &mut db,
+            &enclave,
+            &deploy_res,
+            "cast_vote(uint256,bytes32,uint256)",
+            &[Token::Uint(0.into()), Token::FixedBytes(voter_two_addr.to_vec()), Token::Uint(0.into())],
+            contract_address,
+        );
+
+        let payload = create_eth_payload("../../examples/eng_wasm_contracts/voting_demo/VotingETH.json",
+                                         "validateCastVote", &["0".to_string()]);
+        assert_eq!(&payload[..], &*compute_res.eth_payload);
+
+        let (compute_res, _) = compile_compute_task_execute(
+            &mut db,
+            &enclave,
+            &deploy_res,
+            "tally_poll(uint256)",
+            &[Token::Uint(0.into())],
+            contract_address,
+        );
+
+        let payload = create_eth_payload("../../examples/eng_wasm_contracts/voting_demo/VotingETH.json",
+                                         "validateTallyPoll", &["0".to_string(), "50".to_string()]);
+        assert_eq!(&payload[..], &*compute_res.eth_payload);
     }
 }

@@ -1,6 +1,6 @@
 use crate::SIGNING_KEY;
 use enigma_tools_t::common::errors_t::EnclaveError;
-use enigma_tools_t::common::utils_t::LockExpectMutex;
+use enigma_tools_m::utils::LockExpectMutex;
 use enigma_crypto::asymmetric::KeyPair;
 use enigma_tools_m::primitives::km_primitives::UserMessage;
 use enigma_types::{DhKey, PubKey};

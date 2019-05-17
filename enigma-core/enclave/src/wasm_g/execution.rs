@@ -2,7 +2,7 @@ use crate::km_t;
 use enigma_runtime_t::{ocalls_t as runtime_ocalls_t, RuntimeResult};
 use enigma_runtime_t::{data::ContractState, eng_resolver, Runtime, RuntimeWasmCosts};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*, FailedTaskError};
-use enigma_tools_t::common::utils_t::LockExpectMutex;
+use enigma_tools_m::utils::LockExpectMutex;
 use enigma_crypto::{CryptoError, Encryption};
 use enigma_types::{ContractAddress, RawPointer, StateKey};
 use parity_wasm::elements::{self, Deserialize};

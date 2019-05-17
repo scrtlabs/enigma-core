@@ -6,11 +6,11 @@ steps:
     detach: true
 
   - name: core
-    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
+    image: enigmampc/enigma-core:0.0.7
     depends_on: [clone]
     privileged: true
     commands:
-      - /opt/intel/libsgx-enclave-common/aesm/aesm_service
+      - LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-core && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
@@ -19,13 +19,14 @@ steps:
         path: /dev/isgx
 
   - name: principal
-    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
+    image: enigmampc/enigma-core:0.0.7
     depends_on: [clone]
     privileged: true
+    enviroment:
+      - NODE_URL: http://ganache:8545
     commands:
-      - /opt/intel/libsgx-enclave-common/aesm/aesm_service
+      - LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
-      - export NODE_URL="http://ganache:8545"
       - cd enigma-principal && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
     volumes:
@@ -33,8 +34,10 @@ steps:
         path: /dev/isgx
 
   - name: tools_u
-    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
+    image: enigmampc/enigma-core:0.0.7
     depends_on: [clone]
+    enviroment:
+      - NODE_URL: http://ganache:8545
     commands:
       - . /root/.cargo/env
       - export NODE_URL="http://ganache:8545"
@@ -42,7 +45,7 @@ steps:
       - RUSTFLAGS=-Awarnings cargo test
 
   - name: enigma_crypto
-    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
+    image: enigmampc/enigma-core:0.0.7
     depends_on: [clone]
     commands:
       - . /root/.cargo/env
@@ -51,13 +54,25 @@ steps:
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
 
   - name: tools_m
-    image: enigmampc/enigma-core:0.0.5-rocksdb-5.17.2
+    image: enigmampc/enigma-core:0.0.7
     depends_on: [clone]
     commands:
       - . /root/.cargo/env
       - cd enigma-tools-m
       - RUSTFLAGS=-Awarnings cargo test
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
+
+  - name: enigma_types
+    image: enigmampc/enigma-core:0.0.7
+    depends_on: [clone]
+    commands:
+      - . /root/.cargo/env
+      - cd enigma-types
+      - RUSTFLAGS=-Awarnings cargo test
+      - RUSTFLAGS=-Awarnings cargo build --no-default-features
+      - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
+      - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=alloc
+
 
 volumes:
   - name: isgx

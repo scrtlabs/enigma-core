@@ -1,5 +1,5 @@
 # inherit the baidu sdk image
-FROM baiduxlab/sgx-rust:1804
+FROM baiduxlab/sgx-rust:1804-1.0.7
 
 MAINTAINER enigmampc
 
@@ -16,18 +16,18 @@ RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
     rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
 
 
-# clone the rust-sgx-sdk baidu sdk v1.0.4
-RUN git clone --depth 1  -b v1.0.4 https://github.com/baidu/rust-sgx-sdk.git  sgx
+# clone the rust-sgx-sdk baidu sdk v1.0.7
+RUN git clone --depth 1  -b v1.0.7 https://github.com/baidu/rust-sgx-sdk.git  sgx
 
 
-RUN git clone --depth 1 --branch v5.17.2 https://github.com/facebook/rocksdb.git rocksdb && \
-    cd rocksdb && make install-shared && rm -rf /root/rocksdb
+RUN git clone --depth 1 --branch v5.18.3 https://github.com/facebook/rocksdb.git rocksdb && \
+    cd rocksdb && make install-shared -j7 && rm -rf /root/rocksdb
 
 # this is done for a run-time linker, it creates the link and cache to the installed rocksdb
 # (see http://man7.org/linux/man-pages/man8/ldconfig.8.html)
 RUN ldconfig
 
-RUN echo '/opt/intel/libsgx-enclave-common/aesm/aesm_service &' >> /root/.bashrc
+RUN echo 'LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service &' >> /root/.bashrc
 
 # Add env variable for dynamic linking of rocksdb
 # (see https://github.com/rust-rocksdb/rust-rocksdb/issues/217)
