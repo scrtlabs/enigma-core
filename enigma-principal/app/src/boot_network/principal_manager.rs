@@ -39,6 +39,7 @@ pub struct PrincipalConfig {
     pub attestation_service_url: String,
     pub http_port: u16,
     pub confirmations: u64,
+    pub epoch_cap: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -136,7 +137,7 @@ pub trait Sampler {
     fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error>;
 
     /// after initiation, this will run the principal node and block.
-    fn run<G: Into<U256>>(&self, reset_epoch: bool, gas: G) -> Result<(), Error>;
+    fn run<G: Into<U256>>(&self, reset_epoch: bool, gas: G, epoch_cap: usize) -> Result<(), Error>;
 }
 
 impl Sampler for PrincipalManager {
@@ -211,13 +212,14 @@ impl Sampler for PrincipalManager {
     /// * `reset_epoch` - If true, reset the epoch state
     /// * `gas_limit` - The gas limit for all Enigma contract transactions
     #[logfn(INFO)]
-    fn run<G: Into<U256>>(&self, reset_epoch: bool, gas_limit: G) -> Result<(), Error> {
+    fn run<G: Into<U256>>(&self, reset_epoch: bool, gas_limit: G, epoch_cap: usize) -> Result<(), Error> {
         let gas_limit: U256 = gas_limit.into();
         self.verify_identity_or_register(gas_limit)?;
         // get enigma contract
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<sgx_enclave_id_t> = Arc::new(self.eid);
-        let epoch_provider = Arc::new(EpochProvider::new(eid, self.contract.clone())?);
+        let epoch_cap = self.config.epoch_cap;
+        let epoch_provider = Arc::new(EpochProvider::new(eid, epoch_cap, self.contract.clone())?);
         if reset_epoch {
             epoch_provider.epoch_state_manager.reset()?;
         }
@@ -271,7 +273,10 @@ mod test {
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
+    use serde_json::error::ErrorCode::EofWhileParsingObject;
 
+    const EPOCH_CAP: usize = 2;
+    const GAS_LIMIT: usize = 5999999;
     /// This function is important to enable testing both on the CI server and local.
         /// On the CI Side:
         /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
@@ -321,7 +326,7 @@ mod test {
 
         let block_number = principal.get_block_number().unwrap();
         let eid_safe = Arc::new(eid);
-        let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone()).unwrap();
+        let epoch_provider = EpochProvider::new(eid_safe, EPOCH_CAP, principal.contract.clone()).unwrap();
         epoch_provider.epoch_state_manager.reset().unwrap();
         epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();
     }
@@ -370,7 +375,7 @@ mod test {
         });
 
         // run principal
-        principal.run(true, 5999999).unwrap();
+        principal.run(true, GAS_LIMIT, EPOCH_CAP).unwrap();
         child.join().unwrap();
     }
 }

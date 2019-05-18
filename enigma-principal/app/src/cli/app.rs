@@ -34,6 +34,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
         // step1 : build the config of the principal node
         // optional : set time limit for the principal node
         let contract_address = opt.contract_address.unwrap_or_else(|| principal_config.enigma_contract_address.clone());
+        let epoch_cap = opt.epoch_cap.unwrap_or_else(|| principal_config.epoch_cap.clone());
         let enigma_contract = Arc::new(EnigmaContract::from_deployed(
             &contract_address,
             Path::new(&principal_config.enigma_contract_path),
@@ -56,7 +57,8 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
         };
 
         let eid_safe = Arc::new(eid);
-        let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone())?;
+        //TODO: Ugly, refactor to instantiate only once, consider passing to the run method
+        let epoch_provider = EpochProvider::new(eid_safe, epoch_cap, principal.contract.clone())?;
         if opt.reset_epoch_state {
             epoch_provider.epoch_state_manager.reset()?;
         }
@@ -79,7 +81,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             let response = PrincipalHttpServer::get_state_keys(Arc::new(epoch_provider), request)?;
             println!("The getStateKeys response: {}", serde_json::to_string(&response)?);
         } else {
-            principal.run(false, gas_limit).unwrap();
+            principal.run(false, gas_limit, epoch_cap).unwrap();
         }
         if let Some(t) = join_handle {
             t.join().unwrap();

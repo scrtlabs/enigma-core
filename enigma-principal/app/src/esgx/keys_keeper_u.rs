@@ -101,7 +101,7 @@ pub mod tests {
         println!("The mock message: {:?}", msg);
         println!("The mock sig: {:?}", sig);
 
-        let request = StateKeyRequest { data: msg, sig };
+        let request = StateKeyRequest { data: msg, sig, block_number: None };
         let response = get_enc_state_keys(enclave.geteid(), request, epoch_state.nonce, None).unwrap();
         println!("Got response: {:?}", response);
         enclave.destroy();

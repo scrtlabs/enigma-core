@@ -18,6 +18,8 @@ use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
 use common_u::errors::{RequestValueErr, EpochStateTransitionErr};
 use epoch_u::epoch_types::EPOCH_STATE_UNCONFIRMED;
+use web3::types::U256;
+use std::convert::AsRef;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
@@ -47,10 +49,28 @@ impl TryInto<[u8; 65]> for StringWrapper {
     }
 }
 
+impl TryInto<U256> for StringWrapper {
+    type Error = Error;
+
+    fn try_into(self) -> Result<U256, Self::Error> {
+        let bytes = self.0.from_hex()?;
+        if bytes.len() != 32 {
+            return Err(RequestValueErr {
+                request: METHOD_GET_STATE_KEYS.to_string(),
+                message: "Cannot create a 32 bytes array from mismatching size slice.".to_string(),
+            }.into());
+        }
+        let mut slice: [u8; 32] = [0; 32];
+        slice.copy_from_slice(&bytes);
+        Ok(U256::from(slice.as_ref()))
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct StateKeyRequest {
     pub data: StringWrapper,
     pub sig: StringWrapper,
+    pub block_number: Option<StringWrapper>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -94,19 +114,18 @@ impl PrincipalHttpServer {
     #[logfn(DEBUG)]
     pub fn get_state_keys(epoch_provider: Arc<EpochProvider>, request: StateKeyRequest) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
+        let epoch_state = match request.block_number.clone() {
+            Some(block_number) => epoch_provider.find_epoch(block_number.try_into()?)?,
+            None => epoch_provider.find_latest_epoch()?,
+        };
         let msg = PrincipalMessage::from_message(&request.get_data()?)?;
         let response = match msg.data {
             PrincipalMessageType::Request(Some(addrs)) => {
                 println!("Found addresses in message: {:?}", addrs);
-                let epoch_state = epoch_provider.epoch_state_manager.get_latest(true)?;
                 get_enc_state_keys(*epoch_provider.eid, request, epoch_state.nonce, None)?
             }
             PrincipalMessageType::Request(None) => {
                 println!("No addresses in message, reading from epoch state...");
-                if epoch_provider.epoch_state_manager.is_latest_unconfirmed()? {
-                    return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into());
-                }
-                let epoch_state = epoch_provider.epoch_state_manager.get_latest(true)?;
                 let epoch_addrs = Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?;
                 get_enc_state_keys(*epoch_provider.eid, request, epoch_state.nonce, Some(&epoch_addrs))?
             }
@@ -201,7 +220,7 @@ mod test {
             test::Rpc::from(io)
         };
         for i in 0..5 {
-            let response = rpc.request(METHOD_GET_STATE_KEYS, &(REF_MSG, REF_SIG));
+            let response = rpc.request(METHOD_GET_STATE_KEYS, &(REF_MSG, REF_SIG, Value::Null));
             assert!(response.contains(REF_RESPONSE));
         }
         enclave.destroy();
@@ -210,7 +229,7 @@ mod test {
     #[test]
     pub fn test_find_epoch_contract_addresses() {
         let msg = REF_MSG.from_hex().unwrap();
-        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(REF_SIG.to_string()) };
+        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(REF_SIG.to_string()), block_number: None };
         let address = ContractAddress::from(REF_CONTRACT_ADDR);
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
         selected_workers.insert(address, H160(REF_WORKER));

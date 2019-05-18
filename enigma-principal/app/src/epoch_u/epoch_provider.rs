@@ -27,16 +27,23 @@ use epoch_u::epoch_types::{ConfirmedEpochState, EPOCH_STATE_UNCONFIRMED, EpochSt
 use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
 use esgx::general::EPOCH_DIR;
 use std::iter::Rev;
+use std::clone::Clone;
+
+pub enum UnconfirmedEpochFilter {
+    Include,
+    Exclude,
+}
 
 pub struct EpochStateManager {
     pub epoch_state_list: Mutex<Vec<EpochState>>,
+    pub cap: usize,
 }
 
 impl EpochStateManager {
-    pub fn new() -> Result<Self, Error> {
+    pub fn new(cap: usize) -> Result<Self, Error> {
         let epoch_state_val = Self::read_from_file()?;
         let epoch_state_list = Mutex::new(epoch_state_val.clone());
-        Ok(Self { epoch_state_list })
+        Ok(Self { epoch_state_list, cap })
     }
 
     fn get_file_path() -> Result<PathBuf, Error> {
@@ -146,6 +153,24 @@ impl EpochStateManager {
         }
         Ok(result)
     }
+
+    pub fn get_confirmed_by_block_number(&self, block_number: U256) -> Result<EpochState, Error> {
+        let mut result: Option<&EpochState> = None;
+        let epoch_states = self.get_all_confirmed()?;
+        for epoch_state in epoch_states.iter() {
+            let confirmed: &ConfirmedEpochState = epoch_state.confirmed_state.as_ref().unwrap();
+            if confirmed.block_number <= block_number {
+                result = Some(epoch_state);
+            }
+        }
+        match result {
+            Some(epoch_state) => Ok(epoch_state.clone()),
+            None => {
+                Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into())
+            }
+        }
+    }
+
     /// Returns the most recent `EpochState` stored in memory
     /// # Arguments
     ///
@@ -195,13 +220,23 @@ pub struct EpochProvider {
 }
 
 impl EpochProvider {
-    pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
-        let epoch_state_manager = Arc::new(EpochStateManager::new()?);
+    pub fn new(eid: Arc<sgx_enclave_id_t>, epoch_cap: usize, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
+        let epoch_state_manager = Arc::new(EpochStateManager::new(epoch_cap)?);
         let epoch_provider = Self { contract, epoch_state_manager, eid };
         epoch_provider.verify_worker_params()?;
         Ok(epoch_provider)
     }
 
+    pub fn find_epoch(&self, block_number: U256) -> Result<EpochState, Error> {
+        self.epoch_state_manager.get_confirmed_by_block_number(block_number)
+    }
+
+    pub fn find_latest_epoch(&self) -> Result<EpochState, Error> {
+        if self.epoch_state_manager.is_latest_unconfirmed()? {
+            return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into());
+        }
+        self.epoch_state_manager.get_latest(true)
+    }
 
     #[logfn(DEBUG)]
     fn parse_worker_parameterized(&self, receipt: &TransactionReceipt) -> Result<Log, Error> {
@@ -217,7 +252,6 @@ impl EpochProvider {
         println!("Parsed the {} event: {:?}", WORKER_PARAMETERIZED_EVENT, result);
         Ok(result)
     }
-
 
     #[logfn(DEBUG)]
     fn verify_worker_params(&self) -> Result<(), Error> {

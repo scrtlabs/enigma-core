@@ -13,5 +13,6 @@
     "spid": "B0335FD3BC1CCA8F804EB98A6420592D",
     "attestation_service_url": "https://sgx.enigma.co/api",
     "http_port": 3040,
-    "confirmations": 0
+    "confirmations": 0,
+    "epoch_cap": 2
 }

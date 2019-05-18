@@ -21,6 +21,7 @@ use ocalls_t;
 use rustc_hex::ToHex;
 
 use crate::SIGNING_KEY;
+use core::clone::Clone;
 
 pub mod epoch_t;
 
