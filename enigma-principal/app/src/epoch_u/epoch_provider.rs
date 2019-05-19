@@ -41,7 +41,7 @@ pub struct EpochStateManager {
 
 impl EpochStateManager {
     pub fn new(cap: usize) -> Result<Self, Error> {
-        let epoch_state_val = Self::read_from_file()?;
+        let epoch_state_val = Self::read_from_file(cap)?;
         let epoch_state_list = Mutex::new(epoch_state_val.clone());
         Ok(Self { epoch_state_list, cap })
     }
@@ -60,20 +60,25 @@ impl EpochStateManager {
     }
 
     #[logfn(DEBUG)]
-    fn read_from_file() -> Result<Vec<EpochState>, Error> {
+    fn read_from_file(cap: usize) -> Result<Vec<EpochState>, Error> {
         let epoch_state = match File::open(Self::get_file_path()?) {
             Ok(mut f) => {
                 let mut buf = Vec::new();
                 f.read_to_end(&mut buf)?;
                 let mut des = Deserializer::new(&buf[..]);
-                let epoch_state: Vec<EpochState> = match Deserialize::deserialize(&mut des) {
+                let mut data: Vec<EpochState> = match Deserialize::deserialize(&mut des) {
                     Ok(value) => value,
                     Err(err) => {
                         eprintln!("Unable to read block state file: {:?}", err);
                         vec![]
                     }
                 };
-                epoch_state
+                if cap < data.len() {
+                    return Err(EpochStateIOErr { message: format!("The EpochState entries exceed the cap: {}", cap) }.into());
+                }
+                let mut capped_data = Vec::with_capacity(cap);
+                capped_data.append(&mut data);
+                capped_data
             }
             Err(_) => {
                 println!("No existing epoch state, starting with block 0");
@@ -384,7 +389,7 @@ pub mod test {
         EpochStateManager::write_to_file(vec![epoch_state.clone()]).unwrap();
 
         // TODO: This could fail if another test deleted the epoch files exactly here, give unique name
-        let saved_epoch_state = EpochStateManager::read_from_file().unwrap();
+        let saved_epoch_state = EpochStateManager::read_from_file(1).unwrap();
         assert_eq!(format!("{:?}", saved_epoch_state[0]), format!("{:?}", epoch_state));
     }
 }
