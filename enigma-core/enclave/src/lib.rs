@@ -1,11 +1,7 @@
 #![crate_name = "enigmacoreenclave"]
 #![crate_type = "staticlib"]
 #![no_std]
-//#![cfg_attr(not(target_env = "sgx"), no_std)]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
-#![cfg_attr(not(feature = "std"), feature(alloc))]
-#![feature(tool_lints)]
-#![feature(int_to_from_bytes)]
 #![warn(clippy::all)]
 #![allow(clippy::cast_ptr_alignment)] // TODO: Try to remove it when fixing the sealing
 #![warn(unused_extern_crates)]

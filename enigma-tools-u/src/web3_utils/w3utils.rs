@@ -242,7 +242,7 @@ mod test {
     #[test]
     //#[ignore]
     fn test_deploy_dummy_contract() {
-        let (eloop, w3, accounts) = connect();
+        let (_eloop, w3, accounts) = connect();
         let contract = deploy_dummy(&w3, accounts[0]);
         // validate deployment
         // mine func add to a uint256=0 1 and returns it's value
@@ -260,7 +260,7 @@ mod test {
         let fake_input: Address = account.parse().expect("unable to parse account address");
         let fake_input = (fake_input.clone(), fake_input);
         // 2) connect to ethereum network
-        let (eloop, w3, accounts) = connect();
+        let (_eloop, w3, accounts) = connect();
         // 3) get mock of the deploy params
         let tx = get_deploy_params(accounts[0], "Enigma");
         // 4) deploy the contract
@@ -271,11 +271,11 @@ mod test {
     //#[ignore]
     fn test_deployed_contract() {
         // deploy the dummy contract
-        let (eloop, w3, accounts) = connect();
+        let (_eloop, w3, accounts) = connect();
         let contract = deploy_dummy(&w3, accounts[0]);
         // the deployed contract address
         let address = contract.address();
-        let (abi, bytecode) = get_contract(&String::from("Dummy"));
+        let (abi, _) = get_contract(&String::from("Dummy"));
         let contract = w3utils::deployed_contract(&w3, address, abi.as_bytes()).unwrap();
         let result = contract.query("mine", (), None, Options::default(), None);
         let param: U256 = result.wait().unwrap();

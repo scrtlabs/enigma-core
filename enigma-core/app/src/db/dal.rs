@@ -50,7 +50,7 @@ impl DB {
             Err(_) => Vec::new(),
         };
         // converts the Strings to slices (str)
-        let cf_list_burrowed = cf_list.iter().map(|i| i.as_str()).collect::<Vec<&str>>();
+        let cf_list_burrowed = cf_list.iter().map(String::as_str).collect::<Vec<&str>>();
         let database = rocks_db::open_cf(&options, &location, &cf_list_burrowed[..])?;
         let location = location.as_ref().to_path_buf();
         let db_par = DB { location, database, options };
@@ -377,7 +377,7 @@ mod test {
     #[test]
     #[should_panic]
     fn test_fail_cf_exists_no_key_read() {
-        let (mut db, _dir) = create_test_db();
+        let (db, _dir) = create_test_db();
 
         let arr = [3u8; 32];
         let _cf = db.database.create_cf(&arr.to_hex(), &db.options).unwrap();

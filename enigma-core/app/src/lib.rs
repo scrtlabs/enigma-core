@@ -1,7 +1,4 @@
-#![feature(tool_lints)]
 #![warn(clippy::all)]
-#![feature(try_from)]
-#![feature(int_to_from_bytes)]
 #![warn(unused_extern_crates)]
 
 extern crate dirs;
@@ -69,6 +66,7 @@ mod tests {
         (db, tempdir)
     }
 
+    #[allow(dead_code)]
     pub fn log_to_stdout(level: Option<LevelFilter>) {
         let level = level.unwrap_or_else(|| LevelFilter::max());
         TermLogger::init(level, Default::default()).unwrap();

@@ -1,7 +1,6 @@
 #![deny(unused_extern_crates)]
 #![feature(box_patterns)]
 #![recursion_limit="128"]
-#![feature(int_to_from_bytes)]
 #![feature(slice_concat_ext)]
 
 extern crate eng_wasm;
@@ -11,7 +10,6 @@ extern crate proc_macro;
 #[macro_use]
 extern crate syn;
 extern crate ethabi;
-#[macro_use]
 extern crate failure;
 extern crate tiny_keccak;
 
@@ -249,7 +247,7 @@ fn read_contract_file(file_path: String) -> Result<Box<File>, EngWasmError>{
     Ok(contents)
 }
 
-fn generate_eth_functions(contract: &Contract) -> Result<Box<Vec<proc_macro2::TokenStream>>,EngWasmError>{
+fn generate_eth_functions(contract: &Contract) -> Result<Vec<proc_macro2::TokenStream>,EngWasmError>{
     let mut functions: Vec<FunctionAst> = Vec::new();
     for function in &contract.functions{
         let mut args_ast_types = Vec::new();
@@ -297,7 +295,7 @@ fn generate_eth_functions(contract: &Contract) -> Result<Box<Vec<proc_macro2::To
         }
     }).collect();
 
-    Ok(Box::new(result))
+    Ok(result)
 }
 
 #[proc_macro_attribute]
@@ -308,7 +306,7 @@ pub fn eth_contract(args: proc_macro::TokenStream, input: proc_macro::TokenStrea
     let file_path = parse_macro_input!(args as syn::LitStr);
     let mut contents: Box<File> = read_contract_file(file_path.value()).expect("Bad contract file");
     let contract = Contract::load(contents).unwrap();
-    let it: Vec<proc_macro2::TokenStream> = *generate_eth_functions(&contract).unwrap();
+    let it: Vec<proc_macro2::TokenStream> = generate_eth_functions(&contract).unwrap();
 
     let result = quote! {
         struct #struct_name {
