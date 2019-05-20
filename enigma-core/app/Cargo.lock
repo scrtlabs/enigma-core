@@ -527,6 +527,7 @@ dependencies = [
 name = "enigma-core-app"
 version = "0.1.3"
 dependencies = [
+ "bindgen 0.47.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "cross-test-utils 0.1.0",
  "dirs 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "enigma-crypto 0.1.0",
