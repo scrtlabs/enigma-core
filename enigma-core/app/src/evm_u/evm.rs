@@ -1,20 +1,11 @@
 #![allow(dead_code,unused_assignments,unused_variables)]
 
 use sgx_types::*;
-
 use enigma_types::traits::SliceCPtr;
 use std::iter::FromIterator;
-
-//failure
 use failure::Error;
 use hex::ToHex;
-
-extern "C" {
-    fn ecall_evm(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
-                 callable: *const u8, callable_len: usize, callable_args: *const u8, callable_args_len: usize,
-                 preprocessor: *const u8, preprocessor_len: usize, callback: *const u8, callback_len: usize,
-                 output: *mut u8, signature: &mut [u8; 65], result_length: &mut usize) -> sgx_status_t;
-}
+use crate::auto_ffi::ecall_evm;
 
 pub struct EvmInput {
     code: String,

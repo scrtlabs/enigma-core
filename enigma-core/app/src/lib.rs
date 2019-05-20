@@ -37,6 +37,7 @@ pub mod km_u;
 pub mod networking;
 pub mod wasm_u;
 pub mod cli;
+pub mod auto_ffi;
 
 #[cfg(feature = "cross-test-utils")]
 pub mod cross_test_utils {
@@ -54,10 +55,8 @@ mod tests {
     use simplelog::TermLogger;
     use log::LevelFilter;
     use self::tempfile::TempDir;
+    use crate::auto_ffi::ecall_run_tests;
 
-    extern "C" {
-        fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer, result: *mut ResultStatus) -> sgx_status_t;
-    }
 
     /// It's important to save TempDir too, because when it gets dropped the directory will be removed.
     fn create_test_db() -> (DB, TempDir) {
