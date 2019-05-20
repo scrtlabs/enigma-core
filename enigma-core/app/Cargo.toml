@@ -37,3 +37,7 @@ regex = "1"
 rand = "0.6.5"
 tempfile = "3.0"
 itertools = "0.8"
+
+[build-dependencies]
+bindgen = { path = "/home/elichai2/gits/elichai/rust-bindgen" }
+dirs = "1.0"
