@@ -116,7 +116,7 @@ impl PrincipalHttpServer {
         println!("Got get_state_keys request: {:?}", request);
         let epoch_state = match request.block_number.clone() {
             Some(block_number) => epoch_provider.find_epoch(block_number.try_into()?)?,
-            None => epoch_provider.find_latest_epoch()?,
+            None => epoch_provider.find_last_epoch()?,
         };
         let msg = PrincipalMessage::from_message(&request.get_data()?)?;
         let response = match msg.data {

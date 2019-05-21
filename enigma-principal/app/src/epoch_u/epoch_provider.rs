@@ -48,7 +48,8 @@ impl EpochStateManager {
 
     fn get_file_path() -> Result<PathBuf, Error> {
         let mut path = storage_dir(ENCLAVE_DIR)?;
-        match fs::create_dir(&path) {
+        path.push(EPOCH_DIR);
+        match fs::create_dir_all(&path) {
             Ok(_) => (),
             Err(e) => match e.kind() {
                 io::ErrorKind::AlreadyExists => (),
@@ -112,28 +113,15 @@ impl EpochStateManager {
         Ok(guard)
     }
 
-    #[logfn(DEBUG)]
-    fn save(&self, epoch_state_list: Vec<EpochState>) -> Result<(), Error> {
-        println!("Updating EpochState list mutex: {:?}", epoch_state_list);
-        let mut guard = self.lock_guard_or_wait()?;
-        let prev = mem::replace(&mut *guard, epoch_state_list.clone());
-        println!("Replaced EpochState list: {:?} with: {:?}", prev, epoch_state_list);
-        mem::drop(guard);
-        match Self::write_to_file(epoch_state_list) {
-            Ok(_) => {
-                println!("Saved EpochState list: {:?}", EpochStateManager::get_file_path());
-                Ok(())
-            }
-            Err(err) => Err(EpochStateIOErr {
-                message: format!("Unable to write the EpochState list: {:?}", err),
-            }.into()),
-        }
-    }
-
     /// Checks if the latest `EpochState` is unconfirmed
-    pub fn is_latest_unconfirmed(&self) -> Result<bool, Error> {
+    fn is_last_unconfirmed(&self) -> Result<bool, Error> {
         let guard = self.lock_guard_or_wait()?;
+        if guard.is_empty() {
+            mem::drop(guard);
+            return Ok(false);
+        }
         let last = guard.iter().last();
+        //TODO: why borrow checker fails here
 //        mem::drop(guard);
         let epoch_state = match last {
             Some(epoch_state) => epoch_state,
@@ -180,7 +168,7 @@ impl EpochStateManager {
     /// # Arguments
     ///
     /// * `exclude_unconfirmed` - Exclude any unconfirmed state
-    pub fn get_latest(&self, exclude_unconfirmed: bool) -> Result<EpochState, Error> {
+    pub fn last(&self, exclude_unconfirmed: bool) -> Result<EpochState, Error> {
         let guard = self.lock_guard_or_wait()?;
         let mut epoch_state_val: Option<EpochState> = None;
         for epoch_state in guard.iter().rev() {
@@ -196,25 +184,53 @@ impl EpochStateManager {
         }
     }
 
+    #[logfn(DEBUG)]
+    fn save(&self) -> Result<(), Error> {
+        let mut guard = self.lock_guard_or_wait()?;
+        let epoch_state_list = guard.deref().clone();
+        mem::drop(guard);
+        println!("Saving EpochState list to disk: {:?}", epoch_state_list);
+        match Self::write_to_file(epoch_state_list) {
+            Ok(_) => {
+                println!("Saved EpochState list: {:?}", EpochStateManager::get_file_path());
+                Ok(())
+            }
+            Err(err) => Err(EpochStateIOErr {
+                message: format!("Unable to write the EpochState list: {:?}", err),
+            }.into()),
+        }
+    }
+
     /// Empty the `EpochState` list both in memory and to disk
     pub fn reset(&self) -> Result<(), Error> {
-        self.save(vec![])
+        let mut guard = self.lock_guard_or_wait()?;
+        mem::replace(&mut *guard, vec![]);
+        mem::drop(guard);
+        self.save()
     }
 
     /// Append a new unconfirmed `EpochState` to the list and persist to disk
     pub fn append_unconfirmed(&self, epoch_state: EpochState) -> Result<(), Error> {
-        if self.is_latest_unconfirmed()? {
+        if self.is_last_unconfirmed()? {
             bail!("An unconfirmed EpochState must be appended after a confirmed");
         }
-        self.save(vec![self.get_latest(true)?, epoch_state])
+        let mut guard = self.lock_guard_or_wait()?;
+        guard.push(epoch_state);
+        mem::drop(guard);
+        self.save()
     }
 
-    /// Confirm the latest unconfirmed `EpochState`
-    pub fn confirm_latest(&self, epoch_state: EpochState) -> Result<(), Error> {
-        if !self.is_latest_unconfirmed()? {
-            bail!("Cannot confirm with an unconfirmed EpochState");
+    /// Confirm the last unconfirmed `EpochState`
+    pub fn confirm_last(&self, epoch_state: EpochState) -> Result<(), Error> {
+        let mut guard = self.lock_guard_or_wait()?;
+        if let Some(last) = guard.last_mut() {
+            if last.confirmed_state.is_some() {
+                bail!("Last EpochState already confirmed: {:?}", last);
+            }
+            *last = epoch_state;
         }
-        self.save(vec![self.get_latest(true)?, epoch_state])
+        mem::drop(guard);
+        self.save()
     }
 }
 
@@ -236,11 +252,11 @@ impl EpochProvider {
         self.epoch_state_manager.get_confirmed_by_block_number(block_number)
     }
 
-    pub fn find_latest_epoch(&self) -> Result<EpochState, Error> {
-        if self.epoch_state_manager.is_latest_unconfirmed()? {
+    pub fn find_last_epoch(&self) -> Result<EpochState, Error> {
+        if self.epoch_state_manager.is_last_unconfirmed()? {
             return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into());
         }
-        self.epoch_state_manager.get_latest(true)
+        self.epoch_state_manager.last(true)
     }
 
     #[logfn(DEBUG)]
@@ -302,10 +318,10 @@ impl EpochProvider {
     /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
     #[logfn(DEBUG)]
     pub fn confirm_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
-        if !self.epoch_state_manager.is_latest_unconfirmed()? {
-            bail!("The latest EpochState is already confirmed");
+        if !self.epoch_state_manager.is_last_unconfirmed()? {
+            bail!("The last EpochState is already confirmed");
         }
-        let epoch_state = self.epoch_state_manager.get_latest(false)?;
+        let epoch_state = self.epoch_state_manager.last(false)?;
         println!("Confirming EpochState by verifying with the enclave and calling setWorkerParams: {:?}", epoch_state);
         self.set_worker_params_internal(block_number, gas_limit, confirmations, Some(epoch_state))
     }
@@ -326,7 +342,7 @@ impl EpochProvider {
                 let block_number = param.value.to_uint().unwrap();
                 self.confirm_epoch(&mut epoch_state, block_number, worker_params)?;
                 println!("Storing confirmed EpochState: {:?}", epoch_state);
-                self.epoch_state_manager.confirm_latest(epoch_state)?;
+                self.epoch_state_manager.confirm_last(epoch_state)?;
                 Ok(receipt.transaction_hash)
             }
             None => return Err(Web3Error { message: "firstBlockNumber not found in receipt log".to_string() }.into()),

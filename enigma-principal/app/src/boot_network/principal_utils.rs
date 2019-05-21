@@ -38,7 +38,7 @@ impl Principal for EnigmaContract {
                 }
             };
             let curr_block = block_number.low_u64() as usize;
-            let prev_block = match epoch_provider.epoch_state_manager.get_latest(true) {
+            let prev_block = match epoch_provider.epoch_state_manager.last(true) {
                 Ok(state) => state.confirmed_state.unwrap().block_number,
                 Err(_) => U256::from(0),
             };
