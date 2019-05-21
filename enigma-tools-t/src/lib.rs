@@ -1,7 +1,5 @@
 #![no_std]
 #![crate_type = "lib"]
-#![feature(core_intrinsics)]
-#![feature(try_from)]
 #![warn(unused_extern_crates)]
 
 extern crate enigma_types;
@@ -15,8 +13,6 @@ extern crate failure;
 extern crate json_patch;
 extern crate parity_wasm;
 extern crate pwasm_utils;
-#[macro_use]
-extern crate serde;
 extern crate sgx_tse;
 extern crate sgx_tseal;
 extern crate sgx_types;
@@ -37,12 +33,6 @@ pub mod document_storage_t; //TODO: Copy of storage_t with more generic naming c
 pub mod storage_t;
 pub mod esgx;
 
-#[cfg(debug_assertions)]
-#[no_mangle]
-pub extern "C" fn __assert_fail(__assertion: *const u8, __file: *const u8, __line: u32, __function: *const u8) -> ! {
-    use core::intrinsics::abort;
-    unsafe { abort() }
-}
 
 #[cfg(test)]
 mod tests {

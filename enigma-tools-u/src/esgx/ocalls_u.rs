@@ -1,5 +1,7 @@
+#![allow(unused_attributes)]
+
 use std::{ptr, slice};
-use enigma_types::{RawPointer, traits::SliceCPtr};
+use enigma_types::traits::SliceCPtr;
 use crate::esgx::general;
 
 pub static ENCLAVE_DIR: &'static str = ".enigma";

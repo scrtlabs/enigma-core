@@ -46,7 +46,7 @@ impl Keccak256<Hash256> for [u8] {
 
 impl Sha256<Hash256> for [u8] {
     fn sha256(&self) -> Hash256 {
-        use sha2::{self, Digest};
+        use sha2::Digest;
         let mut hasher = sha2::Sha256::new();
         hasher.input(&self);
         let mut result = Hash256::default();

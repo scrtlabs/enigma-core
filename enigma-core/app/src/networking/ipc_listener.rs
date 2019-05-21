@@ -125,19 +125,19 @@ pub(self) mod handling {
 
         let enc_quote = equote_tools::retry_quote(eid, spid, 18)?;
 
-        let report_hex;
-        let signature;
         // *Important* `option_env!()` runs on *Compile* time.
         // This means that if you want Simulation mode you need to run `export SGX_MODE=SW` Before compiling.
-        if option_env!("SGX_MODE").unwrap_or_default() == "SW" { // Simulation Mode
-            report_hex = enc_quote.as_bytes().to_hex();
-            signature = String::new();
+        let (signature, report_hex) = if option_env!("SGX_MODE").unwrap_or_default() == "SW" { // Simulation Mode
+            let report =  enc_quote.as_bytes().to_hex();
+            let sig = String::new();
+            (sig, report)
         } else { // Hardware Mode
             let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
             let response = service.get_report(enc_quote)?;
-            report_hex = response.result.report_string.as_bytes().to_hex();
-            signature = response.result.signature;
-        }
+            let report = response.result.report_string.as_bytes().to_hex();
+            let sig = response.result.signature;
+            (sig, report)
+        };
 
         let result = IpcResults::RegistrationParams { signing_key: sigining_key.to_hex(), report: report_hex, signature };
 
@@ -246,10 +246,11 @@ pub(self) mod handling {
         let mut errors = Vec::with_capacity(tuples.len());
 
         for ((deltakey, _), res) in tuples.into_iter().zip(results.into_iter()) {
-            let mut status = 0;
-            if res.is_err() {
-                status = FAILED;
-            }
+            let status = if res.is_err() {
+                FAILED
+            } else {
+                0
+            };
             let key = Some(deltakey.key_type.unwrap_delta());
             let address = deltakey.contract_address.to_hex();
             let delta = IpcStatusResult { address, key, status };

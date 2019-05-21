@@ -122,7 +122,7 @@ pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
     let module = create_module(code)?;
     let mut runtime = execute(&module, gas_limit, state, function_name, types, params, key)?;
     let charge_result = runtime.charge_execution();
-    if let Err(err) = charge_result {
+    if let Err(_) = charge_result {
         return Err(EnclaveError::FailedTaskErrorWithGas { used_gas: runtime.get_used_gas(), err: FailedTaskError::GasLimitError });
     }
     runtime.into_result()
@@ -133,7 +133,7 @@ pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, pa
     let module = create_module(code)?;
     let mut runtime = execute(&module, gas_limit, state, "".to_string(), "".to_string(), params, key)?;
     let charge_result = runtime.charge_deployment();
-    if let Err(err) = charge_result {
+    if let Err(_) = charge_result {
         return Err(EnclaveError::FailedTaskErrorWithGas { used_gas: runtime.get_used_gas(), err: FailedTaskError::GasLimitError  });
     }
     runtime.into_result()

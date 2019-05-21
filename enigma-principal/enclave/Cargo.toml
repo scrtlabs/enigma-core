@@ -13,7 +13,7 @@ enigma-tools-m = { path = "../../enigma-tools-m", default-features = false, feat
 enigma-types = { path = "../../enigma-types", default-features = false, features = ["sgx"] }
 enigma-crypto = { path = "../../enigma-crypto", default-features = false, features = ["sgx", "asymmetric"] }
 
-lazy_static = {version = "=1.2.0", features = ["spin_no_std"] }
+lazy_static = {version = "1.3.0", features = ["spin_no_std"] }
 ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "sgx-v6.1.0-v1.0.7", default-features = false }
 ethereum-types = { git = "https://github.com/enigmampc/primitives.git", rev = "sgx-v0.4.0", default-features = false }
 rustc-hex = { version = "2.0", default-features = false }

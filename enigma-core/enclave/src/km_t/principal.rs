@@ -74,7 +74,7 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
         };
 
         'deltas: while start < u32::MAX {
-            let mut end = start + 500;
+            let end = start + 500;
             // Get deltas from start to end, if fails save the latest state and move on.
             let deltas = match runtime_ocalls_t::get_deltas(db_ptr, *addrs, start, end) {
                 Ok(deltas) => deltas,

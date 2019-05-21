@@ -8,7 +8,7 @@ use dirs;
 use failure::Error;
 
 pub fn storage_dir<P: AsRef<Path>>(dir_name: P) -> Result<PathBuf, Error> {
-    let mut path = dirs::home_dir().ok_or(format_err!("Missing HomeDir"))?;
+    let mut path = dirs::home_dir().ok_or_else(|| format_err!("Missing HomeDir"))?;
     println!("[+] Home dir is {}", path.display());
     path.push(dir_name);
     Ok(path)

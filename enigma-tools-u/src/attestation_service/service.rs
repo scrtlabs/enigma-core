@@ -305,7 +305,7 @@ mod test {
         let quote = Quote::from_base64(&isv_enclave_quote).unwrap();
         let data = quote.report_body.report_data;
         let data_str = from_utf8(&data).unwrap();
-        assert_eq!(data_str.trim_right_matches("\x00"), "0x4e6dd28477d3cdcd3107507b61737aaa15916070");
+        assert_eq!(data_str.trim_end_matches("\x00"), "0x4e6dd28477d3cdcd3107507b61737aaa15916070");
     }
 
     #[test]
