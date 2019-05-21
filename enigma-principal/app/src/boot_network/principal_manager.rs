@@ -218,7 +218,6 @@ impl Sampler for PrincipalManager {
         // get enigma contract
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<sgx_enclave_id_t> = Arc::new(self.eid);
-        let epoch_cap = self.config.epoch_cap;
         let epoch_provider = Arc::new(EpochProvider::new(eid, epoch_cap, self.contract.clone())?);
         if reset_epoch {
             epoch_provider.epoch_state_manager.reset()?;
@@ -273,7 +272,6 @@ mod test {
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
-    use serde_json::error::ErrorCode::EofWhileParsingObject;
 
     const EPOCH_CAP: usize = 2;
     const GAS_LIMIT: usize = 5999999;

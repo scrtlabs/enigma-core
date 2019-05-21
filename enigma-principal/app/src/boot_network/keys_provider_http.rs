@@ -16,8 +16,7 @@ use enigma_crypto::KeyPair;
 use enigma_types::ContractAddress;
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
-use common_u::errors::{RequestValueErr, EpochStateTransitionErr};
-use epoch_u::epoch_types::EPOCH_STATE_UNCONFIRMED;
+use common_u::errors::RequestValueErr;
 use web3::types::U256;
 use std::convert::AsRef;
 
@@ -185,7 +184,7 @@ mod test {
     use enigma_types::ContractAddress;
     use epoch_u::epoch_provider::test::setup_epoch_storage;
     use epoch_u::epoch_types::ConfirmedEpochState;
-    use esgx::epoch_keeper_u::set_worker_params;
+    use esgx::epoch_keeper_u::set_or_verify_worker_params;
     use esgx::epoch_keeper_u::tests::get_worker_params;
     use esgx::general::init_enclave_wrapper;
 
@@ -206,7 +205,7 @@ mod test {
         let stakes: Vec<u64> = vec![10000000000];
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
-        let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
         let rpc = {
             let mut io = IoHandler::new();
             let eid = enclave.geteid();

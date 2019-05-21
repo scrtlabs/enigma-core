@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
     sync::{Arc, Mutex},
 };
-use std::collections::HashMap;
+use std::clone::Clone;
 use std::sync::MutexGuard;
 
 use enigma_tools_m::keeper_types::InputWorkerParams;
@@ -24,15 +24,8 @@ use enigma_tools_u::{
 };
 use enigma_tools_u::common_u::errors::Web3Error;
 use epoch_u::epoch_types::{ConfirmedEpochState, EPOCH_STATE_UNCONFIRMED, EpochState, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
-use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
+use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
 use esgx::general::EPOCH_DIR;
-use std::iter::Rev;
-use std::clone::Clone;
-
-pub enum UnconfirmedEpochFilter {
-    Include,
-    Exclude,
-}
 
 pub struct EpochStateManager {
     pub epoch_state_list: Mutex<Vec<EpochState>>,
@@ -74,6 +67,7 @@ impl EpochStateManager {
                         vec![]
                     }
                 };
+                println!("Found EpochState list: {:?}", data);
                 if cap < data.len() {
                     return Err(EpochStateIOErr { message: format!("The EpochState entries exceed the cap: {}", cap) }.into());
                 }
@@ -102,6 +96,7 @@ impl EpochStateManager {
         Ok(())
     }
 
+    /// Lock the `EpochState` list `Mutex`, or wait and retry
     pub fn lock_guard_or_wait(&self) -> Result<MutexGuard<Vec<EpochState>>, Error> {
         // TODO: retry if locked
         let guard = match self.epoch_state_list.try_lock() {
@@ -130,12 +125,13 @@ impl EpochStateManager {
             }
         };
         let is_unconfirmed = match &epoch_state.confirmed_state {
-            Some(confirmed_state) => false,
+            Some(_) => false,
             None => true,
         };
         Ok(is_unconfirmed)
     }
 
+    /// Return a list of all confirmed `EpochState`
     pub fn get_all_confirmed(&self) -> Result<Vec<EpochState>, Error> {
         let guard = self.lock_guard_or_wait()?;
         let mut result: Vec<EpochState> = vec![];
@@ -147,6 +143,10 @@ impl EpochStateManager {
         Ok(result)
     }
 
+    /// Returns the confirmed `EpochState` for the epoch of the block number
+    /// # Arguments
+    ///
+    /// * `block_number` - A block number in the desired epoch
     pub fn get_confirmed_by_block_number(&self, block_number: U256) -> Result<EpochState, Error> {
         let mut result: Option<&EpochState> = None;
         let epoch_states = self.get_all_confirmed()?;
@@ -186,7 +186,7 @@ impl EpochStateManager {
 
     #[logfn(DEBUG)]
     fn save(&self) -> Result<(), Error> {
-        let mut guard = self.lock_guard_or_wait()?;
+        let guard = self.lock_guard_or_wait()?;
         let epoch_state_list = guard.deref().clone();
         mem::drop(guard);
         println!("Saving EpochState list to disk: {:?}", epoch_state_list);
@@ -210,17 +210,29 @@ impl EpochStateManager {
     }
 
     /// Append a new unconfirmed `EpochState` to the list and persist to disk
+    /// # Arguments
+    ///
+    /// * `epoch_state` - The unconfirmed `EpochState` to append
     pub fn append_unconfirmed(&self, epoch_state: EpochState) -> Result<(), Error> {
         if self.is_last_unconfirmed()? {
             bail!("An unconfirmed EpochState must be appended after a confirmed");
         }
         let mut guard = self.lock_guard_or_wait()?;
+        // Remove the first item of the list an shift left if the capacity is reached
+        if guard.len() == self.cap {
+            let epoch_state = guard.remove(0);
+            //TODO: Remove in the enclave's cache
+            println!("Removed first EpochState of capped list: {:?}", epoch_state);
+        }
         guard.push(epoch_state);
         mem::drop(guard);
         self.save()
     }
 
     /// Confirm the last unconfirmed `EpochState`
+    /// # Arguments
+    ///
+    /// * `epoch_state` - The confirmed `EpochState`
     pub fn confirm_last(&self, epoch_state: EpochState) -> Result<(), Error> {
         let mut guard = self.lock_guard_or_wait()?;
         if let Some(last) = guard.last_mut() {
@@ -228,6 +240,8 @@ impl EpochStateManager {
                 bail!("Last EpochState already confirmed: {:?}", last);
             }
             *last = epoch_state;
+        } else {
+            bail!("Cannot confirm the last EpochState of an empty list");
         }
         mem::drop(guard);
         self.save()
@@ -248,10 +262,15 @@ impl EpochProvider {
         Ok(epoch_provider)
     }
 
+    /// Find confirmed `EpochState` by block number
+    /// # Arguments
+    ///
+    /// * `block_number` - A block number in the desired epoch
     pub fn find_epoch(&self, block_number: U256) -> Result<EpochState, Error> {
         self.epoch_state_manager.get_confirmed_by_block_number(block_number)
     }
 
+    /// Find the last confirmed `EpochState`
     pub fn find_last_epoch(&self) -> Result<EpochState, Error> {
         if self.epoch_state_manager.is_last_unconfirmed()? {
             return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into());
@@ -281,7 +300,7 @@ impl EpochProvider {
                 let block_number = confirmed.block_number;
                 let (workers, stakes) = self.contract.get_active_workers(block_number)?;
                 let worker_params = InputWorkerParams { block_number, workers, stakes };
-                set_worker_params(*self.eid, &worker_params, Some(epoch_state.clone()))?;
+                set_or_verify_worker_params(*self.eid, &worker_params, Some(epoch_state.clone()))?;
             }
         }
         Ok(())
@@ -330,7 +349,7 @@ impl EpochProvider {
     fn set_worker_params_internal<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize, epoch_state: Option<EpochState>) -> Result<H256, Error> {
         let result = self.contract.get_active_workers(block_number)?;
         let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
-        let mut epoch_state = set_worker_params(*self.eid, &worker_params, epoch_state)?;
+        let mut epoch_state = set_or_verify_worker_params(*self.eid, &worker_params, epoch_state)?;
         println!("Storing unconfirmed EpochState: {:?}", epoch_state);
         self.epoch_state_manager.append_unconfirmed(epoch_state.clone())?;
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
@@ -374,7 +393,6 @@ pub mod test {
 
     use web3::types::{Bytes, H160};
 
-    use enigma_crypto::KeyPair;
     use enigma_tools_u::{esgx::general::storage_dir};
     use enigma_types::ContractAddress;
 

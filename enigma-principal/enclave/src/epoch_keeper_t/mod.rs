@@ -45,7 +45,8 @@ fn get_epoch_marker_path(nonce: U256) -> path::PathBuf {
     get_epoch_root_path().join(&path)
 }
 
-fn get_epoch_marker(nonce: U256) -> Result<Option<(U256, Hash256)>, EnclaveError> {
+/// Get the epoch marker value of H(`Epoch`)
+fn get_epoch_marker(nonce: U256) -> Result<Option<Hash256>, EnclaveError> {
     let path = get_epoch_marker_path(nonce);
     if !is_document(&path) {
         debug_println!("Sealed epoch marker not found in path: {:?}", path);
@@ -55,7 +56,7 @@ fn get_epoch_marker(nonce: U256) -> Result<Option<(U256, Hash256)>, EnclaveError
     let mut sealed_log_out = [0u8; SEAL_LOG_SIZE];
     load_sealed_document(&path, &mut sealed_log_out)?;
     let doc = SealedDocumentStorage::<EpochMarker>::unseal(&mut sealed_log_out)?;
-    let marker: Option<(U256, Hash256)> = match doc {
+    let marker: Option<Hash256> = match doc {
         Some(doc) => {
             let marker = doc.data;
             debug_println!("Found epoch marker: {:?}", marker.to_vec());
@@ -64,7 +65,7 @@ fn get_epoch_marker(nonce: U256) -> Result<Option<(U256, Hash256)>, EnclaveError
             let mut hash: [u8; 32] = [0; 32];
             hash.copy_from_slice(&marker[32..]);
             debug_println!("Split marker into nonce / hash: {:?} {:?}", nonce.to_vec(), hash.to_vec());
-            Some((nonce.into(), hash.into()))
+            Some(hash.into())
         }
         _ => {
             debug_println!("Sealed epoch marker is empty");
@@ -83,7 +84,7 @@ fn get_epoch_from_cache(epoch_map: &HashMap<U256, Epoch>, nonce: U256) -> Result
     }
 }
 
-/// Creates new epoch both in the cache and as sealed documents
+/// Store the new `Epoch` as a sealed marker
 fn store_epoch(epoch: Epoch) -> Result<(), EnclaveError> {
     let hash: [u8; 32] = epoch.raw_encode().keccak256().into();
     let nonce = epoch.nonce.clone();
@@ -111,28 +112,36 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     let worker_params: InputWorkerParams = decode(worker_params_rlp);
     const EMPTY_SLICE: [u8; 32] = [0; 32];
     let mut existing_epoch: Option<Epoch> = None;
+    // If the seed input is not an empty slice, recover an `Epoch` from the sealed marker
+    // Verifying the seed only because a nonce input of 0 is also an empty slice
     if seed_in != &EMPTY_SLICE {
         let seed = U256::from(seed_in.as_ref());
         let nonce = U256::from(nonce_in.as_ref());
-        if let Some((marker_nonce, marker_hash)) = get_epoch_marker(nonce)? {
+        // Get the epoch marker values (nonce + H(`Epoch`) fr
+        if let Some(marker_hash) = get_epoch_marker(nonce)? {
             let worker_params = worker_params.clone();
             let epoch = Epoch { nonce, seed, worker_params };
             debug_println!("Verifying epoch: {:?}", epoch);
             let hash = epoch.raw_encode().keccak256();
             if hash != marker_hash {
-                debug_println!("Given epoch nonce {:?} do not match the marker {:?}: {:?}", nonce, marker_nonce, marker_hash);
                 return Err(SystemError(WorkerAuthError {
-                    err: format!("Given epoch parameters {:?} do not match the marker {:?}: {:?}", nonce, marker_nonce, marker_hash),
+                    err: format!("Given epoch parameters {:?} do not match the marker's epoch hash {:?}", nonce, marker_hash),
                 }));
             }
             debug_println!("Epoch verified against the marker successfully");
             existing_epoch = Some(epoch);
+        } else {
+            return Err(SystemError(WorkerAuthError {
+                err: format!("Epoch marker requested but not found for nonce {:?}", nonce),
+            }));
         }
     }
     let mut guard = EPOCH.lock_expect("Epoch");
+    // If no seed/nonce inputs were provided, create a new epoch
     let epoch = match existing_epoch {
         Some(epoch) => epoch,
         None => {
+            // If the `Epoch` cache is not empty, increment the last nonce by 1
             let nonce = match guard.keys().max() {
                 Some(nonce) => nonce + 1,
                 None => INIT_NONCE.into(),
@@ -148,6 +157,8 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
         }
     };
     debug_println!("Storing epoch in cache: {:?}", epoch);
+    // TODO: Remove items after exceeding capacity
+    // Add the `Epoch` to the epoch cache regardless of weather it was created or recovered from a sealed marker
     match guard.insert(epoch.nonce.clone(), epoch.clone()) {
         Some(prev) => debug_println!("New epoch stored successfully"),
         None => debug_println!("Initial epoch stored successfully"),
