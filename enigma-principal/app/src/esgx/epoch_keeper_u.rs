@@ -109,4 +109,21 @@ pub mod tests {
         assert!(epoch_state.confirmed_state.is_none());
         enclave.destroy();
     }
+
+    #[test]
+    fn test_set_mock_worker_params_above_cap() {
+        setup_epoch_storage();
+        let enclave = init_enclave_wrapper().unwrap();
+        let workers: Vec<[u8; 20]> = vec![
+            [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
+        ];
+        let stakes: Vec<u64> = vec![90000000000];
+        let block_number = 1;
+        let worker_params = get_worker_params(block_number, workers, stakes);
+        for i in 0..5 {
+            let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+            assert!(epoch_state.confirmed_state.is_none());
+        }
+        enclave.destroy();
+    }
 }

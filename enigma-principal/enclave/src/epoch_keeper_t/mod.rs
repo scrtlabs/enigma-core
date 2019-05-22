@@ -25,6 +25,7 @@ use core::clone::Clone;
 
 pub mod epoch_t;
 
+const EPOCH_CAP: usize = 2;
 const INIT_NONCE: uint32_t = 0;
 const EPOCH_DIR: &str = "epoch";
 
@@ -156,8 +157,16 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
             epoch
         }
     };
-    debug_println!("Storing epoch in cache: {:?}", epoch);
-    // TODO: Remove items after exceeding capacity
+    debug_println!("Inserting epoch: {:?} in cache", epoch);
+    // Removing the first item (lower nonce) from the cache if capacity is reached
+    if guard.len() == EPOCH_CAP {
+        // Safe to unwrap because we just verified the size of the `HashMap`
+        // Cloning because I couldn't mutably borrow the key enough to satisfy the borrow checker
+        let key = guard.keys().min().unwrap().clone();
+        if let Some(removed_epoch) = guard.remove(&key) {
+           debug_println!("Cache reached its capacity of {}, removed first epoch: {:?}", EPOCH_CAP, removed_epoch);
+        }
+    }
     // Add the `Epoch` to the epoch cache regardless of weather it was created or recovered from a sealed marker
     match guard.insert(epoch.nonce.clone(), epoch.clone()) {
         Some(prev) => debug_println!("New epoch stored successfully"),

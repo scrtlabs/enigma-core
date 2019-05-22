@@ -27,7 +27,7 @@ use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
 use esgx::general::EPOCH_DIR;
 use std::mem::replace;
 
-const EPOCH_CAP: usize = 5;
+const EPOCH_CAP: usize = 2;
 
 pub struct EpochStateManager {
     pub epoch_state_list: Mutex<Vec<EpochState>>,
@@ -214,7 +214,6 @@ impl EpochStateManager {
         // Remove the first item of the list an shift left if the capacity is reached
         if guard.len() == self.cap {
             let epoch_state = guard.remove(0);
-            //TODO: Remove in the enclave's cache
             println!("Removed first EpochState of capped list: {:?}", epoch_state);
         }
         guard.push(epoch_state);
