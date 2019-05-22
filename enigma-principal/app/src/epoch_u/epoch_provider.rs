@@ -1,7 +1,6 @@
 use std::{
     fs::{self, File},
     io::{self, prelude::*},
-    mem,
     ops::Deref,
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -26,6 +25,7 @@ use enigma_tools_u::common_u::errors::Web3Error;
 use epoch_u::epoch_types::{ConfirmedEpochState, EPOCH_STATE_UNCONFIRMED, EpochState, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
 use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
 use esgx::general::EPOCH_DIR;
+use std::mem::replace;
 
 pub struct EpochStateManager {
     pub epoch_state_list: Mutex<Vec<EpochState>>,
@@ -106,7 +106,7 @@ impl EpochStateManager {
     fn is_last_unconfirmed(&self) -> Result<bool, Error> {
         let guard = self.lock_guard_or_wait()?;
         if guard.is_empty() {
-            mem::drop(guard);
+            drop(guard);
             return Ok(false);
         }
         let last = guard.iter().last();
@@ -171,7 +171,7 @@ impl EpochStateManager {
                 break;
             }
         }
-        mem::drop(guard);
+        drop(guard);
         match epoch_state_val {
             Some(epoch_state) => Ok(epoch_state),
             None => Err(EpochStateUndefinedErr {}.into()),
@@ -182,7 +182,7 @@ impl EpochStateManager {
     fn save(&self) -> Result<(), Error> {
         let guard = self.lock_guard_or_wait()?;
         let epoch_state_list = guard.deref().clone();
-        mem::drop(guard);
+        drop(guard);
         println!("Saving EpochState list to disk: {:?}", epoch_state_list);
         match Self::write_to_file(epoch_state_list) {
             Ok(_) => {
@@ -198,8 +198,8 @@ impl EpochStateManager {
     /// Empty the `EpochState` list both in memory and to disk
     pub fn reset(&self) -> Result<(), Error> {
         let mut guard = self.lock_guard_or_wait()?;
-        mem::replace(&mut *guard, vec![]);
-        mem::drop(guard);
+        replace(&mut *guard, vec![]);
+        drop(guard);
         self.save()
     }
 
@@ -219,7 +219,7 @@ impl EpochStateManager {
             println!("Removed first EpochState of capped list: {:?}", epoch_state);
         }
         guard.push(epoch_state);
-        mem::drop(guard);
+        drop(guard);
         self.save()
     }
 
@@ -237,7 +237,7 @@ impl EpochStateManager {
         } else {
             bail!("Cannot confirm the last EpochState of an empty list");
         }
-        mem::drop(guard);
+        drop(guard);
         self.save()
     }
 }
