@@ -1,6 +1,8 @@
 #![no_std]
 #![feature(slice_concat_ext)]
 #![deny(unused_extern_crates)]
+#![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
+
 
 /// Enigma implementation of bindings to the Enigma runtime.
 /// This crate should be used in contracts.

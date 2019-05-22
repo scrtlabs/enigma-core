@@ -2,6 +2,8 @@
 #![feature(box_patterns)]
 #![recursion_limit="128"]
 #![feature(slice_concat_ext)]
+#![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
+
 
 extern crate eng_wasm;
 extern crate proc_macro2;
