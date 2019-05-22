@@ -31,7 +31,7 @@ pub enum IpcResponse {
     GetAllAddrs { result: IpcResults },
     GetDelta { result: IpcResults },
     GetDeltas { result: IpcResults },
-    GetContract { result: IpcResults },
+    GetContract { #[serde(flatten)] result: IpcResults },
     UpdateNewContract { address: String, result: IpcResults },
     UpdateDeltas { #[serde(flatten)] result: IpcResults },
     NewTaskEncryptionKey { #[serde(flatten)] result: IpcResults },
@@ -52,7 +52,11 @@ pub enum IpcResults {
     Addresses(Vec<String>),
     Delta(String),
     Deltas(Vec<IpcDelta>),
-    Bytecode(String),
+    #[serde(rename = "result")]
+    GetContract {
+        address: String,
+        bytecode: String,
+    },
     Status(Status),
     Tips(Vec<IpcDelta>),
     #[serde(rename = "result")]
