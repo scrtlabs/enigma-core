@@ -172,10 +172,7 @@ impl EpochStateManager {
             }
         }
         drop(guard);
-        match epoch_state_val {
-            Some(epoch_state) => Ok(epoch_state),
-            None => Err(EpochStateUndefinedErr {}.into()),
-        }
+        Ok(epoch_state_val.ok_or(EpochStateUndefinedErr{})?)
     }
 
     #[logfn(DEBUG)]
