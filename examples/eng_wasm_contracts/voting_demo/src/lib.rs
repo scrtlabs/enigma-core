@@ -1,7 +1,5 @@
 #![no_std]
-
-
-
+#![allow(unused_attributes)] // https://github.com/rust-lang/rust/issues/60050
 
 extern crate eng_wasm;
 extern crate eng_wasm_derive;

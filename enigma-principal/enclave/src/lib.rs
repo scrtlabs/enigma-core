@@ -5,6 +5,7 @@
 #![feature(slice_concat_ext)]
 
 #![deny(unused_extern_crates)]
+#![allow(unused_attributes)] // https://github.com/rust-lang/rust/issues/60050
 
 extern crate enigma_crypto;
 extern crate enigma_tools_m;

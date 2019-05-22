@@ -8,14 +8,16 @@ use enigma_types::{ContractAddress, DhKey, PubKey, StateKey};
 
 pub type MsgID = [u8; 12];
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "crate::serde")]
 pub enum PrincipalMessageType {
     Response(Vec<(ContractAddress, StateKey)>),
     Request(Option<Vec<ContractAddress>>),
     EncryptedResponse(Vec<u8>),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "crate::serde")]
 pub struct PrincipalMessage {
     pub data: PrincipalMessageType,
     pub(crate) pubkey: Vec<u8>,
@@ -131,7 +133,8 @@ impl<'a> Encryption<&'a DhKey, CryptoError, Self, [u8; 12]> for PrincipalMessage
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
+#[serde(crate = "crate::serde")]
 pub struct UserMessage {
     pub(crate) pubkey: Vec<u8>,
 }

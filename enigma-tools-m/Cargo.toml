@@ -19,7 +19,7 @@ rustc-hex = { version = "2.0.1", default-features = false }
 ethabi_std = { package = "ethabi", version = "6.0.1", optional = true }
 ethereum_types_std = { package = "ethereum-types", version = "0.4", optional = true }
 rmp_serde_std = { package = "rmp-serde", git = "https://github.com/3Hren/msgpack-rust.git", optional = true }
-serde_std = { package = "serde", version = "1.0", default-features = false, optional = true }
+serde_std = { package = "serde", version = "1.0", default-features = false, features = ["derive"],  optional = true }
 serde_json_std = { package = "serde_json", version = "1.0", optional = true }
 
 
@@ -28,7 +28,7 @@ ethabi_sgx = { package = "ethabi", git = "https://github.com/enigmampc/ethabi.gi
 ethereum_types_sgx = { package = "ethereum-types", git = "https://github.com/enigmampc/primitives.git", rev = "sgx-v0.4.0", default-features = false, optional = true }
 rmp_serde_sgx = { package = "rmp-serde", git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "0.14.0-sgx-1.0.8", optional = true }
 sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8", optional = true }
-serde_sgx = { package = "serde", git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "407aaaa2558dda5c2367d57ba40324c52cf9acc2", default-features = false, optional = true }
+serde_sgx = { package = "serde", git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "407aaaa2558dda5c2367d57ba40324c52cf9acc2", default-features = false, features = ["derive"], optional = true }
 serde_json_sgx = { package = "serde_json", git = "https://github.com/enigmampc/serde-json-sgx.git", rev = "1.0.39-sgx-1.0.8", optional = true }
 
 [features]

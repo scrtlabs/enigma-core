@@ -2,9 +2,11 @@
 #![crate_type = "staticlib"]
 #![no_std]
 #![cfg_attr(target_env = "sgx", feature(rustc_private))]
+
 #![warn(clippy::all)]
-#![allow(clippy::cast_ptr_alignment)] // TODO: Try to remove it when fixing the sealing
 #![warn(unused_extern_crates)]
+#![allow(clippy::cast_ptr_alignment)] // TODO: Try to remove it when fixing the sealing
+#![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
 
 extern crate enigma_runtime_t;
 #[macro_use]

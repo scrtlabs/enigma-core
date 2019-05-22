@@ -2,6 +2,7 @@
 // features of its host system: threads, networking, heap allocation, and others. SGX environments
 // do not have these features, so we tell Rust that we don’t want to use the standard library
 #![no_std]
+#![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
 
 
 
