@@ -1,5 +1,5 @@
 # inherit the baidu sdk image
-FROM baiduxlab/sgx-rust:1804-1.0.7
+FROM baiduxlab/sgx-rust:1804-1.0.8
 
 MAINTAINER enigmampc
 
@@ -17,7 +17,7 @@ RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
 
 
 # clone the rust-sgx-sdk baidu sdk v1.0.7
-RUN git clone --depth 1  -b v1.0.7 https://github.com/baidu/rust-sgx-sdk.git  sgx
+RUN git clone --depth 1  -b v1.0.8 https://github.com/baidu/rust-sgx-sdk.git  sgx
 
 
 RUN git clone --depth 1 --branch v5.18.3 https://github.com/facebook/rocksdb.git rocksdb && \

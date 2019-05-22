@@ -30,5 +30,5 @@ web3 = { version  = "0.6", default-features = false, features=["http"]  }
 ethabi = "6.1.0"
 
 
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
+sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
