@@ -27,6 +27,8 @@ use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
 use esgx::general::EPOCH_DIR;
 use std::mem::replace;
 
+const EPOCH_CAP: usize = 5;
+
 pub struct EpochStateManager {
     pub epoch_state_list: Mutex<Vec<EpochState>>,
     pub cap: usize,
@@ -246,8 +248,8 @@ pub struct EpochProvider {
 }
 
 impl EpochProvider {
-    pub fn new(eid: Arc<sgx_enclave_id_t>, epoch_cap: usize, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
-        let epoch_state_manager = Arc::new(EpochStateManager::new(epoch_cap)?);
+    pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
+        let epoch_state_manager = Arc::new(EpochStateManager::new(EPOCH_CAP)?);
         let epoch_provider = Self { contract, epoch_state_manager, eid };
         epoch_provider.verify_worker_params()?;
         Ok(epoch_provider)

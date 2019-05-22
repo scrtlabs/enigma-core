@@ -40,10 +40,6 @@ pub struct Opt {
     #[structopt(short = "c", long = "contract-address")]
     pub contract_address: Option<String>,
 
-    /// Optional: The number of stored epochs
-    #[structopt(short = "l", long = "epoch-cap")]
-    pub epoch_cap: Option<usize>,
-
     /// Optional: Reset the Epoch state in storage
     #[structopt(short = "s", long = "reset-epoch-state")]
     pub reset_epoch_state: bool,
@@ -121,7 +117,6 @@ pub fn print_info(signing_address: &str) {
     green!("--confirm-worker-params                => Confirm the Worker Params in the local state and shutdown.\n");
     green!("--get-state-keys                       => Get the state keys from the message and shutdown.\n");
     green!("--contract-address                     => The Enigma contract address, use the config if not provided.\n");
-    green!("--epoch-cap                            => The number of stored epochs.\n");
     green!("--reset-epoch-state                    => Optional: Reset the Epoch state in storage.\n");
     green!("--deploy                               => Optional, deploy the Enigma contract.\n");
     green!("--network                              => Currently ignored, use a custom network (use config file instead).\n");
