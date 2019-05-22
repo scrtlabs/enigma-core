@@ -218,7 +218,7 @@ pub(self) mod handling {
     pub fn get_contract(db: &DB, input: &str) -> ResponseResult {
         let address = ContractAddress::from_hex(&input)?;
         let data = db.get_contract(address).unwrap_or_default();
-        Ok(IpcResponse::GetContract { result: IpcResults::Bytecode(data.to_hex()) })
+        Ok(IpcResponse::GetContract { result: IpcResults::GetContract{address: address.to_hex(), bytecode: data.to_hex()} })
     }
 
     #[logfn(INFO)]
