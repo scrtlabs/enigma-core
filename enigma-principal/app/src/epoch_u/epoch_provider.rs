@@ -60,13 +60,7 @@ impl EpochStateManager {
                 let mut buf = Vec::new();
                 f.read_to_end(&mut buf)?;
                 let mut des = Deserializer::new(&buf[..]);
-                let mut data: Vec<EpochState> = match Deserialize::deserialize(&mut des) {
-                    Ok(value) => value,
-                    Err(err) => {
-                        eprintln!("Unable to read block state file: {:?}", err);
-                        vec![]
-                    }
-                };
+                let mut data: Vec<EpochState> = Deserialize::deserialize(&mut des).unwrap_or_default();
                 println!("Found EpochState list: {:?}", data);
                 if cap < data.len() {
                     return Err(EpochStateIOErr { message: format!("The EpochState entries exceed the cap: {}", cap) }.into());
