@@ -467,8 +467,8 @@ dependencies = [
  "serde 1.0.91 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.91 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
- "sgx_types 1.0.7 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.7)",
- "sgx_urts 1.0.7 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.7)",
+ "sgx_types 1.0.8 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8)",
+ "sgx_urts 1.0.8 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8)",
  "structopt 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "web3 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -513,8 +513,8 @@ dependencies = [
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.91 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
- "sgx_types 1.0.7 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.7)",
- "sgx_urts 1.0.7 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.7)",
+ "sgx_types 1.0.8 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8)",
+ "sgx_urts 1.0.8 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8)",
  "simplelog 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "web3 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1739,16 +1739,16 @@ dependencies = [
 
 [[package]]
 name = "sgx_types"
-version = "1.0.7"
-source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.7#6365e740c34e3357726eb3c2e8c85a551919f1b0"
+version = "1.0.8"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8#c4f443fa439cf132e1bbf30f43409da5988625dc"
 
 [[package]]
 name = "sgx_urts"
-version = "1.0.7"
-source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.7#6365e740c34e3357726eb3c2e8c85a551919f1b0"
+version = "1.0.8"
+source = "git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8#c4f443fa439cf132e1bbf30f43409da5988625dc"
 dependencies = [
  "libc 0.2.55 (registry+https://github.com/rust-lang/crates.io-index)",
- "sgx_types 1.0.7 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.7)",
+ "sgx_types 1.0.8 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8)",
 ]
 
 [[package]]
@@ -2541,8 +2541,8 @@ dependencies = [
 "checksum serde_derive 1.0.91 (registry+https://github.com/rust-lang/crates.io-index)" = "101b495b109a3e3ca8c4cbe44cf62391527cdfb6ba15821c5ce80bcd5ea23f9f"
 "checksum serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)" = "5a23aa71d4a4d43fdbfaac00eff68ba8a06a51759a89ac3304323e800c4dd40d"
 "checksum serde_urlencoded 0.5.5 (registry+https://github.com/rust-lang/crates.io-index)" = "642dd69105886af2efd227f75a520ec9b44a820d65bc133a9131f7d229fd165a"
-"checksum sgx_types 1.0.7 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.7)" = "<none>"
-"checksum sgx_urts 1.0.7 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.7)" = "<none>"
+"checksum sgx_types 1.0.8 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8)" = "<none>"
+"checksum sgx_urts 1.0.8 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8)" = "<none>"
 "checksum sha2 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7d963c78ce367df26d7ea8b8cc655c651b42e8a1e584e869c1e17dae3ccb116a"
 "checksum sha2 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7b4d8bfd0e469f417657573d8451fb33d16cfe0989359b93baf3a1ffc639543d"
 "checksum simplelog 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)" = "2e95345f185d5adeb8ec93459d2dc99654e294cc6ccf5b75414d8ea262de9a13"

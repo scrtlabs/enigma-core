@@ -1,8 +1,11 @@
 use core::ops::{Deref, DerefMut};
 use rustc_hex::{FromHex, FromHexError};
 use arrayvec::ArrayVec;
+use crate::serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
+#[serde(crate = "crate::serde")]
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct Hash256([u8; 32]);
 
 
@@ -62,50 +65,6 @@ impl AsRef<[u8]> for Hash256 {
 impl AsMut<[u8]> for Hash256 {
     fn as_mut(&mut self) -> &mut [u8] {
         &mut self.0
-    }
-}
-
-use crate::serde::de::{SeqAccess, Error};
-use core::fmt::{self, Formatter};
-use crate::serde::{Serialize, Deserialize, Serializer, Deserializer, de::Visitor};
-
-impl Serialize for Hash256 {
-    fn serialize<S>(&self, ser: S) -> Result<S::Ok, S::Error> where S: Serializer {
-        Serializer::serialize_newtype_struct(ser, "Hash256", &self.0)
-    }
-}
-
-struct Hash256Visitor;
-
-impl<'de> Visitor<'de> for Hash256Visitor {
-    type Value = Hash256;
-    fn expecting(&self, fmt: &mut Formatter) -> fmt::Result {
-        fmt.write_str("tuple struct Hash256")
-    }
-
-    fn visit_newtype_struct<E>(self, err: E) -> Result<Self::Value, E::Error> where E: Deserializer<'de>, {
-
-        match <[u8; 32] as Deserialize>::deserialize(err) {
-            Ok(field) => Ok(Hash256(field)),
-            Err(err) => Err(err),
-        }
-    }
-
-    fn visit_seq<A>(self, mut seq: A ) -> Result<Self::Value, A::Error> where A: SeqAccess<'de> {
-        match seq.next_element::<[u8; 32]>() {
-            Ok(v) => match v {
-                Some(field) => Ok(Hash256(field)),
-                None => Err(Error::invalid_length(0, &"tuple struct Hash256 with 1 element" )),
-            },
-            Err(err) => Err(err)
-        }
-    }
-}
-
-
-impl<'de> Deserialize<'de> for Hash256 {
-    fn deserialize<D>(des: D) -> Result<Self, D::Error> where D: Deserializer<'de>, {
-        des.deserialize_newtype_struct("Hash256", Hash256Visitor)
     }
 }
 

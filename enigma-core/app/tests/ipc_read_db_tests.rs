@@ -138,6 +138,8 @@ fn test_ipc_get_contract() {
     let type_accepted = res["type"].as_str().unwrap();
     let accepted_bytecode = res["result"]["bytecode"].as_str().unwrap();
     let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
+    let accepted_address = res["result"]["address"].as_str().unwrap().from_hex().unwrap();
+    assert_eq!(address.to_vec(), accepted_address);
     assert_eq!(type_accepted, type_msg);
     assert_eq!(deployed_bytecode, accepted_bytecode);
 }

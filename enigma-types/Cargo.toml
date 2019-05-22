@@ -9,8 +9,8 @@ categories = ["no-std"]
 [dependencies]
 rustc-hex = { version = "2.0.1", default-features = false }
 arrayvec = { version = "0.4.10", default-features = false }
-serde_sgx = { package = "serde", git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.7", optional = true }
-serde_std = { package = "serde", version = "1.0", default-features = false }
+serde_sgx = { package = "serde", git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "407aaaa2558dda5c2367d57ba40324c52cf9acc2", features = ["derive"], optional = true }
+serde_std = { package = "serde", version = "1.0", default-features = false, features = ["derive"] }
 
 [build-dependencies]
 cbindgen = "0.8"
