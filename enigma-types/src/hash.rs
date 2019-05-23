@@ -16,8 +16,7 @@ pub struct Hash256([u8; 32]);
 
 
 impl Hash256 {
-
-    /// This method exposes rust's built in [`std::slice::copy_from_slice`]
+    /// This method exposes rust's built in [`copy_from_slice`][https://doc.rust-lang.org/std/primitive.slice.html#method.copy_from_slice]
     /// Copies the elements from `src` into `self`.
     ///
     /// The length of `src` must be the same as `self`.

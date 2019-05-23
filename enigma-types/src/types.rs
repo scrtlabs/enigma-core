@@ -16,7 +16,7 @@ pub use crate::hash::Hash256;
 pub type SymmetricKey = [u8; 32];
 /// StateKey is the key used for state encryption.
 pub type StateKey = SymmetricKey;
-/// DHKey is the key that results from the ECDH [`enigma_crypto::KeyPair::derive_key`]
+/// DHKey is the key that results from the ECDH [`enigma_crypto::KeyPair::derive_key`](../replace_me)
 pub type DhKey = SymmetricKey;
 /// ContractAddress is the address of contracts in the Enigma Network.
 pub type ContractAddress = Hash256;
@@ -82,13 +82,13 @@ pub enum ResultStatus {
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ExecuteResult {
-    /// A pointer to the output of the execution using [`ocall_save_to_memory`] (on the untrusted stack)
+    /// A pointer to the output of the execution using [`ocall_save_to_memory`](../replace_me) (on the untrusted stack)
     pub output: *const u8,
-    /// A pointer to the resulting delta using [`ocall_save_to_memory`] (on the untrusted stack)
+    /// A pointer to the resulting delta using [`ocall_save_to_memory`](../replace_me) (on the untrusted stack)
     pub delta_ptr: *const u8,
     /// The delta index number.
     pub delta_index: u32,
-    /// A pointer to the Ethereum payload using [`ocall_save_to_memory`] (on the untrusted stack)
+    /// A pointer to the Ethereum payload using [`ocall_save_to_memory`](../replace_me) (on the untrusted stack)
     pub ethereum_payload_ptr: *const u8,
     /// The ethereum address that the payload belongs to.
     pub ethereum_address: [u8; 20],
@@ -231,13 +231,13 @@ impl fmt::Display for EnclaveReturn {
 /// This trait will convert a Result into EnclaveReturn.
 ///
 /// I used this because there's a problem.
-/// we want to convert  [`enigma_tools_t::common::errors::EnclaveError`] into [`EnclaveReturn`] to return it back through the EDL.
-/// *but* in this module we can't impl [`std::convert::From`] from `EnclaveError` to `EnclaveReturn` because this crate is `std` pure
+/// we want to convert  [`enigma_tools_t::common::errors::EnclaveError`](../replace_me) into [`EnclaveReturn`] to return it back through the EDL.
+/// *but* in this module we can't impl [`From`](core::convert::From) from `EnclaveError` to `EnclaveReturn` because this crate is `std` pure
 /// so it doesn't have access to `enigma_tools_t`.
 /// And we can't impelment this as `Into<EncalveReturn> for Result<(), EnclaveError>` in `enigma_tools_t`
 /// because in rust you can't implement an imported trait(`From`/`Into`) on a type you imported (`Result`).
 ///
-/// So my solution was to declare a new trait, and to implement [`std::convert::From`] on whatever implements my trait through generics.
+/// So my solution was to declare a new trait, and to implement [`core::convert::From`] on whatever implements my trait through generics.
 /// that way all we need is to implement `ResultToEnclaveReturn` on `EnclaveError` and it will auto generate a `From` impl for it.
 ///
 /// And if the Result is `Ok` it will return `EnclaveReturn::Success` and if `Err` it will convert using this trait.
