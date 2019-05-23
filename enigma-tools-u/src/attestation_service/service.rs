@@ -1,5 +1,6 @@
 //! # Attestation service.
 //! all of the data here is directly from the API https://software.intel.com/sites/default/files/managed/7e/3b/ias-api-spec.pdf
+//! Some of this code is pretty old and can be rewritten in a more idiomatic way(and even generally better).
 
 use base64;
 use common_u::errors;
@@ -101,6 +102,7 @@ pub struct QReportBody {
 pub struct AttestationService {
     connection_str: String,
 }
+
 impl AttestationService {
     pub fn new(conn_str: &str) -> AttestationService { AttestationService { connection_str: conn_str.to_string() } }
 
@@ -199,6 +201,7 @@ impl ASResponse {
 }
 
 impl ASResult {
+    /// This function verifies the report and the chain of trust.
     #[logfn(INFO)]
     pub fn verify_report(&self) -> Result<bool, Error> {
         let ca = X509::from_pem(&self.ca.as_bytes())?;
@@ -227,6 +230,12 @@ impl Quote {
 }
 
 impl QBody {
+
+    /// This will read the data given to it and parse it byte by byte just like the API says
+    /// The exact sizes of the field in `QBody` are extremley important.
+    /// also the order in which `read_exact` is executed (filed by field just like the API) is also important
+    /// because it reads the bytes sequencially.
+    /// if the Reader is shorter or longer then the size of QBody it will return an error.
     pub fn from_bytes_read<R: Read>(body: &mut R) -> Result<QBody, Error> {
         let mut result: QBody = Default::default();
 
@@ -246,11 +255,18 @@ impl QBody {
 }
 
 impl Default for QBody {
+    // Using `mem::zeroed()` here should be safe because all the fields are [u8]
+    // *But* this isn't good practice. because if you add a Box/Vec or any other complex type this *will* become UB.
     fn default() -> QBody { unsafe { mem::zeroed() } }
 }
 
 impl QReportBody {
-    // Size: 384
+    /// This will read the data given to it and parse it byte by byte just like the API says
+    /// The exact sizes of the field in `QBody` are extremley important.
+    /// also the order in which `read_exact` is executed (filed by field just like the API) is also important
+    /// because it reads the bytes sequencially.
+    /// if the Reader is shorter or longer then the size of QBody it will return an error.
+    /// Overall Size: 384
     pub fn from_bytes_read<R: Read>(body: &mut R) -> Result<QReportBody, Error> {
         let mut result: QReportBody = Default::default();
 
@@ -275,6 +291,8 @@ impl QReportBody {
 }
 
 impl Default for QReportBody {
+    // Using `mem::zeroed()` here should be safe because all the fields are [u8]
+    // *But* this isn't good practice. because if you add a Box/Vec or any other complex type this *will* become UB.
     fn default() -> QReportBody { unsafe { mem::zeroed() } }
 }
 
