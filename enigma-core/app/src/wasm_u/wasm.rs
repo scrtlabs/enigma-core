@@ -23,7 +23,7 @@ pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor:
                      args.as_c_ptr(),
                      args.len(),
                      contract_address,
-                     &user_pubkey,
+                     user_pubkey.as_ptr() as _,
                      &gas_limit as *const u64,
                      &db_ptr as *const RawPointer,
                      &mut result)
@@ -47,7 +47,7 @@ pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &
                       callable.len(),
                       args.as_c_ptr() as *const u8,
                       args.len(),
-                      &user_pubkey,
+                      user_pubkey.as_ptr() as _,
                       contract_address,
                       &gas_limit as *const u64,
                       &db_ptr as *const RawPointer,

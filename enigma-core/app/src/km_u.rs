@@ -57,7 +57,7 @@ pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(
     let status = unsafe {
         ecall_ptt_req(eid,
                       &mut ret as *mut EnclaveReturn,
-                      addresses.as_c_ptr() as *const ContractAddress,
+                      addresses.as_c_ptr(),
                       addresses.len() * mem::size_of::<ContractAddress>(),
                       &mut sig,
                       &mut serialized_ptr as *mut u64,
@@ -77,7 +77,7 @@ pub fn get_user_key(eid: sgx_enclave_id_t, user_pubkey: &PubKey) -> Result<(Box<
     let mut serialized_ptr = 0u64;
 
     let status = unsafe {
-        ecall_get_user_key(eid, &mut ret as *mut EnclaveReturn, &mut sig, &user_pubkey, &mut serialized_ptr as *mut u64)
+        ecall_get_user_key(eid, &mut ret as *mut EnclaveReturn, &mut sig, user_pubkey.as_ptr() as _, &mut serialized_ptr as *mut u64)
     };
     if ret != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: ret, status }.into());
