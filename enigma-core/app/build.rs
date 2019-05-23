@@ -30,7 +30,7 @@ fn main() {
 
     let bindings = builder()
         .whitelist_recursively(false)
-        .array_pointers(true)
+        .array_pointers_in_arguments(true)
         .default_enum_style(EnumVariation::Rust)
         .clang_arg(format!("-I{}/include", sdk_dir))
         .clang_arg(format!("-I{}", edl))
