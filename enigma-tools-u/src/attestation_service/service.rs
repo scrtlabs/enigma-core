@@ -1,3 +1,6 @@
+//! # Attestation service.
+//! all of the data here is directly from the API https://software.intel.com/sites/default/files/managed/7e/3b/ias-api-spec.pdf
+
 use base64;
 use common_u::errors;
 use failure::Error;
@@ -17,12 +20,22 @@ use std::string::ToString;
 pub struct ASReport {
     pub id: String,
     pub timestamp: String,
+    pub version: usize,
     #[serde(rename = "isvEnclaveQuoteStatus")]
     pub isv_enclave_quote_status: String,
-    #[serde(rename = "platformInfoBlob")]
-    pub platform_info_blob: String,
     #[serde(rename = "isvEnclaveQuoteBody")]
     pub isv_enclave_quote_body: String,
+    #[serde(rename = "revocationReason")]
+    pub revocation_reason: Option<String>,
+    #[serde(rename = "pseManifestStatus")]
+    pub pse_manifest_satus: Option<String>,
+    #[serde(rename = "pseManifestHash")]
+    pub pse_manifest_hash: Option<String>,
+    #[serde(rename = "platformInfoBlob")]
+    pub platform_info_blob: Option<String>,
+    pub nonce: Option<String>,
+    #[serde(rename = "epidPseudonym")]
+    pub epid_pseudonym: Option<String>,
 }
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ASResult {
