@@ -2,7 +2,7 @@ extern crate bindgen;
 extern crate dirs;
 
 use std::{env, path::PathBuf};
-use bindgen::{builder, EnumVariation};
+use bindgen::{builder, EnumVariation, RustTarget};
 
 fn main() {
     let sdk_dir = env::var("SGX_SDK").unwrap_or_else(|_| "/opt/intel/sgxsdk".to_string());
@@ -32,24 +32,14 @@ fn main() {
         .whitelist_recursively(false)
         .array_pointers_in_arguments(true)
         .default_enum_style(EnumVariation::Rust)
+        .rust_target(RustTarget::Nightly)
         .clang_arg(format!("-I{}/include", sdk_dir))
         .clang_arg(format!("-I{}", edl))
         .header("Enclave_u.h")
         .raw_line("#![allow(dead_code)]")
         .raw_line("use enigma_types::*;")
         .raw_line("use sgx_types::*;")
-
-        .whitelist_function("ecall_get_registration_quote")
-        .whitelist_function("ecall_run_tests")
-        .whitelist_function("ecall_evm")
-        .whitelist_function("ecall_deploy")
-        .whitelist_function("ecall_execute")
-        .whitelist_function("ecall_get_signing_address")
-        .whitelist_function("ecall_ptt_req")
-        .whitelist_function("ecall_ptt_res")
-        .whitelist_function("ecall_build_state")
-        .whitelist_function("ecall_get_user_key")
-
+        .whitelist_function("ecall_.*")
         .generate()
         .expect("Unable to generate bindings");
 

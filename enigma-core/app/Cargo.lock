@@ -546,7 +546,7 @@ dependencies = [
  "rand 0.6.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "regex 1.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rmp-serde 0.14.0 (git+https://github.com/3Hren/msgpack-rust.git)",
- "rocksdb 0.12.2 (git+https://github.com/elichai/rust-rocksdb.git?branch=bump)",
+ "rocksdb 0.12.2 (git+https://github.com/rust-rocksdb/rust-rocksdb.git?rev=067c72a)",
  "rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.91 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 1.0.39 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1078,7 +1078,7 @@ dependencies = [
 [[package]]
 name = "librocksdb-sys"
 version = "5.18.3"
-source = "git+https://github.com/elichai/rust-rocksdb.git?branch=bump#e880dd0c315f0fecfba33345642bb416360f48df"
+source = "git+https://github.com/rust-rocksdb/rust-rocksdb.git?rev=067c72a#067c72a04c4af6d94fed9aa0269bfe1493c27b3b"
 dependencies = [
  "bindgen 0.49.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "cc 1.0.37 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1733,10 +1733,10 @@ dependencies = [
 [[package]]
 name = "rocksdb"
 version = "0.12.2"
-source = "git+https://github.com/elichai/rust-rocksdb.git?branch=bump#e880dd0c315f0fecfba33345642bb416360f48df"
+source = "git+https://github.com/rust-rocksdb/rust-rocksdb.git?rev=067c72a#067c72a04c4af6d94fed9aa0269bfe1493c27b3b"
 dependencies = [
  "libc 0.2.55 (registry+https://github.com/rust-lang/crates.io-index)",
- "librocksdb-sys 5.18.3 (git+https://github.com/elichai/rust-rocksdb.git?branch=bump)",
+ "librocksdb-sys 5.18.3 (git+https://github.com/rust-rocksdb/rust-rocksdb.git?rev=067c72a)",
 ]
 
 [[package]]
@@ -2673,7 +2673,7 @@ dependencies = [
 "checksum lazy_static 1.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "bc5729f27f159ddd61f4df6228e827e86643d4d3e7c32183cb30a1c08f604a14"
 "checksum libc 0.2.55 (registry+https://github.com/rust-lang/crates.io-index)" = "42914d39aad277d9e176efbdad68acb1d5443ab65afe0e0e4f0d49352a950880"
 "checksum libloading 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "9c3ad660d7cb8c5822cd83d10897b0f1f1526792737a179e73896152f85b88c2"
-"checksum librocksdb-sys 5.18.3 (git+https://github.com/elichai/rust-rocksdb.git?branch=bump)" = "<none>"
+"checksum librocksdb-sys 5.18.3 (git+https://github.com/rust-rocksdb/rust-rocksdb.git?rev=067c72a)" = "<none>"
 "checksum libsecp256k1 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "688e8d65e495567c2c35ea0001b26b9debf0b4ea11f8cccc954233b75fc3428a"
 "checksum linked-hash-map 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "ae91b68aebc4ddb91978b11a1b02ddd8602a05ec19002801c5666000e05e0f83"
 "checksum lock_api 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "62ebf1391f6acad60e5c8b43706dde4582df75c06698ab44511d15016bc2442c"
@@ -2743,7 +2743,7 @@ dependencies = [
 "checksum ring 0.14.6 (git+https://github.com/elichai/ring.git?rev=sgx-0.14.6)" = "<none>"
 "checksum rmp 0.8.7 (git+https://github.com/3Hren/msgpack-rust.git)" = "<none>"
 "checksum rmp-serde 0.14.0 (git+https://github.com/3Hren/msgpack-rust.git)" = "<none>"
-"checksum rocksdb 0.12.2 (git+https://github.com/elichai/rust-rocksdb.git?branch=bump)" = "<none>"
+"checksum rocksdb 0.12.2 (git+https://github.com/rust-rocksdb/rust-rocksdb.git?rev=067c72a)" = "<none>"
 "checksum rustc-demangle 0.1.14 (registry+https://github.com/rust-lang/crates.io-index)" = "ccc78bfd5acd7bf3e89cffcf899e5cb1a52d6fafa8dec2739ad70c9577a57288"
 "checksum rustc-hex 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "0ceb8ce7a5e520de349e1fa172baeba4a9e8d5ef06c47471863530bc4972ee1e"
 "checksum rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "403bb3a286107a04825a5f82e1270acc1e14028d3d554d7a1e08914549575ab8"
