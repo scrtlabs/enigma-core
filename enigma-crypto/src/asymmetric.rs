@@ -1,34 +1,43 @@
 use crate::error::CryptoError;
-use secp256k1::{PublicKey, SecretKey, SharedSecret,  RecoveryId, Signature};
+use secp256k1::{PublicKey, SecretKey, Secp256k1, All, Message, ecdh::SharedSecret, recovery::{RecoveryId,RecoverableSignature}};
 use crate::hash::Keccak256;
 use enigma_types::{DhKey, PubKey};
+
+
+// Replacing libsecp256k1 with rust-secp256k1 makes it not compile to WASM. we should either investigate it further,
+// Or feature gate between them
+// (another possibility is to outright not use it in wasm and maybe provide other crypto in a wasm specific program or provide these as external in the runtime)
+
 
 #[derive(Debug)]
 pub struct KeyPair {
     pubkey: PublicKey,
     privkey: SecretKey,
+    ctx: Secp256k1<All>,
 }
 
 impl KeyPair {
     #[cfg(any(feature = "sgx", feature = "std"))]
     pub fn new() -> Result<KeyPair, CryptoError> {
+        let ctx = Secp256k1::new();
         use crate::rand;
         loop {
             let mut me: [u8; 32] = [0; 32];
             rand::random(&mut me)?;
-            if let Ok(privkey) = SecretKey::parse(&me) {
-                let pubkey = PublicKey::from_secret_key(&privkey);
-                return Ok(KeyPair { privkey, pubkey });
+            if let Ok(privkey) = SecretKey::from_slice(&me) {
+                let pubkey = PublicKey::from_secret_key(&ctx, &privkey);
+                return Ok(KeyPair { privkey, pubkey, ctx });
             }
         }
     }
 
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, CryptoError> {
-        let privkey = SecretKey::parse(&privkey)
+        let ctx = Secp256k1::new();
+        let privkey = SecretKey::from_slice(privkey)
             .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
-        let pubkey = PublicKey::from_secret_key(&privkey);
+        let pubkey = PublicKey::from_secret_key(&ctx, &privkey);
 
-        Ok(KeyPair { privkey, pubkey })
+        Ok(KeyPair { privkey, pubkey, ctx })
     }
 
     pub fn derive_key(&self, _pubarr: &PubKey) -> Result<DhKey, CryptoError> {
@@ -36,18 +45,21 @@ impl KeyPair {
         pubarr[0] = 4;
         pubarr[1..].copy_from_slice(&_pubarr[..]);
 
-        let pubkey = PublicKey::parse(&pubarr)
+        let pubkey = PublicKey::from_slice(&pubarr)
             .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
 
-        let shared = SharedSecret::new(&pubkey, &self.privkey)
-            .map_err(|_| CryptoError::DerivingKeyError { self_key: self.get_pubkey(), other_key: *_pubarr })?;
+        let shared = SharedSecret::new(&pubkey, &self.privkey);
 
         let mut result = [0u8; 32];
-        result.copy_from_slice(shared.as_ref());
+        result.copy_from_slice(&shared[..]);
         Ok(result)
     }
 
-    pub fn get_privkey(&self) -> [u8; 32] { self.privkey.serialize() }
+    pub fn get_privkey(&self) -> [u8; 32] {
+        let mut result = [0u8; 32];
+        result.copy_from_slice(&self.privkey[..]);
+        result
+    }
 
     /// Get the Public Key and slice the first byte
     /// The first byte represents if the key is compressed or not.
@@ -62,7 +74,7 @@ impl KeyPair {
 
     fn pubkey_object_to_pubkey(key: &PublicKey) -> PubKey {
         let mut sliced_pubkey: [u8; 64] = [0; 64];
-        sliced_pubkey.clone_from_slice(&key.serialize()[1..65]);
+        sliced_pubkey.clone_from_slice(&key.serialize_uncompressed()[1..65]);
         sliced_pubkey
     }
 
@@ -82,14 +94,14 @@ impl KeyPair {
     /// 3. 1 Bytes ECDSA `v` variable aligned to the right for Ethereum compatibility
     pub fn sign(&self, message: &[u8]) -> Result<[u8; 65], CryptoError> {
         let hashed_msg = message.keccak256();
-        let message_to_sign = secp256k1::Message::parse(&hashed_msg);
+        let message_to_sign = Message::from_slice(hashed_msg.as_ref())
+            .map_err(|_| CryptoError::SigningError {hashed_msg: Default::default()})?;
 
-        let (sig, recovery) = secp256k1::sign(&message_to_sign, &self.privkey)
-            .map_err(|_| CryptoError::SigningError { hashed_msg: *hashed_msg })?;
-
-        let v: u8 = recovery.into();
+        let recoverable_sig = self.ctx.sign_recoverable(&message_to_sign, &self.privkey);
+        let (recovery, sig) = recoverable_sig.serialize_compact();
+        let v = recovery.to_i32() as u8;
         let mut returnvalue = [0u8; 65];
-        returnvalue[..64].copy_from_slice(&sig.serialize());
+        returnvalue[..64].copy_from_slice(&sig);
         returnvalue[64] = v + 27;
         Ok(returnvalue)
     }
@@ -105,13 +117,21 @@ impl KeyPair {
     /// let recovered_pubkey = KeyPair::recover(msg, sig).unwrap();
     /// ```
     pub fn recover(message: &[u8], sig: [u8;65]) -> Result<[u8; 64], CryptoError> {
-        let recovery = RecoveryId::parse(sig[64] -27)
+        let ctx = Secp256k1::new();
+
+        let recovery = sig[64].checked_sub(27)
+            .ok_or(CryptoError::ParsingError { sig })?;
+        let recovery = RecoveryId::from_i32(recovery as i32)
             .map_err(|_| CryptoError::ParsingError { sig })?;
-        let signature = Signature::parse_slice(&sig[..64])
+
+        let recoverable_sig = RecoverableSignature::from_compact(&sig[..64], recovery)
             .map_err(|_| CryptoError::ParsingError { sig } )?;
+
         let hashed_msg = message.keccak256();
-        let signed_message = secp256k1::Message::parse(&hashed_msg);
-        let recovered_pub = secp256k1::recover(&signed_message, &signature, &recovery)
+
+        let signed_message = Message::from_slice(hashed_msg.as_ref()).map_err(|_| CryptoError::ParsingError { sig } )?;
+
+        let recovered_pub = ctx.recover(&signed_message, &recoverable_sig)
             .map_err(|_| CryptoError::RecoveryError { sig } )?;
         Ok(KeyPair::pubkey_object_to_pubkey(&recovered_pub))
     }
