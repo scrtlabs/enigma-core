@@ -29,7 +29,7 @@ pub trait EthereumAddress<T, P> {
     /// This should convert the object(by hashing and slicing) into a String type 40 characters Ethereum address.
     fn address_string(&self) -> T
     where T: Sized;
-    /// This should convert the object(by hashing and slicing) int a 20 byte Ethereum address.
+    /// This should convert the object(by hashing and slicing) into a 20 byte Ethereum address.
     fn address(&self) -> P
     where P: Sized;
 }

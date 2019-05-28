@@ -27,7 +27,7 @@ use crate::traits::SliceCPtr;
 pub use crate::types::*;
 
 /// This is a bit safer wrapper of [`core::ptr::copy_nonoverlapping`]
-/// it checks that the src len is at least as bigger as `count` otherwise it will panic.
+/// it checks that the src len is at least as big as `count` otherwise it will panic.
 /// *and* it uses [`SliceCPtr`](crate::traits::SliceCPtr) trait to pass a C compatible pointer.
 pub unsafe fn write_ptr<T>(src: &[T], dst: *mut T, count: usize) {
     if src.len() > count {

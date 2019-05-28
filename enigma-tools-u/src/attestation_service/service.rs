@@ -234,7 +234,7 @@ impl QBody {
     /// This will read the data given to it and parse it byte by byte just like the API says
     /// The exact sizes of the field in `QBody` are extremley important.
     /// also the order in which `read_exact` is executed (filed by field just like the API) is also important
-    /// because it reads the bytes sequencially.
+    /// because it reads the bytes sequentially.
     /// if the Reader is shorter or longer then the size of QBody it will return an error.
     pub fn from_bytes_read<R: Read>(body: &mut R) -> Result<QBody, Error> {
         let mut result: QBody = Default::default();
@@ -256,7 +256,7 @@ impl QBody {
 
 impl Default for QBody {
     // Using `mem::zeroed()` here should be safe because all the fields are [u8]
-    // *But* this isn't good practice. because if you add a Box/Vec or any other complex type this *will* become UB.
+    // *But* this isn't good practice. because if you add a Box/Vec or any other complex type this *will* become UB(Undefined Behavior).
     fn default() -> QBody { unsafe { mem::zeroed() } }
 }
 
@@ -264,7 +264,7 @@ impl QReportBody {
     /// This will read the data given to it and parse it byte by byte just like the API says
     /// The exact sizes of the field in `QBody` are extremley important.
     /// also the order in which `read_exact` is executed (filed by field just like the API) is also important
-    /// because it reads the bytes sequencially.
+    /// because it reads the bytes sequentially.
     /// if the Reader is shorter or longer then the size of QBody it will return an error.
     /// Overall Size: 384
     pub fn from_bytes_read<R: Read>(body: &mut R) -> Result<QReportBody, Error> {
@@ -292,7 +292,7 @@ impl QReportBody {
 
 impl Default for QReportBody {
     // Using `mem::zeroed()` here should be safe because all the fields are [u8]
-    // *But* this isn't good practice. because if you add a Box/Vec or any other complex type this *will* become UB.
+    // *But* this isn't good practice. because if you add a Box/Vec or any other complex type this *will* become UB(Undefined Behavior).
     fn default() -> QReportBody { unsafe { mem::zeroed() } }
 }
 

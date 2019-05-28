@@ -3,11 +3,11 @@
 //! Right now we use https://github.com/sorpaas/libsecp256k1-rs as a backend but this is a less common library,
 //! Meaning if we use this in testnet/mainnet we should audit that library ourself.
 //! otherwise we need to put effort into using the much audited library: https://github.com/bitcoin-core/secp256k1
-//! I put work into making the rust bindings for this library support SGX but the work isn't yet done:
-//! https://github.com/rust-bitcoin/rust-secp256k1/pull/100
-//! https://github.com/bitcoin-core/secp256k1/pull/595
-//! https://github.com/bitcoin-core/secp256k1/pull/566
-//! After these PR I think it would be possible to swap that library in instead of the current one.
+//! I put work into making the rust bindings for this library support SGX and after this PR it should be ready:
+//! https://github.com/rust-bitcoin/rust-secp256k1/pull/115
+//! After this PR I think it would be possible to swap that library in instead of the current one.
+//!
+//! Here is a PoC of how it can be done easily (and the one problem with it) https://github.com/enigmampc/enigma-core/pull/167
 
 use crate::error::CryptoError;
 use secp256k1::{PublicKey, SecretKey, SharedSecret,  RecoveryId, Signature};
@@ -43,6 +43,8 @@ impl KeyPair {
 
     /// This function will create a Pair of keys from an array of 32 bytes.
     /// Please don't use it to generate a new key, if you want a new key use `KeyPair::new()`
+    /// Because `KeyPair::new()` will make sure it uses a good random source and will loop private keys until it's a good key.
+    /// (and it's best to isolate the generation of keys to one place)
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, CryptoError> {
         let privkey = SecretKey::parse(&privkey)
             .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
@@ -74,7 +76,7 @@ impl KeyPair {
 
     /// Get the Public Key and slice the first byte
     /// The first byte represents if the key is compressed or not.
-    /// Because we always use Uncompressed Keys That's start with `0x04` we can slice it out.
+    /// Because we use uncompressed Keys That start with `0x04` we can slice it out.
     ///
     /// We should move to compressed keys in the future, this will save 31 bytes on each pubkey.
     ///
@@ -118,7 +120,7 @@ impl KeyPair {
         let v: u8 = recovery.into();
         let mut returnvalue = [0u8; 65];
         returnvalue[..64].copy_from_slice(&sig.serialize());
-        returnvalue[64] = v + 27; //
+        returnvalue[64] = v + 27;
         Ok(returnvalue)
     }
 

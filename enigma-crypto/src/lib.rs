@@ -43,7 +43,7 @@ pub use crate::asymmetric::KeyPair;
 
 
 /// This trait is to encrypt/decrypt a struct, when implemented you should use `symmetric::encrypt`.
-/// when you implement decrypt and encrypt_with_nonce you get `encrypt` for free.
+/// when you implement decrypt and encrypt_with_nonce you get `encrypt` for free(don't need to implement manually).
 /// you should only use decrypt/encrypt. `encrypt_with_nonce` is for testing purposes only.
 pub trait Encryption<T, E, R, N>
     where R: Sized, Self: Sized {

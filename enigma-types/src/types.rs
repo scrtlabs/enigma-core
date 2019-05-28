@@ -45,7 +45,7 @@ pub enum EnclaveReturn {
     // TODO: Also don't think this is needed.
     /// RecoveringError, Something failed in recovering the public key.
     RecoveringError,
-    ///PermissionError, Received a permission error from an ocall, (i.e. opening the signing keys file or somethign like that)
+    ///PermissionError, Received a permission error from an ocall, (i.e. opening the signing keys file or something like that)
     PermissionError,
     /// SgxError, Error that came from the SGX specific stuff (i.e DRAND, Sealing etc.)
     SgxError,
@@ -53,7 +53,7 @@ pub enum EnclaveReturn {
     StateError,
     /// OcallError, an error from an ocall.
     OcallError,
-    /// OcallDBError, an error from the Database in the untrusted part, could't get/save something.
+    /// OcallDBError, an error from the Database in the untrusted part, couldn't get/save something.
     OcallDBError,
     /// MessagingError, a message that received couldn't be processed (i.e. KM Message, User Key Exchange etc.)
     MessagingError,
@@ -99,7 +99,7 @@ pub struct ExecuteResult {
 }
 
 /// This struct is a wrapper to a raw pointer.
-/// when you pass a pointer through the SGX bridge(EDL) than the SGX Edger8r it copies the data that it's pointing to
+/// when you pass a pointer through the SGX bridge(EDL) the SGX Edger8r will copy the data that it's pointing to
 /// using `memalloc` and `memset` to the other side of the bridge, then it changes the pointer to point to the new data.
 ///
 /// So this struct is needed if you want to pass a pointer from one side to the other while the pointer still points to the right locaiton.
@@ -150,7 +150,7 @@ impl RawPointer {
     }
 
     /// This will unsafely cast the underlying pointer back into a mut pointer.
-    /// it will return a result and has the same rules as [`get_mut_ptr`]
+    /// it will return a result and have the same rules as [`get_mut_ptr`]
     ///
     /// [`get_mut_ptr`]: #method.get_mut_ptr
     pub unsafe fn get_mut_ref<T>(&self) -> Result<&mut T, &'static str> {
@@ -234,7 +234,7 @@ impl fmt::Display for EnclaveReturn {
 /// we want to convert  [`enigma_tools_t::common::errors::EnclaveError`](../replace_me) into [`EnclaveReturn`] to return it back through the EDL.
 /// *but* in this module we can't impl [`From`](core::convert::From) from `EnclaveError` to `EnclaveReturn` because this crate is `std` pure
 /// so it doesn't have access to `enigma_tools_t`.
-/// And we can't impelment this as `Into<EncalveReturn> for Result<(), EnclaveError>` in `enigma_tools_t`
+/// And we can't implement this as `Into<EncalveReturn> for Result<(), EnclaveError>` in `enigma_tools_t`
 /// because in rust you can't implement an imported trait(`From`/`Into`) on a type you imported (`Result`).
 ///
 /// So my solution was to declare a new trait, and to implement [`core::convert::From`] on whatever implements my trait through generics.
