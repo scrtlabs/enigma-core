@@ -1,8 +1,12 @@
-use enigma_tools_m::keeper_types::{decode, InputWorkerParams, RawEncodable};
+use core::clone::Clone;
+
+use enigma_tools_m::keeper_types::{decode, EPOCH_CAP, InputWorkerParams, RawEncodable};
+use enigma_tools_m::utils::LockExpectMutex;
 use ethereum_types::{H256, U256};
+use rustc_hex::ToHex;
 use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
-use std::{collections::HashMap, path, str, sync::SgxMutex, string::String};
+use std::{collections::HashMap, path, str, string::String, sync::SgxMutex};
 
 use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::{
@@ -14,18 +18,14 @@ use enigma_tools_t::{
     },
     document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
-use enigma_tools_m::utils::LockExpectMutex;
 use enigma_types::{ContractAddress, Hash256};
 use epoch_keeper_t::epoch_t::{Epoch, EpochMarker, EpochNonce};
 use ocalls_t;
-use rustc_hex::ToHex;
 
 use crate::SIGNING_KEY;
-use core::clone::Clone;
 
 pub mod epoch_t;
 
-const EPOCH_CAP: usize = 2;
 const INIT_NONCE: uint32_t = 0;
 const EPOCH_DIR: &str = "epoch";
 
@@ -189,10 +189,9 @@ pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, nonce: U
 
 pub mod tests {
     use ethereum_types::{H160, U256};
+    use rustc_hex::FromHex;
     use std::prelude::v1::Vec;
     use std::string::String;
-
-    use rustc_hex::FromHex;
 
     use super::*;
 

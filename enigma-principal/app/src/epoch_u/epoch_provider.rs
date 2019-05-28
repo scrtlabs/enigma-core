@@ -8,7 +8,7 @@ use std::{
 use std::clone::Clone;
 use std::sync::MutexGuard;
 
-use enigma_tools_m::keeper_types::InputWorkerParams;
+use enigma_tools_m::keeper_types::{InputWorkerParams, EPOCH_CAP};
 use ethabi::{Log, RawLog};
 use failure::Error;
 use rmp_serde::{Deserializer, Serializer};
@@ -26,8 +26,6 @@ use epoch_u::epoch_types::{ConfirmedEpochState, EPOCH_STATE_UNCONFIRMED, EpochSt
 use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
 use esgx::general::EPOCH_DIR;
 use std::mem::replace;
-
-const EPOCH_CAP: usize = 2;
 
 pub struct EpochStateManager {
     pub epoch_state_list: Mutex<Vec<EpochState>>,
