@@ -2,10 +2,7 @@ use common_u::errors;
 use failure::Error;
 use sgx_types::*;
 use std::str;
-
-extern "C" {
-    fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 20]) -> sgx_status_t;
-}
+use crate::auto_ffi::ecall_get_signing_address;
 
 // this struct is returned during the process registration back to the surface.
 // quote: the base64 encoded quote
