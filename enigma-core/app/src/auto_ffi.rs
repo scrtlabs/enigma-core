@@ -16,21 +16,21 @@ extern "C" {
     pub fn ecall_evm(
         eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, bytecode: *const u8, bytecode_len: usize, callable: *const u8,
         callable_len: usize, callable_args: *const u8, callable_args_len: usize, preprocessor: *const u8, preprocessor_len: usize,
-        callback: *const u8, callback_len: usize, output: *mut u8, signiture: *mut [u8; 65usize], result_length: *mut usize,
+        callback: *const u8, callback_len: usize, output: *mut u8, signiture: *mut [u8; 65usize], result_length: *mut u64,
     ) -> sgx_status_t;
 }
 extern "C" {
     pub fn ecall_deploy(
         eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, bytecode: *const u8, bytecode_len: usize, construct: *const u8,
-        construct_len: usize, args: *const u8, args_len: usize, address: *const ContractAddress, user_key: *mut PubKey,
+        construct_len: usize, args: *const u8, args_len: usize, address: *const ContractAddress, user_key: *mut [u8; 64usize],
         gas_limit: *const u64, db_ptr: *const RawPointer, result: *mut ExecuteResult,
     ) -> sgx_status_t;
 }
 extern "C" {
     pub fn ecall_execute(
         eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, bytecode: *const u8, bytecode_len: usize, callable: *const u8,
-        callable_len: usize, callable_args: *const u8, callable_args_len: usize, pubkey: *mut PubKey, address: *const ContractAddress,
-        gas_limit: *const u64, db_ptr: *const RawPointer, result: *mut ExecuteResult,
+        callable_len: usize, callable_args: *const u8, callable_args_len: usize, pubkey: *mut [u8; 64usize],
+        address: *const ContractAddress, gas_limit: *const u64, db_ptr: *const RawPointer, result: *mut ExecuteResult,
     ) -> sgx_status_t;
 }
 extern "C" {
@@ -52,6 +52,7 @@ extern "C" {
 }
 extern "C" {
     pub fn ecall_get_user_key(
-        eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, sig: *mut [u8; 65usize], pubkey: *mut PubKey, serialized_ptr: *mut u64,
+        eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, sig: *mut [u8; 65usize], pubkey: *mut [u8; 64usize],
+        serialized_ptr: *mut u64,
     ) -> sgx_status_t;
 }

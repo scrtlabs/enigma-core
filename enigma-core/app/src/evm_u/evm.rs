@@ -84,7 +84,7 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> Result<EvmRespo
                   &mut signature,
                   &mut result_length)
     };
-    let part = Vec::from_iter(slice[0..result_length].iter().cloned());
+    let part = Vec::from_iter(slice[0..result_length as usize].iter().cloned());
     Ok(EvmResponse { errored: retval != EnclaveReturn::Success, result: part.to_hex(), signature: signature.to_hex() })
 }
 
