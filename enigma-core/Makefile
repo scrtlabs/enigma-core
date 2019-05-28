@@ -139,7 +139,7 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 	@echo "SIGN =>  $@"
 
 .PHONY: enclave
-enclave:
+enclave: $(Enclave_EDL_Files)
 	mkdir -p ./lib
 	$(MAKE) -C ./enclave/ CARGO_FLAGS=$(App_Rust_Flags) Rust_target_dir=$(Rust_target_dir)
 
