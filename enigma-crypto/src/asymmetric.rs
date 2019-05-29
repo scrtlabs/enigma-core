@@ -1,8 +1,22 @@
+//! # Asymmetric Cryptography.
+//! This module provides an interface to generate Secp256k1 keys, sign and verify signatures. <br>
+//! Right now we use https://github.com/sorpaas/libsecp256k1-rs as a backend but this is a less common library,
+//! Meaning if we use this in testnet/mainnet we should audit that library ourself.
+//! otherwise we need to put effort into using the much audited library: https://github.com/bitcoin-core/secp256k1
+//! I put work into making the rust bindings for this library support SGX and after this PR it should be ready:
+//! https://github.com/rust-bitcoin/rust-secp256k1/pull/115
+//! After this PR I think it would be possible to swap that library in instead of the current one.
+//!
+//! Here is a PoC of how it can be done easily (and the one problem with it) https://github.com/enigmampc/enigma-core/pull/167
+
 use crate::error::CryptoError;
 use secp256k1::{PublicKey, SecretKey, SharedSecret,  RecoveryId, Signature};
 use crate::hash::Keccak256;
 use enigma_types::{DhKey, PubKey};
 
+
+/// The `KeyPair` struct is used to hold a Private and Public keys.
+/// you can use it to sign a message, to derive shared secrets(ECDH) etc.
 #[derive(Debug)]
 pub struct KeyPair {
     pubkey: PublicKey,
@@ -10,9 +24,13 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
+    /// This will generate a fresh pair of Public and Private keys.
+    /// it will use the available randomness from [crate::rand]
     #[cfg(any(feature = "sgx", feature = "std"))]
     pub fn new() -> Result<KeyPair, CryptoError> {
         use crate::rand;
+        // This loop is important to make sure that the resulting public key isn't a point in infinity(at the curve).
+        // So if the Resulting public key is bad we need to generate a new random private key and try again until it succeeds.
         loop {
             let mut me: [u8; 32] = [0; 32];
             rand::random(&mut me)?;
@@ -23,6 +41,10 @@ impl KeyPair {
         }
     }
 
+    /// This function will create a Pair of keys from an array of 32 bytes.
+    /// Please don't use it to generate a new key, if you want a new key use `KeyPair::new()`
+    /// Because `KeyPair::new()` will make sure it uses a good random source and will loop private keys until it's a good key.
+    /// (and it's best to isolate the generation of keys to one place)
     pub fn from_slice(privkey: &[u8; 32]) -> Result<KeyPair, CryptoError> {
         let privkey = SecretKey::parse(&privkey)
             .map_err(|e| CryptoError::KeyError { key_type: "Private Key", err: Some(e) })?;
@@ -31,6 +53,8 @@ impl KeyPair {
         Ok(KeyPair { privkey, pubkey })
     }
 
+    /// This function does an ECDH(point multiplication) between one's private key and the other one's public key.
+    ///
     pub fn derive_key(&self, _pubarr: &PubKey) -> Result<DhKey, CryptoError> {
         let mut pubarr: [u8; 65] = [0; 65];
         pubarr[0] = 4;
@@ -47,11 +71,14 @@ impl KeyPair {
         Ok(result)
     }
 
+    /// This will return the raw 32 bytes private key. use carefully.
     pub fn get_privkey(&self) -> [u8; 32] { self.privkey.serialize() }
 
     /// Get the Public Key and slice the first byte
     /// The first byte represents if the key is compressed or not.
-    /// Because we always use Uncompressed Keys That's start with `0x04` we can slice it out.
+    /// Because we use uncompressed Keys That start with `0x04` we can slice it out.
+    ///
+    /// We should move to compressed keys in the future, this will save 31 bytes on each pubkey.
     ///
     /// See More:
     ///     `https://tools.ietf.org/html/rfc5480#section-2.2`
@@ -80,6 +107,9 @@ impl KeyPair {
     /// 1. 32 Bytes, ECDSA `r` variable.
     /// 2. 32 Bytes ECDSA `s` variable.
     /// 3. 1 Bytes ECDSA `v` variable aligned to the right for Ethereum compatibility
+    ///
+    /// The `v` variable or so called `Recovery ID` is to tell you if the public key that's needed to verify is even or odd. <br>
+    /// Ususally that byte is just 0/1 for some reasons these are represented as 0/1 so we just add 27 to it.
     pub fn sign(&self, message: &[u8]) -> Result<[u8; 65], CryptoError> {
         let hashed_msg = message.keccak256();
         let message_to_sign = secp256k1::Message::parse(&hashed_msg);
@@ -110,9 +140,11 @@ impl KeyPair {
         let signature = Signature::parse_slice(&sig[..64])
             .map_err(|_| CryptoError::ParsingError { sig } )?;
         let hashed_msg = message.keccak256();
+
         let signed_message = secp256k1::Message::parse(&hashed_msg);
         let recovered_pub = secp256k1::recover(&signed_message, &signature, &recovery)
             .map_err(|_| CryptoError::RecoveryError { sig } )?;
+
         Ok(KeyPair::pubkey_object_to_pubkey(&recovered_pub))
     }
 

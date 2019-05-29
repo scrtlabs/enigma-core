@@ -1,21 +1,59 @@
+//! # Errors
+//! This module contains the `CryptoError` enum which is the used error type in this crate.
+//!
 use failure::Fail;
 use crate::localstd::fmt;
 
+/// This Error enum tries to give the exact explanation of the error *without* revealing any secrets.
+/// I tried to minimize the usage of cfg conditions here and have unified errors for sgx and std as much as I could.
+#[allow(missing_docs)]
 #[derive(Fail)]
 #[cfg_attr(feature = "sgx", derive(Clone))]
 pub enum CryptoError {
+    /// The `DerivingKeyError` error.
+    ///
+    /// This error means that the ECDH process failed.
     DerivingKeyError { self_key: [u8; 64], other_key: [u8; 64] },
+    /// The `MissingKeyError` error.
+    ///
+    /// This error means that a key was missing.
     MissingKeyError { key_type: &'static str },
+    /// The `DecryptionError` error.
+    ///
+    /// This error means that the symmetric decryption has failed for some reason.
     DecryptionError,
+    /// The `ImproperEncryption` error.
+    ///
+    /// This error means that the ciphertext provided was imporper.
+    /// e.g. MAC wasn't valid, missing IV etc.
     ImproperEncryption,
+    /// The `EncryptionError` error.
+    ///
+    /// This error means that the symmetric encryption has failed for some reason.
     EncryptionError,
+    /// The `SigningError` error.
+    ///
+    /// This error means that the signing process has failed for some reason.
     SigningError { hashed_msg: [u8; 32] },
+    /// The `ParsingError` error.
+    ///
+    /// This error means that the signature couldn't be parsed correctly.
     ParsingError { sig:  [u8; 65] },
+    /// The `RecoveryError` error.
+    ///
+    /// This error means that the public key can't be recovered from that message & signature.
     RecoveryError { sig: [u8; 65] },
+    /// The `KeyError` error.
+    ///
+    /// This error means that a key wasn't vaild.
+    /// e.g. PrivateKey, PubliKey, SharedSecret.
     #[cfg(feature = "asymmetric")]
     KeyError { key_type: &'static str, err: Option<secp256k1::Error> },
     #[cfg(not(feature = "asymmetric"))]
     KeyError { key_type: &'static str, err: Option<()> },
+    /// The `RandomError` error.
+    ///
+    /// This error means that the random function had failed generating randomness.
     #[cfg(feature = "std")]
     RandomError { err: rand_std::Error },
     #[cfg(feature = "sgx")]

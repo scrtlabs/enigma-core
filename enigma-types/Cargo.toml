@@ -1,3 +1,5 @@
+# I use package renaming to import 2 libraries with the same name but from different sources (1 for SGX and 1 for regular std)
+# Then in the code you can rename them back (under a cfg condition) to the same name to use abstractly.
 
 [package]
 name = "enigma-types"
@@ -16,7 +18,7 @@ serde_std = { package = "serde", version = "1.0", default-features = false, feat
 cbindgen = "0.8"
 
 [features]
-default = ["std"]
+default = ["std"] # This library should work without std if `--no-default-features` is supplied.
 std = ["serde_std/std"]
 alloc = ["serde_std/alloc"]
 sgx = ["serde_sgx"]

@@ -1,5 +1,13 @@
-use std::{fs::{self, File}, path::Path};
+//! # Enigma Core Logging.
+//!
+//! For logs we use the official `log` facade (https://github.com/rust-lang-nursery/log) <br>
+//! This module returns loggers according to the inputs (a file logger and a stdout logger) <br>
+//! they catch the logs themselves from the `log` facade. <br>
+//! Default verbosity for stdout logger is `Error` and each verbose level will increase it accordingly. <br>
+//! Default verbosity for the file logger is `Warn` and it's always one level above the stdout logger. <br>
 
+
+use std::{fs::{self, File}, path::Path};
 use failure::Error;
 use log::LevelFilter;
 use simplelog::{SharedLogger, WriteLogger};

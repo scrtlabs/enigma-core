@@ -1,3 +1,10 @@
+//! # Enigma Core CLI.
+//!
+//! We use `StructOpt` to easily generate the CLI https://github.com/TeXitoi/structopt <br>
+//! it uses rustdocs for the `--help` menu, and proc macros to get long/short and parsing methods. <br>
+//! it is used by running `let opt: Opt = Opt::from_args();` and then it will fill up the struct from the user inputs.
+//! (and of course fail if needed)
+
 use std::path::PathBuf;
 use structopt::StructOpt;
 
