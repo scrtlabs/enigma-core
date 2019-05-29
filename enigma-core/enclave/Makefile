@@ -1,3 +1,6 @@
+# Because build-dependencies and regular dependencies are mixed together it's not possible to import
+# bindgen into the enclave's build.rs (https://github.com/rust-lang/cargo/issues/2589)
+# The solution is to install the bindgen CLI in the docker and use it manually in the Makefile.
 
 Rust_Enclave_Name := libenclave.a
 Rust_Enclave_Files := $(wildcard src/*.rs)
@@ -25,6 +28,5 @@ endif
 .PHONY: bindgen
 bindgen: Enclave_t.h
 	cargo build -p enigma-types # Meant to make sure `enigma-types.h` already exists and can be included.
-	echo $(BINDGEN_RAW_LINES)
 	bindgen Enclave_t.h $(BINDGEN_FLAGS) -- $(BINDGEN_CLANG_FLAGS) > $(BINDGEN_OUTPUT_FILE)
 	rustfmt  $(BINDGEN_OUTPUT_FILE)
