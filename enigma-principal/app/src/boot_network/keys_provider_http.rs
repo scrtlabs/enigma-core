@@ -13,10 +13,10 @@ use rustc_hex::{FromHex, ToHex};
 use serde::{Deserialize, Serialize};
 
 use enigma_crypto::KeyPair;
-use enigma_types::ContractAddress;
+use enigma_types::{ContractAddress, EnclaveReturn};
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
-use common_u::errors::RequestValueErr;
+use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr};
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
@@ -125,10 +125,39 @@ impl PrincipalHttpServer {
             let request = params.parse::<StateKeyRequest>()?;
             let body = match Self::get_state_keys(epoch_provider, request) {
                 Ok(body) => body,
-                Err(err) => {
+                Err(internal_err) => {
+                    println!("Got internal error: {:?}", internal_err);
+                    if let Some(err) = internal_err.downcast_ref::<EnclaveFailError>() {
+                        let server_err = match &err.err {
+                            EnclaveReturn::WorkerAuthError => {
+                                ServerError {
+                                    code: ErrorCode::ServerError(-32001),
+                                    message: format!("Worker not authorized to request the keys: {:?}.", err),
+                                    data: None,
+                                }
+                            }
+                            _ => {
+                                ServerError {
+                                    code: ErrorCode::InternalError,
+                                    message: format!("Internal error in enclave: {:?}", err),
+                                    data: None,
+                                }
+                            }
+                        };
+                        return Err(server_err);
+                    }
+                    if let Some(err) = internal_err.downcast_ref::<EpochStateTransitionErr>() {
+                        return Err(
+                            ServerError {
+                                code: ErrorCode::ServerError(-32002),
+                                message: format!("Illegal state: {} for this request. Try again later.", err.current_state),
+                                data: None,
+                            }
+                        );
+                    }
                     return Err(ServerError {
                         code: ErrorCode::InternalError,
-                        message: format!("Unable to get keys: {}", err),
+                        message: format!("Internal error: {:?}", internal_err),
                         data: None,
                     });
                 }
