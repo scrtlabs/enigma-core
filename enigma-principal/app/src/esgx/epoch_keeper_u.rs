@@ -4,9 +4,9 @@ use rustc_hex::ToHex;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, H256, U256};
 
+use common_u::errors::EnclaveFailError;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 use epoch_u::epoch_types::{encode, EpochState};
-use common_u::errors::EnclaveFailError;
 
 extern "C" {
     fn ecall_set_worker_params(
@@ -17,15 +17,23 @@ extern "C" {
 }
 
 /// Returns an EpochState object containing the 32 bytes signed random seed and an incremented account nonce.
+/// If the `epoch_state` param is some, verify the corresponding sealed `Epoch` marker
+/// Otherwise, create a new `Epoch`
+///
+/// # Arguments
+/// * `eid` - The Enclave Id
+/// * `worker_params` - The `InputWorkerParams` to store in an `Epoch`
+/// * `epoch_state` - Optional, the existing `EpochState` to verify against sealed `Epoch` marker
+///
 /// # Examples
 /// ```
 /// let enclave = esgx::general::init_enclave().unwrap();
 /// let result = self.contract.get_active_workers(block_number)?;
 /// let worker_params: InputWorkerParams = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
-/// let sig = set_worker_params(enclave.geteid(), worker_params).unwrap();
+/// let sig = set_worker_params(enclave.geteid(), worker_params, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<EpochState>) -> Result<EpochState, Error> {
+pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<EpochState>) -> Result<EpochState, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     println!("Evaluating nonce/seed based on EpochState: {:?}", epoch_state);
     let (nonce_in, seed_in) = match epoch_state.clone() {
@@ -53,6 +61,8 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParam
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: retval, status }.into());
     }
+    // If an `EpochState` was given and the ecall succeeded, it is considered verified
+    // Otherwise, build a new `EpochState` from the parameters of the new epoch
     let epoch_state_out = match epoch_state {
         Some(epoch_state) => epoch_state,
         None => {
@@ -67,7 +77,6 @@ pub fn set_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParam
 
 #[cfg(test)]
 pub mod tests {
-    use ethabi::Uint;
     use rustc_hex::{FromHex, ToHex};
     use web3::types::{Address, H160, H256};
 
@@ -96,8 +105,25 @@ pub mod tests {
         let stakes: Vec<u64> = vec![90000000000];
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
-        let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
         assert!(epoch_state.confirmed_state.is_none());
+        enclave.destroy();
+    }
+
+    #[test]
+    fn test_set_mock_worker_params_above_cap() {
+        setup_epoch_storage();
+        let enclave = init_enclave_wrapper().unwrap();
+        let workers: Vec<[u8; 20]> = vec![
+            [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
+        ];
+        let stakes: Vec<u64> = vec![90000000000];
+        let block_number = 1;
+        let worker_params = get_worker_params(block_number, workers, stakes);
+        for i in 0..5 {
+            let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+            assert!(epoch_state.confirmed_state.is_none());
+        }
         enclave.destroy();
     }
 }

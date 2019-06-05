@@ -1,13 +1,14 @@
 use std::{
     fs::{self, File},
     io::{self, prelude::*},
-    mem,
     ops::Deref,
     path::PathBuf,
     sync::{Arc, Mutex},
 };
+use std::clone::Clone;
+use std::sync::MutexGuard;
 
-use enigma_tools_m::keeper_types::InputWorkerParams;
+use enigma_tools_m::keeper_types::{InputWorkerParams, EPOCH_CAP};
 use ethabi::{Log, RawLog};
 use failure::Error;
 use rmp_serde::{Deserializer, Serializer};
@@ -15,36 +16,33 @@ use serde::{Deserialize, Serialize};
 use sgx_types::sgx_enclave_id_t;
 use web3::types::{H256, TransactionReceipt, U256};
 
+use common_u::errors::{EpochStateIOErr, EpochStateTransitionErr, EpochStateUndefinedErr};
 use enigma_tools_u::{
     esgx::general::storage_dir,
     web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract},
 };
-use epoch_u::epoch_types::{ConfirmedEpochState, EpochState, WorkersParameterizedEvent, EPOCH_STATE_UNCONFIRMED, WORKER_PARAMETERIZED_EVENT};
-use esgx::{epoch_keeper_u::set_worker_params, general::ENCLAVE_DIR};
-use esgx::general::EPOCH_DIR;
-use common_u::errors::{EpochStateIOErr, EpochStateTransitionErr, EpochStateUndefinedErr};
 use enigma_tools_u::common_u::errors::Web3Error;
+use epoch_u::epoch_types::{ConfirmedEpochState, EPOCH_STATE_UNCONFIRMED, EpochState, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
+use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
+use esgx::general::EPOCH_DIR;
+use std::mem::replace;
 
-pub struct EpochProvider {
-    pub contract: Arc<EnigmaContract>,
-    pub epoch_state: Arc<Mutex<Option<EpochState>>>,
-    pub eid: Arc<sgx_enclave_id_t>,
+pub struct EpochStateManager {
+    pub epoch_state_list: Mutex<Vec<EpochState>>,
+    pub cap: usize,
 }
 
-impl EpochProvider {
-    pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
-        let epoch_state_val = Self::read_epoch_state()?;
-        let epoch_state = Arc::new(Mutex::new(epoch_state_val.clone()));
-        let epoch_provider = Self { contract, epoch_state, eid };
-        if epoch_state_val.is_some() {
-            epoch_provider.verify_worker_params()?;
-        }
-        Ok(epoch_provider)
+impl EpochStateManager {
+    pub fn new(cap: usize) -> Result<Self, Error> {
+        let epoch_state_val = Self::read_from_file(cap)?;
+        let epoch_state_list = Mutex::new(epoch_state_val.clone());
+        Ok(Self { epoch_state_list, cap })
     }
 
-    fn get_state_file_path() -> Result<PathBuf, Error> {
+    fn get_file_path() -> Result<PathBuf, Error> {
         let mut path = storage_dir(ENCLAVE_DIR)?;
-        match fs::create_dir(&path) {
+        path.push(EPOCH_DIR);
+        match fs::create_dir_all(&path) {
             Ok(_) => (),
             Err(e) => match e.kind() {
                 io::ErrorKind::AlreadyExists => (),
@@ -56,47 +54,218 @@ impl EpochProvider {
     }
 
     #[logfn(DEBUG)]
-    pub fn read_epoch_state() -> Result<Option<EpochState>, Error> {
-        let epoch_state = match File::open(Self::get_state_file_path()?) {
+    fn read_from_file(cap: usize) -> Result<Vec<EpochState>, Error> {
+        let epoch_state = match File::open(Self::get_file_path()?) {
             Ok(mut f) => {
                 let mut buf = Vec::new();
                 f.read_to_end(&mut buf)?;
                 let mut des = Deserializer::new(&buf[..]);
-                let epoch_state: Option<EpochState> = match Deserialize::deserialize(&mut des) {
-                    Ok(value) => Some(value),
-                    Err(err) => {
-                        eprintln!("Unable to read block state file: {:?}", err);
-                        None
-                    }
-                };
-                epoch_state
+                let mut data: Vec<EpochState> = Deserialize::deserialize(&mut des).unwrap_or_default();
+                println!("Found EpochState list: {:?}", data);
+                if cap < data.len() {
+                    return Err(EpochStateIOErr { message: format!("The EpochState entries exceed the cap: {}", cap) }.into());
+                }
+                let mut capped_data = Vec::with_capacity(cap);
+                capped_data.append(&mut data);
+                capped_data
             }
             Err(_) => {
                 println!("No existing epoch state, starting with block 0");
-                None
+                vec![]
             }
         };
         Ok(epoch_state)
     }
 
     #[logfn(DEBUG)]
-    fn write_epoch_state(epoch_state: Option<EpochState>) -> Result<(), Error> {
-        let path = Self::get_state_file_path()?;
-        match epoch_state {
-            Some(epoch_state) => {
-                let mut file = File::create(path)?;
-                let mut buf = Vec::new();
-                epoch_state.serialize(&mut Serializer::new(&mut buf))?;
-                file.write_all(&buf)?;
-            }
+    fn write_to_file(epoch_state: Vec<EpochState>) -> Result<(), Error> {
+        let path = Self::get_file_path()?;
+        if epoch_state.is_empty() {
+            return Ok(fs::remove_file(path).unwrap_or_else(|_| println!("No epoch state file to remove")));
+        }
+        let mut file = File::create(path)?;
+        let mut buf = Vec::new();
+        epoch_state.serialize(&mut Serializer::new(&mut buf))?;
+        file.write_all(&buf)?;
+        Ok(())
+    }
+
+    /// Lock the `EpochState` list `Mutex`, or wait and retry
+    pub fn lock_guard_or_wait(&self) -> Result<MutexGuard<Vec<EpochState>>, Error> {
+        // TODO: retry if locked
+        let guard = match self.epoch_state_list.try_lock() {
+            Ok(guard) => guard,
+            Err(err) => return Err(EpochStateIOErr {
+                message: format!("Cannot lock EpochState: {:?}", err),
+            }.into()),
+        };
+        Ok(guard)
+    }
+
+    /// Checks if the latest `EpochState` is unconfirmed
+    fn is_last_unconfirmed(&self) -> Result<bool, Error> {
+        let guard = self.lock_guard_or_wait()?;
+        if guard.is_empty() {
+            drop(guard);
+            return Ok(false);
+        }
+        let last = guard.iter().last();
+        //TODO: why borrow checker fails here
+//        mem::drop(guard);
+        let epoch_state = match last {
+            Some(epoch_state) => epoch_state,
             None => {
-                match fs::remove_file(path) {
-                    Ok(res) => println!("Epoch state file removed: {:?}", res),
-                    Err(_err) => eprintln!("No epoch state file to remove"),
-                }
+                return Err(EpochStateUndefinedErr {}.into());
             }
         };
-        Ok(())
+        let is_unconfirmed = match &epoch_state.confirmed_state {
+            Some(_) => false,
+            None => true,
+        };
+        Ok(is_unconfirmed)
+    }
+
+    /// Return a list of all confirmed `EpochState`
+    pub fn get_all_confirmed(&self) -> Result<Vec<EpochState>, Error> {
+        let guard = self.lock_guard_or_wait()?;
+        let mut result: Vec<EpochState> = vec![];
+        for epoch_state in guard.iter() {
+            if epoch_state.confirmed_state.is_some() {
+                result.push(epoch_state.clone());
+            }
+        }
+        Ok(result)
+    }
+
+    /// Returns the confirmed `EpochState` for the epoch of the block number
+    /// # Arguments
+    ///
+    /// * `block_number` - A block number in the desired epoch
+    pub fn get_confirmed_by_block_number(&self, block_number: U256) -> Result<EpochState, Error> {
+        let mut result: Option<&EpochState> = None;
+        let epoch_states = self.get_all_confirmed()?;
+        for epoch_state in epoch_states.iter() {
+            let confirmed: &ConfirmedEpochState = epoch_state.confirmed_state.as_ref().unwrap();
+            if confirmed.block_number <= block_number {
+                result = Some(epoch_state);
+            }
+        }
+        match result {
+            Some(epoch_state) => Ok(epoch_state.clone()),
+            None => {
+                Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into())
+            }
+        }
+    }
+
+    /// Returns the most recent `EpochState` stored in memory
+    /// # Arguments
+    ///
+    /// * `exclude_unconfirmed` - Exclude any unconfirmed state
+    pub fn last(&self, exclude_unconfirmed: bool) -> Result<EpochState, Error> {
+        let guard = self.lock_guard_or_wait()?;
+        let mut epoch_state_val: Option<EpochState> = None;
+        for epoch_state in guard.iter().rev() {
+            if (exclude_unconfirmed && epoch_state.confirmed_state.is_some()) || !exclude_unconfirmed {
+                epoch_state_val = Some(epoch_state.clone());
+                break;
+            }
+        }
+        drop(guard);
+        Ok(epoch_state_val.ok_or(EpochStateUndefinedErr{})?)
+    }
+
+    #[logfn(DEBUG)]
+    fn save(&self) -> Result<(), Error> {
+        let guard = self.lock_guard_or_wait()?;
+        let epoch_state_list = guard.deref().clone();
+        drop(guard);
+        println!("Saving EpochState list to disk: {:?}", epoch_state_list);
+        match Self::write_to_file(epoch_state_list) {
+            Ok(_) => {
+                println!("Saved EpochState list: {:?}", EpochStateManager::get_file_path());
+                Ok(())
+            }
+            Err(err) => Err(EpochStateIOErr {
+                message: format!("Unable to write the EpochState list: {:?}", err),
+            }.into()),
+        }
+    }
+
+    /// Empty the `EpochState` list both in memory and to disk
+    pub fn reset(&self) -> Result<(), Error> {
+        let mut guard = self.lock_guard_or_wait()?;
+        replace(&mut *guard, vec![]);
+        drop(guard);
+        self.save()
+    }
+
+    /// Append a new unconfirmed `EpochState` to the list and persist to disk
+    /// # Arguments
+    ///
+    /// * `epoch_state` - The unconfirmed `EpochState` to append
+    pub fn append_unconfirmed(&self, epoch_state: EpochState) -> Result<(), Error> {
+        if self.is_last_unconfirmed()? {
+            bail!("An unconfirmed EpochState must be appended after a confirmed");
+        }
+        let mut guard = self.lock_guard_or_wait()?;
+        // Remove the first item of the list an shift left if the capacity is reached
+        if guard.len() == self.cap {
+            let epoch_state = guard.remove(0);
+            println!("Removed first EpochState of capped list: {:?}", epoch_state);
+        }
+        guard.push(epoch_state);
+        drop(guard);
+        self.save()
+    }
+
+    /// Confirm the last unconfirmed `EpochState`
+    /// # Arguments
+    ///
+    /// * `epoch_state` - The confirmed `EpochState`
+    pub fn confirm_last(&self, epoch_state: EpochState) -> Result<(), Error> {
+        let mut guard = self.lock_guard_or_wait()?;
+        if let Some(last) = guard.last_mut() {
+            if last.confirmed_state.is_some() {
+                bail!("Last EpochState already confirmed: {:?}", last);
+            }
+            *last = epoch_state;
+        } else {
+            bail!("Cannot confirm the last EpochState of an empty list");
+        }
+        drop(guard);
+        self.save()
+    }
+}
+
+pub struct EpochProvider {
+    pub contract: Arc<EnigmaContract>,
+    pub epoch_state_manager: Arc<EpochStateManager>,
+    pub eid: Arc<sgx_enclave_id_t>,
+}
+
+impl EpochProvider {
+    pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
+        let epoch_state_manager = Arc::new(EpochStateManager::new(EPOCH_CAP)?);
+        let epoch_provider = Self { contract, epoch_state_manager, eid };
+        epoch_provider.verify_worker_params()?;
+        Ok(epoch_provider)
+    }
+
+    /// Find confirmed `EpochState` by block number
+    /// # Arguments
+    ///
+    /// * `block_number` - A block number in the desired epoch
+    pub fn find_epoch(&self, block_number: U256) -> Result<EpochState, Error> {
+        self.epoch_state_manager.get_confirmed_by_block_number(block_number)
+    }
+
+    /// Find the last confirmed `EpochState`
+    pub fn find_last_epoch(&self) -> Result<EpochState, Error> {
+        if self.epoch_state_manager.is_last_unconfirmed()? {
+            return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into());
+        }
+        self.epoch_state_manager.last(true)
     }
 
     #[logfn(DEBUG)]
@@ -114,88 +283,16 @@ impl EpochProvider {
         Ok(result)
     }
 
-    /// Returns the `EpochState` stored in memory
-    pub fn get_state(&self) -> Result<EpochState, Error> {
-        let guard = match self.epoch_state.try_lock() {
-            Ok(guard) => guard,
-            Err(err) => return Err(EpochStateIOErr {
-                message: format!("Cannot lock EpochState: {:?}", err),
-            }.into()),
-        };
-        let epoch_state = match guard.deref() {
-            Some(epoch_state) => epoch_state.clone(),
-            None => return Err(EpochStateUndefinedErr {}.into()),
-        };
-        mem::drop(guard);
-        Ok(epoch_state)
-    }
-
-    /// Reset the `EpochState` stores in memory
-    pub fn reset_epoch_state(&self) -> Result<(), Error> {
-        self.set_or_clear_epoch_state(None)
-    }
-
-    fn set_epoch_state(&self, epoch_state: EpochState) -> Result<(), Error> {
-        self.set_or_clear_epoch_state(Some(epoch_state))
-    }
-
-    #[logfn(DEBUG)]
-    fn set_or_clear_epoch_state(&self, epoch_state: Option<EpochState>) -> Result<(), Error> {
-        println!("Replacing EpochState mutex: {:?}", epoch_state);
-        let mut guard = match self.epoch_state.try_lock() {
-            Ok(guard) => guard,
-            Err(err) => return Err(EpochStateIOErr {
-                message: format!("Cannot lock EpochState: {:?}", err),
-            }.into()),
-        };
-        let prev = mem::replace(&mut *guard, epoch_state.clone());
-        println!("Replaced EpochState: {:?} with: {:?}", prev, epoch_state);
-        mem::drop(guard);
-        match Self::write_epoch_state(epoch_state) {
-            Ok(_) => println!("Stored the Epoch Marker to disk"),
-            Err(err) => return Err(EpochStateIOErr {
-                message: format!("Unable to write the EpochState: {:?}", err),
-            }.into()),
-        };
-        Ok(())
-    }
-
-    /// Get the confirmed state if available. Bail if not.
-    /// The confirmed state contains the selected worker cache.
-    #[logfn(DEBUG)]
-    pub fn get_confirmed(&self) -> Result<ConfirmedEpochState, Error> {
-        let guard = match self.epoch_state.try_lock() {
-            Ok(guard) => guard,
-            Err(err) => return Err(EpochStateIOErr {
-                message: format!("Cannot lock EpochState: {:?}", err),
-            }.into()),
-        };
-        let confirmed_state = match guard.deref() {
-            Some(epoch_state) => match &epoch_state.confirmed_state {
-                Some(confirmed_state) => confirmed_state.clone(),
-                None => return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into()),
-            },
-            None => return Err(EpochStateUndefinedErr {}.into()),
-        };
-        mem::drop(guard);
-        Ok(confirmed_state)
-    }
-
     #[logfn(DEBUG)]
     fn verify_worker_params(&self) -> Result<(), Error> {
-        let epoch_state = self.get_state()?;
-        println!("Verifying existing epoch state in the enclave: {:?}", epoch_state);
-        match self.get_confirmed() {
-            Ok(confirmed) => {
+        for epoch_state in self.epoch_state_manager.get_all_confirmed()?.iter() {
+            if let Some(confirmed) = &epoch_state.confirmed_state {
                 let block_number = confirmed.block_number;
                 let (workers, stakes) = self.contract.get_active_workers(block_number)?;
                 let worker_params = InputWorkerParams { block_number, workers, stakes };
-                set_worker_params(*self.eid, &worker_params, Some(epoch_state))?;
+                set_or_verify_worker_params(*self.eid, &worker_params, Some(epoch_state.clone()))?;
             }
-            Err(_) => {
-                println!("Skipping verification of unconfirmed EpochState.");
-            }
-        };
+        }
         Ok(())
     }
 
@@ -230,7 +327,10 @@ impl EpochProvider {
     /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
     #[logfn(DEBUG)]
     pub fn confirm_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
-        let epoch_state = self.get_state()?;
+        if !self.epoch_state_manager.is_last_unconfirmed()? {
+            bail!("The last EpochState is already confirmed");
+        }
+        let epoch_state = self.epoch_state_manager.last(false)?;
         println!("Confirming EpochState by verifying with the enclave and calling setWorkerParams: {:?}", epoch_state);
         self.set_worker_params_internal(block_number, gas_limit, confirmations, Some(epoch_state))
     }
@@ -239,9 +339,9 @@ impl EpochProvider {
     fn set_worker_params_internal<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize, epoch_state: Option<EpochState>) -> Result<H256, Error> {
         let result = self.contract.get_active_workers(block_number)?;
         let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
-        let mut epoch_state = set_worker_params(*self.eid, &worker_params, epoch_state)?;
+        let mut epoch_state = set_or_verify_worker_params(*self.eid, &worker_params, epoch_state)?;
         println!("Storing unconfirmed EpochState: {:?}", epoch_state);
-        self.set_epoch_state(epoch_state.clone())?;
+        self.epoch_state_manager.append_unconfirmed(epoch_state.clone())?;
         println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
         let receipt = self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
         println!("Got the receipt: {:?}", receipt);
@@ -251,7 +351,7 @@ impl EpochProvider {
                 let block_number = param.value.to_uint().unwrap();
                 self.confirm_epoch(&mut epoch_state, block_number, worker_params)?;
                 println!("Storing confirmed EpochState: {:?}", epoch_state);
-                self.set_epoch_state(epoch_state)?;
+                self.epoch_state_manager.confirm_last(epoch_state)?;
                 Ok(receipt.transaction_hash)
             }
             None => return Err(Web3Error { message: "firstBlockNumber not found in receipt log".to_string() }.into()),
@@ -283,7 +383,6 @@ pub mod test {
 
     use web3::types::{Bytes, H160};
 
-    use enigma_crypto::KeyPair;
     use enigma_tools_u::{esgx::general::storage_dir};
     use enigma_types::ContractAddress;
 
@@ -311,10 +410,10 @@ pub mod test {
         let sig = Bytes::from(mock_sig.to_vec());
         let nonce = U256::from(0);
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
-        EpochProvider::write_epoch_state(Some(epoch_state.clone())).unwrap();
+        EpochStateManager::write_to_file(vec![epoch_state.clone()]).unwrap();
 
         // TODO: This could fail if another test deleted the epoch files exactly here, give unique name
-        let saved_epoch_state = EpochProvider::read_epoch_state().unwrap();
-        assert_eq!(format!("{:?}", saved_epoch_state.unwrap()), format!("{:?}", epoch_state));
+        let saved_epoch_state = EpochStateManager::read_from_file(1).unwrap();
+        assert_eq!(format!("{:?}", saved_epoch_state[0]), format!("{:?}", epoch_state));
     }
 }
