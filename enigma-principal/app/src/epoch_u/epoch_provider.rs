@@ -92,8 +92,7 @@ impl EpochStateManager {
 
     /// Lock the `EpochState` list `Mutex`, or wait and retry
     pub fn lock_guard_or_wait(&self) -> Result<MutexGuard<Vec<EpochState>>, Error> {
-        // TODO: retry if locked
-        let guard = match self.epoch_state_list.try_lock() {
+        let guard = match self.epoch_state_list.lock() {
             Ok(guard) => guard,
             Err(err) => return Err(EpochStateIOErr {
                 message: format!("Cannot lock EpochState: {:?}", err),
