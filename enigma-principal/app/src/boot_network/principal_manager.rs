@@ -219,7 +219,7 @@ impl Sampler for PrincipalManager {
         let eid: Arc<sgx_enclave_id_t> = Arc::new(self.eid);
         let epoch_provider = Arc::new(EpochProvider::new(eid, self.contract.clone())?);
         if reset_epoch {
-            epoch_provider.reset_epoch_state()?;
+            epoch_provider.epoch_state_manager.reset()?;
         }
 
         // Start the JSON-RPC Server
@@ -272,6 +272,7 @@ mod test {
 
     use super::*;
 
+    const GAS_LIMIT: usize = 5999999;
     /// This function is important to enable testing both on the CI server and local.
         /// On the CI Side:
         /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
@@ -322,7 +323,7 @@ mod test {
         let block_number = principal.get_block_number().unwrap();
         let eid_safe = Arc::new(eid);
         let epoch_provider = EpochProvider::new(eid_safe, principal.contract.clone()).unwrap();
-        epoch_provider.reset_epoch_state().unwrap();
+        epoch_provider.epoch_state_manager.reset().unwrap();
         epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();
     }
 
@@ -370,7 +371,7 @@ mod test {
         });
 
         // run principal
-        principal.run(true, 5999999).unwrap();
+        principal.run(true, GAS_LIMIT).unwrap();
         child.join().unwrap();
     }
 }

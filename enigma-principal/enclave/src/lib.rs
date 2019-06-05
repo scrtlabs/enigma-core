@@ -24,7 +24,7 @@ extern crate sgx_types;
 extern crate rustc_hex;
 
 use enigma_tools_m::utils::EthereumAddress;
-use sgx_types::{sgx_report_t, sgx_status_t, sgx_target_info_t};
+use sgx_types::{sgx_report_t, sgx_status_t, sgx_target_info_t, uint8_t};
 use std::{mem, slice};
 
 use enigma_crypto::asymmetric;
@@ -79,10 +79,11 @@ pub unsafe extern "C" fn ecall_set_worker_params(worker_params_rlp: *const u8, w
 #[no_mangle]
 pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize,
                                                   addrs: *const u8, addrs_len: usize, sig: &[u8; 65],
-                                                  serialized_ptr: *mut u64, sig_out: &mut [u8; 65]) -> EnclaveReturn {
+                                                  epoch_nonce: &[u8; 32], serialized_ptr: *mut u64,
+                                                  sig_out: &mut [u8; 65]) -> EnclaveReturn {
     let msg_bytes = slice::from_raw_parts(msg, msg_len);
     let addrs_bytes = slice::from_raw_parts(addrs as *const ContractAddress, addrs_len / mem::size_of::<ContractAddress>()).to_vec();
-    let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, sig_out) {
+    let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, *epoch_nonce, sig_out) {
         Ok(response) => response,
         Err(err) => {
             println!("get_enc_state_keys error: {:?}", err);

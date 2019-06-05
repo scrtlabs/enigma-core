@@ -17,6 +17,8 @@ use enigma_types::ContractAddress;
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
 use common_u::errors::RequestValueErr;
+use web3::types::U256;
+use std::convert::AsRef;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 
@@ -46,10 +48,28 @@ impl TryInto<[u8; 65]> for StringWrapper {
     }
 }
 
+impl TryInto<U256> for StringWrapper {
+    type Error = Error;
+
+    fn try_into(self) -> Result<U256, Self::Error> {
+        let bytes = self.0.from_hex()?;
+        if bytes.len() != 32 {
+            return Err(RequestValueErr {
+                request: METHOD_GET_STATE_KEYS.to_string(),
+                message: "Cannot create a 32 bytes array from mismatching size slice.".to_string(),
+            }.into());
+        }
+        let mut slice: [u8; 32] = [0; 32];
+        slice.copy_from_slice(&bytes);
+        Ok(U256::from(slice.as_ref()))
+    }
+}
+
 #[derive(Deserialize, Debug, Clone)]
 pub struct StateKeyRequest {
     pub data: StringWrapper,
     pub sig: StringWrapper,
+    pub block_number: Option<StringWrapper>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -91,17 +111,20 @@ impl PrincipalHttpServer {
     #[logfn(DEBUG)]
     pub fn get_state_keys(epoch_provider: Arc<EpochProvider>, request: StateKeyRequest) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
+        let epoch_state = match request.block_number.clone() {
+            Some(block_number) => epoch_provider.find_epoch(block_number.try_into()?)?,
+            None => epoch_provider.find_last_epoch()?,
+        };
         let msg = PrincipalMessage::from_message(&request.get_data()?)?;
         let response = match msg.data {
             PrincipalMessageType::Request(Some(addrs)) => {
                 println!("Found addresses in message: {:?}", addrs);
-                get_enc_state_keys(*epoch_provider.eid, request, None)?
+                get_enc_state_keys(*epoch_provider.eid, request, epoch_state.nonce, None)?
             }
             PrincipalMessageType::Request(None) => {
                 println!("No addresses in message, reading from epoch state...");
-                let epoch_state = epoch_provider.get_state()?;
                 let epoch_addrs = Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?;
-                get_enc_state_keys(*epoch_provider.eid, request, Some(&epoch_addrs))?
+                get_enc_state_keys(*epoch_provider.eid, request, epoch_state.nonce, Some(&epoch_addrs))?
             }
             _ => return Err(RequestValueErr {
                 request: METHOD_GET_STATE_KEYS.to_string(),
@@ -159,7 +182,7 @@ mod test {
     use enigma_types::ContractAddress;
     use epoch_u::epoch_provider::test::setup_epoch_storage;
     use epoch_u::epoch_types::ConfirmedEpochState;
-    use esgx::epoch_keeper_u::set_worker_params;
+    use esgx::epoch_keeper_u::set_or_verify_worker_params;
     use esgx::epoch_keeper_u::tests::get_worker_params;
     use esgx::general::init_enclave_wrapper;
 
@@ -176,24 +199,25 @@ mod test {
     pub fn test_jsonrpc_get_state_keys() {
         setup_epoch_storage();
         let enclave = init_enclave_wrapper().unwrap();
+        let workers: Vec<[u8; 20]> = vec![REF_WORKER];
+        let stakes: Vec<u64> = vec![10000000000];
+        let block_number = 1;
+        let worker_params = get_worker_params(block_number, workers, stakes);
+        let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
         let rpc = {
             let mut io = IoHandler::new();
             let eid = enclave.geteid();
             io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
                 let request = params.parse::<StateKeyRequest>().unwrap();
-                let response = get_enc_state_keys(eid, request, None).unwrap();
+                println!("Calling get_enc_state_keys");
+                let response = get_enc_state_keys(eid, request, epoch_state.nonce, None).unwrap();
                 let response_data = serde_json::to_value(&response).unwrap();
                 Ok(response_data)
             });
             test::Rpc::from(io)
         };
-        let workers: Vec<[u8; 20]> = vec![REF_WORKER];
-        let stakes: Vec<u64> = vec![10000000000];
-        let block_number = 1;
-        let worker_params = get_worker_params(block_number, workers, stakes);
-        let epoch_state = set_worker_params(enclave.geteid(), &worker_params, None).unwrap();
         for i in 0..5 {
-            let response = rpc.request(METHOD_GET_STATE_KEYS, &(REF_MSG, REF_SIG));
+            let response = rpc.request(METHOD_GET_STATE_KEYS, &(REF_MSG, REF_SIG, Value::Null));
             assert!(response.contains(REF_RESPONSE));
         }
         enclave.destroy();
@@ -202,7 +226,7 @@ mod test {
     #[test]
     pub fn test_find_epoch_contract_addresses() {
         let msg = REF_MSG.from_hex().unwrap();
-        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(REF_SIG.to_string()) };
+        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(REF_SIG.to_string()), block_number: None };
         let address = ContractAddress::from(REF_CONTRACT_ADDR);
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
         selected_workers.insert(address, H160(REF_WORKER));

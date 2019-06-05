@@ -1,8 +1,12 @@
-use enigma_tools_m::keeper_types::{decode, InputWorkerParams, RawEncodable};
+use core::clone::Clone;
+
+use enigma_tools_m::keeper_types::{decode, EPOCH_CAP, InputWorkerParams, RawEncodable};
+use enigma_tools_m::utils::LockExpectMutex;
 use ethereum_types::{H256, U256};
+use rustc_hex::ToHex;
 use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
-use std::{collections::HashMap, path, str, sync::SgxMutex, string::String};
+use std::{collections::HashMap, path, str, string::String, sync::SgxMutex};
 
 use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::{
@@ -14,11 +18,9 @@ use enigma_tools_t::{
     },
     document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
-use enigma_tools_m::utils::LockExpectMutex;
 use enigma_types::{ContractAddress, Hash256};
 use epoch_keeper_t::epoch_t::{Epoch, EpochMarker, EpochNonce};
 use ocalls_t;
-use rustc_hex::ToHex;
 
 use crate::SIGNING_KEY;
 
@@ -39,10 +41,14 @@ fn get_epoch_root_path() -> path::PathBuf {
     path_buf
 }
 
-fn get_epoch_marker_path() -> path::PathBuf { get_epoch_root_path().join("epoch-marker.sealed") }
+fn get_epoch_marker_path(nonce: U256) -> path::PathBuf {
+    let path = format!("epoch-marker-{:?}.sealed", nonce);
+    get_epoch_root_path().join(&path)
+}
 
-fn get_epoch_marker() -> Result<Option<(U256, Hash256)>, EnclaveError> {
-    let path = get_epoch_marker_path();
+/// Get the epoch marker value of H(`Epoch`)
+fn get_epoch_marker(nonce: U256) -> Result<Option<Hash256>, EnclaveError> {
+    let path = get_epoch_marker_path(nonce);
     if !is_document(&path) {
         debug_println!("Sealed epoch marker not found in path: {:?}", path);
         return Ok(None);
@@ -51,7 +57,7 @@ fn get_epoch_marker() -> Result<Option<(U256, Hash256)>, EnclaveError> {
     let mut sealed_log_out = [0u8; SEAL_LOG_SIZE];
     load_sealed_document(&path, &mut sealed_log_out)?;
     let doc = SealedDocumentStorage::<EpochMarker>::unseal(&mut sealed_log_out)?;
-    let marker: Option<(U256, Hash256)> = match doc {
+    let marker: Option<Hash256> = match doc {
         Some(doc) => {
             let marker = doc.data;
             debug_println!("Found epoch marker: {:?}", marker.to_vec());
@@ -60,7 +66,7 @@ fn get_epoch_marker() -> Result<Option<(U256, Hash256)>, EnclaveError> {
             let mut hash: [u8; 32] = [0; 32];
             hash.copy_from_slice(&marker[32..]);
             debug_println!("Split marker into nonce / hash: {:?} {:?}", nonce.to_vec(), hash.to_vec());
-            Some((nonce.into(), hash.into()))
+            Some(hash.into())
         }
         _ => {
             debug_println!("Sealed epoch marker is empty");
@@ -72,19 +78,14 @@ fn get_epoch_marker() -> Result<Option<(U256, Hash256)>, EnclaveError> {
     Ok(marker)
 }
 
-fn get_current_epoch(epoch_map: &HashMap<U256, Epoch>) -> Result<Epoch, EnclaveError> {
-    let epoch = match epoch_map.keys().max() {
-        Some(nonce) => epoch_map.get(&nonce).unwrap().clone(),
-        None => {
-            return Err(SystemError(WorkerAuthError {
-                err: format!("Epoch cache is empty"),
-            }));
-        }
-    };
-    Ok(epoch)
+fn get_epoch_from_cache(epoch_map: &HashMap<U256, Epoch>, nonce: U256) -> Result<Epoch, EnclaveError> {
+    match epoch_map.get(&nonce) {
+        Some(epoch) => Ok(epoch.clone()),
+        None => Err(SystemError(WorkerAuthError { err: format!("Epoch nonce {:?} not found in cache.", nonce) })),
+    }
 }
 
-/// Creates new epoch both in the cache and as sealed documents
+/// Store the new `Epoch` as a sealed marker
 fn store_epoch(epoch: Epoch) -> Result<(), EnclaveError> {
     let hash: [u8; 32] = epoch.raw_encode().keccak256().into();
     let nonce = epoch.nonce.clone();
@@ -99,7 +100,7 @@ fn store_epoch(epoch: Epoch) -> Result<(), EnclaveError> {
     let mut sealed_log_in = [0u8; SEAL_LOG_SIZE];
     marker_doc.seal(&mut sealed_log_in)?;
     // Save sealed_log to file
-    let marker_path = get_epoch_marker_path();
+    let marker_path = get_epoch_marker_path(nonce);
     save_sealed_document(&marker_path, &sealed_log_in)?;
     debug_println!("Sealed the epoch marker: {:?}", marker_path);
     Ok(())
@@ -110,39 +111,40 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
                                                sig_out: &mut [u8; 65]) -> Result<(), EnclaveError> {
     // RLP decoding the necessary data
     let worker_params: InputWorkerParams = decode(worker_params_rlp);
-    let marker = get_epoch_marker()?;
-    debug_println!("Marker {:?} / raw seed {:?} / raw nonce {:?}", marker, seed_in.to_vec(), nonce_in.to_vec());
     const EMPTY_SLICE: [u8; 32] = [0; 32];
-    let existing_epoch = match marker {
-        Some((marker_nonce, marker_hash)) if seed_in != &EMPTY_SLICE => {
-            debug_println!("Verifying given parameters against the marker");
-            let seed = U256::from(seed_in.as_ref());
-            let nonce = U256::from(nonce_in.as_ref());
+    let mut existing_epoch: Option<Epoch> = None;
+    // If the seed input is not an empty slice, recover an `Epoch` from the sealed marker
+    // Verifying the seed only because a nonce input of 0 is also an empty slice
+    if seed_in != &EMPTY_SLICE {
+        let seed = U256::from(seed_in.as_ref());
+        let nonce = U256::from(nonce_in.as_ref());
+        // Get the epoch marker values (nonce + H(`Epoch`) fr
+        if let Some(marker_hash) = get_epoch_marker(nonce)? {
             let worker_params = worker_params.clone();
             let epoch = Epoch { nonce, seed, worker_params };
             debug_println!("Verifying epoch: {:?}", epoch);
             let hash = epoch.raw_encode().keccak256();
             if hash != marker_hash {
-                debug_println!("Given epoch nonce {:?} do not match the marker {:?}: {:?}", nonce, marker_nonce, marker_hash);
                 return Err(SystemError(WorkerAuthError {
-                    err: format!("Given epoch parameters {:?} do not match the marker {:?}: {:?}", nonce, marker_nonce, marker_hash),
+                    err: format!("Given epoch parameters {:?} do not match the marker's epoch hash {:?}", nonce, marker_hash),
                 }));
             }
             debug_println!("Epoch verified against the marker successfully");
-            Some(epoch)
-        }
-        None if seed_in != &EMPTY_SLICE => {
+            existing_epoch = Some(epoch);
+        } else {
             return Err(SystemError(WorkerAuthError {
-                err: format!("Cannot verify given parameters without a sealed marker"),
+                err: format!("Epoch marker requested but not found for nonce {:?}", nonce),
             }));
         }
-        _ => None
-    };
+    }
+    let mut guard = EPOCH.lock_expect("Epoch");
+    // If no seed/nonce inputs were provided, create a new epoch
     let epoch = match existing_epoch {
         Some(epoch) => epoch,
         None => {
-            let nonce = match marker {
-                Some((nonce, _)) => nonce + 1,
+            // If the `Epoch` cache is not empty, increment the last nonce by 1
+            let nonce = match guard.keys().max() {
+                Some(nonce) => nonce + 1,
                 None => INIT_NONCE.into(),
             };
             debug_println!("Creating new epoch with nonce {:?}", nonce);
@@ -155,8 +157,17 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
             epoch
         }
     };
-    debug_println!("Storing epoch in cache: {:?}", epoch);
-    let mut guard = EPOCH.lock_expect("Epoch");
+    debug_println!("Inserting epoch: {:?} in cache", epoch);
+    // Removing the first item (lower nonce) from the cache if capacity is reached
+    if guard.len() == EPOCH_CAP {
+        // Safe to unwrap because we just verified the size of the `HashMap`
+        // Cloning because I couldn't mutably borrow the key enough to satisfy the borrow checker
+        let key = guard.keys().min().unwrap().clone();
+        if let Some(removed_epoch) = guard.remove(&key) {
+           debug_println!("Cache reached its capacity of {}, removed first epoch: {:?}", EPOCH_CAP, removed_epoch);
+        }
+    }
+    // Add the `Epoch` to the epoch cache regardless of weather it was created or recovered from a sealed marker
     match guard.insert(epoch.nonce.clone(), epoch.clone()) {
         Some(prev) => debug_println!("New epoch stored successfully"),
         None => debug_println!("Initial epoch stored successfully"),
@@ -167,9 +178,9 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     Ok(())
 }
 
-pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress) -> Result<[u8; 20], EnclaveError> {
+pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, nonce: U256) -> Result<[u8; 20], EnclaveError> {
     let guard = EPOCH.lock_expect("Epoch");
-    let epoch = get_current_epoch(&guard)?;
+    let epoch = get_epoch_from_cache(&guard, nonce)?;
     debug_println!("Running worker selection using Epoch: {:?}", epoch);
     let worker = epoch.get_selected_worker(sc_addr)?;
     debug_println!("Found selected worker: {:?}", worker);
@@ -178,10 +189,9 @@ pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress) -> Resul
 
 pub mod tests {
     use ethereum_types::{H160, U256};
+    use rustc_hex::FromHex;
     use std::prelude::v1::Vec;
     use std::string::String;
-
-    use rustc_hex::FromHex;
 
     use super::*;
 
