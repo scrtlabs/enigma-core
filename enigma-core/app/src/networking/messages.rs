@@ -33,7 +33,7 @@ pub enum IpcResponse {
     GetDeltas { result: IpcResults },
     GetContract { #[serde(flatten)] result: IpcResults },
     UpdateNewContract { address: String, result: IpcResults },
-    UpdateNewContractOnDeployment { address: String, result: IpcResults },
+    UpdateNewContractOnDeployment { address: String, #[serde(flatten)] result: IpcResults },
     UpdateDeltas { #[serde(flatten)] result: IpcResults },
     NewTaskEncryptionKey { #[serde(flatten)] result: IpcResults },
     DeploySecretContract { #[serde(flatten)] result: IpcResults},

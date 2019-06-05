@@ -236,16 +236,16 @@ pub(self) mod handling {
     #[logfn(INFO)]
     pub fn update_new_contract_on_deployment(db: &mut DB, address: String, bytecode: &str, delta: IpcDelta) -> ResponseResult {
         let mut tuples = Vec::with_capacity(DEPLOYMENT_VALS_LEN);
+        let delta_address = delta.contract_address.ok_or(P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Address Missing".to_string() })?;
+        if address != delta_address {
+            P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Delta address not aligned to message address".to_string() };
+        }
         let address_arr = ContractAddress::from_hex(&address)?;
 
         let bytecode = bytecode.from_hex()?;
         let bytecode_delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
         tuples.push((bytecode_delta_key, bytecode));
 
-        let delta_address = delta.contract_address.ok_or(P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Address Missing".to_string() })?;
-        if ContractAddress::from_hex(&delta_address)? != address_arr {
-            Err(P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Delta address not aligned to message address".to_string() })
-        }
         let data = delta.data.ok_or(P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Delta Data Missing".to_string() })?;
         let delta_key = DeltaKey::new(address_arr, Stype::Delta(delta.key));
         tuples.push((delta_key, data));
