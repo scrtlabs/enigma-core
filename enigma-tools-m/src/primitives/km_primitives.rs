@@ -1,3 +1,7 @@
+//! # Key Management Primitives.
+//! This module contains the code for the structs and enums that are used in communication with the Key Management Node
+//! And the User for exchanging DH keys.
+
 use crate::common::errors::ToolsError::{self, MessagingError};
 use crate::localstd::vec::Vec;
 use crate::rmp_serde::{Deserializer, Serializer};
@@ -6,25 +10,37 @@ use crate::serde_json;
 use enigma_crypto::{rand, symmetric, CryptoError, Encryption, hash};
 use enigma_types::{ContractAddress, DhKey, PubKey, StateKey};
 
+/// A Message ID type, used to identify each message to the response.
 pub type MsgID = [u8; 12];
 
+/// An enum used to differentiate between `Request` and `Response`.
+/// and between Response before and after encryption
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "crate::serde")]
 pub enum PrincipalMessageType {
+    /// A Response from the KM node, containing a list of (Address, Key) tuples.
     Response(Vec<(ContractAddress, StateKey)>),
+    /// A Request for the KM node, with an optional list of addresses.
     Request(Option<Vec<ContractAddress>>),
+    /// The same as `Response` but this is after encryption.
     EncryptedResponse(Vec<u8>),
 }
 
+/// The Message struct used to communicate between a worker and the Key Management Node.
+/// this struct contains the data(request/response) the DH pubkey and the MsgID.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "crate::serde")]
 pub struct PrincipalMessage {
+    /// The data of the message.
+    ///
+    /// This can be either Request/Response or an Encrypted Response.
     pub data: PrincipalMessageType,
     pub(crate) pubkey: Vec<u8>,
     pub(crate) id: MsgID,
 }
 
 impl PrincipalMessage {
+    /// This will create a new Message with a random MsgID.
     pub fn new(data: PrincipalMessageType, pubkey: PubKey) -> Result<Self, CryptoError> {
         let mut id = [0u8; 12];
         rand::random(&mut id)?;
@@ -32,11 +48,14 @@ impl PrincipalMessage {
         Ok(Self { data, pubkey, id })
     }
 
+    /// This should be used only by the KeyManagement node to create a response that will contain the same ID
+    /// as the request.
     pub fn new_id(data: PrincipalMessageType, id: [u8; 12], pubkey: PubKey) -> Self {
         let pubkey = pubkey.to_vec();
         Self { data, pubkey, id }
     }
 
+    /// This should serialize the struct for it to be signed, using [`enigma_crypto::hash::prepare_hash_multiple()`]
     pub fn to_sign(&self) -> Result<Vec<u8>, ToolsError> {
         if self.is_response() {
             return Err(MessagingError { err: "can't serialize non encrypted response" });
@@ -55,6 +74,7 @@ impl PrincipalMessage {
         Ok(hash::prepare_hash_multiple(&to_sign))
     }
 
+    /// This will serialize the Message using MessagePack.
     pub fn into_message(self) -> Result<Vec<u8>, ToolsError> {
         if self.is_response() {
             return Err(MessagingError { err: "can't serialize non encrypted response" });
@@ -65,6 +85,7 @@ impl PrincipalMessage {
         Ok(buf)
     }
 
+    /// This will deserialize the Message using MessagePack.
     pub fn from_message(msg: &[u8]) -> Result<Self, ToolsError> {
         let mut des = Deserializer::new(msg);
         let res: serde_json::Value =
@@ -73,14 +94,17 @@ impl PrincipalMessage {
         Ok(msg)
     }
 
+    /// Will return the DH public key from the message.
     pub fn get_pubkey(&self) -> PubKey {
         let mut pubkey = [0u8; 64];
         pubkey.copy_from_slice(&self.pubkey[..]);
         pubkey
     }
 
+    /// Will return the MsgID
     pub fn get_id(&self) -> MsgID { self.id }
 
+    /// Check if the Message's data is a Request or not
     pub fn is_request(&self) -> bool {
         if let PrincipalMessageType::Request(_) = self.data {
             true
@@ -89,6 +113,7 @@ impl PrincipalMessage {
         }
     }
 
+    /// Check if the Message's data is a Response or not
     pub fn is_response(&self) -> bool {
         if let PrincipalMessageType::Response(_) = self.data {
             true
@@ -97,6 +122,7 @@ impl PrincipalMessage {
         }
     }
 
+    /// Check if the Message's data is an Encrypted Response or not
     pub fn is_encrypted_response(&self) -> bool {
         if let PrincipalMessageType::EncryptedResponse(_) = self.data {
             true
@@ -133,6 +159,7 @@ impl<'a> Encryption<&'a DhKey, CryptoError, Self, [u8; 12]> for PrincipalMessage
     }
 }
 
+/// A struct to represent the UserMessage for the key exchange.
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(crate = "crate::serde")]
 pub struct UserMessage {
@@ -144,16 +171,20 @@ impl UserMessage {
     // Because ECDSA signature contains multiplication of curve points, so I'm not sure if signing on a valid curve point has any side effect.
     const PREFIX: &'static [u8; 19] = b"Enigma User Message";
 
+    /// Generate a new UserMessage struct with the provided public key.
     pub fn new(pubkey: PubKey) -> Self {
         let pubkey = pubkey.to_vec();
         Self { pubkey }
     }
 
+    /// This should serialize the struct for it to be signed, using [`enigma_crypto::hash::prepare_hash_multiple()`]
+    /// it will add a prefix to the data, `b"Enigma User Message"`.
     pub fn to_sign(&self) -> Vec<u8> {
         let to_sign = [&Self::PREFIX[..], &self.pubkey];
         hash::prepare_hash_multiple(&to_sign)
     }
 
+    /// This will serialize the Message using MessagePack.
     pub fn into_message(self) -> Result<Vec<u8>, ToolsError> {
         let mut buf = Vec::new();
         let val = serde_json::to_value(self).map_err(|_| MessagingError { err: "Couldn't convert UserMesssage to Value" })?;
@@ -161,6 +192,7 @@ impl UserMessage {
         Ok(buf)
     }
 
+    /// This will deserialize the Message using MessagePack.
     pub fn from_message(msg: &[u8]) -> Result<Self, ToolsError> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)
@@ -170,6 +202,7 @@ impl UserMessage {
         Ok(msg)
     }
 
+    /// Will return the DH public key from the message.
     pub fn get_pubkey(&self) -> PubKey {
         let mut pubkey = [0u8; 64];
         pubkey.copy_from_slice(&self.pubkey[..]);

@@ -1,3 +1,7 @@
+//! # Hash Module
+//! This module provides Keccak256 and Sha256 implementations as traits for all slices.
+//! I think we should consider removing the Sha256 implementation to make sure we use the same hash function always.
+
 use tiny_keccak::Keccak;
 use enigma_types::Hash256;
 
@@ -26,12 +30,15 @@ pub fn prepare_hash_multiple<B: AsRef<[u8]>>(messages: &[B]) -> crate::localstd:
     res
 }
 
-// Hash a byte array into keccak256.
+/// A trait that will hash using Keccak256 the object it's implemented on.
 pub trait Keccak256<T> {
+    /// This will return a sized object with the hash
     fn keccak256(&self) -> T where T: Sized;
 }
 
+/// A trait that will hash using Sha256 the object it's implemented on.
 pub trait Sha256<T> {
+    /// This will return a sized object with the hash
     fn sha256(&self) -> T where T: Sized;
 }
 

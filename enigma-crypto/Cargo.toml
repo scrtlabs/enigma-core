@@ -1,3 +1,6 @@
+# I use package renaming to import 2 libraries with the same name but from different sources (1 for SGX and 1 for regular std)
+# Then in the code you can rename them back (under a cfg condition) to the same name to use abstractly.
+
 [package]
 name = "enigma-crypto"
 version = "0.1.0"

@@ -1,10 +1,19 @@
+# Because build-dependencies and regular dependencies are mixed together it's not possible to import
+# bindgen into the enclave's build.rs (https://github.com/rust-lang/cargo/issues/2589)
+# The solution is to install the bindgen CLI in the docker and use it manually in the Makefile.
 
 Rust_Enclave_Name := libenclave.a
 Rust_Enclave_Files := $(wildcard src/*.rs)
 
-.PHONY: all
+BINDGEN_OUTPUT_FILE := src/auto_ffi.rs
+BINDGEN_RAW_LINES := "\#![allow(dead_code)] use enigma_types::*; use sgx_types::*;"
+BINDGEN_CLANG_FLAGS := -I/opt/sgxsdk/include -I$(HOME)/sgx/edl
+BINDGEN_FLAGS := --default-enum-style=rust --rust-target=nightly \
+	--no-recursive-whitelist --use-array-pointers-in-arguments \
+	--whitelist-function ocall_.*  --raw-line $(BINDGEN_RAW_LINES)
 
-all: $(Rust_Enclave_Name)
+
+all: bindgen $(Rust_Enclave_Name)
 
 $(Rust_Enclave_Name): $(Rust_Enclave_Files)
 ifeq ($(XARGO_SGX), 1)
@@ -14,3 +23,10 @@ else
 	cargo build $(CARGO_FLAGS)
 	cp ./target/$(Rust_target_dir)/libenigmacoreenclave.a ../lib/libenclave.a
 endif
+
+
+.PHONY: bindgen
+bindgen: Enclave_t.h
+	cargo build -p enigma-types # Meant to make sure `enigma-types.h` already exists and can be included.
+	bindgen Enclave_t.h $(BINDGEN_FLAGS) -- $(BINDGEN_CLANG_FLAGS) > $(BINDGEN_OUTPUT_FILE)
+	rustfmt  $(BINDGEN_OUTPUT_FILE)

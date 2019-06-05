@@ -116,7 +116,8 @@ $(App_Enclave_u_Object): app/Enclave_u.o
 	cp $(App_Enclave_u_Object) ./lib
 
 $(App_Name): $(App_Enclave_u_Object) $(App_SRC_Files)
-	@cd app && SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
+	@cd app && cargo build -p enigma-types
+	@cd app && SGX_SDK_RUST=$(SGX_SDK_RUST) SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 	@echo "Cargo  =>  $@"
 	mkdir -p ./bin
 	cp $(App_Rust_Path)/$(App_Name) bin/$(App_Name)
@@ -138,7 +139,7 @@ $(Signed_RustEnclave_Name): $(RustEnclave_Name)
 	@echo "SIGN =>  $@"
 
 .PHONY: enclave
-enclave:
+enclave: $(Enclave_EDL_Files)
 	mkdir -p ./lib
 	$(MAKE) -C ./enclave/ CARGO_FLAGS=$(App_Rust_Flags) Rust_target_dir=$(Rust_target_dir)
 

@@ -1,3 +1,11 @@
+//! # Symmetric Cryptography.
+//!
+//! This module provides an interface to encrypting data. <br>
+//! Right now we use AES-256-GCM as an AEAD (Authenticated Encryption). <br>
+//! We use the Ring library which uses some BoringSSL code and mostly AES-NI inline ASM instructions. <br>
+//! Right now I have a fork of ring which gives us SGX and no-sgx access via rust features and C compilation flags. <br>
+//!
+
 use enigma_types::SymmetricKey;
 use crate::error::CryptoError;
 use ring::aead::{self, Nonce, Aad};
@@ -12,8 +20,13 @@ static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 type IV = [u8; IV_SIZE];
 
 
+/// This function get's a key and a slice of data and encrypts the data using the key.
+/// the IV/nonce is appended to the cipher text after the MAC tag.
 pub fn encrypt(message: &[u8], key: &SymmetricKey) -> Result<Vec<u8>, CryptoError> { encrypt_with_nonce(message, key, None) }
 
+//#[deprecated(note = "This function shouldn't be called directly unless you're implementing the Encryption trait, please use `encrypt()` instead")]
+/// This function does the same as [`self::encrypt`] but accepts an IV.
+/// it *shouldn't* be called directly. only from tests or [`crate::Encryption::encrypt_with_nonce`] implementations.
 pub fn encrypt_with_nonce(message: &[u8], key: &SymmetricKey, _iv: Option<IV>) -> Result<Vec<u8>, CryptoError> {
     let iv = match _iv {
         Some(x) => x,
@@ -40,7 +53,9 @@ pub fn encrypt_with_nonce(message: &[u8], key: &SymmetricKey, _iv: Option<IV>) -
     Ok(in_out)
 }
 
-
+/// This function will decrypt a cipher text only if it was encrypted with the `encrypt` function above.
+/// Because it will try to get the IV from the last 12 bytes in the cipher text,
+/// then ring will take the last 16 bytes as a MAC to check the integrity of the cipher text.
 pub fn decrypt(cipheriv: &[u8], key: &SymmetricKey) -> Result<Vec<u8>, CryptoError> {
     if cipheriv.len() < IV_SIZE {
         return Err(CryptoError::ImproperEncryption);

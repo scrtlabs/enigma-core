@@ -1,28 +1,10 @@
-
-
 use enigma_types::{ContractAddress, EnclaveReturn, ExecuteResult, PubKey, RawPointer, traits::SliceCPtr};
 use super::WasmResult;
 use crate::db::DB;
 use std::convert::TryInto;
 use failure::Error;
 use sgx_types::*;
-
-extern "C" {
-    fn ecall_deploy(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
-                    bytecode: *const u8, bytecode_len: usize,
-                    constructor: *const u8, constructor_len: usize,
-                    args: *const u8, args_len: usize,
-                    address: &ContractAddress, user_key: &PubKey,
-                    gas_limit: *const u64, db_ptr: *const RawPointer,
-                    result: &mut ExecuteResult) -> sgx_status_t;
-
-    fn ecall_execute(eid: sgx_enclave_id_t, retval: *mut EnclaveReturn,
-                     bytecode: *const u8, bytecode_len: usize,
-                     callable: *const u8, callable_len: usize,
-                     args: *const u8, args_len: usize,
-                     user_key: &[u8; 64], contract_address: &ContractAddress,
-                     gas_limit: *const u64, db_ptr: *const RawPointer, result: &mut ExecuteResult ) -> sgx_status_t;
-}
+use crate::auto_ffi::{ecall_deploy, ecall_execute};
 
 #[logfn(DEBUG)]
 pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
@@ -41,7 +23,7 @@ pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor:
                      args.as_c_ptr(),
                      args.len(),
                      contract_address,
-                     &user_pubkey,
+                     user_pubkey.as_ptr() as _,
                      &gas_limit as *const u64,
                      &db_ptr as *const RawPointer,
                      &mut result)
@@ -65,7 +47,7 @@ pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &
                       callable.len(),
                       args.as_c_ptr() as *const u8,
                       args.len(),
-                      &user_pubkey,
+                      user_pubkey.as_ptr() as _,
                       contract_address,
                       &gas_limit as *const u64,
                       &db_ptr as *const RawPointer,

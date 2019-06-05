@@ -1,20 +1,12 @@
 #![allow(dead_code,unused_assignments,unused_variables)]
 
 use sgx_types::*;
-
 use enigma_types::traits::SliceCPtr;
 use std::iter::FromIterator;
-
-//failure
 use failure::Error;
 use hex::ToHex;
-
-extern "C" {
-    fn ecall_evm(eid: sgx_enclave_id_t, retval: *mut sgx_status_t, bytecode: *const u8, bytecode_len: usize,
-                 callable: *const u8, callable_len: usize, callable_args: *const u8, callable_args_len: usize,
-                 preprocessor: *const u8, preprocessor_len: usize, callback: *const u8, callback_len: usize,
-                 output: *mut u8, signature: &mut [u8; 65], result_length: &mut usize) -> sgx_status_t;
-}
+use crate::auto_ffi::ecall_evm;
+use enigma_types::EnclaveReturn;
 
 pub struct EvmInput {
     code: String,
@@ -63,8 +55,8 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> Result<EvmRespo
     let mut out = vec![0u8; MAX_EVM_RESULT];
     let slice = out.as_mut_slice();
     let mut signature: [u8; 65] = [0; 65];
-    let mut retval: sgx_status_t = sgx_status_t::SGX_SUCCESS;
-    let mut result_length: usize = 0;
+    let mut retval = EnclaveReturn::Success;
+    let mut result_length = 0;
 
     let mut prep: String = "".to_owned();
     for item in evm_input.preprocessor {
@@ -92,8 +84,8 @@ pub fn exec_evm(eid: sgx_enclave_id_t, evm_input: EvmRequest) -> Result<EvmRespo
                   &mut signature,
                   &mut result_length)
     };
-    let part = Vec::from_iter(slice[0..result_length].iter().cloned());
-    Ok(EvmResponse { errored: retval != sgx_status_t::SGX_SUCCESS, result: part.to_hex(), signature: signature.to_hex() })
+    let part = Vec::from_iter(slice[0..result_length as usize].iter().cloned());
+    Ok(EvmResponse { errored: retval != EnclaveReturn::Success, result: part.to_hex(), signature: signature.to_hex() })
 }
 
 #[cfg(test)]
