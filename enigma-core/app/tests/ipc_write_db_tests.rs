@@ -43,12 +43,9 @@ fn test_ipc_update_contract_on_deployment() {
     let delta_to_update = (new_addr.to_hex(), deployed_delta["key"].as_u64().unwrap(), serde_json::from_value(deployed_delta["data"].clone()).unwrap());
     let res: Value = send_update_contract_on_deployment(port, &new_addr.to_hex(), deployed_bytecode, &delta_to_update);
     let updated: i8 = serde_json::from_value(res["result"]["status"].clone()).unwrap();
-    let updated_errors: Vec<i8> = serde_json::from_value(res["result"]["errors"].clone()).unwrap();
     let updated_addr = res["address"].as_str().unwrap();
 
     assert_eq!(updated, 0);
-    assert_eq!(updated_errors[0], 0);
-    assert_eq!(updated_errors[1], 0);
     assert_eq!(updated_addr, new_addr.to_hex());
 }
 

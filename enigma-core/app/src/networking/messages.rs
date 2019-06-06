@@ -63,7 +63,7 @@ pub enum IpcResults {
     #[serde(rename = "result")]
     UpdateDeltasResult { status: Status, errors: Vec<IpcStatusResult> },
     #[serde(rename = "result")]
-    UpdateDeploymentResult { status: Status, errors: Vec<i8> },
+    UpdateDeploymentResult { status: Status },
     #[serde(rename = "result")]
     DHKey { #[serde(rename = "workerEncryptionKey")] dh_key: String, #[serde(rename = "workerSig")] sig: String },
     #[serde(rename = "result")]

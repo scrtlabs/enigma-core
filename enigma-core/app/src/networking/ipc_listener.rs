@@ -236,10 +236,6 @@ pub(self) mod handling {
     #[logfn(INFO)]
     pub fn update_new_contract_on_deployment(db: &mut DB, address: String, bytecode: &str, delta: IpcDelta) -> ResponseResult {
         let mut tuples = Vec::with_capacity(DEPLOYMENT_VALS_LEN);
-        let delta_address = delta.contract_address.ok_or(P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Address Missing".to_string() })?;
-        if address != delta_address {
-            P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Delta address not aligned to message address".to_string() };
-        }
         let address_arr = ContractAddress::from_hex(&address)?;
 
         let bytecode = bytecode.from_hex()?;
@@ -251,11 +247,11 @@ pub(self) mod handling {
         tuples.push((delta_key, data));
 
         let results = db.insert_tuples(&tuples);
-        let mut errors = Vec::with_capacity(tuples.len());
+        let mut status: i8 = 0;
         for result in results {
-            errors.push(if result.is_err() { FAILED } else { 0 });
+            if result.is_err() { status = -1 };
         }
-        let result = IpcResults::UpdateDeploymentResult { status: 0, errors };
+        let result = IpcResults::UpdateDeploymentResult { status };
         Ok(IpcResponse::UpdateNewContractOnDeployment { address, result })
     }
 
