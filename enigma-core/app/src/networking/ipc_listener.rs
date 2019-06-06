@@ -43,6 +43,7 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::GetDeltas { input } => handling::get_deltas(db, &input),
             IpcRequest::GetContract { input } => handling::get_contract(db, &input),
             IpcRequest::UpdateNewContract { address, bytecode } => handling::update_new_contract(db, address, &bytecode),
+            IpcRequest::UpdateNewContractOnDeployment { address, bytecode, delta } => handling::update_new_contract_on_deployment(db, address, &bytecode, delta),
             IpcRequest::UpdateDeltas { deltas } => handling::update_deltas(db, deltas),
             IpcRequest::NewTaskEncryptionKey { user_pubkey } => handling::get_dh_user_key( &user_pubkey, eid),
             IpcRequest::DeploySecretContract { input } => handling::deploy_contract(db, input, eid),
@@ -79,6 +80,8 @@ pub(self) mod handling {
     use std::str;
 
     type ResponseResult = Result<IpcResponse, Error>;
+
+    static DEPLOYMENT_VALS_LEN: usize = 2;
 
     impl Into<IpcResponse> for WasmTaskFailure{
         fn into(self) -> IpcResponse {
@@ -228,6 +231,28 @@ pub(self) mod handling {
         let delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
         db.force_update(&delta_key, &bytecode)?;
         Ok(IpcResponse::UpdateNewContract { address, result: IpcResults::Status(0) })
+    }
+
+    #[logfn(INFO)]
+    pub fn update_new_contract_on_deployment(db: &mut DB, address: String, bytecode: &str, delta: IpcDelta) -> ResponseResult {
+        let mut tuples = Vec::with_capacity(DEPLOYMENT_VALS_LEN);
+        let address_arr = ContractAddress::from_hex(&address)?;
+
+        let bytecode = bytecode.from_hex()?;
+        let bytecode_delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
+        tuples.push((bytecode_delta_key, bytecode));
+
+        let data = delta.data.ok_or(P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Delta Data Missing".to_string() })?;
+        let delta_key = DeltaKey::new(address_arr, Stype::Delta(delta.key));
+        tuples.push((delta_key, data));
+
+        let results = db.insert_tuples(&tuples);
+        let mut status: i8 = 0;
+        if results.into_iter().any(| result | result.is_err()) {
+            status = FAILED;
+        }
+        let result = IpcResults::Status(status);
+        Ok(IpcResponse::UpdateNewContractOnDeployment { address, result })
     }
 
     #[logfn(INFO)]

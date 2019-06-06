@@ -1,7 +1,8 @@
 pub mod integration_utils;
 
 use integration_utils::{run_core, full_simple_deployment, conn_and_call_ipc,
-                        send_update_contract, get_update_deltas_msg, contract_compute};
+                        send_update_contract, get_update_deltas_msg, contract_compute,
+                        send_update_contract_on_deployment};
 pub extern crate enigma_core_app as app;
 extern crate serde;
 extern crate rustc_hex as hex;
@@ -24,6 +25,24 @@ fn test_ipc_update_contract() {
     let res: Value = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
 
     let updated: u64 = serde_json::from_value(res["result"]["status"].clone()).unwrap();
+    let updated_addr = res["address"].as_str().unwrap();
+
+    assert_eq!(updated, 0);
+    assert_eq!(updated_addr, new_addr.to_hex());
+}
+
+#[test]
+fn test_ipc_update_contract_on_deployment() {
+    let port =  "5574";
+    run_core(port);
+
+    let (deployed_res, _) = full_simple_deployment(port);
+    let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
+    let deployed_delta = deployed_res["result"]["delta"].as_object().unwrap();
+    let new_addr = generate_contract_address();
+    let delta_to_update = (new_addr.to_hex(), deployed_delta["key"].as_u64().unwrap(), serde_json::from_value(deployed_delta["data"].clone()).unwrap());
+    let res: Value = send_update_contract_on_deployment(port, &new_addr.to_hex(), deployed_bytecode, &delta_to_update);
+    let updated: i8 = serde_json::from_value(res["result"]["status"].clone()).unwrap();
     let updated_addr = res["address"].as_str().unwrap();
 
     assert_eq!(updated, 0);
