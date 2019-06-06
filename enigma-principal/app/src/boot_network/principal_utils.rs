@@ -9,7 +9,7 @@ use epoch_u::epoch_provider::EpochProvider;
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
     fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error>
-    where Self: Sized;
+        where Self: Sized;
 
     fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
                                    confirmations: usize, max_epochs: Option<usize>);
@@ -29,13 +29,17 @@ impl Principal for EnigmaContract {
         let max_epochs = max_epochs.unwrap_or(0);
         let mut epoch_counter = 0;
         loop {
-            let block_number = self.web3.eth().block_number().wait().unwrap();
+            let block_number = match self.web3.eth().block_number().wait() {
+                Ok(block_number) => block_number,
+                Err(err) => {
+                    eprintln!("Unable to fetch block number: {:?}", err);
+                    thread::sleep(time::Duration::from_secs(polling_interval));
+                    continue;
+                }
+            };
             let curr_block = block_number.low_u64() as usize;
-            let prev_block = match epoch_provider.get_state() {
-                Ok(state) => match state.confirmed_state {
-                    Some(state) => state.block_number,
-                    None => U256::from(0),
-                },
+            let prev_block = match epoch_provider.epoch_state_manager.last(true) {
+                Ok(state) => state.confirmed_state.unwrap().block_number,
                 Err(_) => U256::from(0),
             };
             let prev_block_ref = prev_block.low_u64() as usize;
