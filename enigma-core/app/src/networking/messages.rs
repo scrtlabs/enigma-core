@@ -33,7 +33,7 @@ pub enum IpcResponse {
     GetDeltas { result: IpcResults },
     GetContract { #[serde(flatten)] result: IpcResults },
     UpdateNewContract { address: String, result: IpcResults },
-    UpdateNewContractOnDeployment { address: String, #[serde(flatten)] result: IpcResults },
+    UpdateNewContractOnDeployment { address: String, result: IpcResults },
     UpdateDeltas { #[serde(flatten)] result: IpcResults },
     NewTaskEncryptionKey { #[serde(flatten)] result: IpcResults },
     DeploySecretContract { #[serde(flatten)] result: IpcResults},
@@ -62,8 +62,6 @@ pub enum IpcResults {
     Tips(Vec<IpcDelta>),
     #[serde(rename = "result")]
     UpdateDeltasResult { status: Status, errors: Vec<IpcStatusResult> },
-    #[serde(rename = "result")]
-    UpdateDeploymentResult { status: Status },
     #[serde(rename = "result")]
     DHKey { #[serde(rename = "workerEncryptionKey")] dh_key: String, #[serde(rename = "workerSig")] sig: String },
     #[serde(rename = "result")]

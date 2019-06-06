@@ -248,10 +248,10 @@ pub(self) mod handling {
 
         let results = db.insert_tuples(&tuples);
         let mut status: i8 = 0;
-        for result in results {
-            if result.is_err() { status = -1 };
+        if results.into_iter().any(| result | result.is_err()) {
+            status = FAILED;
         }
-        let result = IpcResults::UpdateDeploymentResult { status };
+        let result = IpcResults::Status(status);
         Ok(IpcResponse::UpdateNewContractOnDeployment { address, result })
     }
 
