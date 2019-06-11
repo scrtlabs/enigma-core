@@ -2,7 +2,6 @@
 name = "eng-wasm"
 version = "0.1.3"
 authors = ["moria <moria@enigma.co>"]
-repository = "https://github.com/enigmampc/enigma-core/tree/develop/eng-wasm"
 license = "AGPL-3.0"
 description = "Enigma library for creating Secret Contracts"
 keywords = ["wasm", "webassembly", "blockchain", "sgx", "enigma"]
