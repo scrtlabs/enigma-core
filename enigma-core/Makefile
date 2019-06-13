@@ -1,7 +1,7 @@
 ######## Portable Settings############
 
-# The path to baidu code. Uses environment variable HOME. In Enigma docker HOME=/root and sgx is cloned to /root.
-# When working outside the docker, sgx directory should be cloned to HOME of SGX_SDK_RUST should be overridden.
+# The path to baidu code. Uses environment variable HOME. In Enigma docker HOME=/root, therefore sgx is cloned to /root.
+# When working outside the docker, sgx directory should be cloned to HOME or SGX_SDK_RUST should be overridden.
 SGX_SDK_RUST ?= $(HOME)/sgx
 
 ######## SGX SDK Settings ########
@@ -56,7 +56,7 @@ endif
 
 ######## CUSTOM Settings ########
 
-# Path with all libraries that are linked into enclave DLL
+# Path of all libraries that are linked into enclave DLL
 CUSTOM_LIBRARY_PATH := ./lib
 
 # Path to untrusted Rust binary and signed enclave DLL
