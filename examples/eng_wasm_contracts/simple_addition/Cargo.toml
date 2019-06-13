@@ -6,8 +6,8 @@ version = "0.1.0"
 crate-type = ["cdylib"]     # Create a dynamic library to be loaded from another language
 
 [dependencies]
-eng-wasm = {path = "../../../eng-wasm"}
-eng-wasm-derive = {path = "../../../eng-wasm/derive"}
+eng-wasm = "0.1"
+eng-wasm-derive = "0.1"
 
 [profile.release]           # The release profile, used for `cargo build --release`.
 panic = "abort"             # panic strategy (`-C panic=...`)
