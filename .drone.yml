@@ -70,6 +70,30 @@ steps:
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=alloc
 
+  - name: deploy
+    depends_on:
+      - core
+      - principal
+    when:
+      branch:
+        - docker
+    environment:
+      DOCKER_USERNAME:
+        from_secret: DOCKER_USERNAME
+      DOCKER_PASSWORD:
+        from secret: DOCKER_PASSWORD
+    commands:
+      - git clone https://github.com/enigmampc/discovery-docker-network.git
+      - cd discovery-docker-network/enigma-core
+      - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:latest --no-cache .
+      - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      - docker push enigmampc/enigma_core_hw:latest
+      - docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:latest --no-cache .
+      - docker push enigmampc/enigma_km_hw:latest
+      - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=SW -t enigmampc/enigma_core_sw:latest --no-cache .
+      - docker push enigmampc/enigma_core_sw:latest
+      - docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=SW -t enigmampc/enigma_km_sw:latest --no-cache .
+      - docker push enigmampc/enigma_km_sw:latest
 
 volumes:
   - name: isgx
