@@ -71,6 +71,7 @@ steps:
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=alloc
 
   - name: deploy
+    image: dockercore/docker
     depends_on:
       - core
       - principal
