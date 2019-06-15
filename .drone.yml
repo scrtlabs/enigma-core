@@ -95,8 +95,15 @@ steps:
       - docker push enigmampc/enigma_core_sw:latest
       - docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=SW -t enigmampc/enigma_km_sw:latest --no-cache .
       - docker push enigmampc/enigma_km_sw:latest
+    privileged: true
+    volumes:
+      - name: sock
+        path: /var/run/docker.sock
 
 volumes:
   - name: isgx
     host:
       path: /dev/isgx
+  - name: sock
+    host:
+      path: /var/run/docker.sock
