@@ -71,7 +71,7 @@ steps:
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=alloc
 
   - name: deploy
-    image: nathanielc/docker-client
+    image: enigmampc/docker-client
     depends_on:
       - core
       - principal
