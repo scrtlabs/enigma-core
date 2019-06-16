@@ -86,8 +86,9 @@ steps:
     commands:
       - git clone https://github.com/enigmampc/discovery-docker-network.git
       - cd discovery-docker-network/enigma-core
-      - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:latest --no-cache .
+      - sed -i "s/-vv/-v/" start_core.bash && sed -i "s/-vv/-v/" start_km.bash
       - echo $PASSWORD | docker login -u $USERNAME --password-stdin
+      - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:latest --no-cache .
       - docker push enigmampc/enigma_core_hw:latest
       - docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:latest --no-cache .
       - docker push enigmampc/enigma_km_hw:latest
