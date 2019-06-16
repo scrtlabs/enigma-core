@@ -77,17 +77,17 @@ steps:
       - principal
     when:
       branch:
-        - docker
+        - develop
     environment:
-      DOCKER_USERNAME:
-        from_secret: DOCKER_USERNAME
-      DOCKER_PASSWORD:
-        from secret: DOCKER_PASSWORD
+      USERNAME:
+        from_secret: username
+      PASSWORD:
+        from_secret: password
     commands:
       - git clone https://github.com/enigmampc/discovery-docker-network.git
       - cd discovery-docker-network/enigma-core
       - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:latest --no-cache .
-      - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+      - echo $PASSWORD | docker login -u $USERNAME --password-stdin
       - docker push enigmampc/enigma_core_hw:latest
       - docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:latest --no-cache .
       - docker push enigmampc/enigma_km_hw:latest
