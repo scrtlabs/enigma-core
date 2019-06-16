@@ -70,11 +70,28 @@ steps:
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=alloc
 
-  - name: deploy
+  - name: integration
     image: enigmampc/docker-client
     depends_on:
       - core
       - principal
+    commands:
+      - git clone https://github.com/enigmampc/discovery-docker-network.git
+      - |
+        pushd discovery-docker-network/enigma-core &&
+        docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:latest --no-cache . &&
+        docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:latest --no-cache . &&
+        popd
+      - pushd discovery-docker-network && docker-compose -f docker-compose.yml -f docker-compose.hw.yml -f docker-compose.test.yml up --exit-code-from client && popd
+    privileged: true
+    volumes:
+      - name: sock
+        path: /var/run/docker.sock
+
+  - name: deploy
+    image: enigmampc/docker-client
+    depends_on:
+      - integration
     when:
       branch:
         - develop
