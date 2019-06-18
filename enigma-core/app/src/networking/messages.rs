@@ -44,6 +44,39 @@ pub enum IpcResponse {
     Error { msg: String },
 }
 
+impl IpcResponse {
+    pub fn display_without_bytecode(&self) -> String {
+        match self {
+            IpcResponse::DeploySecretContract {result: e} => {
+                match e {
+                    IpcResults::DeployResult {  used_gas,
+                                                delta,
+                                                ethereum_address,
+                                                ethereum_payload,
+                                                signature, .. } =>
+                        format!("IpcResponse {{ used_gas: {}, delta: {:?}, ethereum_address: {}, ethereum_payload: {}, signature: {} }}",
+                        used_gas, delta, ethereum_address, ethereum_payload, signature),
+                    _ => "".to_string(),
+                }
+            },
+            _ => "".to_string(),
+        }
+    }
+
+    pub fn display_bytecode(&self) -> String {
+        match self {
+            IpcResponse::DeploySecretContract {result: e} => {
+                match e {
+                    IpcResults::DeployResult {  output,.. } =>
+                        format!("bytecode: {}", output),
+                    _ => "".to_string(),
+                }
+            },
+            _ => "".to_string(),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase", rename = "result")]
 pub enum IpcResults {
