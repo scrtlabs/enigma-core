@@ -4,8 +4,8 @@ name = "contract"
 version = "0.1.0"
 
 [dependencies]
-eng-wasm = {path = "../../../eng-wasm"}
-eng-wasm-derive = {path = "../../../eng-wasm/derive"}
+eng-wasm = "0.1"
+eng-wasm-derive = "0.1"
 
 [lib]
 crate-type = ["cdylib"]
