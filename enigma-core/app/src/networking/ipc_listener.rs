@@ -351,15 +351,15 @@ pub(self) mod handling {
                 // Save the ExeCode into the DB.
                 let key = DeltaKey::new(contract_address, Stype::ByteCode);
                 db.create(&key, &v.output)?;
-                let wasm_result = v.into_deploy_response(&bytecode);
-                info!("deploy_contract() => Ok({})", wasm_result.display_without_bytecode());
-                debug!("deploy_contract() => {}", wasm_result.display_bytecode());
-                Ok(wasm_result)
+                let ipc_response = v.into_deploy_response(&bytecode);
+                info!("deploy_contract() => Ok({})", ipc_response.display_without_bytecode());
+                debug!("deploy_contract() => {}", ipc_response.display_bytecode());
+                Ok(ipc_response)
             },
             WasmResult::WasmTaskFailure(v) => {
-                let wasm_result = Ok(v.into());
-                info!("{:?}", wasm_result);
-                wasm_result
+                let response = Ok(v.into());
+                info!("{:?}", response);
+                response
             }
         }
     }
