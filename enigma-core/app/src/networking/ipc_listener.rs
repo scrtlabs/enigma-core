@@ -353,7 +353,7 @@ pub(self) mod handling {
                 db.create(&key, &v.output)?;
                 let ipc_response = v.into_deploy_response(&bytecode);
                 info!("deploy_contract() => Ok({})", ipc_response.display_without_bytecode());
-                debug!("deploy_contract() => {}", ipc_response.display_bytecode());
+                debug!("deployed bytecode => {}", ipc_response.display_bytecode());
                 Ok(ipc_response)
             },
             WasmResult::WasmTaskFailure(v) => {
