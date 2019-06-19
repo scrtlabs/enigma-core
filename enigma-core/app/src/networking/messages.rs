@@ -68,7 +68,7 @@ impl IpcResponse {
             IpcResponse::DeploySecretContract {result: e} => {
                 match e {
                     IpcResults::DeployResult {  output,.. } =>
-                        format!("bytecode: {}", output),
+                        format!("{}", output),
                     _ => "".to_string(),
                 }
             },
