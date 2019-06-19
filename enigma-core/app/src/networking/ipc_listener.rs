@@ -353,7 +353,7 @@ pub(self) mod handling {
                 db.create(&key, &v.output)?;
                 let wasm_result = v.into_deploy_response(&bytecode);
                 info!("deploy_contract() => Ok({})", wasm_result.display_without_bytecode());
-                debug!("deploy_contract() => {}", wasm_result.display_bytecode());
+                debug!("deployed bytecode => {}", wasm_result.display_bytecode());
                 Ok(wasm_result)
             },
             WasmResult::WasmTaskFailure(v) => {
