@@ -121,7 +121,6 @@ pub(self) mod handling {
         }
     }
 
-
     #[logfn(INFO)]
     pub fn get_registration_params(eid: sgx_enclave_id_t, spid: &str) -> ResponseResult {
         let sigining_key = equote::get_register_signing_address(eid)?;
@@ -330,7 +329,6 @@ pub(self) mod handling {
         Ok(IpcResponse::PTTResponse {result})
     }
 
-    #[logfn(INFO)]
     pub fn deploy_contract(db: &mut DB, input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let bytecode = input.pre_code.expect("Bytecode Missing");
         let contract_address = ContractAddress::from_hex(&input.address)?;
@@ -353,9 +351,16 @@ pub(self) mod handling {
                 // Save the ExeCode into the DB.
                 let key = DeltaKey::new(contract_address, Stype::ByteCode);
                 db.create(&key, &v.output)?;
-                Ok(v.into_deploy_response(&bytecode))
+                let ipc_response = v.into_deploy_response(&bytecode);
+                info!("deploy_contract() => Ok({})", ipc_response.display_without_bytecode());
+                debug!("deployed bytecode => {}", ipc_response.display_bytecode());
+                Ok(ipc_response)
             },
-            WasmResult::WasmTaskFailure(v) => Ok(v.into())
+            WasmResult::WasmTaskFailure(v) => {
+                let response = Ok(v.into());
+                info!("{:?}", response);
+                response
+            }
         }
     }
 
