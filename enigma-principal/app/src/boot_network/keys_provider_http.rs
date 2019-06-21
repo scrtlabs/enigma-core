@@ -16,7 +16,7 @@ use enigma_crypto::KeyPair;
 use enigma_types::{ContractAddress, EnclaveReturn};
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
-use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr};
+use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
 use web3::types::U256;
 use std::convert::AsRef;
 
@@ -154,7 +154,7 @@ impl PrincipalHttpServer {
                         let server_err = match &err.err {
                             EnclaveReturn::WorkerAuthError => {
                                 ServerError {
-                                    code: ErrorCode::ServerError(-32001),
+                                    code: ErrorCode::ServerError(JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED),
                                     message: format!("Worker not authorized to request the keys: {:?}.", err),
                                     data: None,
                                 }
@@ -172,7 +172,7 @@ impl PrincipalHttpServer {
                     if let Some(err) = internal_err.downcast_ref::<EpochStateTransitionErr>() {
                         return Err(
                             ServerError {
-                                code: ErrorCode::ServerError(-32002),
+                                code: ErrorCode::ServerError(JSON_RPC_ERROR_ILLEGAL_STATE),
                                 message: format!("Illegal state: {} for this request. Try again later.", err.current_state),
                                 data: None,
                             }

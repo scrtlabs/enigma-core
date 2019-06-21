@@ -2,6 +2,9 @@
 
 use sgx_types::*;
 
+pub const JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED: i64  =-32001;
+pub const JSON_RPC_ERROR_ILLEGAL_STATE: i64  =-32001;
+
 // error while requesting to produce a quote (registration)
 #[derive(Fail, Debug)]
 #[fail(display = "Error while producing a quote sgx_status = {}. info = ({})", status, message)]
