@@ -97,6 +97,7 @@ steps:
     when:
       branch:
         - develop
+        - master
     environment:
       USERNAME:
         from_secret: username
@@ -107,14 +108,15 @@ steps:
       - cd discovery-docker-network/enigma-core
       - sed -i "s/-vv/-v/" start_core.bash && sed -i "s/-vv/-v/" start_km.bash
       - echo $PASSWORD | docker login -u $USERNAME --password-stdin
-      - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:latest --no-cache .
-      - docker push enigmampc/enigma_core_hw:latest
-      - docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:latest --no-cache .
-      - docker push enigmampc/enigma_km_hw:latest
-      - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=SW -t enigmampc/enigma_core_sw:latest --no-cache .
-      - docker push enigmampc/enigma_core_sw:latest
-      - docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=SW -t enigmampc/enigma_km_sw:latest --no-cache .
-      - docker push enigmampc/enigma_km_sw:latest
+      - if [[ ${DRONE_BRANCH} == "master" ]]; then export TAG=latest; else export TAG=develop; fi;
+      - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:$TAG --no-cache .
+      - docker push enigmampc/enigma_core_hw:$TAG
+      - docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:$TAG --no-cache .
+      - docker push enigmampc/enigma_km_hw:$TAG
+      - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=SW -t enigmampc/enigma_core_sw:$TAG --no-cache .
+      - docker push enigmampc/enigma_core_sw:$TAG
+      - docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=SW -t enigmampc/enigma_km_sw:$TAG --no-cache .
+      - docker push enigmampc/enigma_km_sw:$TAG
     privileged: true
     volumes:
       - name: sock
