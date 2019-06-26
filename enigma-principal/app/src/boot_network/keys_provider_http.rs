@@ -13,10 +13,10 @@ use rustc_hex::{FromHex, ToHex};
 use serde::{Deserialize, Serialize};
 
 use enigma_crypto::KeyPair;
-use enigma_types::ContractAddress;
+use enigma_types::{ContractAddress, EnclaveReturn};
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
-use common_u::errors::RequestValueErr;
+use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
 use web3::types::U256;
 use std::convert::AsRef;
 
@@ -135,6 +135,41 @@ impl PrincipalHttpServer {
         Ok(response_data)
     }
 
+    fn handle_error(internal_err: Error) -> ServerError {
+        println!("Got internal error: {:?}", internal_err);
+        if let Some(err) = internal_err.downcast_ref::<EnclaveFailError>() {
+            let server_err = match &err.err {
+                EnclaveReturn::WorkerAuthError => {
+                    ServerError {
+                        code: ErrorCode::ServerError(JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED),
+                        message: format!("Worker not authorized to request the keys: {:?}.", err),
+                        data: None,
+                    }
+                }
+                _ => {
+                    ServerError {
+                        code: ErrorCode::InternalError,
+                        message: format!("Internal error in enclave: {:?}", err),
+                        data: None,
+                    }
+                }
+            };
+            return server_err;
+        }
+        if let Some(err) = internal_err.downcast_ref::<EpochStateTransitionErr>() {
+            return ServerError {
+                code: ErrorCode::ServerError(JSON_RPC_ERROR_ILLEGAL_STATE),
+                message: format!("Illegal state: {} for this request. Try again later.", err.current_state),
+                data: None,
+            };
+        }
+        return ServerError {
+            code: ErrorCode::InternalError,
+            message: format!("Internal error: {:?}", internal_err),
+            data: None,
+        };
+    }
+
     /// Endpoint for the get_state_keys method
     ///
     /// Example:
@@ -146,16 +181,7 @@ impl PrincipalHttpServer {
         io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
             let epoch_provider = epoch_provider.clone();
             let request = params.parse::<StateKeyRequest>()?;
-            let body = match Self::get_state_keys(epoch_provider, request) {
-                Ok(body) => body,
-                Err(err) => {
-                    return Err(ServerError {
-                        code: ErrorCode::InternalError,
-                        message: format!("Unable to get keys: {}", err),
-                        data: None,
-                    });
-                }
-            };
+            let body = Self::get_state_keys(epoch_provider, request).map_err(Self::handle_error)?; // Not sure that this is the best idiom
             Ok(body)
         });
         let server =
