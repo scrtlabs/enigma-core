@@ -151,7 +151,7 @@ pub enum IpcRequest {
     NewTaskEncryptionKey { #[serde(rename = "userPubKey")] user_pubkey: String },
     DeploySecretContract { input: IpcTask},
     ComputeTask { input: IpcTask },
-    GetPTTRequest { input: Option<Addresses> },
+    GetPTTRequest,
     PTTResponse {  input: PrincipalResponse },
 }
 

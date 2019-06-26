@@ -20,8 +20,10 @@ pub type MsgID = [u8; 12];
 pub enum PrincipalMessageType {
     /// A Response from the KM node, containing a list of (Address, Key) tuples.
     Response(Vec<(ContractAddress, StateKey)>),
-    /// A Request for the KM node, with an optional list of addresses.
-    Request(Option<Vec<ContractAddress>>),
+    /// A Request for the KM node.
+    // todo: split PrincipalMessage into PrincipalRequestMessage and PrincipalResponseMessage
+    // todo: in order to remove redundant fields (data is not needed for ptt request)
+    Request,
     /// The same as `Response` but this is after encryption.
     EncryptedResponse(Vec<u8>),
 }
@@ -62,11 +64,8 @@ impl PrincipalMessage {
         }
         let mut to_sign = Vec::with_capacity(3);
         match &self.data {
-            PrincipalMessageType::Request(Some(addresses)) => {
-                to_sign.push(hash::prepare_hash_multiple(addresses.as_ref()));
-            }
             PrincipalMessageType::EncryptedResponse(v) => to_sign.push(v.clone()),
-            PrincipalMessageType::Request(None) => (), // If the request is empty we don't need to sign on it.
+            PrincipalMessageType::Request => (), // If the request is empty we don't need to sign on it.
             PrincipalMessageType::Response(_) => unreachable!(), // This can't be reached because we check if it's a response before.
         }
         to_sign.push(self.pubkey.to_vec());
@@ -106,7 +105,7 @@ impl PrincipalMessage {
 
     /// Check if the Message's data is a Request or not
     pub fn is_request(&self) -> bool {
-        if let PrincipalMessageType::Request(_) = self.data {
+        if let PrincipalMessageType::Request = self.data {
             true
         } else {
             false
@@ -266,7 +265,7 @@ mod tests {
     }
 
     fn get_request() -> PrincipalMessage {
-        let data = PrincipalMessageType::Request(None);
+        let data = PrincipalMessageType::Request;
         let id = [75, 52, 85, 160, 254, 16, 9, 130, 50, 81, 252, 231];
 
         PrincipalMessage::new_id(data, id, [0u8; 64])
