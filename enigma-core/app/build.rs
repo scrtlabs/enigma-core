@@ -31,7 +31,7 @@ fn main() {
     let bindings = builder()
         .whitelist_recursively(false)
         .array_pointers_in_arguments(true)
-        .default_enum_style(EnumVariation::Rust)
+        .default_enum_style(EnumVariation::Rust{ non_exhaustive: false })
         .rust_target(RustTarget::Nightly)
         .clang_arg(format!("-I{}/include", sdk_dir))
         .clang_arg(format!("-I{}", edl))
