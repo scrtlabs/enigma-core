@@ -106,7 +106,6 @@ steps:
       PASSWORD:
         from_secret: password
     commands:
-      - git clone https://github.com/enigmampc/discovery-docker-network.git
       - cd discovery-docker-network/enigma-core
       - sed -i "s/-vv/-v/" start_core.bash && sed -i "s/-vv/-v/" start_km.bash
       - echo $PASSWORD | docker login -u $USERNAME --password-stdin
