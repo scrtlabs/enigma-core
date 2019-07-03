@@ -33,11 +33,10 @@ extern "C" {
 /// let response = get_enc_state_keys(enclave.geteid(), request, nonce, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_nonce: U256, sc_addrs: Option<&[ContractAddress]>) -> Result<StateKeyResponse, Error> {
+pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_nonce: U256, sc_addrs: &[ContractAddress]) -> Result<StateKeyResponse, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
     let mut response_ptr = 0u64;
-    let sc_addrs = sc_addrs.unwrap_or_default();
     let epoch_nonce: [u8; 32] = H256::from(epoch_nonce).0;
 
     let msg_bytes: Vec<u8> = request.data.try_into()?;
@@ -95,20 +94,20 @@ pub mod tests {
         let enclave = init_enclave();
 
         // Since the seed is not predictable in advance, test with a single worker to predict the selected worker
-        let workers: Vec<[u8; 20]> = vec![[143, 123, 253, 113, 133, 173, 215, 156, 68, 228, 91, 227, 191, 31, 114, 35, 142, 245, 179, 32]];
+        let workers: Vec<[u8; 20]> = vec![[161, 186, 144, 238, 40, 242, 102, 161, 178, 93, 177, 83, 107, 128, 189, 132, 112, 8, 163, 252]];
         let stakes: Vec<u64> = vec![10000000000];
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
         let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
 
         // From the km_primitives uint tests
-        let msg = StringWrapper("84a67072656669789e456e69676d61204d657373616765a46461746181a75265717565737491dc0020ccfd1454ccbacca9334acc92415f3bcc850919ccaaccc121cc9fccc7cccc7a74ccbd7a25cc8475ccbc677867cc89a67075626b6579dc00400d02ccb405ccd5213cccd27e5b2ecc86ccf75e5acc812dccf64a37007a3bccf5cca45c7809cc8bcc94ccf22b50ccea3817cc9915ccaeccf51bcc97cce9ccc70a707a05cc880c436accff02cc8919cc9960023fccf0cce7ccf8ccf6a269649c000000000000000000000001".to_string());
-        let sig = StringWrapper("c5a40ca148e1048075d189371c522b202ab24143224cac3700c4f95fa922e5872ebb8dd867650c265e6f51a6c831081e0b5c3c5bb5a858f2b89fad2fd4facc0e1c".to_string());
+        let msg = StringWrapper("83a464617461a752657175657374a269649cccd763674174cc9b3f300dccd2ccb0cc8ba67075626b6579dc0040ccc90b2205ccf9cc9358661320ccffccb763ccb57614ccf8ccaa1fccb86d6a087869ccd81acce5ccf16fcc9206cc98344136cca4ccefccb105ccbbccca1c5057ccba25067eccc101cc82ccee21445cccf91e79ccb176447239".to_string());
+        let sig = StringWrapper("2535cfe1bcea215dc552acbca1a213354e055709f8e071c593bb9a8c1551b7791d6fd611ded1912065b3b518f6a75a1c78643b0a2e06397707b21768be637cb41b".to_string());
         println!("The mock message: {:?}", msg);
         println!("The mock sig: {:?}", sig);
 
-        let request = StateKeyRequest { data: msg, sig, block_number: None };
-        let response = get_enc_state_keys(enclave.geteid(), request, epoch_state.nonce, None).unwrap();
+        let request = StateKeyRequest { data: msg, sig, block_number: None, addresses: None };
+        let response = get_enc_state_keys(enclave.geteid(), request, epoch_state.nonce, &[]).unwrap();
         println!("Got response: {:?}", response);
         enclave.destroy();
     }
