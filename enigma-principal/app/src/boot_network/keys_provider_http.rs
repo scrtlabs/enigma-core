@@ -117,7 +117,6 @@ impl PrincipalHttpServer {
             None => epoch_provider.find_last_epoch()?,
         };
         let addresses = &request.addresses;
-        let msg = PrincipalMessage::from_message(&request.get_data()?)?;
         let mut addrs: Vec<ContractAddress> = {
             if let Some(addrs) = addresses {
                 println!("Found addresses in message: {:?}", addrs);
@@ -125,6 +124,7 @@ impl PrincipalHttpServer {
             }
             else{
                 println!("No addresses in message, reading from epoch state...");
+                let msg = PrincipalMessage::from_message(&request.get_data()?)?;
                 Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?
             }
         };
@@ -234,7 +234,8 @@ mod test {
             io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
                 let request = params.parse::<StateKeyRequest>().unwrap();
                 println!("Calling get_enc_state_keys");
-                let response = get_enc_state_keys(eid, request, epoch_state.nonce, &[]).unwrap();
+                let address = ContractAddress::from(REF_CONTRACT_ADDR);
+                let response = get_enc_state_keys(eid, request, epoch_state.nonce, &[address]).unwrap();
                 let response_data = serde_json::to_value(&response).unwrap();
                 Ok(response_data)
             });
