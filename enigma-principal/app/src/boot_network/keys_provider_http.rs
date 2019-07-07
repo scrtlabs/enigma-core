@@ -70,7 +70,7 @@ pub struct StateKeyRequest {
     pub data: StringWrapper,
     pub sig: StringWrapper,
     pub block_number: Option<StringWrapper>,
-    pub addresses: Option<Vec<ContractAddress>>,
+    pub addresses: Option<Vec<String>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -117,10 +117,11 @@ impl PrincipalHttpServer {
             None => epoch_provider.find_last_epoch()?,
         };
         let addresses = &request.addresses;
-        let mut addrs: Vec<ContractAddress> = {
+        let addrs: Vec<ContractAddress> = {
             if let Some(addrs) = addresses {
                 println!("Found addresses in message: {:?}", addrs);
-                addrs.to_vec()
+                let res: Result<Vec<ContractAddress>, _>  = addrs.iter().map(|item| ContractAddress::from_hex(item)).collect();
+                res?
             }
             else{
                 println!("No addresses in message, reading from epoch state...");
