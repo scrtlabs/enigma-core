@@ -93,11 +93,8 @@ pub fn get_encryption_msg(user_pubkey: [u8; 64]) -> Value {
     json!({"id" : &generate_job_id(), "type" : "NewTaskEncryptionKey", "userPubKey": user_pubkey.to_hex()})
 }
 
-pub fn get_ptt_req_msg(addresses: Option<Vec<String>>) -> Value {
-    match addresses {
-        None => json!({"id" : &generate_job_id(), "type" : "GetPTTRequest"}),
-        Some(addrs) =>  json!({"id" : &generate_job_id(), "type" : "GetPTTRequest", "input": { "addresses": addrs} }),
-    }
+pub fn get_ptt_req_msg() -> Value {
+    json!({"id" : &generate_job_id(), "type" : "GetPTTRequest"})
 }
 
 pub fn get_ptt_res_msg(response: &[u8]) -> Value {
@@ -163,7 +160,7 @@ pub fn mock_principal_res(msg: &str, addrs: Vec<ContractAddress>) -> Vec<u8> {
 pub fn run_ptt_round(port: &'static str, addrs: Vec<ContractAddress>) -> Value {
 
     // set encrypted request message to send to the principal node
-    let msg_req = get_ptt_req_msg(None);
+    let msg_req = get_ptt_req_msg();
     let req_val: Value = conn_and_call_ipc(&msg_req.to_string(), port);
     let packed_msg = req_val["result"]["request"].as_str().unwrap();
 
