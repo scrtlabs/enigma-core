@@ -80,13 +80,13 @@ steps:
       - cd discovery-docker-network && cp .env-template .env
       - sed -i "s/COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=enigma_${DRONE_BUILD_NUMBER}/" .env
       - if [[ ${DRONE_BRANCH} == "master" ]]; then export TAG=latest; else export TAG=develop; fi
+      - if [[ $TAG == "develop" ]]; then sed -i "s/DOCKER_TAG=latest/DOCKER_TAG=develop/" .env; fi
+      - docker-compose pull
       - |
         cd enigma-core &&
         docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:$TAG --no-cache . &&
         docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:$TAG --no-cache . &&
         cd ..
-      - if [[ $TAG == "develop" ]]; then sed -i "s/DOCKER_TAG=latest/DOCKER_TAG=develop/" .env; fi
-      - docker pull enigmampc/enigma_contract:$TAG && docker pull enigmampc/enigma_p2p:$TAG
       - docker-compose -f docker-compose.yml -f docker-compose.hw.yml -f docker-compose.test.yml up --exit-code-from client
     privileged: true
     volumes:
