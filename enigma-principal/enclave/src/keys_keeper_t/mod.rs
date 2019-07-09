@@ -133,7 +133,7 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
 
 /// Get encrypted state keys
 pub(crate) fn ecall_get_enc_state_keys_internal(
-    msg_bytes: &[u8], addrs_bytes: Vec<ContractAddress>, sig: [u8; 65], epoch_nonce: [u8; 32],
+    msg_bytes: &[u8], sc_addrs: Vec<ContractAddress>, sig: [u8; 65], epoch_nonce: [u8; 32],
     sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let msg = PrincipalMessage::from_message(msg_bytes)?;
     let user_pubkey = msg.get_pubkey();
@@ -141,13 +141,6 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     // Create the request image before the worker selection guard to avoid cloning the message data
     let image = msg.to_sign()?;
     debug_println!("Generated hash image: {:?} for request: {:?}", image, msg);
-    let sc_addrs: Vec<ContractAddress> = match msg.data {
-        PrincipalMessageType::Request(Some(addrs)) => addrs,
-        PrincipalMessageType::Request(None) => addrs_bytes,
-        _ => {
-            return Err(SystemError(KeyProvisionError { err: format!("Unable to deserialize message: {:?}", msg_bytes) }));
-        }
-    };
     let recovered_addr = KeyPair::recover(&image, sig)?.address();
     let nonce = U256::from(epoch_nonce.as_ref());
     for sc_addr in sc_addrs.clone() {

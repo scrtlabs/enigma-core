@@ -49,7 +49,7 @@ pub fn ptt_res(eid: sgx_enclave_id_t, msg: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(Box<[u8]>, [u8; 65]), Error> {
+pub fn ptt_req(eid: sgx_enclave_id_t) -> Result<(Box<[u8]>, [u8; 65]), Error> {
     let mut sig = [0u8; 65];
     let mut ret = EnclaveReturn::default();
     let mut serialized_ptr = 0u64;
@@ -57,8 +57,6 @@ pub fn ptt_req(eid: sgx_enclave_id_t, addresses: &[ContractAddress]) -> Result<(
     let status = unsafe {
         ecall_ptt_req(eid,
                       &mut ret as *mut EnclaveReturn,
-                      addresses.as_c_ptr(),
-                      addresses.len() * mem::size_of::<ContractAddress>(),
                       &mut sig,
                       &mut serialized_ptr as *mut u64,
         )
@@ -169,13 +167,13 @@ pub mod tests {
     #[test]
     fn test_ptt_req() {
         let enclave = init_enclave_wrapper().unwrap();
-        let (msg, sig) = ptt_req(enclave.geteid(), &[]).unwrap();
+        let (msg, sig) = ptt_req(enclave.geteid()).unwrap();
         assert_ne!(msg.len(), 0);
         assert_ne!(sig.to_vec(), vec![0u8; 64]);
     }
 
     pub fn instantiate_encryption_key(addresses: Vec<ContractAddress>, eid: sgx_enclave_id_t) {
-        let req = ptt_req(eid, &[]).unwrap();
+        let req = ptt_req(eid).unwrap();
 
         let mut des = Deserializer::new(&req.0[..]);
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();
@@ -203,7 +201,7 @@ pub mod tests {
                 }
             }).collect();
         let enclave = init_enclave_wrapper().unwrap();
-        let req = ptt_req(enclave.geteid(), &addresses).unwrap();
+        let req = ptt_req(enclave.geteid()).unwrap();
         // serializing the result from the request
         let mut des = Deserializer::new(&req.0[..]);
         let req_val: Value = Deserialize::deserialize(&mut des).unwrap();

@@ -38,8 +38,7 @@ extern "C" {
 }
 extern "C" {
     pub fn ecall_ptt_req(
-        eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, address_list: *const ContractAddress, address_len: usize,
-        sig: *mut [u8; 65usize], serialized_ptr: *mut u64,
+        eid: sgx_enclave_id_t, retval: *mut EnclaveReturn, sig: *mut [u8; 65usize], serialized_ptr: *mut u64,
     ) -> sgx_status_t;
 }
 extern "C" {
