@@ -66,27 +66,6 @@ fn test_run_ptt_twice() {
     //todo what should we expect to happen?
 }
 
-
-#[test]
-fn test_run_ptt_with_addresses() {
-    use integration_utils::*;
-    let port = "3978";
-    run_core(port);
-    let addresses = vec![generate_contract_address(), generate_contract_address()];
-    let address_string: Vec<_> = addresses.iter().map(|a| a.to_hex()).collect();
-    let msg_req = get_ptt_req_msg(Some(address_string));
-    let req_val: Value = conn_and_call_ipc(&msg_req.to_string(), port);
-    let packed_msg = req_val["result"]["request"].as_str().unwrap();
-    let enc_response = mock_principal_res(packed_msg, addresses);
-    let msg = get_ptt_res_msg(&enc_response);
-    let res = conn_and_call_ipc(&msg.to_string(), port);
-
-    assert!(res["result"]["errors"].as_array().unwrap().is_empty());
-    assert!(res["id"].is_string());
-    assert_eq!(res["type"].as_str().unwrap(), "PTTResponse");
-}
-
-
 #[test]
 fn test_deploy_same_contract_twice() {
     let port = "5578";

@@ -14,7 +14,7 @@ fn test_get_ptt_request() {
     let port = "5558";
     run_core(port);
 
-    let msg = get_ptt_req_msg(None);
+    let msg = get_ptt_req_msg();
     let v: Value = conn_and_call_ipc(&msg.to_string(), port);
 
     let packed_msg = v["result"]["request"].as_str().unwrap();

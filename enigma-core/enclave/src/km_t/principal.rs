@@ -18,12 +18,9 @@ lazy_static! {
     pub static ref DH_KEYS: SgxMutex<HashMap<MsgID, KeyPair>> = SgxMutex::new(HashMap::new());
 }
 
-pub(crate) unsafe fn ecall_ptt_req_internal(addresses: &[ContractAddress], sig: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
+pub(crate) unsafe fn ecall_ptt_req_internal(sig: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let keys = KeyPair::new()?;
-    let mut data = PrincipalMessageType::Request(None);
-    if !addresses.is_empty() {
-        data = PrincipalMessageType::Request(Some(addresses.to_vec()));
-    }
+    let mut data = PrincipalMessageType::Request;
     let req = PrincipalMessage::new(data, keys.get_pubkey())?;
     let id = req.get_id();
     *sig = SIGNING_KEY.sign(&req.to_sign()?)?;
@@ -163,7 +160,7 @@ pub mod tests {
         runtime_ocalls_t::save_state(db_ptr, &gibrish_state).unwrap();
         // Generating the request
         let mut _sig = [0u8; 65];
-        let req_msg = unsafe { ecall_ptt_req_internal(&address, &mut _sig).unwrap() };
+        let req_msg = unsafe { ecall_ptt_req_internal(&mut _sig).unwrap() };
         let req_obj = PrincipalMessage::from_message(&req_msg).unwrap();
 
         // Mimicking the Principal/KM Node
