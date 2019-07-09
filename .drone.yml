@@ -86,6 +86,7 @@ steps:
         docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:$TAG --no-cache . &&
         cd ..
       - if [[ $TAG == "develop" ]]; then sed -i "s/DOCKER_TAG=latest/DOCKER_TAG=develop/" .env; fi
+      - docker pull enigmampc/enigma_contract:$TAG && docker pull enigmampc/enigma_p2p:$TAG
       - docker-compose -f docker-compose.yml -f docker-compose.hw.yml -f docker-compose.test.yml up --exit-code-from client
     privileged: true
     volumes:
