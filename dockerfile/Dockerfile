@@ -15,6 +15,7 @@ RUN apt-get update && \
 ENV RUSTUP_TOOLCHAIN=nightly-2019-05-22
 
 RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
+    /root/.cargo/bin/rustup component add rustfmt && \
     /root/.cargo/bin/cargo install bindgen cargo-audit && \
     rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
 
