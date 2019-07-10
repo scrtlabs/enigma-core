@@ -12,6 +12,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends libzmq3-dev clang \
     && rm -rf /var/lib/apt/lists/*
 
+ENV RUSTUP_TOOLCHAIN=nightly-2019-05-22
+
 RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
     /root/.cargo/bin/cargo install bindgen cargo-audit && \
     rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
