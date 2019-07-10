@@ -65,7 +65,7 @@ impl PrincipalMessage {
         let mut to_sign = Vec::with_capacity(3);
         match &self.data {
             PrincipalMessageType::EncryptedResponse(v) => to_sign.push(v.clone()),
-            PrincipalMessageType::Request => (), // If the request is empty we don't need to sign on it.
+            PrincipalMessageType::Request => (),
             PrincipalMessageType::Response(_) => unreachable!(), // This can't be reached because we check if it's a response before.
         }
         to_sign.push(self.pubkey.to_vec());
