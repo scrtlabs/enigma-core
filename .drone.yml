@@ -108,7 +108,6 @@ steps:
         from_secret: password
     commands:
       - cd discovery-docker-network/enigma-core
-      - sed -i "s/-vv/-v/" start_core.bash && sed -i "s/-vv/-v/" start_km.bash
       - echo $PASSWORD | docker login -u $USERNAME --password-stdin
       - if [[ ${DRONE_BRANCH} == "master" ]]; then export TAG=latest; else export TAG=develop; fi
       - docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:$TAG --no-cache .
