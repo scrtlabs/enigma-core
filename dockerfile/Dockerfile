@@ -13,8 +13,6 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
-    # remove the toolchain flag when we update to a new nightly version.
-    /root/.cargo/bin/rustup component add rustfmt --toolchain nightly-2019-05-22-x86_64-unknown-linux-gnu && \
     /root/.cargo/bin/cargo install bindgen cargo-audit && \
     rm -rf /root/.cargo/registry && rm -rf /root/.cargo/git
 
