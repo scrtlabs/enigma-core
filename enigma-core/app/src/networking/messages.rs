@@ -239,10 +239,10 @@ impl IpcDelta {
 
 impl From<Delta> for IpcDelta {
     fn from(delta: Delta) -> Self {
-        let value = delta.value;
+        let data = if delta.value.len() == 0 { None } else { Some ( delta.value ) };
         let key = delta.key.key_type.unwrap_delta();
 
-        IpcDelta { contract_address: None, key, data: Some(value) }
+        IpcDelta { contract_address: None, key, data }
     }
 }
 

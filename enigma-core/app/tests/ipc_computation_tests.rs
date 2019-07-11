@@ -6,9 +6,10 @@ extern crate cross_test_utils;
 extern crate enigma_types;
 
 use integration_utils::{conn_and_call_ipc, is_hex, run_core, get_msg_format_update_contract,
-                        get_encryption_msg, full_simple_deployment, full_addition_compute, decrypt_output_to_uint,
+                        get_encryption_msg, full_simple_deployment, full_addition_compute,
                         send_update_contract, run_ptt_round, contract_compute, get_update_deltas_msg,
-                        decrypt_addr_delta, encrypt_addr_delta, replace_previous_hash_in_delta_data};
+                        decrypt_addr_delta, encrypt_addr_delta, replace_previous_hash_in_delta_data,
+                        full_supply_compute, decrypt_output_to_uint};
 use cross_test_utils::generate_contract_address;
 use self::app::serde_json;
 use app::serde_json::*;
@@ -61,56 +62,24 @@ fn test_compute_task() {
     assert_eq!("ComputeTask", type_accepted);
 }
 
-//#[test]
-//fn test_execute_on_existing_contract_no_construct() {
-//    let port =  "5571";
-//    run_core(port);
-//
-//    let (deployed_res, _old_addr) = full_erc20_deployment(port, None);
-//    let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
-//    let deployed_delta = deployed_res["result"]["delta"].as_object().unwrap();
-//    let deployed_data: String = serde_json::from_value(deployed_delta["data"].clone()).unwrap();
-//
-//    let amount_before = Token::Uint(60.into());
-//    let to_addr = Token::FixedBytes(generate_user_address().0.to_vec());
-//    let args = [to_addr, amount_before.clone()];
-//    let callable  = "mint(bytes32,uint256)";
-//    let (_res_mint, _) = contract_compute(port, _old_addr, &args, callable);
-//    let mint_delta = _res_mint["result"]["delta"].as_object().unwrap();
-//    let computed_data: String = serde_json::from_value(mint_delta["data"].clone()).unwrap();
-//
-//    let new_addr = generate_contract_address();
-//    let _msg = get_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
-//    let _res_a = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
-//
-//    let decrypt_dep_data_from_old = decrypt_addr_delta(_old_addr, &deployed_data.from_hex().unwrap());
-//    let encrypted_dep_data_new = encrypt_addr_delta(new_addr.into(), &decrypt_dep_data_from_old);
-//    let decrypt_exe_data_from_old = decrypt_addr_delta(_old_addr, &computed_data.from_hex().unwrap());
-//    let encrypted_exe_data_new = encrypt_addr_delta(new_addr.into(), &decrypt_exe_data_from_old);
-//    let deltas = vec![
-//        (new_addr.to_hex(), deployed_delta["key"].as_u64().unwrap(), encrypted_dep_data_new),
-//        (new_addr.to_hex(),mint_delta["key"].as_u64().unwrap(), encrypted_exe_data_new)
-//    ];
-//
-//    let msg = get_update_deltas_msg(&deltas[..]);
-//    let _update_deltas_res: Value = conn_and_call_ipc(&msg.to_string(), port);
-//    let _res_b = run_ptt_round(port, vec![new_addr]);
-//
-//    let (res, _key) = contract_compute(port, new_addr.into(), &[], "total_supply()");
-//    let output: String = serde_json::from_value(res["result"]["output"].clone()).unwrap();
-//    let accepted_amount: Token = decrypt_output_to_uint(&output.from_hex().unwrap(), &_key);
-//    assert_eq!(amount_before, accepted_amount);
-//
-//    let amount = Token::Uint(100.into());
-//    let to_addr = Token::FixedBytes(generate_user_address().0.to_vec());
-//    let args = [to_addr, amount.clone()];
-//    let callable  = "mint(bytes32,uint256)";
-//    let (_res_mint, _) = contract_compute(port, new_addr.into(), &args, callable);
-//    let mint_new_delta = _res_mint["result"]["delta"].as_object().unwrap();
-//    let last_delta_key = mint_new_delta["key"].as_u64().unwrap();
-//    let expected_key = mint_delta["key"].as_u64().unwrap();
-//    assert_eq!(last_delta_key, expected_key + 1);
-//}
+#[test]
+fn test_compute_task_no_delta() {
+    let port =  "5560";
+    run_core(port);
+
+    let supply = 100_000;
+    let (res, key, _): (Value, [u8;32], _) = full_supply_compute(port, supply);
+
+    let output: String = serde_json::from_value(res["result"]["output"].clone()).unwrap();
+    let delta = res["result"]["delta"].as_object().unwrap();
+    let type_accepted = res["type"].as_str().unwrap();
+    let accepted_supply: Token = decrypt_output_to_uint(&output.from_hex().unwrap(), &key);
+
+    // check that the data field does not exist in the delta object.
+    assert!(delta.keys().find(|&k| *k == "data").is_none());
+    assert_eq!(accepted_supply.to_uint().unwrap().as_u64(), supply);
+    assert_eq!("ComputeTask", type_accepted);
+}
 
 #[test]
 fn test_execute_on_existing_contract_with_constructor() {
