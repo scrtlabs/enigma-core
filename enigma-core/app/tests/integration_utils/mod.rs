@@ -261,6 +261,15 @@ pub fn full_mint_compute(port: &'static str,  user_addr: ERC20UserAddress, amoun
     (result, key, contract_addr)
 }
 
+pub fn full_supply_compute(port: &'static str, supply: u64) -> (Value,  [u8;32], [u8; 32]) {
+    let (owner, owner_keys) = generate_user_address();
+    let (_, _, contract_addr): (_, _, [u8; 32]) = full_erc20_deployment(port, owner, Some(supply), None);
+
+    let callable  = "total_supply()";
+    let (result, key) = contract_compute(port, contract_addr, &[], callable);
+    (result, key, contract_addr)
+}
+
 pub fn contract_compute(port: &'static str,  contract_addr: [u8; 32], args: &[Token], callable: &str) -> (Value, [u8; 32]) {
     // WUKE- get the arguments encryption key
     let (shared_key, user_pubkey) = produce_shared_key(port);
@@ -297,7 +306,6 @@ pub fn decrypt_delta_to_value(addr: [u8; 32], delta: &[u8]) -> Value {
 
 pub fn decrypt_output_to_uint(output: &[u8], key: &[u8; 32]) -> Token {
     let dec = symmetric::decrypt(output, key).unwrap();
-    println!("Decrypted output: {:?}", dec);
     ethabi::decode(&[ethabi::ParamType::Uint(256)], &dec).unwrap().pop().unwrap()
 }
 
