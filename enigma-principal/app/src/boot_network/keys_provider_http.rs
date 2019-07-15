@@ -52,16 +52,15 @@ impl TryInto<U256> for StringWrapper {
     type Error = Error;
 
     fn try_into(self) -> Result<U256, Self::Error> {
-        let bytes = self.0.from_hex()?;
-        if bytes.len() != 32 {
-            return Err(RequestValueErr {
+        let result = U256::from_dec_str(&self.0);
+        if let Ok(v) = result {
+            Ok(v)
+        } else {
+            Err(RequestValueErr {
                 request: METHOD_GET_STATE_KEYS.to_string(),
-                message: "Cannot create a 32 bytes array from mismatching size slice.".to_string(),
-            }.into());
+                message: "Cannot create a number.".to_string(),
+            }.into())
         }
-        let mut slice: [u8; 32] = [0; 32];
-        slice.copy_from_slice(&bytes);
-        Ok(U256::from(slice.as_ref()))
     }
 }
 
