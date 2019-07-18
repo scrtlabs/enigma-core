@@ -16,8 +16,8 @@ use crate::common_u::errors;
 use crate::web3_utils::w3utils;
 
 // This should be used as the main Web3/EventLoop
-// Creating another one means more threads and more thing to handle.
-// Important!! When the eloop is dropped the Web3/Contract will stop work!
+// Creating another one means more threads and more things to handle.
+// Important!! When the eloop is dropped the Web3/Contract will stop to work!
 #[derive(Debug)]
 pub struct EnigmaContract {
     pub web3: Arc<Web3<Http>>,
@@ -79,7 +79,7 @@ impl EnigmaContract {
 pub trait ContractFuncs<G> {
     // register
     // input: _signer: Address, _report: bytes
-    fn register(&self, signing_address: String, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
+    fn register(&self, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
 
     // setWorkersParams
     // input: _seed: U256, _sig: bytes
@@ -88,12 +88,11 @@ pub trait ContractFuncs<G> {
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
     #[logfn(DEBUG)]
-    fn register(&self, _signing_address: String, _report: String, _signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
+    fn register(&self, signing_address: H160, _report: String, _signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
         // register
         let mut opts = Options::default();
         opts.gas = Some(gas.into());
         // call the register function
-        let signing_address: H160 = _signing_address.parse()?;
         let report = _report.as_bytes().to_vec();
         let signature = _signature.from_hex()?;
 //        println!("The report signer: {:?}", signing_address);

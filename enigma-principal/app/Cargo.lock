@@ -475,6 +475,7 @@ dependencies = [
  "sgx_types 1.0.8 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8)",
  "sgx_urts 1.0.8 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.8)",
  "structopt 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tempfile 3.0.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "url 1.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "web3 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

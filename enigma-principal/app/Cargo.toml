@@ -33,3 +33,4 @@ sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
 [dev-dependencies]
 ethereum-types = "0.4"
 jsonrpc-test = "11.0.0"
+tempfile = "3.0"

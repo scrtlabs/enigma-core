@@ -222,7 +222,7 @@ mod test {
 
     #[test]
     pub fn test_jsonrpc_get_state_keys() {
-        setup_epoch_storage();
+        let path = setup_epoch_storage();
         let enclave = init_enclave_wrapper().unwrap();
         let workers: Vec<[u8; 20]> = vec![REF_WORKER];
         let stakes: Vec<u64> = vec![10000000000];
