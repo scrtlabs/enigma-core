@@ -117,7 +117,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     // Verifying the seed only because a nonce input of 0 is also an empty slice
     if seed_in != &EMPTY_SLICE {
         let seed = U256::from(seed_in);
-        let mut nonce = U256::from(nonce_in);
+        let nonce = U256::from(nonce_in);
         // Get the epoch marker values (nonce + H(`Epoch`) fr
         if let Some(marker_hash) = get_epoch_marker(nonce)? {
             let worker_params = worker_params.clone();
