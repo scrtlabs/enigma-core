@@ -66,7 +66,6 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
 pub mod tests {
     use sgx_urts::SgxEnclave;
 
-    use epoch_u::epoch_provider::test::setup_epoch_storage;
     use esgx::epoch_keeper_u::set_or_verify_worker_params;
     use esgx::epoch_keeper_u::tests::get_worker_params;
     use esgx::general::init_enclave_wrapper;
@@ -90,7 +89,6 @@ pub mod tests {
 
     #[test]
     fn test_get_state_keys() {
-        setup_epoch_storage();
         let enclave = init_enclave();
 
         // Since the seed is not predictable in advance, test with a single worker to predict the selected worker

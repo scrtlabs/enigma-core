@@ -205,7 +205,6 @@ mod test {
     use web3::types::Bytes;
 
     use enigma_types::ContractAddress;
-    use epoch_u::epoch_provider::test::setup_epoch_storage;
     use epoch_u::epoch_types::ConfirmedEpochState;
     use esgx::epoch_keeper_u::set_or_verify_worker_params;
     use esgx::epoch_keeper_u::tests::get_worker_params;
@@ -222,7 +221,6 @@ mod test {
 
     #[test]
     pub fn test_jsonrpc_get_state_keys() {
-        let path = setup_epoch_storage();
         let enclave = init_enclave_wrapper().unwrap();
         let workers: Vec<[u8; 20]> = vec![REF_WORKER];
         let stakes: Vec<u64> = vec![10000000000];
