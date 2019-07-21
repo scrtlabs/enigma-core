@@ -134,7 +134,7 @@ impl PrincipalHttpServer {
     }
 
     fn handle_error(internal_err: Error) -> ServerError {
-        println!("Got internal error: {:?}", internal_err);
+        println!("Got internal error: {:?}", internal_err.as_fail());
         if let Some(err) = internal_err.downcast_ref::<EnclaveFailError>() {
             let server_err = match &err.err {
                 EnclaveReturn::WorkerAuthError => {
