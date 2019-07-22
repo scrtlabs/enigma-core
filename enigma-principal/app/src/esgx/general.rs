@@ -8,6 +8,7 @@ static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 pub static ENCLAVE_DIR: &'static str = ".enigma";
 pub static EPOCH_DIR: &'static str = "epoch";
+pub static EPOCH_FILE: &'static str = "epoch-state.msgpack";
 pub static STATE_KEYS_DIR: &'static str = "state-keys";
 
 #[logfn(INFO)]

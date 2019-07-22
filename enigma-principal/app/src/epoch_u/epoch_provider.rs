@@ -24,26 +24,18 @@ use enigma_tools_u::{
 use enigma_tools_u::common_u::errors::Web3Error;
 use epoch_u::epoch_types::{ConfirmedEpochState, EPOCH_STATE_UNCONFIRMED, EpochState, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
 use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
-use esgx::general::EPOCH_DIR;
+use esgx::general::{EPOCH_DIR, EPOCH_FILE};
 use std::mem::replace;
 
 pub struct EpochStateManager {
     pub epoch_state_list: Mutex<Vec<EpochState>>,
     pub cap: usize,
-    pub dir_path: PathBuf,
-}
-
-fn get_file_path(mut path: PathBuf) -> Result<PathBuf, Error> {
-    if !path.exists() {
-        fs::create_dir_all(&path)?;
-    }
-    path.push("epoch-state.msgpack");
-    Ok(path)
+    pub state_path: PathBuf,
 }
 
 #[logfn(DEBUG)]
-fn read_from_file(path: PathBuf, cap: usize) -> Result<Vec<EpochState>, Error> {
-    let epoch_state = match File::open(get_file_path(path)?) {
+fn read_from_epoch_state(path: &PathBuf, cap: usize) -> Result<Vec<EpochState>, Error> {
+    let epoch_state = match File::open(path) {
         Ok(mut f) => {
             let mut buf = Vec::new();
             f.read_to_end(&mut buf)?;
@@ -66,8 +58,7 @@ fn read_from_file(path: PathBuf, cap: usize) -> Result<Vec<EpochState>, Error> {
 }
 
 #[logfn(DEBUG)]
-fn write_to_file(path: PathBuf, epoch_state: Vec<EpochState>) -> Result<(), Error> {
-    let path = get_file_path(path)?;
+fn write_to_epoch_state(path: &PathBuf, epoch_state: Vec<EpochState>) -> Result<(), Error> {
     if epoch_state.is_empty() {
         return Ok(fs::remove_file(path).unwrap_or_else(|_| println!("No epoch state file to remove")));
     }
@@ -79,11 +70,16 @@ fn write_to_file(path: PathBuf, epoch_state: Vec<EpochState>) -> Result<(), Erro
 }
 
 impl EpochStateManager {
-    pub fn new(mut dir_path: PathBuf, cap: usize) -> Result<Self, Error> {
-        dir_path.push(EPOCH_DIR);
-        let epoch_state_val = read_from_file(dir_path.clone(), cap)?;
+    pub fn new(mut state_path: PathBuf, cap: usize) -> Result<Self, Error> {
+        state_path.push(EPOCH_DIR);
+        state_path.push(EPOCH_FILE);
+        if !state_path.exists() {
+            fs::create_dir_all(&state_path)?;
+        }
+
+        let epoch_state_val = read_from_epoch_state(&state_path, cap)?;
         let epoch_state_list = Mutex::new(epoch_state_val.clone());
-        Ok(Self { epoch_state_list, cap, dir_path })
+        Ok(Self { epoch_state_list, cap, state_path })
     }
 
     /// Lock the `EpochState` list `Mutex`, or wait and retry
@@ -176,9 +172,9 @@ impl EpochStateManager {
         let epoch_state_list = guard.deref().clone();
         drop(guard);
         info!("Saving EpochState list to disk: {:?}", epoch_state_list);
-        match write_to_file(self.dir_path.clone(), epoch_state_list) {
+        match write_to_epoch_state(&self.state_path, epoch_state_list) {
             Ok(_) => {
-                info!("Saved EpochState list: {:?}", get_file_path(self.dir_path.clone()));
+                info!("Saved EpochState list: {:?}", &self.state_path);
                 Ok(())
             }
             Err(err) => Err(EpochStateIOErr {
@@ -389,15 +385,17 @@ pub mod test {
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
 
-    pub fn setup_epoch_storage() -> PathBuf {
+    pub fn setup_epoch_storage_file() -> PathBuf {
         let tempdir = tempfile::tempdir().unwrap();
-        println!("path is: {:?}", tempdir.path());
-        tempdir.into_path()
+        let mut temp_path = tempdir.into_path();
+        temp_path.push(EPOCH_FILE);
+        println!("path is: {:?}", temp_path);
+        temp_path
     }
 
     #[test]
     fn test_write_epoch_state() {
-        let path = setup_epoch_storage();
+        let path = setup_epoch_storage_file();
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
         let mock_address: [u8; 32] = [1; 32];
         selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
@@ -408,10 +406,10 @@ pub mod test {
         let sig = Bytes::from(mock_sig.to_vec());
         let nonce = U256::from(0);
         let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
-        write_to_file(path.clone(), vec![epoch_state.clone()]).unwrap();
+        write_to_epoch_state(&path, vec![epoch_state.clone()]).unwrap();
 
         // TODO: This could fail if another test deleted the epoch files exactly here, give unique name
-        let saved_epoch_state = read_from_file(path.clone(), 1).unwrap();
+        let saved_epoch_state = read_from_epoch_state(&path, 1).unwrap();
         assert_eq!(format!("{:?}", saved_epoch_state[0]), format!("{:?}", epoch_state));
     }
 }

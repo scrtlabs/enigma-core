@@ -212,6 +212,7 @@ impl Sampler for PrincipalManager {
     ///
     /// # Arguments
     ///
+    /// * `path` - path to the .enigma directory.
     /// * `reset_epoch` - If true, reset the epoch state
     /// * `gas_limit` - The gas limit for all Enigma contract transactions
     #[logfn(INFO)]

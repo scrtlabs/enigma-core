@@ -80,7 +80,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             let response = PrincipalHttpServer::get_state_keys(Arc::new(epoch_provider), request)?;
             println!("The getStateKeys response: {}", serde_json::to_string(&response)?);
         } else {
-            principal.run(path.clone(), false, gas_limit).unwrap();
+            principal.run(path, false, gas_limit).unwrap();
         }
         if let Some(t) = join_handle {
             t.join().unwrap();
