@@ -72,11 +72,10 @@ fn write_to_epoch_state(path: &PathBuf, epoch_state: Vec<EpochState>) -> Result<
 impl EpochStateManager {
     pub fn new(mut state_path: PathBuf, cap: usize) -> Result<Self, Error> {
         state_path.push(EPOCH_DIR);
-        state_path.push(EPOCH_FILE);
         if !state_path.exists() {
             fs::create_dir_all(&state_path)?;
         }
-
+        state_path.push(EPOCH_FILE);
         let epoch_state_val = read_from_epoch_state(&state_path, cap)?;
         let epoch_state_list = Mutex::new(epoch_state_val.clone());
         Ok(Self { epoch_state_list, cap, state_path })
