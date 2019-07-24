@@ -33,42 +33,6 @@ pub struct EpochStateManager {
     pub state_path: PathBuf,
 }
 
-#[logfn(DEBUG)]
-fn read_from_epoch_state(path: &PathBuf, cap: usize) -> Result<Vec<EpochState>, Error> {
-    let epoch_state = match File::open(path) {
-        Ok(mut f) => {
-            let mut buf = Vec::new();
-            f.read_to_end(&mut buf)?;
-            let mut des = Deserializer::new(&buf[..]);
-            let mut data: Vec<EpochState> = Deserialize::deserialize(&mut des).unwrap_or_default();
-            println!("Found EpochState list: {:?}", data);
-            if cap < data.len() {
-                return Err(EpochStateIOErr { message: format!("The EpochState entries exceed the cap: {}", cap) }.into());
-            }
-            let mut capped_data = Vec::with_capacity(cap);
-            capped_data.append(&mut data);
-            capped_data
-        }
-        Err(_) => {
-            println!("No existing epoch state, starting with block 0");
-            vec![]
-        }
-    };
-    Ok(epoch_state)
-}
-
-#[logfn(DEBUG)]
-fn write_to_epoch_state(path: &PathBuf, epoch_state: Vec<EpochState>) -> Result<(), Error> {
-    if epoch_state.is_empty() {
-        return Ok(fs::remove_file(path).unwrap_or_else(|_| println!("No epoch state file to remove")));
-    }
-    let mut file = File::create(path)?;
-    let mut buf = Vec::new();
-    epoch_state.serialize(&mut Serializer::new(&mut buf))?;
-    file.write_all(&buf)?;
-    Ok(())
-}
-
 impl EpochStateManager {
     pub fn new(mut state_path: PathBuf, cap: usize) -> Result<Self, Error> {
         state_path.push(EPOCH_DIR);
@@ -76,9 +40,33 @@ impl EpochStateManager {
             fs::create_dir_all(&state_path)?;
         }
         state_path.push(EPOCH_FILE);
-        let epoch_state_val = read_from_epoch_state(&state_path, cap)?;
-        let epoch_state_list = Mutex::new(epoch_state_val.clone());
-        Ok(Self { epoch_state_list, cap, state_path })
+        Self::create_from_path(state_path, cap)
+    }
+
+    /// create an EpochStateManager object given the path from which we retrieve
+    /// the epoch states and the cap amount of epochs to handle backwards.
+    fn create_from_path(state_path: PathBuf, cap: usize) -> Result<EpochStateManager, Error> {
+        let epoch_states = match File::open(&state_path) {
+            Ok(mut f) => {
+                let mut buf = Vec::new();
+                f.read_to_end(&mut buf)?;
+                let mut des = Deserializer::new(&buf[..]);
+                let mut data: Vec<EpochState> = Deserialize::deserialize(&mut des).unwrap_or_default();
+                println!("Found EpochState list: {:?}", data);
+                if cap < data.len() {
+                    return Err(EpochStateIOErr { message: format!("The EpochState entries exceed the cap: {}", cap) }.into());
+                }
+                let mut capped_data = Vec::with_capacity(cap);
+                capped_data.append(&mut data);
+                capped_data
+            }
+            Err(_) => {
+                println!("No existing epoch state, starting with block 0");
+                vec![]
+            }
+        };
+        let epoch_state_list = Mutex::new(epoch_states);
+        Ok(EpochStateManager {epoch_state_list, cap, state_path})
     }
 
     /// Lock the `EpochState` list `Mutex`, or wait and retry
@@ -166,20 +154,23 @@ impl EpochStateManager {
     }
 
     #[logfn(DEBUG)]
-    fn save(&self) -> Result<(), Error> {
+    fn store_epoch_state(&self) -> Result<(), Error> {
         let guard = self.lock_guard_or_wait()?;
         let epoch_state_list = guard.deref().clone();
         drop(guard);
         info!("Saving EpochState list to disk: {:?}", epoch_state_list);
-        match write_to_epoch_state(&self.state_path, epoch_state_list) {
-            Ok(_) => {
-                info!("Saved EpochState list: {:?}", &self.state_path);
-                Ok(())
-            }
-            Err(err) => Err(EpochStateIOErr {
-                message: format!("Unable to write the EpochState list: {:?}", err),
-            }.into()),
+        if epoch_state_list.is_empty() {
+            return Ok(fs::remove_file(&self.state_path).unwrap_or_else(|_| println!("No epoch state file to remove")));
         }
+        let mut file = File::create(&self.state_path).
+            map_err(|e| EpochStateIOErr { message: format!("Unable to write the EpochState list: {}", e)})?;
+        let mut buf = Vec::new();
+        epoch_state_list.serialize(&mut Serializer::new(&mut buf)).
+            map_err(|e| EpochStateIOErr { message: format!("Unable to write the EpochState list: {}", e)})?;
+        file.write_all(&buf).
+            map_err(|e| EpochStateIOErr { message: format!("Unable to write the EpochState list: {}", e)})?;
+        info!("Saved EpochState list to: {:?}", &self.state_path);
+        Ok(())
     }
 
     /// Empty the `EpochState` list both in memory and to disk
@@ -187,7 +178,7 @@ impl EpochStateManager {
         let mut guard = self.lock_guard_or_wait()?;
         replace(&mut *guard, vec![]);
         drop(guard);
-        self.save()
+        self.store_epoch_state()
     }
 
     /// Append a new unconfirmed `EpochState` to the list and persist to disk
@@ -206,7 +197,7 @@ impl EpochStateManager {
         }
         guard.push(epoch_state);
         drop(guard);
-        self.save()
+        self.store_epoch_state()
     }
 
     /// Confirm the last unconfirmed `EpochState`
@@ -224,7 +215,7 @@ impl EpochStateManager {
             bail!("Cannot confirm the last EpochState of an empty list");
         }
         drop(guard);
-        self.save()
+        self.store_epoch_state()
     }
 }
 
@@ -392,23 +383,23 @@ pub mod test {
         temp_path
     }
 
-    #[test]
-    fn test_write_epoch_state() {
-        let path = setup_epoch_storage_file();
-        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
-        let mock_address: [u8; 32] = [1; 32];
-        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
-        let block_number = U256::from(1);
-        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
-        let seed = U256::from(1);
-        let mock_sig: [u8; 65] = [1; 65];
-        let sig = Bytes::from(mock_sig.to_vec());
-        let nonce = U256::from(0);
-        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
-        write_to_epoch_state(&path, vec![epoch_state.clone()]).unwrap();
-
-        // TODO: This could fail if another test deleted the epoch files exactly here, give unique name
-        let saved_epoch_state = read_from_epoch_state(&path, 1).unwrap();
-        assert_eq!(format!("{:?}", saved_epoch_state[0]), format!("{:?}", epoch_state));
-    }
+//    #[test]
+//    fn test_write_epoch_state() {
+//        let path = setup_epoch_storage_file();
+//        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+//        let mock_address: [u8; 32] = [1; 32];
+//        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
+//        let block_number = U256::from(1);
+//        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+//        let seed = U256::from(1);
+//        let mock_sig: [u8; 65] = [1; 65];
+//        let sig = Bytes::from(mock_sig.to_vec());
+//        let nonce = U256::from(0);
+//        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+//        write_to_epoch_state(&path, vec![epoch_state.clone()]).unwrap();
+//
+//        // TODO: This could fail if another test deleted the epoch files exactly here, give unique name
+//        let saved_epoch_state = read_from_epoch_state(&path, 1).unwrap();
+//        assert_eq!(format!("{:?}", saved_epoch_state[0]), format!("{:?}", epoch_state));
+//    }
 }
