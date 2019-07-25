@@ -27,6 +27,7 @@ use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
 use esgx::general::{EPOCH_DIR, EPOCH_FILE};
 use std::mem::replace;
 
+#[derive(Debug)]
 pub struct EpochStateManager {
     pub epoch_state_list: Mutex<Vec<EpochState>>,
     pub cap: usize,
@@ -378,28 +379,59 @@ pub mod test {
     pub fn setup_epoch_storage_file() -> PathBuf {
         let tempdir = tempfile::tempdir().unwrap();
         let mut temp_path = tempdir.into_path();
-        temp_path.push(EPOCH_FILE);
         println!("path is: {:?}", temp_path);
         temp_path
     }
 
-//    #[test]
-//    fn test_write_epoch_state() {
-//        let path = setup_epoch_storage_file();
-//        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
-//        let mock_address: [u8; 32] = [1; 32];
-//        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
-//        let block_number = U256::from(1);
-//        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
-//        let seed = U256::from(1);
-//        let mock_sig: [u8; 65] = [1; 65];
-//        let sig = Bytes::from(mock_sig.to_vec());
-//        let nonce = U256::from(0);
-//        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
-//        write_to_epoch_state(&path, vec![epoch_state.clone()]).unwrap();
-//
-//        // TODO: This could fail if another test deleted the epoch files exactly here, give unique name
-//        let saved_epoch_state = read_from_epoch_state(&path, 1).unwrap();
-//        assert_eq!(format!("{:?}", saved_epoch_state[0]), format!("{:?}", epoch_state));
-//    }
+    #[test]
+    fn test_store_epoch_state() {
+        let path = setup_epoch_storage_file();
+        let cap: usize = 2;
+        let epoch_manager_calculated = EpochStateManager::new(path.clone(), cap).unwrap();
+
+        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        let mock_address = [1u8; 32];
+        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
+        let block_number = U256::from(1);
+        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+
+        let seed = U256::from(1);
+        let mock_sig = [1u8; 65];
+        let sig = Bytes::from(mock_sig.to_vec());
+        let nonce = U256::from(0);
+
+        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        epoch_manager_calculated.append_unconfirmed(epoch_state.clone()).unwrap();
+
+        let epoch_manager_accepted = EpochStateManager::new(path, cap).unwrap();
+        assert_eq!(format!("{:?}", epoch_manager_accepted.epoch_state_list.lock().unwrap().iter().last().unwrap()), format!("{:?}", epoch_state));
+    }
+
+    #[test]
+    fn test_store_and_reset_epoch_state() {
+        let path = setup_epoch_storage_file();
+        let cap: usize = 2;
+        let epoch_manager_calculated = EpochStateManager::new(path.clone(), cap).unwrap();
+
+        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        let mock_address = [1u8; 32];
+        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
+        let block_number = U256::from(1);
+        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+
+        let seed = U256::from(1);
+        let mock_sig = [1u8; 65];
+        let sig = Bytes::from(mock_sig.to_vec());
+        let nonce = U256::from(0);
+
+        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        epoch_manager_calculated.append_unconfirmed(epoch_state.clone()).unwrap();
+
+        epoch_manager_calculated.reset().unwrap();
+        let epoch_manager_accepted = EpochStateManager::new(path, cap).unwrap();
+
+        assert!(epoch_manager_accepted.epoch_state_list.lock().unwrap().is_empty());
+
+
+    }
 }
