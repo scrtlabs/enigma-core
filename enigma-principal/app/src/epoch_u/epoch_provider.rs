@@ -376,7 +376,7 @@ pub mod test {
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
 
-    pub fn setup_epoch_storage_file() -> PathBuf {
+    pub fn setup_epoch_storage_dir() -> PathBuf {
         let tempdir = tempfile::tempdir().unwrap();
         let mut temp_path = tempdir.into_path();
         println!("path is: {:?}", temp_path);
@@ -385,7 +385,7 @@ pub mod test {
 
     #[test]
     fn test_store_epoch_state() {
-        let path = setup_epoch_storage_file();
+        let path = setup_epoch_storage_dir();
         let cap: usize = 2;
         let epoch_manager_calculated = EpochStateManager::new(path.clone(), cap).unwrap();
 
@@ -409,7 +409,7 @@ pub mod test {
 
     #[test]
     fn test_store_and_reset_epoch_state() {
-        let path = setup_epoch_storage_file();
+        let path = setup_epoch_storage_dir();
         let cap: usize = 2;
         let epoch_manager_calculated = EpochStateManager::new(path.clone(), cap).unwrap();
 
