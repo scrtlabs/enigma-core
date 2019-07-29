@@ -116,8 +116,8 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     // If the seed input is not an empty slice, recover an `Epoch` from the sealed marker
     // Verifying the seed only because a nonce input of 0 is also an empty slice
     if seed_in != &EMPTY_SLICE {
-        let seed = U256::from(seed_in.as_ref());
-        let nonce = U256::from(nonce_in.as_ref());
+        let seed = U256::from(seed_in);
+        let nonce = U256::from(nonce_in);
         // Get the epoch marker values (nonce + H(`Epoch`) fr
         if let Some(marker_hash) = get_epoch_marker(nonce)? {
             let worker_params = worker_params.clone();
@@ -142,7 +142,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     let epoch = match existing_epoch {
         Some(epoch) => epoch,
         None => {
-            // If the `Epoch` cache is not empty, increment the last nonce by 1
+            // If the `Epoch` cache is not empty, increment the last nonce that exists in the hashmap by 1
             let nonce = match guard.keys().max() {
                 Some(nonce) => nonce + 1,
                 None => INIT_NONCE.into(),

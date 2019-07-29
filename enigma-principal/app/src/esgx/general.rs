@@ -8,6 +8,7 @@ static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
 pub static ENCLAVE_DIR: &'static str = ".enigma";
 pub static EPOCH_DIR: &'static str = "epoch";
+pub static EPOCH_FILE: &'static str = "epoch-state.msgpack";
 pub static STATE_KEYS_DIR: &'static str = "state-keys";
 
 #[logfn(INFO)]
@@ -63,7 +64,7 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     let (enclave, launch_token) = enigma_tools_u::esgx::init_enclave(&token_file, use_token, &ENCLAVE_FILE)?;
     // Step 3: save the launch token if it is updated
     if use_token && launch_token.is_some() {
-        // reopen the file with write capablity
+        // reopen the file with write capability
         match fs::File::create(&token_file) {
             Ok(mut f) => match f.write_all(&launch_token.unwrap()) {
                 Ok(_) => println!("[+] Saved updated launch token!"),

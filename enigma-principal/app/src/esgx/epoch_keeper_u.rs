@@ -80,7 +80,6 @@ pub mod tests {
     use rustc_hex::{FromHex, ToHex};
     use web3::types::{Address, H160, H256};
 
-    use epoch_u::epoch_provider::test::setup_epoch_storage;
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
@@ -97,7 +96,6 @@ pub mod tests {
 
     #[test]
     fn test_set_mock_worker_params() {
-        setup_epoch_storage();
         let enclave = init_enclave_wrapper().unwrap();
         let workers: Vec<[u8; 20]> = vec![
             [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
@@ -112,7 +110,6 @@ pub mod tests {
 
     #[test]
     fn test_set_mock_worker_params_above_cap() {
-        setup_epoch_storage();
         let enclave = init_enclave_wrapper().unwrap();
         let workers: Vec<[u8; 20]> = vec![
             [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],

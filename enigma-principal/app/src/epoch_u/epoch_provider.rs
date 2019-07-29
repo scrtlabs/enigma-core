@@ -24,38 +24,30 @@ use enigma_tools_u::{
 use enigma_tools_u::common_u::errors::Web3Error;
 use epoch_u::epoch_types::{ConfirmedEpochState, EPOCH_STATE_UNCONFIRMED, EpochState, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
 use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
-use esgx::general::EPOCH_DIR;
+use esgx::general::{EPOCH_DIR, EPOCH_FILE};
 use std::mem::replace;
 
+#[derive(Debug)]
 pub struct EpochStateManager {
     pub epoch_state_list: Mutex<Vec<EpochState>>,
     pub cap: usize,
+    pub state_path: PathBuf,
 }
 
 impl EpochStateManager {
-    pub fn new(cap: usize) -> Result<Self, Error> {
-        let epoch_state_val = Self::read_from_file(cap)?;
-        let epoch_state_list = Mutex::new(epoch_state_val.clone());
-        Ok(Self { epoch_state_list, cap })
+    pub fn new(mut state_path: PathBuf, cap: usize) -> Result<Self, Error> {
+        state_path.push(EPOCH_DIR);
+        if !state_path.exists() {
+            fs::create_dir_all(&state_path)?;
+        }
+        state_path.push(EPOCH_FILE);
+        Self::create_from_path(state_path, cap)
     }
 
-    fn get_file_path() -> Result<PathBuf, Error> {
-        let mut path = storage_dir(ENCLAVE_DIR)?;
-        path.push(EPOCH_DIR);
-        match fs::create_dir_all(&path) {
-            Ok(_) => (),
-            Err(e) => match e.kind() {
-                io::ErrorKind::AlreadyExists => (),
-                _ => return Err(e.into())
-            }
-        };
-        path.push("epoch-state.msgpack");
-        Ok(path)
-    }
-
-    #[logfn(DEBUG)]
-    fn read_from_file(cap: usize) -> Result<Vec<EpochState>, Error> {
-        let epoch_state = match File::open(Self::get_file_path()?) {
+    /// create an EpochStateManager object given the path from which we retrieve
+    /// the epoch states and the cap amount of epochs to handle backwards.
+    fn create_from_path(state_path: PathBuf, cap: usize) -> Result<EpochStateManager, Error> {
+        let epoch_states = match File::open(&state_path) {
             Ok(mut f) => {
                 let mut buf = Vec::new();
                 f.read_to_end(&mut buf)?;
@@ -74,20 +66,8 @@ impl EpochStateManager {
                 vec![]
             }
         };
-        Ok(epoch_state)
-    }
-
-    #[logfn(DEBUG)]
-    fn write_to_file(epoch_state: Vec<EpochState>) -> Result<(), Error> {
-        let path = Self::get_file_path()?;
-        if epoch_state.is_empty() {
-            return Ok(fs::remove_file(path).unwrap_or_else(|_| println!("No epoch state file to remove")));
-        }
-        let mut file = File::create(path)?;
-        let mut buf = Vec::new();
-        epoch_state.serialize(&mut Serializer::new(&mut buf))?;
-        file.write_all(&buf)?;
-        Ok(())
+        let epoch_state_list = Mutex::new(epoch_states);
+        Ok(EpochStateManager {epoch_state_list, cap, state_path})
     }
 
     /// Lock the `EpochState` list `Mutex`, or wait and retry
@@ -175,20 +155,23 @@ impl EpochStateManager {
     }
 
     #[logfn(DEBUG)]
-    fn save(&self) -> Result<(), Error> {
+    fn store_epoch_state(&self) -> Result<(), Error> {
         let guard = self.lock_guard_or_wait()?;
         let epoch_state_list = guard.deref().clone();
         drop(guard);
-        println!("Saving EpochState list to disk: {:?}", epoch_state_list);
-        match Self::write_to_file(epoch_state_list) {
-            Ok(_) => {
-                println!("Saved EpochState list: {:?}", EpochStateManager::get_file_path());
-                Ok(())
-            }
-            Err(err) => Err(EpochStateIOErr {
-                message: format!("Unable to write the EpochState list: {:?}", err),
-            }.into()),
+        info!("Saving EpochState list to disk: {:?}", epoch_state_list);
+        if epoch_state_list.is_empty() {
+            return Ok(fs::remove_file(&self.state_path).unwrap_or_else(|_| println!("No epoch state file to remove")));
         }
+        let mut file = File::create(&self.state_path).
+            map_err(|e| EpochStateIOErr { message: format!("Unable to write the EpochState list: {}", e)})?;
+        let mut buf = Vec::new();
+        epoch_state_list.serialize(&mut Serializer::new(&mut buf)).
+            map_err(|e| EpochStateIOErr { message: format!("Unable to write the EpochState list: {}", e)})?;
+        file.write_all(&buf).
+            map_err(|e| EpochStateIOErr { message: format!("Unable to write the EpochState list: {}", e)})?;
+        info!("Saved EpochState list to: {:?}", &self.state_path);
+        Ok(())
     }
 
     /// Empty the `EpochState` list both in memory and to disk
@@ -196,7 +179,7 @@ impl EpochStateManager {
         let mut guard = self.lock_guard_or_wait()?;
         replace(&mut *guard, vec![]);
         drop(guard);
-        self.save()
+        self.store_epoch_state()
     }
 
     /// Append a new unconfirmed `EpochState` to the list and persist to disk
@@ -215,7 +198,7 @@ impl EpochStateManager {
         }
         guard.push(epoch_state);
         drop(guard);
-        self.save()
+        self.store_epoch_state()
     }
 
     /// Confirm the last unconfirmed `EpochState`
@@ -233,7 +216,7 @@ impl EpochStateManager {
             bail!("Cannot confirm the last EpochState of an empty list");
         }
         drop(guard);
-        self.save()
+        self.store_epoch_state()
     }
 }
 
@@ -244,8 +227,8 @@ pub struct EpochProvider {
 }
 
 impl EpochProvider {
-    pub fn new(eid: Arc<sgx_enclave_id_t>, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
-        let epoch_state_manager = Arc::new(EpochStateManager::new(EPOCH_CAP)?);
+    pub fn new(eid: Arc<sgx_enclave_id_t>, dir_path: PathBuf, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
+        let epoch_state_manager = Arc::new(EpochStateManager::new(dir_path, EPOCH_CAP)?);
         let epoch_provider = Self { contract, epoch_state_manager, eid };
         epoch_provider.verify_worker_params()?;
         Ok(epoch_provider)
@@ -278,7 +261,7 @@ impl EpochProvider {
                 message: format!("Unable to parse {} event: {:?}", WORKER_PARAMETERIZED_EVENT, err),
             }.into()),
         };
-        println!("Parsed the {} event: {:?}", WORKER_PARAMETERIZED_EVENT, result);
+        info!("Parsed the {} event: {:?}", WORKER_PARAMETERIZED_EVENT, result);
         Ok(result)
     }
 
@@ -330,7 +313,7 @@ impl EpochProvider {
             bail!("The last EpochState is already confirmed");
         }
         let epoch_state = self.epoch_state_manager.last(false)?;
-        println!("Confirming EpochState by verifying with the enclave and calling setWorkerParams: {:?}", epoch_state);
+        info!("Confirming EpochState by verifying with the enclave and calling setWorkerParams: {:?}", epoch_state);
         self.set_worker_params_internal(block_number, gas_limit, confirmations, Some(epoch_state))
     }
 
@@ -339,17 +322,17 @@ impl EpochProvider {
         let result = self.contract.get_active_workers(block_number)?;
         let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
         let mut epoch_state = set_or_verify_worker_params(*self.eid, &worker_params, epoch_state)?;
-        println!("Storing unconfirmed EpochState: {:?}", epoch_state);
+        info!("Storing unconfirmed EpochState: {:?}", epoch_state);
         self.epoch_state_manager.append_unconfirmed(epoch_state.clone())?;
-        println!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
+        info!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
         let receipt = self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
-        println!("Got the receipt: {:?}", receipt);
+        info!("Got the receipt: {:?}", receipt);
         let log = self.parse_worker_parameterized(&receipt)?;
         match log.params.into_iter().find(|x| x.name == "firstBlockNumber") {
             Some(param) => {
                 let block_number = param.value.to_uint().unwrap();
                 self.confirm_epoch(&mut epoch_state, block_number, worker_params)?;
-                println!("Storing confirmed EpochState: {:?}", epoch_state);
+                info!("Storing confirmed EpochState: {:?}", epoch_state);
                 self.epoch_state_manager.confirm_last(epoch_state)?;
                 Ok(receipt.transaction_hash)
             }
@@ -366,9 +349,9 @@ impl EpochProvider {
     #[logfn(DEBUG)]
     pub fn confirm_epoch(&self, epoch_state: &mut EpochState, block_number: U256, worker_params: InputWorkerParams) -> Result<(), Error> {
         let contract_count = self.contract.count_secret_contracts()?;
-        println!("The secret contract count: {:?}", contract_count);
+        info!("The secret contract count: {:?}", contract_count);
         let sc_addresses = self.contract.get_secret_contract_addresses(U256::from(0), contract_count)?;
-        println!("The secret contract addresses: {:?}", sc_addresses);
+        info!("The secret contract addresses: {:?}", sc_addresses);
         epoch_state.confirm(block_number, &worker_params, sc_addresses)?;
         Ok(())
     }
@@ -378,6 +361,9 @@ impl EpochProvider {
 
 #[cfg(test)]
 pub mod test {
+    extern crate tempfile;
+
+    use self::tempfile::TempDir;
     use std::collections::HashMap;
 
     use web3::types::{Bytes, H160};
@@ -390,29 +376,62 @@ pub mod test {
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
         [95, 53, 26, 193, 96, 206, 55, 206, 15, 120, 191, 101, 13, 44, 28, 237, 80, 151, 54, 182];
 
-    pub fn setup_epoch_storage() {
-        let mut path = storage_dir(ENCLAVE_DIR).unwrap();
-        path.push(EPOCH_DIR);
-        fs::remove_dir_all(path).unwrap_or_else(|_| println!("Epoch dir already empty"));
+    pub fn setup_epoch_storage_dir() -> PathBuf {
+        let tempdir = tempfile::tempdir().unwrap();
+        let mut temp_path = tempdir.into_path();
+        println!("path is: {:?}", temp_path);
+        temp_path
     }
 
     #[test]
-    fn test_write_epoch_state() {
-        setup_epoch_storage();
+    fn test_store_epoch_state() {
+        let path = setup_epoch_storage_dir();
+        let cap: usize = 2;
+        let epoch_manager_calculated = EpochStateManager::new(path.clone(), cap).unwrap();
+
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
-        let mock_address: [u8; 32] = [1; 32];
+        let mock_address = [1u8; 32];
         selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
         let block_number = U256::from(1);
         let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+
         let seed = U256::from(1);
-        let mock_sig: [u8; 65] = [1; 65];
+        let mock_sig = [1u8; 65];
         let sig = Bytes::from(mock_sig.to_vec());
         let nonce = U256::from(0);
-        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
-        EpochStateManager::write_to_file(vec![epoch_state.clone()]).unwrap();
 
-        // TODO: This could fail if another test deleted the epoch files exactly here, give unique name
-        let saved_epoch_state = EpochStateManager::read_from_file(1).unwrap();
-        assert_eq!(format!("{:?}", saved_epoch_state[0]), format!("{:?}", epoch_state));
+        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        epoch_manager_calculated.append_unconfirmed(epoch_state.clone()).unwrap();
+
+        let epoch_manager_accepted = EpochStateManager::new(path, cap).unwrap();
+        assert_eq!(format!("{:?}", epoch_manager_accepted.epoch_state_list.lock().unwrap().iter().last().unwrap()), format!("{:?}", epoch_state));
+    }
+
+    #[test]
+    fn test_store_and_reset_epoch_state() {
+        let path = setup_epoch_storage_dir();
+        let cap: usize = 2;
+        let epoch_manager_calculated = EpochStateManager::new(path.clone(), cap).unwrap();
+
+        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        let mock_address = [1u8; 32];
+        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
+        let block_number = U256::from(1);
+        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+
+        let seed = U256::from(1);
+        let mock_sig = [1u8; 65];
+        let sig = Bytes::from(mock_sig.to_vec());
+        let nonce = U256::from(0);
+
+        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        epoch_manager_calculated.append_unconfirmed(epoch_state.clone()).unwrap();
+
+        epoch_manager_calculated.reset().unwrap();
+        let epoch_manager_accepted = EpochStateManager::new(path, cap).unwrap();
+
+        assert!(epoch_manager_accepted.epoch_state_list.lock().unwrap().is_empty());
+
+
     }
 }
