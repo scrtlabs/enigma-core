@@ -19,7 +19,7 @@ extern crate serde;
 extern crate wasmi;
 
 use crate::data::{ContractState, DeltasInterface, IOInterface, EncryptedPatch};
-use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError};
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError, EnclaveSystemError};
 use enigma_types::{ContractAddress, StateKey, SymmetricKey};
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
@@ -386,14 +386,15 @@ impl Runtime {
 
         let key_ptr: u32 = args.nth_checked(2)?;
         let mut key: SymmetricKey = [0u8; SYMMETRIC_KEY_SIZE];
-        self.memory.get_into(key_ptr, &key)?;
+        self.memory.get_into(key_ptr, &mut key)?;
 
         let iv_ptr: u32 = args.nth_checked(3)?;
         let mut iv: IV = [0u8; IV_SIZE];
-        self.memory.get_into(iv_ptr, &iv)?;
+        self.memory.get_into(iv_ptr, &mut iv)?;
 
         let ptr: u32 = args.nth_checked(4)?;
-        let enc_message = encrypt_with_nonce(&message, &key, Some(iv))?;
+        let enc_message = encrypt_with_nonce(&message, &key, Some(iv))
+            .map_err(|err| WasmError::EnclaveError(EnclaveError::SystemError(EnclaveSystemError::CryptoError { err })))?;
         self.memory.set(ptr, &enc_message)?;
         Ok(())
     }
@@ -405,10 +406,11 @@ impl Runtime {
 
         let key_ptr: u32 = args.nth_checked(2)?;
         let mut key: SymmetricKey = [0u8; SYMMETRIC_KEY_SIZE];
-        self.memory.get_into(key_ptr, &key)?;
+        self.memory.get_into(key_ptr, &mut key)?;
 
         let ptr: u32 = args.nth_checked(3)?;
-        let message = decrypt(&cipheriv, &key)?;
+        let message = decrypt(&cipheriv, &key)
+            .map_err(|err| WasmError::EnclaveError(EnclaveError::SystemError(EnclaveSystemError::CryptoError { err })))?;
         self.memory.set(ptr, &message)?;
         Ok(())
     }

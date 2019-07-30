@@ -62,7 +62,7 @@ pub mod signatures {
 
     pub const RAND: StaticSignature = StaticSignature(&[I32, I32], None);
 
-    pub const ENCRYPT_WITH_NONCE: StaticSignature = StaticSignature(&[I32, I32, I32, I32, I32], Nonce);
+    pub const ENCRYPT_WITH_NONCE: StaticSignature = StaticSignature(&[I32, I32, I32, I32, I32], None);
 
     pub const DECRYPT: StaticSignature = StaticSignature(&[I32, I32, I32, I32], None);
 
