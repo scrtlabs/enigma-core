@@ -22,6 +22,8 @@ pub mod ids {
     pub const REMOVE_STATE_FUNC: usize = 13;
     pub const GAS_FUNC: usize = 14;
     pub const RAND_FUNC: usize = 15;
+    pub const ENCRYPT_WITH_NONCE_FUNC: usize = 16;
+    pub const DECRYPT_FUNC: usize = 17;
 }
 
 pub mod signatures {
@@ -59,6 +61,10 @@ pub mod signatures {
     pub const GAS: StaticSignature = StaticSignature(&[I32], None);
 
     pub const RAND: StaticSignature = StaticSignature(&[I32, I32], None);
+
+    pub const ENCRYPT_WITH_NONCE: StaticSignature = StaticSignature(&[I32, I32, I32, I32, I32], Nonce);
+
+    pub const DECRYPT: StaticSignature = StaticSignature(&[I32, I32, I32, I32], None);
 
     impl Into<wasmi::Signature> for StaticSignature {
         fn into(self) -> wasmi::Signature { wasmi::Signature::new(self.0, self.1) }
@@ -119,6 +125,8 @@ impl ModuleImportResolver for ImportResolver {
             "write_eth_bridge" => FuncInstance::alloc_host(signatures::WRITE_ETH_BRIDGE.into(), ids::WRITE_ETH_BRIDGE_FUNC),
             "gas" => FuncInstance::alloc_host(signatures::GAS.into(), ids::GAS_FUNC),
             "rand" => FuncInstance::alloc_host(signatures::RAND.into(), ids::RAND_FUNC),
+            "encrypt_with_nonce" => FuncInstance::alloc_host(signatures::ENCRYPT_WITH_NONCE.into(), ids::ENCRYPT_WITH_NONCE_FUNC),
+            "decrypt" => FuncInstance::alloc_host(signatures::DECRYPT.into(), ids::DECRYPT_FUNC),
             _ => return Err(wasmi::Error::Instantiation(format!("Export {} not found", field_name))),
         };
 

@@ -12,10 +12,12 @@ extern crate serde;
 #[macro_use]
 mod internal_std;
 mod rand_wasm;
+mod crypto_wasm;
 pub extern crate eng_pwasm_abi;
 
 pub use internal_std::*;
 pub use rand_wasm::*;
+pub use crypto_wasm::*;
 pub use serde_json::Value;
 pub use eng_pwasm_abi::types::*;
 
@@ -37,6 +39,8 @@ pub mod external {
         pub fn gas(amount: u32);
         pub fn ret(payload: *const u8, payload_len: u32);
         pub fn rand(payload: *const u8, payload_len: u32);
+        pub fn encrypt_with_nonce(message: *const u8, message_len: u32, key: *const u8, iv: *const u8, payload: *const u8);
+        pub fn decrypt(cipheriv: *const u8, cipheriv_len: u32, key: *const u8, payload: *const u8);
     }
 }
 

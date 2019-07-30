@@ -15,9 +15,10 @@ use crate::localstd::vec::Vec;
 use crate::localstd::vec;
 use crate::rand;
 
-const IV_SIZE: usize = 96/8;
+pub const SYMMETRIC_KEY_SIZE: usize = 32;
+pub const IV_SIZE: usize = 96/8;
 static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
-type IV = [u8; IV_SIZE];
+pub type IV = [u8; IV_SIZE];
 
 
 /// This function get's a key and a slice of data and encrypts the data using the key.

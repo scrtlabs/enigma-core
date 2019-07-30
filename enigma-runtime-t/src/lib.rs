@@ -20,18 +20,19 @@ extern crate wasmi;
 
 use crate::data::{ContractState, DeltasInterface, IOInterface, EncryptedPatch};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError};
-use enigma_types::{ContractAddress, StateKey};
+use enigma_types::{ContractAddress, StateKey, SymmetricKey};
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
 use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
 use sgx_trts::trts::rsgx_read_rand;
+use enigma_crypto::symmetric::{IV, encrypt_with_nonce, decrypt, SYMMETRIC_KEY_SIZE, IV_SIZE};
 
 pub mod data;
 pub mod eng_resolver;
 pub mod ocalls_t;
 
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct EthereumData{
+pub struct EthereumData {
     pub ethereum_payload: Vec<u8>,
     pub ethereum_contract_addr: [u8; 20],
 }
@@ -83,7 +84,6 @@ pub struct Runtime {
 type Result<T> = ::std::result::Result<T, WasmError>;
 
 impl Runtime {
-
     pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_address: ContractAddress,
                function_name: String, args_types: String, key: StateKey) -> Runtime {
         let state = ContractState::new(contract_address);
@@ -135,7 +135,7 @@ impl Runtime {
         Ok(())
     }
 
-    fn read_state_key_from_memory(&self, args: &RuntimeArgs, arg_index: usize, arg_len_index: usize) -> Result<String>{
+    fn read_state_key_from_memory(&self, args: &RuntimeArgs, arg_index: usize, arg_len_index: usize) -> Result<String> {
         let key = args.nth_checked(arg_index)?;
         let key_len: u32 = args.nth_checked(arg_len_index)?;
         let mut buf = vec![0u8; key_len as usize];
@@ -146,13 +146,13 @@ impl Runtime {
         Ok(key_str.to_string())
     }
 
-    pub fn read_state_len (&self, args: RuntimeArgs) -> Result<i32> {
+    pub fn read_state_len(&self, args: RuntimeArgs) -> Result<i32> {
         // TODO: Handle the error here, should we return len=0?;
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value_vec =
             serde_json::to_vec(&self.post_execution_state.json[&key]).
                 expect("Failed converting Value to vec in Runtime while reading state");
-        Ok( value_vec.len() as i32 )
+        Ok(value_vec.len() as i32)
     }
 
 
@@ -162,7 +162,7 @@ impl Runtime {
     ///
     /// Read `key` from the memory, then read from the state the value under the `key`
     /// and copy it to `value_holder`.
-    pub fn read_state (&mut self, args: RuntimeArgs) -> Result<()> {
+    pub fn read_state(&mut self, args: RuntimeArgs) -> Result<()> {
         // TODO: Handle the error here, should we return len=0?;
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value_holder: u32 = args.nth_checked(2)?;
@@ -178,7 +178,7 @@ impl Runtime {
     /// * `key_len` - the length of key
     ///
     /// Read `key` from the memory, then remove the `key` from the state
-    pub fn remove_from_state (&mut self, args: RuntimeArgs) -> Result<()> {
+    pub fn remove_from_state(&mut self, args: RuntimeArgs) -> Result<()> {
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
 
         self.post_execution_state.remove_key(&key);
@@ -193,7 +193,7 @@ impl Runtime {
     ///
     /// Read `key` and `value` from memory, and write (key, value) pair to the state
     /// the cost of writing into the state is calculated by `calculate_gas_for_writing`
-    pub fn write_state (&mut self, args: RuntimeArgs) -> Result<()>{
+    pub fn write_state(&mut self, args: RuntimeArgs) -> Result<()> {
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value: u32 = args.nth_checked(2)?;
         let value_len: u32 = args.nth_checked(3)?;
@@ -209,12 +209,11 @@ impl Runtime {
         Ok(())
     }
 
-    fn treat_gas_overflow(&mut self, val: &Option<u64>) -> Result<()>{
+    fn treat_gas_overflow(&mut self, val: &Option<u64>) -> Result<()> {
         if val.is_none() {
             self.gas_counter = self.gas_limit;
             Err(WasmError::GasLimit)
-        }
-        else {
+        } else {
             Ok(())
         }
     }
@@ -223,8 +222,7 @@ impl Runtime {
         let result = 0;
         if let Some(v) = val {
             (false, *v)
-        }
-        else {
+        } else {
             self.gas_return = self.gas_limit;
             (true, result)
         }
@@ -279,7 +277,7 @@ impl Runtime {
         let payload_len: u32 = args.nth_checked(1)?;
         let address = args.nth_checked(2)?;
 
-        let mut bridge = EthereumData{ethereum_payload: vec![0u8; payload_len as usize], ethereum_contract_addr: Default::default()};
+        let mut bridge = EthereumData { ethereum_payload: vec![0u8; payload_len as usize], ethereum_contract_addr: Default::default() };
 
         self.memory.get_into(payload, &mut bridge.ethereum_payload[..])?;
         self.memory.get_into(address, &mut bridge.ethereum_contract_addr[..])?;
@@ -309,17 +307,16 @@ impl Runtime {
             Ok(_) => {
                 self.memory.set(ptr, &buf[..])?;
                 Ok(())
-            },
-            Err(e) => Err(SystemError(SgxError{ err: format!("{}", e), description: e.__description().to_string() }))?
+            }
+            Err(e) => Err(SystemError(SgxError { err: format!("{}", e), description: e.__description().to_string() }))?
         }
     }
 
     /// Destroy the runtime, returning currently recorded result of the execution
     pub fn into_result(mut self) -> ::std::result::Result<RuntimeResult, EnclaveError> {
-            if self.gas_counter >= self.gas_return {
+        if self.gas_counter >= self.gas_return {
             self.result.used_gas = self.gas_counter - self.gas_return;
-        }
-        else {
+        } else {
             self.result.used_gas = 0;
         }
         self.result.state_delta = {
@@ -381,11 +378,46 @@ impl Runtime {
             }
         }
     }
+
+    pub fn encrypt_with_nonce(&mut self, args: RuntimeArgs) -> Result<()> {
+        let message_ptr: u32 = args.nth_checked(0)?;
+        let message_len: u32 = args.nth_checked(1)?;
+        let message = self.memory.get(message_ptr, message_len as usize)?;
+
+        let key_ptr: u32 = args.nth_checked(2)?;
+        let mut key: SymmetricKey = [0u8; SYMMETRIC_KEY_SIZE];
+        self.memory.get_into(key_ptr, &key)?;
+
+        let iv_ptr: u32 = args.nth_checked(3)?;
+        let mut iv: IV = [0u8; IV_SIZE];
+        self.memory.get_into(iv_ptr, &iv)?;
+
+        let ptr: u32 = args.nth_checked(4)?;
+        let enc_message = encrypt_with_nonce(&message, &key, Some(iv))?;
+        self.memory.set(ptr, &enc_message)?;
+        Ok(())
+    }
+
+    pub fn decrypt(&mut self, args: RuntimeArgs) -> Result<()> {
+        let cipheriv_ptr: u32 = args.nth_checked(0)?;
+        let cipheriv_len: u32 = args.nth_checked(1)?;
+        let cipheriv = self.memory.get(cipheriv_ptr, cipheriv_len as usize)?;
+
+        let key_ptr: u32 = args.nth_checked(2)?;
+        let mut key: SymmetricKey = [0u8; SYMMETRIC_KEY_SIZE];
+        self.memory.get_into(key_ptr, &key)?;
+
+        let ptr: u32 = args.nth_checked(3)?;
+        let message = decrypt(&cipheriv, &key)?;
+        self.memory.set(ptr, &message)?;
+        Ok(())
+    }
 }
 
 mod ext_impl {
     use super::{eng_resolver, Runtime};
     use wasmi::{Externals, RuntimeArgs, RuntimeValue, Trap};
+
     impl Externals for Runtime {
         fn invoke_index(&mut self, index: usize, args: RuntimeArgs) -> Result<Option<RuntimeValue>, Trap> {
             match index {
