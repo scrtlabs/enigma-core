@@ -15,11 +15,14 @@ use crate::localstd::vec::Vec;
 use crate::localstd::vec;
 use crate::rand;
 
-pub const SYMMETRIC_KEY_SIZE: usize = 32;
-pub const IV_SIZE: usize = 96/8;
 static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
-pub type IV = [u8; IV_SIZE];
 
+/// The symmertic key byte size
+pub const SYMMETRIC_KEY_SIZE: usize = 32;
+/// The IV key byte size
+pub const IV_SIZE: usize = 96/8;
+/// Type alias for the IV byte array
+pub type IV = [u8; IV_SIZE];
 
 /// This function get's a key and a slice of data and encrypts the data using the key.
 /// the IV/nonce is appended to the cipher text after the MAC tag.
