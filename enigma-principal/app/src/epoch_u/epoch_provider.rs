@@ -245,7 +245,7 @@ impl EpochProvider {
     /// Find the last confirmed `EpochState`
     pub fn find_last_epoch(&self) -> Result<EpochState, Error> {
         if self.epoch_state_manager.is_last_unconfirmed()? {
-            return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into());
+            return Err(EpochStateTransitionErr { current_state: format!("{}, waiting for confirmation from Ethereum", EPOCH_STATE_UNCONFIRMED) }.into());
         }
         self.epoch_state_manager.last(true)
     }
