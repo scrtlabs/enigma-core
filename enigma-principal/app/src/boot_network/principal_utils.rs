@@ -53,10 +53,13 @@ impl Principal for EnigmaContract {
                 println!("[\u{23f3} ] Epoch still active [\u{23f3} ]");
             }
             thread::sleep(time::Duration::from_secs(polling_interval));
-            epoch_counter += 1;
-            if max_epochs != 0 && epoch_counter == max_epochs {
-                println!("[+] Principal: reached max_epochs {} , stopping.", max_epochs);
-                break;
+            if max_epochs != 0 {
+                // in order to avoid overflow - don't increment when max_epochs is 0
+                epoch_counter += 1;
+                if epoch_counter == max_epochs {
+                    println!("[+] Principal: reached max_epochs {} , stopping.", max_epochs);
+                    break;
+                }
             }
         }
     }
