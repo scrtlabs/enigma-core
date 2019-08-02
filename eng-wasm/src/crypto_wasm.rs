@@ -15,8 +15,8 @@ pub fn generate_key() -> SymmetricKey {
     key.0
 }
 
-pub fn encrypt_with_nonce(message: &[u8], key: &SymmetricKey, iv: &IV, payload: &mut [u8]) {
-    unsafe { external::encrypt_with_nonce(message.as_ptr(), message.len() as u32, key.as_ptr(), iv.as_ptr(), payload.as_ptr()) };
+pub fn encrypt(message: &[u8], key: &SymmetricKey, payload: &mut [u8]) {
+    unsafe { external::encrypt(message.as_ptr(), message.len() as u32, key.as_ptr(), payload.as_ptr()) };
 }
 
 pub fn decrypt(cipheriv: &[u8], key: &SymmetricKey, payload: &mut [u8]) {

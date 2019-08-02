@@ -25,11 +25,16 @@ use std::{str, vec::Vec};
 use std::string::{String, ToString};
 use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
 use sgx_trts::trts::rsgx_read_rand;
-use enigma_crypto::symmetric::{IV, encrypt_with_nonce, decrypt, SYMMETRIC_KEY_SIZE, IV_SIZE};
+use enigma_crypto::symmetric::{encrypt, decrypt};
 
 pub mod data;
 pub mod eng_resolver;
 pub mod ocalls_t;
+
+
+// TODO: Place in some common module. Which one?
+/// The symmertic key byte size
+const SYMMETRIC_KEY_SIZE: usize = 32;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EthereumData {
@@ -379,7 +384,7 @@ impl Runtime {
         }
     }
 
-    pub fn encrypt_with_nonce(&mut self, args: RuntimeArgs) -> Result<()> {
+    pub fn encrypt(&mut self, args: RuntimeArgs) -> Result<()> {
         let message_ptr: u32 = args.nth_checked(0)?;
         let message_len: u32 = args.nth_checked(1)?;
         let message = self.memory.get(message_ptr, message_len as usize)?;
@@ -388,13 +393,8 @@ impl Runtime {
         let mut key: SymmetricKey = [0u8; SYMMETRIC_KEY_SIZE];
         self.memory.get_into(key_ptr, &mut key)?;
 
-        let iv_ptr: u32 = args.nth_checked(3)?;
-        let mut iv: IV = [0u8; IV_SIZE];
-        self.memory.get_into(iv_ptr, &mut iv)?;
-
-        let ptr: u32 = args.nth_checked(4)?;
-        let enc_message = encrypt_with_nonce(&message, &key, Some(iv))
-            .map_err(|err| WasmError::EnclaveError(EnclaveError::SystemError(EnclaveSystemError::CryptoError { err })))?;
+        let ptr: u32 = args.nth_checked(3)?;
+        let enc_message = encrypt(&message, &key)?;
         self.memory.set(ptr, &enc_message)?;
         Ok(())
     }
@@ -409,8 +409,7 @@ impl Runtime {
         self.memory.get_into(key_ptr, &mut key)?;
 
         let ptr: u32 = args.nth_checked(3)?;
-        let message = decrypt(&cipheriv, &key)
-            .map_err(|err| WasmError::EnclaveError(EnclaveError::SystemError(EnclaveSystemError::CryptoError { err })))?;
+        let message = decrypt(&cipheriv, &key)?;
         self.memory.set(ptr, &message)?;
         Ok(())
     }

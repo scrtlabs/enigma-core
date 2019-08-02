@@ -55,6 +55,13 @@ impl From<EnclaveError> for WasmError {
     }
 }
 
+// From `CryptoError` raised by `eng_crypto`
+impl From<CryptoError> for WasmError {
+    fn from(err: CryptoError) -> Self {
+        WasmError::EnclaveError(EnclaveError::SystemError(EnclaveSystemError::CryptoError { err }))
+    }
+}
+
 impl From<parity_wasm::elements::Error> for EnclaveError {
     fn from(err: parity_wasm::elements::Error) -> EnclaveError {
         EnclaveError::FailedTaskError(FailedTaskError::WasmModuleCreationError { code: "deserialization into WASM module".to_string(), err: err.to_string() })
