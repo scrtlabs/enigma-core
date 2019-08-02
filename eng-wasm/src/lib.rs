@@ -12,7 +12,7 @@ extern crate serde;
 #[macro_use]
 mod internal_std;
 mod rand_wasm;
-mod crypto_wasm;
+pub mod crypto_wasm;
 pub extern crate eng_pwasm_abi;
 
 pub use internal_std::*;
@@ -126,6 +126,20 @@ mod tests {
     #[test]
     fn what() {
         print("TEST!");
+    }
+
+    #[test]
+    fn test_encrypt_with_nonce() {
+        let enclave = init_enclave_wrapper().unwrap();
+        let workers: Vec<[u8; 20]> = vec![
+            [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
+        ];
+        let stakes: Vec<u64> = vec![90000000000];
+        let block_number = 1;
+        let worker_params = get_worker_params(block_number, workers, stakes);
+        let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        assert!(epoch_state.confirmed_state.is_none());
+        enclave.destroy();
     }
 }
 
