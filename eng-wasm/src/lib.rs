@@ -39,7 +39,7 @@ pub mod external {
         pub fn gas(amount: u32);
         pub fn ret(payload: *const u8, payload_len: u32);
         pub fn rand(payload: *const u8, payload_len: u32);
-        pub fn encrypt_with_nonce(message: *const u8, message_len: u32, key: *const u8, iv: *const u8, payload: *const u8);
+        pub fn encrypt(message: *const u8, message_len: u32, key: *const u8, payload: *const u8);
         pub fn decrypt(cipheriv: *const u8, cipheriv_len: u32, key: *const u8, payload: *const u8);
     }
 }
