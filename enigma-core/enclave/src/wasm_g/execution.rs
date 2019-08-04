@@ -6,12 +6,8 @@ use enigma_tools_m::utils::LockExpectMutex;
 use enigma_crypto::{CryptoError, Encryption};
 use enigma_types::{ContractAddress, RawPointer, StateKey};
 use parity_wasm::elements::{self, Deserialize};
-use parity_wasm::io::Cursor;
-use std::boxed::Box;
-use std::string::String;
-use std::string::ToString;
+use std::string::{String, ToString};
 use std::vec::Vec;
-use wasm_utils::rules;
 use wasmi::{ImportsBuilder, Module, ModuleInstance};
 
 fn execute(module: &Module, gas_limit: u64, state: ContractState,
