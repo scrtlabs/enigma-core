@@ -14,84 +14,6 @@ use std::vec::Vec;
 use wasm_utils::rules;
 use wasmi::{ImportsBuilder, Module, ModuleInstance};
 
-/// Wasm cost table
-pub struct WasmCosts {
-    /// Default opcode cost
-    pub regular: u32,
-    /// Div operations multiplier.
-    pub div: u32,
-    /// Div operations multiplier.
-    pub mul: u32,
-    /// Memory (load/store) operations multiplier.
-    pub mem: u32,
-    /// General static query of U256 value from env-info
-    pub static_u256: u32,
-    /// General static query of Address value from env-info
-    pub static_address: u32,
-    /// Memory stipend. Amount of free memory (in 64kb pages) each contract can use for stack.
-    pub initial_mem: u32,
-    /// Grow memory cost, per page (64kb)
-    pub grow_mem: u32,
-    /// Memory copy cost, per byte
-    pub memcpy: u32,
-    /// Max stack height (native WebAssembly stack limiter)
-    pub max_stack_height: u32,
-    /// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
-    pub opcodes_mul: u32,
-    /// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
-    pub opcodes_div: u32,
-}
-
-impl Default for WasmCosts {
-    fn default() -> Self {
-        WasmCosts {
-            regular: 1,
-            div: 16,
-            mul: 4,
-            mem: 2,
-            static_u256: 64,
-            static_address: 40,
-            initial_mem: 4096,
-            grow_mem: 8192,
-            memcpy: 1,
-            max_stack_height: 64 * 1024,
-            opcodes_mul: 3,
-            opcodes_div: 8,
-        }
-    }
-}
-
-fn gas_rules(wasm_costs: &WasmCosts) -> rules::Set {
-    rules::Set::new(wasm_costs.regular, {
-        let mut vals = ::std::collections::BTreeMap::new();
-        vals.insert(rules::InstructionType::Load, rules::Metering::Fixed(wasm_costs.mem as u32));
-        vals.insert(rules::InstructionType::Store, rules::Metering::Fixed(wasm_costs.mem as u32));
-        vals.insert(rules::InstructionType::Div, rules::Metering::Fixed(wasm_costs.div as u32));
-        vals.insert(rules::InstructionType::Mul, rules::Metering::Fixed(wasm_costs.mul as u32));
-        vals
-    })
-    .with_grow_cost(wasm_costs.grow_mem)
-    //.with_forbidden_floats()
-}
-
-fn create_module(code: &[u8]) -> Result<Box<Module>, EnclaveError> {
-    let mut cursor = Cursor::new(&code[..]);
-    let deserialized_module = elements::Module::deserialize(&mut cursor)?;
-    if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
-        // According to WebAssembly spec, internal memory is hidden from embedder and should not
-        // be interacted with. So parity disable this kind of modules at decoding level.
-        return Err(FailedTaskError(WasmModuleCreationError {
-            code: "creation of WASM module".to_string(),
-            err: "Malformed wasm module: internal memory".to_string() }));
-    }
-    let wasm_costs = WasmCosts::default();
-    let contract_module = pwasm_utils::inject_gas_counter(deserialized_module, &gas_rules(&wasm_costs))?;
-    let limited_module = pwasm_utils::stack_height::inject_limiter(contract_module, wasm_costs.max_stack_height)?;
-
-    let module = wasmi::Module::from_parity_wasm_module(limited_module)?;
-    Ok(Box::new(module))
-}
-
 fn execute(module: &Module, gas_limit: u64, state: ContractState,
            function_name: String, types: String, params: Vec<u8>, key: StateKey) -> Result<Runtime, EnclaveError> {
     let instantiation_resolver = eng_resolver::ImportResolver::with_limit(128);
@@ -119,7 +41,7 @@ fn execute(module: &Module, gas_limit: u64, state: ContractState,
 
 pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
                     function_name: String, types: String, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
-    let module = create_module(code)?;
+    let module = Runtime::create_module(code)?;
     let mut runtime = execute(&module, gas_limit, state, function_name, types, params, key)?;
     let charge_result = runtime.charge_execution();
     if let Err(_) = charge_result {
@@ -130,7 +52,7 @@ pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
 }
 
 pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
-    let module = create_module(code)?;
+    let module = Runtime::create_module(code)?;
     let mut runtime = execute(&module, gas_limit, state, "".to_string(), "".to_string(), params, key)?;
     let charge_result = runtime.charge_deployment();
     if let Err(_) = charge_result {
@@ -153,6 +75,7 @@ pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<Con
 pub mod tests {
 
     use enigma_runtime_t::data::{ContractState, DeltasInterface, StatePatch};
+    use enigma_runtime_t::Runtime;
     use enigma_crypto::hash::Sha256;
     use std::string::ToString;
     use enigma_crypto::Encryption;
@@ -164,7 +87,7 @@ pub mod tests {
         let initial_state = ContractState::new(addr);
         let key = [1u8; 32];
         let runtime = super::execute(
-            &super::create_module(&bytecode).unwrap(),
+            &Runtime::create_module(&bytecode).unwrap(),
             100_000,
             initial_state.clone(),
             "addition".to_string(),

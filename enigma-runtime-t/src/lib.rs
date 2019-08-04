@@ -18,14 +18,24 @@ extern crate rmp_serde as rmps;
 extern crate serde;
 extern crate wasmi;
 
+extern crate parity_wasm;
+/// This module builds Wasm code for contract deployment from the Wasm contract.
+/// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
+/// The code is based on Parity wasm_utils::cli.
+extern crate pwasm_utils as wasm_utils;
+
 use crate::data::{ContractState, DeltasInterface, IOInterface, EncryptedPatch};
-use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError, EnclaveSystemError};
 use enigma_types::{ContractAddress, StateKey, SymmetricKey};
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, FailedTaskError::*, WasmError};
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
-use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
+use std::boxed::Box;
+use wasmi::{MemoryRef, Module, RuntimeArgs, RuntimeValue};
 use sgx_trts::trts::rsgx_read_rand;
 use enigma_crypto::symmetric::{encrypt, decrypt};
+use parity_wasm::io::Cursor;
+use parity_wasm::elements::{self, Deserialize};
+use wasm_utils::rules;
 
 pub mod data;
 pub mod eng_resolver;
@@ -35,6 +45,66 @@ pub mod ocalls_t;
 // TODO: Place in some common module. Which one?
 /// The symmertic key byte size
 const SYMMETRIC_KEY_SIZE: usize = 32;
+
+/// Wasm cost table
+pub struct WasmCosts {
+    /// Default opcode cost
+    pub regular: u32,
+    /// Div operations multiplier.
+    pub div: u32,
+    /// Div operations multiplier.
+    pub mul: u32,
+    /// Memory (load/store) operations multiplier.
+    pub mem: u32,
+    /// General static query of U256 value from env-info
+    pub static_u256: u32,
+    /// General static query of Address value from env-info
+    pub static_address: u32,
+    /// Memory stipend. Amount of free memory (in 64kb pages) each contract can use for stack.
+    pub initial_mem: u32,
+    /// Grow memory cost, per page (64kb)
+    pub grow_mem: u32,
+    /// Memory copy cost, per byte
+    pub memcpy: u32,
+    /// Max stack height (native WebAssembly stack limiter)
+    pub max_stack_height: u32,
+    /// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
+    pub opcodes_mul: u32,
+    /// Cost of wasm opcode is calculated as TABLE_ENTRY_COST * `opcodes_mul` / `opcodes_div`
+    pub opcodes_div: u32,
+}
+
+impl Default for WasmCosts {
+    fn default() -> Self {
+        WasmCosts {
+            regular: 1,
+            div: 16,
+            mul: 4,
+            mem: 2,
+            static_u256: 64,
+            static_address: 40,
+            initial_mem: 4096,
+            grow_mem: 8192,
+            memcpy: 1,
+            max_stack_height: 64 * 1024,
+            opcodes_mul: 3,
+            opcodes_div: 8,
+        }
+    }
+}
+
+fn gas_rules(wasm_costs: &WasmCosts) -> rules::Set {
+    rules::Set::new(wasm_costs.regular, {
+        let mut vals = ::std::collections::BTreeMap::new();
+        vals.insert(rules::InstructionType::Load, rules::Metering::Fixed(wasm_costs.mem as u32));
+        vals.insert(rules::InstructionType::Store, rules::Metering::Fixed(wasm_costs.mem as u32));
+        vals.insert(rules::InstructionType::Div, rules::Metering::Fixed(wasm_costs.div as u32));
+        vals.insert(rules::InstructionType::Mul, rules::Metering::Fixed(wasm_costs.mul as u32));
+        vals
+    })
+        .with_grow_cost(wasm_costs.grow_mem)
+    //.with_forbidden_floats()
+}
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EthereumData {
@@ -89,10 +159,23 @@ pub struct Runtime {
 type Result<T> = ::std::result::Result<T, WasmError>;
 
 impl Runtime {
-    pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_address: ContractAddress,
-               function_name: String, args_types: String, key: StateKey) -> Runtime {
-        let state = ContractState::new(contract_address);
-        Self::new_with_state(gas_limit, memory, args, state, function_name, args_types, key, RuntimeWasmCosts::default())
+
+    pub fn create_module(code: &[u8]) -> ::std::result::Result<Box<Module>, EnclaveError> {
+        let mut cursor = Cursor::new(&code[..]);
+        let deserialized_module = elements::Module::deserialize(&mut cursor)?;
+        if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
+            // According to WebAssembly spec, internal memory is hidden from embedder and should not
+            // be interacted with. So parity disable this kind of modules at decoding level.
+            return Err(FailedTaskError(WasmModuleCreationError {
+                code: "creation of WASM module".to_string(),
+                err: "Malformed wasm module: internal memory".to_string() }));
+        }
+        let wasm_costs = WasmCosts::default();
+        let contract_module = pwasm_utils::inject_gas_counter(deserialized_module, &gas_rules(&wasm_costs))?;
+        let limited_module = pwasm_utils::stack_height::inject_limiter(contract_module, wasm_costs.max_stack_height)?;
+
+        let module = wasmi::Module::from_parity_wasm_module(limited_module)?;
+        Ok(Box::new(module))
     }
 
     pub fn new_with_state(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, state: ContractState,
