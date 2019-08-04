@@ -81,9 +81,10 @@ impl Default for RuntimeWasmCosts {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct RuntimeGas {
-    counter: u64,
-    limit: u64,
-    refund: u64,
-    costs: RuntimeWasmCosts,
+    pub counter: u64,
+    pub limit: u64,
+    pub refund: u64,
+    pub costs: RuntimeWasmCosts,
 }

@@ -60,9 +60,6 @@ pub struct RuntimeResult {
 
 #[derive(Debug, Clone)]
 pub struct Runtime {
-    gas_counter: u64,
-    gas_limit: u64,
-    gas_return: u64,
     memory: MemoryRef,
     function_name: String,
     args_types: String,
@@ -71,7 +68,7 @@ pub struct Runtime {
     pre_execution_state: ContractState,
     post_execution_state: ContractState,
     key: StateKey,
-    gas_costs: RuntimeWasmCosts,
+    gas : RuntimeGas,
 }
 
 type Result<T> = ::std::result::Result<T, WasmError>;
@@ -107,11 +104,17 @@ impl Runtime {
             ethereum_bridge: Default::default(),
             used_gas: 0,
         };
-        Runtime { gas_counter: 0, gas_limit, gas_return: 0, memory, function_name, args_types, args, result, pre_execution_state, post_execution_state, key, gas_costs: costs }
+        let gas = RuntimeGas{
+            counter: 0,
+            limit: gas_limit,
+            refund: 0,
+            costs,
+        };
+        Runtime { memory, function_name, args_types, args, result, pre_execution_state, post_execution_state, key, gas }
     }
 
     pub fn get_used_gas(&self) -> u64 {
-        self.gas_counter
+        self.gas.counter
     }
 
     fn fetch_args_length(&mut self) -> RuntimeValue { RuntimeValue::I32(self.args.len() as i32) }
@@ -217,7 +220,7 @@ impl Runtime {
 
     fn treat_gas_overflow(&mut self, val: &Option<u64>) -> Result<()>{
         if val.is_none() {
-            self.gas_counter = self.gas_limit;
+            self.gas.counter = self.gas.limit;
             Err(WasmError::GasLimit)
         }
         else {
@@ -231,7 +234,7 @@ impl Runtime {
             (false, *v)
         }
         else {
-            self.gas_return = self.gas_limit;
+            self.gas.refund = self.gas.limit;
             (true, result)
         }
     }
@@ -255,19 +258,19 @@ impl Runtime {
         }
         // If the new value is larger than the old one, the gas should be charged
         if new_value_len >= old_value_len {
-            let checked_val = (new_value_len - old_value_len).checked_mul(self.gas_costs.write_additional_byte);
+            let checked_val = (new_value_len - old_value_len).checked_mul(self.gas.costs.write_additional_byte);
             self.treat_gas_overflow(&checked_val)?;
-            result = self.gas_costs.write_value.checked_add(checked_val.unwrap());
+            result = self.gas.costs.write_value.checked_add(checked_val.unwrap());
             self.treat_gas_overflow(&result)?;
         } // If the new value is smaller than the old one, the gas should be returned
         else {
-            let decrease_cost = (old_value_len - new_value_len).checked_mul(self.gas_costs.write_additional_byte);
+            let decrease_cost = (old_value_len - new_value_len).checked_mul(self.gas.costs.write_additional_byte);
             let (underflow, _val) = self.treat_gas_underflow(&decrease_cost);
             if !underflow {
-                let tmp = self.gas_return.checked_add(decrease_cost.unwrap());
+                let tmp = self.gas.refund.checked_add(decrease_cost.unwrap());
                 let (underflow, val) = self.treat_gas_underflow(&tmp);
                 if !underflow {
-                    self.gas_return = val;
+                    self.gas.refund = val;
                 }
             }
         }
@@ -322,8 +325,8 @@ impl Runtime {
 
     /// Destroy the runtime, returning currently recorded result of the execution
     pub fn into_result(mut self) -> ::std::result::Result<RuntimeResult, EnclaveError> {
-            if self.gas_counter >= self.gas_return {
-            self.result.used_gas = self.gas_counter - self.gas_return;
+            if self.gas.counter >= self.gas.refund {
+            self.result.used_gas = self.gas.counter - self.gas.refund;
         }
         else {
             self.result.used_gas = 0;
@@ -358,12 +361,12 @@ impl Runtime {
 
     pub fn charge_deployment(&mut self) -> Result<()> {
         let deployed_bytecode_len = self.result.result.len() as u64;
-        let gas_for_byte = self.gas_costs.deploy_byte;
+        let gas_for_byte = self.gas.costs.deploy_byte;
         self.charge_gas(deployed_bytecode_len * gas_for_byte)
     }
 
     pub fn charge_execution(&mut self) -> Result<()> {
-        let initial_execution_gas = self.gas_costs.execution;
+        let initial_execution_gas = self.gas.costs.execution;
         self.charge_gas(initial_execution_gas)
     }
 
@@ -371,18 +374,18 @@ impl Runtime {
         if self.charge_gas_if_enough(amount) {
             Ok(())
         } else {
-            self.gas_counter = self.gas_limit;
+            self.gas.counter = self.gas.limit;
             Err(WasmError::GasLimit)
         }
     }
 
     fn charge_gas_if_enough(&mut self, amount: u64) -> bool {
-        let prev = self.gas_counter;
+        let prev = self.gas.counter;
         match prev.checked_add(amount) {
             None => false,
-            Some(val) if val > self.gas_limit => false,
+            Some(val) if val > self.gas.limit => false,
             Some(_) => {
-                self.gas_counter = prev + amount;
+                self.gas.counter = prev + amount;
                 true
             }
         }
