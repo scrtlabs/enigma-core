@@ -27,22 +27,14 @@ fn execute(engine: &mut WasmEngine) -> Result<(), EnclaveError> {
 pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
                     function_name: String, types: String, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
     let mut engine = WasmEngine::new(code, gas_limit, params, state, function_name, types, key)?;
-    execute(&mut engine)?;
-    let charge_result = engine.runtime.charge_execution();
-    if let Err(_) = charge_result {
-        return Err(EnclaveError::FailedTaskErrorWithGas { used_gas: engine.runtime.get_used_gas(), err: FailedTaskError::GasLimitError });
-    }
+    engine.compute()?;
     engine.runtime.into_result()
 
 }
 
 pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
     let mut engine = WasmEngine::new(code, gas_limit, params, state, "".to_string(), "".to_string(), key)?;
-    execute(&mut engine)?;
-    let charge_result = engine.runtime.charge_deployment();
-    if let Err(_) = charge_result {
-        return Err(EnclaveError::FailedTaskErrorWithGas { used_gas: engine.runtime.get_used_gas(), err: FailedTaskError::GasLimitError  });
-    }
+    engine.deploy()?;
     engine.runtime.into_result()
 }
 
@@ -73,7 +65,7 @@ pub mod tests {
         let initial_state = ContractState::new(addr);
         let key = [1u8; 32];
         let mut engine = WasmEngine::new(&bytecode, 100_000, [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20].to_vec(), initial_state.clone(), "addition".to_string(), "uint256,uint256".to_string(), key).unwrap();
-        super::execute(&mut engine);
+        engine.compute().unwrap();
         let mut after = super::ContractState {
             contract_address: b"Enigma".sha256(),
             json: json!({ "code" : 30 }),

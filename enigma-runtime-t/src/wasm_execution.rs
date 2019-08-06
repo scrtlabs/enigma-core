@@ -2,6 +2,7 @@
 use parity_wasm::io::Cursor;
 use parity_wasm::elements::{self, Deserialize};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError, FailedTaskError::*};
+use RuntimeResult;
 use wasmi::{ImportsBuilder, Module, ModuleInstance, ModuleRef};
 pub use gas::{gas_rules, WasmCosts, RuntimeWasmCosts};
 use eng_resolver;
@@ -19,7 +20,6 @@ pub struct WasmEngine {
 }
 
 impl WasmEngine {
-
     pub fn new(code: &[u8], gas_limit: u64, args: Vec<u8>, state: ContractState, function_name: String, args_types: String, key: StateKey) -> Result<WasmEngine, EnclaveError> {
         let module = Self::create_module(code)?;
         let instantiation_resolver = eng_resolver::ImportResolver::with_limit(128);
@@ -30,7 +30,7 @@ impl WasmEngine {
         Ok(WasmEngine { instance, runtime })
     }
 
-    pub fn create_module(code: &[u8]) -> ::std::result::Result<Box<Module>, EnclaveError> {
+    fn create_module(code: &[u8]) -> ::std::result::Result<Box<Module>, EnclaveError> {
         let mut cursor = Cursor::new(&code[..]);
         let deserialized_module = elements::Module::deserialize(&mut cursor)?;
         if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
@@ -38,7 +38,8 @@ impl WasmEngine {
             // be interacted with. So parity disable this kind of modules at decoding level.
             return Err(FailedTaskError(WasmModuleCreationError {
                 code: "creation of WASM module".to_string(),
-                err: "Malformed wasm module: internal memory".to_string() }));
+                err: "Malformed wasm module: internal memory".to_string()
+            }));
         }
         let wasm_costs = WasmCosts::default();
         let contract_module = pwasm_utils::inject_gas_counter(deserialized_module, &gas_rules(&wasm_costs))?;
@@ -46,5 +47,36 @@ impl WasmEngine {
 
         let module = wasmi::Module::from_parity_wasm_module(limited_module)?;
         Ok(Box::new(module))
+    }
+
+    pub fn deploy(&mut self) -> Result<(), EnclaveError> {
+        self.execute()?;
+        let charge_result: Result<(), EnclaveError> = self.runtime.charge_deployment().
+            map_err(|_| self.treat_failed_task_error(FailedTaskError::GasLimitError));
+        Ok(())
+    }
+
+    fn execute_function(&mut self) -> Result<(), EnclaveError> {
+        self.instance.invoke_export("call", &[], &mut self.runtime)?;
+        Ok(())
+    }
+
+    pub fn compute(&mut self) -> Result<(), EnclaveError> {
+        self.execute()?;
+        let charge_result = self.runtime.charge_execution().
+            map_err(|_| self.treat_failed_task_error(FailedTaskError::GasLimitError));
+        Ok(())
+    }
+
+    pub fn execute(&mut self) -> Result<(), EnclaveError> {
+        let result = self.execute_function();
+        if let Err(FailedTaskError(e)) = result {
+                return Err(self.treat_failed_task_error(e))
+         }
+        result
+    }
+
+    fn treat_failed_task_error(&self, err: FailedTaskError) -> EnclaveError{
+        EnclaveError::FailedTaskErrorWithGas { used_gas: self.runtime.get_used_gas(), err }
     }
 }
