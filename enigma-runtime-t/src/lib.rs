@@ -287,7 +287,7 @@ impl Runtime {
         }
     }
 
-    /// Destroy the runtime, returning currently recorded result of the execution
+    /// Destroy the runtime, create state delta, update the used gas and return result of the execution
     pub fn into_result(mut self) -> ::std::result::Result<RuntimeResult, EnclaveError> {
             if self.gas.counter >= self.gas.refund {
             self.result.used_gas = self.gas.counter - self.gas.refund;
