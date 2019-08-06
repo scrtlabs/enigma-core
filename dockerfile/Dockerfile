@@ -9,7 +9,7 @@ RUN rm -rf /root/sgx
 
 # dependency for https://github.com/erickt/rust-zmq
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends libzmq3-dev clang \
+    apt-get install -y --no-install-recommends libzmq3-dev llvm clang-3.9 llvm-3.9-dev libclang-3.9-dev\
     && rm -rf /var/lib/apt/lists/*
 
 RUN /root/.cargo/bin/rustup target add wasm32-unknown-unknown && \
