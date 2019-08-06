@@ -17,29 +17,21 @@ extern crate json_patch;
 extern crate rmp_serde as rmps;
 extern crate serde;
 extern crate wasmi;
-
 extern crate parity_wasm;
-/// This module builds Wasm code for contract deployment from the Wasm contract.
-/// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
-/// The code is based on Parity wasm_utils::cli.
-extern crate pwasm_utils as wasm_utils;
 
 use crate::data::{ContractState, DeltasInterface, IOInterface, EncryptedPatch};
-use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, FailedTaskError::*, WasmError};
-use enigma_types::{ContractAddress, StateKey};
+use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError};
+use enigma_types::StateKey;
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
-use std::boxed::Box;
-use wasmi::{MemoryRef, Module, RuntimeArgs, RuntimeValue};
+use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
 use sgx_trts::trts::rsgx_read_rand;
-use parity_wasm::io::Cursor;
-use parity_wasm::elements::{self, Deserialize};
-use wasm_utils::rules;
 
 pub mod data;
 pub mod eng_resolver;
 pub mod ocalls_t;
 pub mod gas;
+pub mod wasm_execution;
 
 pub use gas::*;
 
@@ -75,25 +67,7 @@ type Result<T> = ::std::result::Result<T, WasmError>;
 
 impl Runtime {
 
-    pub fn create_module(code: &[u8]) -> ::std::result::Result<Box<Module>, EnclaveError> {
-        let mut cursor = Cursor::new(&code[..]);
-        let deserialized_module = elements::Module::deserialize(&mut cursor)?;
-        if deserialized_module.memory_section().map_or(false, |ms| ms.entries().len() > 0) {
-            // According to WebAssembly spec, internal memory is hidden from embedder and should not
-            // be interacted with. So parity disable this kind of modules at decoding level.
-            return Err(FailedTaskError(WasmModuleCreationError {
-                code: "creation of WASM module".to_string(),
-                err: "Malformed wasm module: internal memory".to_string() }));
-        }
-        let wasm_costs = WasmCosts::default();
-        let contract_module = pwasm_utils::inject_gas_counter(deserialized_module, &gas_rules(&wasm_costs))?;
-        let limited_module = pwasm_utils::stack_height::inject_limiter(contract_module, wasm_costs.max_stack_height)?;
-
-        let module = wasmi::Module::from_parity_wasm_module(limited_module)?;
-        Ok(Box::new(module))
-    }
-
-    pub fn new_with_state(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, state: ContractState,
+    pub fn new(memory: MemoryRef, gas_limit: u64, args: Vec<u8>, state: ContractState,
                           function_name: String, args_types: String, key: StateKey, costs: RuntimeWasmCosts) -> Runtime {
         let pre_execution_state = state.clone();
         let post_execution_state = state;

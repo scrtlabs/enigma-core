@@ -1,3 +1,6 @@
+/// This module builds Wasm code for contract deployment from the Wasm contract.
+/// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
+/// The code is based on Parity wasm_utils::cli.
 extern crate pwasm_utils;
 
 pub use self::pwasm_utils::{inject_gas_counter, rules};

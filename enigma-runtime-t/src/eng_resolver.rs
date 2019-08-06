@@ -4,7 +4,7 @@ extern crate wasmi;
 use std::borrow::ToOwned;
 use std::cell::RefCell;
 
-use wasmi::{memory_units, Error, FuncInstance, FuncRef, MemoryDescriptor, MemoryInstance, MemoryRef, ModuleImportResolver, Signature};
+pub use wasmi::{memory_units, Error, FuncInstance, FuncRef, MemoryDescriptor, MemoryInstance, MemoryRef, ModuleImportResolver, Signature};
 
 pub mod ids {
     pub const RET_FUNC: usize = 1;
@@ -69,7 +69,7 @@ pub mod signatures {
 /// Maps all functions that runtime support to the corresponding contract import
 /// entries.
 /// Also manages initial memory request from the runtime.
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct ImportResolver {
     max_memory: u32,
     memory: RefCell<Option<MemoryRef>>,
