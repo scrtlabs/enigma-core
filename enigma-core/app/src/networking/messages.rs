@@ -6,6 +6,7 @@ use failure::Error;
 
 type Status = i8;
 pub const FAILED: Status = -1;
+pub const PASSED: Status = 0;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcMessageRequest {
