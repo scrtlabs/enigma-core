@@ -51,7 +51,7 @@ impl WasmEngine {
 
     pub fn deploy(&mut self) -> Result<(), EnclaveError> {
         self.execute()?;
-        let charge_result: Result<(), EnclaveError> = self.runtime.charge_deployment().
+        self.runtime.charge_deployment().
             map_err(|_| self.treat_failed_task_error(FailedTaskError::GasLimitError));
         Ok(())
     }
@@ -63,7 +63,7 @@ impl WasmEngine {
 
     pub fn compute(&mut self) -> Result<(), EnclaveError> {
         self.execute()?;
-        let charge_result = self.runtime.charge_execution().
+        self.runtime.charge_execution().
             map_err(|_| self.treat_failed_task_error(FailedTaskError::GasLimitError));
         Ok(())
     }
@@ -78,6 +78,11 @@ impl WasmEngine {
 
     fn treat_failed_task_error(&self, err: FailedTaskError) -> EnclaveError{
         EnclaveError::FailedTaskErrorWithGas { used_gas: self.runtime.get_used_gas(), err }
+    }
+
+    /// Destroy the engine instance and return the result of the execution from runtime
+    pub fn into_result(self) -> Result<RuntimeResult, EnclaveError> {
+        self.runtime.into_result()
     }
 }
 

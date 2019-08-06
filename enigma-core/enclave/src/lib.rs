@@ -337,7 +337,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     let state_key = km_t::get_state_key(address)?;
     let mut engine = WasmEngine::new(&bytecode, gas_limit, decrypted_args.clone(), pre_execution_state.clone(), function_name, state_key)?;
     engine.compute()?;
-    let exec_res = engine.runtime.into_result()?;
+    let exec_res = engine.into_result()?;
     let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
     if exec_res.state_delta.is_some() {
         encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
@@ -422,7 +422,7 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
     let state_key = km_t::get_state_key(address)?;
     let mut engine = WasmEngine::new(&deploy_bytecode, gas_limit, decrypted_args.clone(), state, function_name, state_key)?;
     engine.deploy()?;
-    let exec_res = engine.runtime.into_result()?;
+    let exec_res = engine.into_result()?;
 
     let exe_code = &exec_res.result[..];
 
