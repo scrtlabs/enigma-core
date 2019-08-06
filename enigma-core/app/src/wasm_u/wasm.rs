@@ -375,6 +375,22 @@ mod tests {
     }
 
     #[test]
+    fn test_sc_encryption() {
+        let (mut db, _dir) = create_test_db();
+        let message = b"Enigma";
+
+        compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/encryption",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "encrypt_decrypt(bytes)",
+            &[Token::Bytes(message.to_vec())]
+        );
+    }
+
+    #[test]
     fn test_write_simple() {
         let (mut db, _dir) = create_test_db();
 

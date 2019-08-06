@@ -388,6 +388,7 @@ impl Runtime {
         let message_ptr: u32 = args.nth_checked(0)?;
         let message_len: u32 = args.nth_checked(1)?;
         let message = self.memory.get(message_ptr, message_len as usize)?;
+        debug_println!("In encrypt: {:?}", message);
 
         let key_ptr: u32 = args.nth_checked(2)?;
         let mut key: SymmetricKey = [0u8; SYMMETRIC_KEY_SIZE];
@@ -395,6 +396,7 @@ impl Runtime {
 
         let ptr: u32 = args.nth_checked(3)?;
         let enc_message = encrypt(&message, &key)?;
+        debug_println!("Encrypted message: {:?}", enc_message);
         self.memory.set(ptr, &enc_message)?;
         Ok(())
     }
@@ -410,7 +412,7 @@ impl Runtime {
 
         let ptr: u32 = args.nth_checked(3)?;
         let message = decrypt(&cipheriv, &key)?;
-        self.memory.set(ptr, &message)?;
+        self.memory.set(ptr, &message[..])?;
         Ok(())
     }
 }
@@ -480,6 +482,16 @@ mod ext_impl {
 
                 eng_resolver::ids::RAND_FUNC => {
                     Runtime::rand(self, args)?;
+                    Ok(None)
+                }
+
+                eng_resolver::ids::ENCRYPT_FUNC => {
+                    Runtime::encrypt(self, args)?;
+                    Ok(None)
+                }
+
+                eng_resolver::ids::DECRYPT_FUNC => {
+                    Runtime::decrypt(self, args)?;
                     Ok(None)
                 }
 
