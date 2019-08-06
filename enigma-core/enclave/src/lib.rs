@@ -34,7 +34,6 @@ extern crate hexutil;
 extern crate parity_wasm;
 extern crate sputnikvm;
 extern crate sputnikvm_network_classic;
-extern crate wasmi;
 extern crate rustc_hex;
 extern crate pwasm_utils as wasm_utils;
 
@@ -47,7 +46,7 @@ use crate::evm_t::{abi::{create_callback, prepare_evm_input},
 use crate::km_t::{ecall_build_state_internal, ecall_get_user_key_internal, ecall_ptt_req_internal, ecall_ptt_res_internal};
 use crate::wasm_g::execution;
 use enigma_runtime_t::data::{ContractState, EncryptedPatch};
-use enigma_runtime_t::EthereumData;
+use enigma_runtime_t::{wasm_execution, EthereumData};
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
 use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}};
