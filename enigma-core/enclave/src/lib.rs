@@ -46,7 +46,7 @@ use crate::evm_t::{abi::{create_callback, prepare_evm_input},
 use crate::km_t::{ecall_build_state_internal, ecall_get_user_key_internal, ecall_ptt_req_internal, ecall_ptt_res_internal};
 use crate::wasm_g::execution;
 use enigma_runtime_t::data::{ContractState, EncryptedPatch};
-use enigma_runtime_t::{wasm_execution, EthereumData};
+use enigma_runtime_t::{wasm_execution::WasmEngine, EthereumData};
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
 use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}};
@@ -337,8 +337,9 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
              map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let state_key = km_t::get_state_key(address)?;
-    let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, decrypted_args.clone(), state_key)?;
-
+    let mut engine = WasmEngine::new(&bytecode, gas_limit, decrypted_args.clone(), pre_execution_state.clone(), function_name, state_key)?;
+    engine.compute()?;
+    let exec_res = engine.runtime.into_result()?;
     let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
     if exec_res.state_delta.is_some() {
         encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
@@ -421,7 +422,9 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
     let state = ContractState::new(address);
 
     let state_key = km_t::get_state_key(address)?;
-    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, function_name, decrypted_args.clone(), state_key)?;
+    let mut engine = WasmEngine::new(&deploy_bytecode, gas_limit, decrypted_args.clone(), state, function_name, state_key)?;
+    engine.deploy()?;
+    let exec_res = engine.runtime.into_result()?;
 
     let exe_code = &exec_res.result[..];
 
