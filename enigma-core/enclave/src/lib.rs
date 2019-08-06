@@ -39,12 +39,10 @@ extern crate pwasm_utils as wasm_utils;
 
 mod evm_t;
 mod km_t;
-mod wasm_g;
 
 use crate::evm_t::{abi::{create_callback, prepare_evm_input},
                    evm::call_sputnikvm};
 use crate::km_t::{ecall_build_state_internal, ecall_get_user_key_internal, ecall_ptt_req_internal, ecall_ptt_res_internal};
-use crate::wasm_g::execution;
 use enigma_runtime_t::data::{ContractState, EncryptedPatch};
 use enigma_runtime_t::{wasm_execution::WasmEngine, EthereumData};
 use enigma_crypto::hash::Keccak256;
@@ -510,7 +508,7 @@ pub mod tests {
         extern crate sgx_tunittest;
 
         use crate::km_t::principal::tests::*;
-        use crate::wasm_g::execution::tests::*;
+        use enigma_runtime_t::wasm_execution::tests::*;
         use enigma_runtime_t::data::tests::*;
         use enigma_runtime_t::ocalls_t::tests::*;
         use enigma_tools_t::storage_t::tests::*;
