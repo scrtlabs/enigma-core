@@ -1,6 +1,6 @@
 [package]
 name = "enigma-tools-u"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Isan-Rivkin <isan@enigma.co>"]
 description = "Tools used by the untrusted part of the Enigma core and Principal node."
 build = "build.rs"
