@@ -54,7 +54,6 @@ pub struct RuntimeResult {
 pub struct Runtime {
     memory: MemoryRef,
     function_name: String,
-    args_types: String,
     args: Vec<u8>,
     result: RuntimeResult,
     pre_execution_state: ContractState,
@@ -68,7 +67,7 @@ type Result<T> = ::std::result::Result<T, WasmError>;
 impl Runtime {
 
     pub fn new(memory: MemoryRef, gas_limit: u64, args: Vec<u8>, state: ContractState,
-                          function_name: String, args_types: String, key: StateKey, costs: RuntimeWasmCosts) -> Runtime {
+                          function_name: String, key: StateKey, costs: RuntimeWasmCosts) -> Runtime {
         let pre_execution_state = state.clone();
         let post_execution_state = state;
         let result = RuntimeResult {
@@ -84,7 +83,7 @@ impl Runtime {
             refund: 0,
             costs,
         };
-        Runtime { memory, function_name, args_types, args, result, pre_execution_state, post_execution_state, key, gas }
+        Runtime { memory, function_name, args, result, pre_execution_state, post_execution_state, key, gas }
     }
 
     pub fn get_used_gas(&self) -> u64 {
@@ -106,15 +105,6 @@ impl Runtime {
         let ptr: u32 = args.nth_checked(0)?;
 
         self.memory.set(ptr, &self.function_name.as_bytes())?;
-        Ok(())
-    }
-
-    fn fetch_types_length(&mut self) -> RuntimeValue { RuntimeValue::I32(self.args_types.len() as i32) }
-
-    fn fetch_types(&mut self, args: RuntimeArgs) -> Result<()> {
-        let ptr: u32 = args.nth_checked(0)?;
-
-        self.memory.set(ptr, &self.args_types.as_bytes())?;
         Ok(())
     }
 
@@ -408,13 +398,6 @@ mod ext_impl {
 
                 eng_resolver::ids::ARGS_FUNC => {
                     Runtime::fetch_args(self, args)?;
-                    Ok(None)
-                }
-
-                eng_resolver::ids::TYPES_LENGTH_FUNC => Ok(Some(Runtime::fetch_types_length(self))),
-
-                eng_resolver::ids::TYPES_FUNC => {
-                    Runtime::fetch_types(self, args)?;
                     Ok(None)
                 }
 

@@ -20,13 +20,13 @@ pub struct WasmEngine {
 }
 
 impl WasmEngine {
-    pub fn new(code: &[u8], gas_limit: u64, args: Vec<u8>, state: ContractState, function_name: String, args_types: String, key: StateKey) -> Result<WasmEngine, EnclaveError> {
+    pub fn new(code: &[u8], gas_limit: u64, args: Vec<u8>, state: ContractState, function_name: String,key: StateKey) -> Result<WasmEngine, EnclaveError> {
         let module = Self::create_module(code)?;
         let instantiation_resolver = eng_resolver::ImportResolver::with_limit(128);
         let imports = ImportsBuilder::new().with_resolver("env", &instantiation_resolver);
         // TODO: Change the assert here: https://github.com/paritytech/wasmi/issues/172
         let instance = ModuleInstance::new(&module, &imports)?.assert_no_start();
-        let runtime = Runtime::new(instantiation_resolver.memory_ref(), gas_limit, args, state, function_name, args_types, key, RuntimeWasmCosts::default());
+        let runtime = Runtime::new(instantiation_resolver.memory_ref(), gas_limit, args, state, function_name, key, RuntimeWasmCosts::default());
         Ok(WasmEngine { instance, runtime })
     }
 

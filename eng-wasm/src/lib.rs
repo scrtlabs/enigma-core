@@ -31,8 +31,6 @@ pub mod external {
         pub fn fetch_function_name(name_holder: *const u8);
         pub fn fetch_args_length() -> i32;
         pub fn fetch_args(name_holder: *const u8);
-        pub fn fetch_types_length() -> i32;
-        pub fn fetch_types(name_holder: *const u8);
         pub fn write_eth_bridge(payload: *const u8, payload_len: u32, address: *const u8);
         pub fn gas(amount: u32);
         pub fn ret(payload: *const u8, payload_len: u32);

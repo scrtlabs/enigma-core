@@ -16,8 +16,6 @@ pub mod ids {
     pub const NAME_FUNC: usize = 7;
     pub const ARGS_FUNC: usize = 8;
     pub const ARGS_LENGTH_FUNC: usize = 9;
-    pub const TYPES_LENGTH_FUNC: usize = 10;
-    pub const TYPES_FUNC: usize = 11;
     pub const WRITE_ETH_BRIDGE_FUNC: usize = 12;
     pub const REMOVE_STATE_FUNC: usize = 13;
     pub const GAS_FUNC: usize = 14;
@@ -50,11 +48,7 @@ pub mod signatures {
 
     pub const ARGS: StaticSignature = StaticSignature(&[I32], None);
 
-    pub const TYPES_LENGTH: StaticSignature = StaticSignature(&[], Some(I32));
-
     pub const WRITE_ETH_BRIDGE: StaticSignature = StaticSignature(&[I32, I32, I32], None);
-
-    pub const TYPES: StaticSignature = StaticSignature(&[I32], None);
 
     pub const GAS: StaticSignature = StaticSignature(&[I32], None);
 
@@ -114,8 +108,6 @@ impl ModuleImportResolver for ImportResolver {
             "fetch_function_name" => FuncInstance::alloc_host(signatures::NAME.into(), ids::NAME_FUNC),
             "fetch_args_length" => FuncInstance::alloc_host(signatures::ARGS_LENGTH.into(), ids::ARGS_LENGTH_FUNC),
             "fetch_args" => FuncInstance::alloc_host(signatures::ARGS.into(), ids::ARGS_FUNC),
-            "fetch_types_length" => FuncInstance::alloc_host(signatures::TYPES_LENGTH.into(), ids::TYPES_LENGTH_FUNC),
-            "fetch_types" => FuncInstance::alloc_host(signatures::TYPES.into(), ids::TYPES_FUNC),
             "write_eth_bridge" => FuncInstance::alloc_host(signatures::WRITE_ETH_BRIDGE.into(), ids::WRITE_ETH_BRIDGE_FUNC),
             "gas" => FuncInstance::alloc_host(signatures::GAS.into(), ids::GAS_FUNC),
             "rand" => FuncInstance::alloc_host(signatures::RAND.into(), ids::RAND_FUNC),
