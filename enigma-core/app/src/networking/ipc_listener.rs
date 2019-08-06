@@ -268,9 +268,10 @@ pub(self) mod handling {
         }
         let results = db.insert_tuples(&tuples);
         let mut errors = Vec::with_capacity(tuples.len());
-
+        let mut overall_status = 0;
         for ((deltakey, _), res) in tuples.into_iter().zip(results.into_iter()) {
             let status = if res.is_err() {
+                overall_status = 1;
                 FAILED
             } else {
                 0
@@ -280,7 +281,7 @@ pub(self) mod handling {
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
         }
-        let result = IpcResults::UpdateDeltasResult { status: 0, errors };
+        let result = IpcResults::UpdateDeltasResult { status: overall_status, errors };
         Ok(IpcResponse::UpdateDeltas {result})
     }
 
