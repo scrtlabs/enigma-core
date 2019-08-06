@@ -259,14 +259,14 @@ fn get_io_key(user_key: &PubKey) -> Result<DhKey, EnclaveError> {
         Ok(io_key)
 }
 
-fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: &DhKey) -> Result<(Vec<u8>, String, String), EnclaveError>{
+fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: &DhKey) -> Result<(Vec<u8>, String), EnclaveError>{
     let decrypted_callable = decrypt_callable(callable, &inputs_key)?;
     let decrypted_args = decrypt_args(&args, &inputs_key)?;
-    let (types, function_name) = {
+    let (_, function_name) = {
         let decrypted_callable_str = str::from_utf8(&decrypted_callable)?;
         get_types(&decrypted_callable_str)?
     };
-    Ok((decrypted_args, types, function_name))
+    Ok((decrypted_args, function_name))
 }
 
 fn save_enc_delta(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>) -> Result<Hash256, EnclaveError> {
@@ -332,12 +332,12 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     pre_execution_data.push(Box::new(*exe_code_hash));
     let pre_execution_state = km_t::get_state(db_ptr, address)?;
 
-    let (decrypted_args, types, function_name) =
+    let (decrypted_args, function_name) =
         decrypt_inputs(callable, args, io_key).
              map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let state_key = km_t::get_state_key(address)?;
-    let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone(), state_key)?;
+    let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, decrypted_args.clone(), state_key)?;
 
     let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
     if exec_res.state_delta.is_some() {
@@ -415,13 +415,13 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
     pre_execution_data.push(Box::new(*inputs_hash));
 
     let deploy_bytecode = build_constructor(bytecode)?;
-    let (decrypted_args, types, function_name) = decrypt_inputs(constructor, args, io_key).
+    let (decrypted_args, function_name) = decrypt_inputs(constructor, args, io_key).
         map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let state = ContractState::new(address);
 
     let state_key = km_t::get_state_key(address)?;
-    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, function_name, types, decrypted_args.clone(), state_key)?;
+    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, function_name, decrypted_args.clone(), state_key)?;
 
     let exe_code = &exec_res.result[..];
 
