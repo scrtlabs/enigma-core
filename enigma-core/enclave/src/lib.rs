@@ -330,7 +330,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     let exe_code_hash = bytecode.keccak256();
     pre_execution_data.push(Box::new(*inputs_hash));
     pre_execution_data.push(Box::new(*exe_code_hash));
-    let pre_execution_state = execution::get_state(db_ptr, address)?;
+    let pre_execution_state = km_t::get_state(db_ptr, address)?;
 
     let (decrypted_args, _decrypted_callable, types, function_name) =
         decrypt_inputs(callable, args, io_key).

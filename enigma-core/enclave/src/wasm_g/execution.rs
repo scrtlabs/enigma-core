@@ -1,10 +1,8 @@
 use crate::km_t;
-use enigma_runtime_t::{ocalls_t as runtime_ocalls_t, RuntimeResult};
 use enigma_runtime_t::data::ContractState;
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError};
-use enigma_tools_m::utils::LockExpectMutex;
-use enigma_crypto::{CryptoError, Encryption};
-use enigma_types::{ContractAddress, RawPointer, StateKey};
+use enigma_runtime_t::RuntimeResult;
+use enigma_types::StateKey;
 use std::string::{String, ToString};
 use std::vec::Vec;
 use wasm_execution::WasmEngine;
@@ -36,16 +34,6 @@ pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, pa
     let mut engine = WasmEngine::new(code, gas_limit, params, state, "".to_string(), "".to_string(), key)?;
     engine.deploy()?;
     engine.runtime.into_result()
-}
-
-pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<ContractState, EnclaveError> {
-    let guard = km_t::STATE_KEYS.lock_expect("State Keys");
-    let key = guard.get(&addr).ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
-
-    let enc_state = runtime_ocalls_t::get_state(db_ptr, addr)?;
-    let state = ContractState::decrypt(enc_state, key)?;
-
-    Ok(state)
 }
 
 #[cfg(debug_assertions)]
