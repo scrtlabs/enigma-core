@@ -1,41 +1,3 @@
-use crate::km_t;
-use enigma_runtime_t::data::ContractState;
-use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, FailedTaskError};
-use enigma_runtime_t::RuntimeResult;
-use enigma_types::StateKey;
-use std::string::{String, ToString};
-use std::vec::Vec;
-use wasm_execution::WasmEngine;
-
-fn execute(engine: &mut WasmEngine) -> Result<(), EnclaveError> {
-
-    let invocation_result = engine.instance.invoke_export("call", &[], &mut engine.runtime);
-    if let Err(err) = invocation_result {
-        let err: EnclaveError = err.into();
-        if let FailedTaskError(e) = err {
-            return Err(EnclaveError::FailedTaskErrorWithGas { used_gas: engine.runtime.get_used_gas(), err: e });
-        }
-        else {
-            return Err(err)
-        }
-    }
-    Ok(())
-}
-
-pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
-                    function_name: String, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
-    let mut engine = WasmEngine::new(code, gas_limit, params, state, function_name, key)?;
-    engine.compute()?;
-    engine.runtime.into_result()
-
-}
-
-pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState,
-                           function_name: String, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
-    let mut engine = WasmEngine::new(code, gas_limit, params, state, function_name, key)?;
-    engine.deploy()?;
-    engine.runtime.into_result()
-}
 
 #[cfg(debug_assertions)]
 pub mod tests {
@@ -45,7 +7,7 @@ pub mod tests {
     use enigma_crypto::hash::Sha256;
     use std::string::ToString;
     use enigma_crypto::Encryption;
-    use wasm_execution::WasmEngine;
+    use enigma_runtime_t::wasm_execution::WasmEngine;
 
     pub fn test_execute_contract() {
         let addr = b"enigma".sha256();
