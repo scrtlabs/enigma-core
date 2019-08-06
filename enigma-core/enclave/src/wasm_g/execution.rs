@@ -30,8 +30,9 @@ pub fn execute_call(code: &[u8], gas_limit: u64, state: ContractState,
 
 }
 
-pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
-    let mut engine = WasmEngine::new(code, gas_limit, params, state, "".to_string(), "".to_string(), key)?;
+pub fn execute_constructor(code: &[u8], gas_limit: u64, state: ContractState,
+                           function_name: String, types: String, params: Vec<u8>, key: StateKey) -> Result<RuntimeResult, EnclaveError>{
+    let mut engine = WasmEngine::new(code, gas_limit, params, state, function_name, types, key)?;
     engine.deploy()?;
     engine.runtime.into_result()
 }
