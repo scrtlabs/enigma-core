@@ -30,6 +30,15 @@ impl WasmEngine {
         Ok(WasmEngine { instance, runtime })
     }
 
+    pub fn new_deploy(code: &[u8], gas_limit: u64, args: Vec<u8>, state: ContractState, function_name: String, key: StateKey) -> Result<WasmEngine, EnclaveError>{
+        let deploy_bytecode = Self::build_constructor(code)?;
+        Self::new(&deploy_bytecode, gas_limit, args, state, function_name, key)
+    }
+
+    pub fn new_compute(code: &[u8], gas_limit: u64, args: Vec<u8>, state: ContractState, function_name: String,key: StateKey) -> Result<WasmEngine, EnclaveError>{
+        Self::new(code, gas_limit, args, state, function_name, key)
+    }
+
     fn create_module(code: &[u8]) -> ::std::result::Result<Box<Module>, EnclaveError> {
         let mut cursor = Cursor::new(&code[..]);
         let deserialized_module = elements::Module::deserialize(&mut cursor)?;
@@ -49,10 +58,47 @@ impl WasmEngine {
         Ok(Box::new(module))
     }
 
+    /// Builds Wasm code for contract deployment from the Wasm contract.
+    /// Gets byte vector with Wasm code.
+    /// Created code contains one function `call`, which invokes `deploy`.
+    /// `deploy` invokes the contract constructor from `wasm_code` and returns the bytecode to be deployed
+    /// Writes created code to a file constructor.wasm in a current directory.
+    /// This code is based on https://github.com/paritytech/wasm-utils/blob/master/cli/build/main.rs#L68
+    /// The parameters' values to build function are default parameters as they appear in the original code.
+    pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
+        let module = parity_wasm::deserialize_buffer(wasm_code)?;
+
+        let (module, ctor_module) = match pwasm_utils::build(
+            module,
+            pwasm_utils::SourceTarget::Unknown,
+            None,
+            &Vec::new(),
+            false,
+            "49152".parse().expect("New stack size is not valid u32"),
+            false,
+        ) {
+            Ok(v) => v,
+            Err(e) => panic!("build_constructor: {:?}", e), // TODO: Return error
+        };
+
+        let result;
+
+        if let Some(ctor_module) = ctor_module {
+            result = parity_wasm::serialize(ctor_module); /*.map_err(Error::Encoding)*/
+        } else {
+            result = parity_wasm::serialize(module); /*.map_err(Error::Encoding)*/
+        }
+
+        match result {
+            Ok(v) => Ok(v),
+            Err(e) => panic!("build_constructor: {:?}", e), // TODO: Return Error
+        }
+    }
+
     pub fn deploy(&mut self) -> Result<(), EnclaveError> {
         self.execute()?;
         self.runtime.charge_deployment().
-            map_err(|_| self.treat_failed_task_error(FailedTaskError::GasLimitError));
+            map_err(|_| self.treat_failed_task_error(FailedTaskError::GasLimitError))?;
         Ok(())
     }
 
@@ -64,7 +110,7 @@ impl WasmEngine {
     pub fn compute(&mut self) -> Result<(), EnclaveError> {
         self.execute()?;
         self.runtime.charge_execution().
-            map_err(|_| self.treat_failed_task_error(FailedTaskError::GasLimitError));
+            map_err(|_| self.treat_failed_task_error(FailedTaskError::GasLimitError))?;
         Ok(())
     }
 

@@ -18,6 +18,10 @@ extern crate rmp_serde as rmps;
 extern crate serde;
 extern crate wasmi;
 extern crate parity_wasm;
+/// This module builds Wasm code for contract deployment from the Wasm contract.
+/// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
+/// The code is based on Parity wasm_utils::cli.
+extern crate pwasm_utils;
 
 use crate::data::{ContractState, DeltasInterface, IOInterface, EncryptedPatch};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError};
