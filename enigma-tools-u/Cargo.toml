@@ -1,31 +1,34 @@
 [package]
 name = "enigma-tools-u"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Isan-Rivkin <isan@enigma.co>"]
 description = "Tools used by the untrusted part of the Enigma core and Principal node."
 build = "build.rs"
 
 [dependencies]
-serde_json = "1.0"
-serde = "=1.0.70"
-serde_derive = "=1.0.70"
-failure = "=0.1.1"
-failure_derive="=0.1.1"
-httparse = "=1.2.5"
-reqwest = "0.8.6"
-etcommon-rlp = "0.2.3"
-base64 = "0.9.2"
-openssl = "0.10.10"
-rustc-hex = "1.0.0"
-# web3 utils
-web3 = { git = 'https://github.com/tomusdrw/rust-web3.git' }
-libc = "0.2.41"
-tiny-keccak = "1.4.2"
+enigma-crypto = { path = "../enigma-crypto" }
+enigma-types = { path = "../enigma-types" }
 
-[dependencies.sgx_types]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
-# esgx
-[dependencies.sgx_urts]
-git = "https://github.com/baidu/rust-sgx-sdk.git"
-rev = "v1.0.0"
+serde_json = "1.0"
+serde = { version = "1.0", default-features = false, features=["serde_derive"] }
+failure = "0.1.3"
+reqwest = "0.9.5"
+etcommon-rlp = { version = "0.2.4", default-features = false }
+etcommon-bigint = "0.2"
+base64 = "0.10.0"
+openssl = "0.10"
+openssl-sys = "0.9"
+rustc-hex = "1.0.0" # 2.0.1?
+log = "0.4"
+log-derive = "0.3"
+simplelog = "0.5.3"
+dirs = "1.0.4"
+
+# TODO: Change after a new version is released.
+# Add more transport layers via features if needed.
+web3 = { version  = "0.6", default-features = false, features=["http"]  }
+ethabi = "6.1.0"
+
+
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
+sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }

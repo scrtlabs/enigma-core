@@ -1,0 +1,39 @@
+# I use package renaming to import 2 libraries with the same name but from different sources (1 for SGX and 1 for regular std)
+# Then in the code you can rename them back (under a cfg condition) to the same name to use abstractly.
+
+[package]
+name = "enigma-tools-m"
+version = "0.2.0"
+authors = ["Elichai Turkel <elichai@enigma.co>"]
+edition = "2018"
+
+[dependencies]
+enigma-types = { path = "../enigma-types", default-features = false }
+enigma-crypto = { path = "../enigma-crypto", default-features = false, features = ["hash"] }
+
+log-derive = "0.3"
+log = { version = "0.4.6", default-features = false }
+failure = { version = "0.1", default-features = false, features = ["derive"] }
+etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
+etcommon-rlp = {version = "0.2", default-features = false}
+rustc-hex = { version = "2.0.1", default-features = false }
+
+ethabi_std = { package = "ethabi", version = "6.0.1", optional = true }
+ethereum_types_std = { package = "ethereum-types", version = "0.4", optional = true }
+rmp_serde_std = { package = "rmp-serde", git = "https://github.com/3Hren/msgpack-rust.git", optional = true }
+serde_std = { package = "serde", version = "1.0", default-features = false, features = ["derive"],  optional = true }
+serde_json_std = { package = "serde_json", version = "1.0", optional = true }
+
+
+ethabi_sgx = { package = "ethabi", git = "https://github.com/enigmampc/ethabi.git", rev = "6.1.0-sgx-1.0.8", optional = true }
+# we don't use sgx on ethereum-types
+ethereum_types_sgx = { package = "ethereum-types", git = "https://github.com/enigmampc/primitives.git", rev = "sgx-v0.4.0", default-features = false, optional = true }
+rmp_serde_sgx = { package = "rmp-serde", git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "0.14.0-sgx-1.0.8", optional = true }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8", optional = true }
+serde_sgx = { package = "serde", git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "407aaaa2558dda5c2367d57ba40324c52cf9acc2", default-features = false, features = ["derive"], optional = true }
+serde_json_sgx = { package = "serde_json", git = "https://github.com/enigmampc/serde-json-sgx.git", rev = "1.0.39-sgx-1.0.8", optional = true }
+
+[features]
+default = ["std"]
+std = ["ethabi_std", "enigma-types/std", "ethereum_types_std", "enigma-crypto/std", "rmp_serde_std", "serde_std", "serde_json_std"]
+sgx = ["ethabi_sgx", "sgx_tstd", "enigma-types/sgx", "ethereum_types_sgx", "enigma-crypto/sgx", "rmp_serde_sgx", "serde_sgx", "serde_json_sgx"]

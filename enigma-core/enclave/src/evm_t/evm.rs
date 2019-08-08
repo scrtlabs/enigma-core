@@ -1,14 +1,12 @@
-use std::str::FromStr;
-use bigint::{Gas, Address, U256, M256, H256};
-use sputnikvm::{HeaderParams, Context, VM, VMStatus, AccountCommitment, RequireError, SeqContextVM};
-use std::rc::Rc;
-use std::boxed::Box;
-use std::vec::Vec;
-use sputnikvm_network_classic::MainnetFrontierPatch;
-use std::ops::DerefMut;
+use bigint::{Address, Gas, H256, M256, U256};
 use evm_t::EvmResult;
-use common::utils_t::{ToHex, FromHex};
-
+use sputnikvm::{AccountCommitment, Context, HeaderParams, RequireError, SeqContextVM, VMStatus, VM};
+use sputnikvm_network_classic::MainnetFrontierPatch;
+use std::boxed::Box;
+use std::ops::DerefMut;
+use std::rc::Rc;
+use std::str::FromStr;
+use std::vec::Vec;
 
 fn handle_fire_without_rpc(vm: &mut VM) {
     loop {
@@ -18,11 +16,7 @@ fn handle_fire_without_rpc(vm: &mut VM) {
                 vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
             }
             Err(RequireError::AccountStorage(address, index)) => {
-                vm.commit_account(AccountCommitment::Storage {
-                    address: address,
-                    index: index,
-                    value: M256::zero(),
-                }).unwrap();
+                vm.commit_account(AccountCommitment::Storage { address, index, value: M256::zero() }).unwrap();
             }
             Err(RequireError::AccountCode(address)) => {
                 vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
@@ -34,8 +28,7 @@ fn handle_fire_without_rpc(vm: &mut VM) {
     }
 }
 
-
-pub fn call_sputnikvm(code: &Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
+pub fn call_sputnikvm(code: &[u8], data: Vec<u8>) -> (u8, Vec<u8>) {
     let caller = Address::from_str("0x0000000000000000000000000000000000000000").unwrap();
     let address = Address::from_str("0x0000000000000000000000000000000000000000").unwrap();
     let gas_limit = Gas::from_str("0x2540be400").unwrap();
@@ -58,7 +51,7 @@ pub fn call_sputnikvm(code: &Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
             gas_limit,
             gas_price,
             value,
-            code: Rc::new(code.to_vec() ),
+            code: Rc::new(code.to_vec()),
             data: Rc::new(data),
             origin: caller,
             apprent_value: value,
@@ -72,7 +65,7 @@ pub fn call_sputnikvm(code: &Vec<u8>, data: Vec<u8>) -> (u8, Vec<u8>){
     //println!("VM returned: {:?}", vm.status());
     //println!("VM out: {:?}", vm.out().to_hex());
     for account in vm.accounts() {
-        println!("{:?}", account);
+        debug_println!("{:?}", account);
     }
     let vm_status: u8 = match vm.status() {
         VMStatus::ExitedOk => EvmResult::SUCCESS as u8,

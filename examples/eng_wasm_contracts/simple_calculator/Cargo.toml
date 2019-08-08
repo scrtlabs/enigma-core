@@ -1,0 +1,16 @@
+[package]
+# must be called contract
+name = "contract"
+version = "0.1.0"
+
+[dependencies]
+eng-wasm = "0.1"
+eng-wasm-derive = "0.1"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = "z"

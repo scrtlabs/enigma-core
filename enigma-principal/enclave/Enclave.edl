@@ -8,6 +8,7 @@ enclave {
 
     /* data structures */
     include "sgx_key_exchange.h"
+    include "enigma-types.h"
 
     trusted {
 
@@ -15,12 +16,22 @@ enclave {
 
         public void ecall_run_tests();
 
-        public void ecall_get_signing_address([out] uint8_t arr[42]);
+        public void ecall_get_signing_address([out] uint8_t arr[20]);
 
-        public sgx_status_t ecall_get_random_seed( [out, size=32] uint8_t* rand_out, [out, size=65] uint8_t* sig_out);
+        public EnclaveReturn ecall_set_worker_params([in, size=worker_params_rlp_len] const uint8_t* worker_params_rlp, size_t worker_params_rlp_len,
+                                        [in, size=32] uint8_t* seed_in, [in, size=32] uint8_t* nonce_in,
+                                        [out] uint8_t rand_out[32], [out] uint8_t nonce_out[32],
+                                        [out] uint8_t sig_out[65]);
+
+        public EnclaveReturn ecall_get_enc_state_keys([in, size=msg_len] const uint8_t* msg, size_t msg_len,
+                                        [in, size=addrs_len] const uint8_t* addrs, size_t addrs_len,
+                                        [in] uint8_t sig[65], [in, size=32] uint8_t* epoch_nonce,
+                                        [out] uint64_t* serialized_ptr, [out] uint8_t sig_out[65]);
     };
     untrusted {
         void ocall_get_home( [out, size=4096] uint8_t* output, [out] uint32_t* result_length);
+
+        uint64_t ocall_save_to_memory( [in, count=data_len] const uint8_t* data_ptr, size_t data_len);
 
     };
 };

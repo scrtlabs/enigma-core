@@ -1,0 +1,18 @@
+[package]
+name = "contract    "
+version = "0.1.0"
+
+[lib]
+crate-type = ["cdylib"]     # Create a dynamic library to be loaded from another language
+
+[dependencies]
+eng-wasm = "0.1"
+eng-wasm-derive = "0.1"
+
+[profile.release]           # The release profile, used for `cargo build --release`.
+panic = "abort"             # panic strategy (`-C panic=...`)
+lto = true                  # Link Time Optimization usually reduces size of binaries
+                            # and static libraries. Increases compilation time.
+                            # If true, passes `-C lto` flag to the compiler
+opt-level = "z"             # controls de --opt-level the compiler build with.
+                            # 'z' reduces size to a minimum
