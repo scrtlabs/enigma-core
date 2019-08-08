@@ -47,7 +47,6 @@ impl Contract {
 
 impl ContractInterface for Contract {
     // Add millionaire with 32-byte hash type for address and 32-byte uint for net worth
-    #[no_mangle]
     fn add_millionaire(address: H256, net_worth: U256) {
         // Read state to get vector of Millionaires
         let mut millionaires = Self::get_millionaires();
@@ -61,7 +60,6 @@ impl ContractInterface for Contract {
     }
 
     // Compute the richest millionaire by returning the 32-byte hash type for the address
-    #[no_mangle]
     fn compute_richest() -> H256 {
         // Read state to get vector of Millionaires and obtain the struct corresponding to the
         // richest millionaire by net worth

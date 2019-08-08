@@ -102,7 +102,6 @@ impl Contract {
 
 impl Erc20Interface for Contract {
 
-    #[no_mangle]
     fn construct(owner_of_the_contract: H256, total_supply: U256) {
         let mut user_addr = Self::get_user(owner_of_the_contract);
         user_addr.balance = total_supply;
@@ -113,7 +112,6 @@ impl Erc20Interface for Contract {
         );
     }
 
-    #[no_mangle]
     fn mint(owner: H256, addr: H256, tokens: U256, sig: Vec<u8>) {
         // verify the owner is the one who is minting.
         let contract_owner: H256 = read_state!(CONTRACT_OWNER).unwrap();
@@ -128,24 +126,20 @@ impl Erc20Interface for Contract {
         write_state!(&addr.to_hex::<String>() => user_addr, TOTAL_SUPPLY => total_supply + tokens);
     }
 
-    #[no_mangle]
     fn total_supply() -> U256 {
         read_state!(TOTAL_SUPPLY).unwrap_or_default()
     }
 
-    #[no_mangle]
     fn balance_of(token_owner: H256) -> U256 {
         let user: User = Self::get_user(token_owner);
         user.balance
     }
 
-    #[no_mangle]
     fn allowance(owner: H256, spender: H256) -> U256 {
         let user: User = Self::get_user(owner);
         user.get_approved(spender)
     }
 
-    #[no_mangle]
     fn transfer(from: H256, to: H256, tokens: U256, sig: Vec<u8>) {
         assert!(Self::verify(from.clone(), to.clone(), tokens, sig));
         let mut from_user : User = Self::get_user(from);
@@ -160,7 +154,6 @@ impl Erc20Interface for Contract {
         write_state!(&from.to_hex::<String>() => from_user, &to.to_hex::<String>() => to_user);
     }
 
-    #[no_mangle]
     fn approve(token_owner: H256, spender: H256, tokens: U256, sig: Vec<u8>) {
         assert!(Self::verify(token_owner.clone(), spender.clone(), tokens, sig));
         let mut owner_user : User = Self::get_user(token_owner);
@@ -170,7 +163,6 @@ impl Erc20Interface for Contract {
         write_state!(&token_owner.to_hex::<String>() => owner_user);
     }
 
-    #[no_mangle]
     fn transfer_from(owner: H256, spender: H256, to: H256, tokens: U256, sig: Vec<u8>) {
         assert!(Self::verify(spender.clone(), to.clone(), tokens, sig));
         let mut owner_user : User = Self::get_user(owner);

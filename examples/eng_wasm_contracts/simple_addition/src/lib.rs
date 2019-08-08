@@ -33,11 +33,8 @@ pub trait ContractInterface{
 
 // The implementation of the exported ESC functions should be defined in the trait implementation 
 // for a new struct. 
-// #[no_mangle] modifier is required before each function to turn off Rust's name mangling, so that
-// it is easier to link to. Sets the symbol for this item to its identifier.
 pub struct Contract;
 impl ContractInterface for Contract {
-    #[no_mangle]
     fn addition(x: U256, y: U256) -> U256 {
         write_state!("code"=> (x+y).as_u32());
         x + y
