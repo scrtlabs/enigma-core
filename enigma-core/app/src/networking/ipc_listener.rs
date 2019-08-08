@@ -246,7 +246,7 @@ pub(self) mod handling {
         tuples.push((delta_key, data));
 
         let results = db.insert_tuples(&tuples);
-        let mut status: i8 = 0;
+        let mut status: i8 = PASSED;
         if results.into_iter().any(| result | result.is_err()) {
             status = FAILED;
         }
@@ -268,19 +268,20 @@ pub(self) mod handling {
         }
         let results = db.insert_tuples(&tuples);
         let mut errors = Vec::with_capacity(tuples.len());
-
+        let mut overall_status = PASSED;
         for ((deltakey, _), res) in tuples.into_iter().zip(results.into_iter()) {
             let status = if res.is_err() {
+                overall_status = FAILED;
                 FAILED
             } else {
-                0
+                PASSED
             };
             let key = Some(deltakey.key_type.unwrap_delta());
             let address = deltakey.contract_address.to_hex();
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
         }
-        let result = IpcResults::UpdateDeltasResult { status: 0, errors };
+        let result = IpcResults::UpdateDeltasResult { status: overall_status, errors };
         Ok(IpcResponse::UpdateDeltas {result})
     }
 

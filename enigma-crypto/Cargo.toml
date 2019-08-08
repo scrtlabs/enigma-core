@@ -3,7 +3,7 @@
 
 [package]
 name = "enigma-crypto"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Elichai Turkel <elichai@enigma.co>"]
 edition = "2018"
 description = "A Cryptography library used for easy usage in the Enigma Protocol."

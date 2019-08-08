@@ -1,6 +1,6 @@
 [package]
 name = "enigma-tools-t"
-version = "0.1.3"
+version = "0.2.0"
 authors = ["Elichai-Turkel <elichai@enigma.co>"]
 description = "Tools used by the trusted part of the Enigma core and Principal node."
 
