@@ -49,14 +49,12 @@ impl Contract {
 
 impl ContractInterface for Contract {
     // Constructor function that takes in VotingETH ethereum contract address
-    #[no_mangle]
     fn construct(voting_eth_addr: H160) {
         let voting_eth_addr_str: String = voting_eth_addr.to_hex();
         write_state!(VOTING_ETH_ADDR => voting_eth_addr_str);
     }
 
     // Cast vote function that takes poll ID, voter address, and vote - calls back to ETH
-    #[no_mangle]
     fn cast_vote(poll_id: U256, voter: H256, vote: U256) {
         let mut polls = Self::get_polls();
         {
@@ -72,7 +70,6 @@ impl ContractInterface for Contract {
     }
 
     // Tally poll function that takes poll ID - calls back to ETH
-    #[no_mangle]
     fn tally_poll(poll_id: U256) {
         let polls = Self::get_polls();
         let mut tallied_quorum: U256 = U256::zero();

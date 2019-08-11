@@ -47,7 +47,6 @@ impl ContractInterface for Contract {
     /// Writes value to state and reads it.
     /// As a temporary solution the value is converted to a stream of bytes.
     /// Later as part of runtime there will be created a macros for writing and reading any type.
-    #[no_mangle]
     fn write() -> Vec<u8> {
         let mut a = String::new();
         a.push_str("157");
@@ -59,7 +58,6 @@ impl ContractInterface for Contract {
         read_val.as_bytes().to_vec()
     }
 
-    #[no_mangle]
     fn check_address(addr: H256) -> H256{
         write_state!("addr" => addr);
         let read_val: H256 = read_state!("addr").unwrap_or_default();
@@ -67,7 +65,6 @@ impl ContractInterface for Contract {
         read_val
     }
 
-    #[no_mangle]
     fn check_addresses(addr1: H256, addr2: H256) -> Vec<H256> {
         write_state!("addr1" => addr1);
         write_state!("addr2" => addr2);
@@ -84,7 +81,6 @@ impl ContractInterface for Contract {
     }
 
     // tests the random service
-    #[no_mangle]
     fn choose_rand_color() -> Vec<u8> {
         let mut colors = Vec::new();
         colors.extend(["green", "yellow", "red", "blue", "white", "black", "orange", "purple"].iter().cloned());
@@ -97,32 +93,27 @@ impl ContractInterface for Contract {
     }
 
     // tests the shuffle service on a simple array
-    #[no_mangle]
     fn get_scrambled_vec() {
         let mut nums: [u8; 10] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
         Self::shuffle(&mut nums);
         unsafe {external::ret(nums.as_ptr(), nums.len() as u32)};
     }
 
-    #[no_mangle]
     fn addition(x: U256, y: U256) -> U256 {
         let sum: u64 = x.as_u64() + y.as_u64();
         write_state!("curr_sum" => sum);
         sum.into()
     }
 
-    #[no_mangle]
     fn get_last_sum() -> U256 {
         let sum: u64 = read_state!("curr_sum").unwrap_or_default();
         sum.into()
     }
 
-    #[no_mangle]
     fn print_test(x: U256, y: U256) {
         eprint!("{:?} {:?}", x.as_u64(), y.as_u64());
     }
 
-    #[no_mangle]
     fn construct(param: U256){
         write_state!("1" => param.as_u64());
     }
