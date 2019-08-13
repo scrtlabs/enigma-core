@@ -12,10 +12,12 @@ extern crate serde;
 #[macro_use]
 mod internal_std;
 mod rand_wasm;
+pub mod crypto_wasm;
 pub extern crate eng_pwasm_abi;
 
 pub use internal_std::*;
 pub use rand_wasm::*;
+pub use crypto_wasm::*;
 pub use serde_json::Value;
 pub use eng_pwasm_abi::types::*;
 
@@ -37,6 +39,8 @@ pub mod external {
         pub fn gas(amount: u32);
         pub fn ret(payload: *const u8, payload_len: u32);
         pub fn rand(payload: *const u8, payload_len: u32);
+        pub fn encrypt(message: *const u8, message_len: u32, key: *const u8, payload: *const u8);
+        pub fn decrypt(cipheriv: *const u8, cipheriv_len: u32, key: *const u8, payload: *const u8);
     }
 }
 
@@ -122,6 +126,11 @@ mod tests {
     #[test]
     fn what() {
         print("TEST!");
+    }
+
+    #[test]
+    fn test_encrypt() {
+        // TODO: Is this the right place to test APIs. If so, how should we initialize the enclave?
     }
 }
 
