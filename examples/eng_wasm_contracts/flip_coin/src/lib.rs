@@ -1,7 +1,5 @@
 #![no_std]
 
-
-
 extern crate eng_wasm;
 extern crate eng_wasm_derive;
 

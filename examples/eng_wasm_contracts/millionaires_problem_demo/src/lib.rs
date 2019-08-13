@@ -1,21 +1,14 @@
 #![no_std]
-#![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
-
-
-
 
 extern crate eng_wasm;
 extern crate eng_wasm_derive;
-extern crate rustc_hex as hex;
-#[macro_use]
-extern crate serde_derive;
 extern crate serde;
 
 use eng_wasm::*;
 use eng_wasm_derive::pub_interface;
 use serde::{Serialize, Deserialize};
 
-// State key name "millionaires" holding a vector of Millionaire structs
+// Const representing the millionaire structs vector to be saved at the contract state
 static MILLIONAIRES: &str = "millionaires";
 
 // Struct representing a Millionaire
@@ -32,6 +25,7 @@ pub trait ContractInterface{
     fn compute_richest() -> H256;
 }
 
+// Public Contract struct which will consist of private and public-facing secret contract functions
 pub struct Contract;
 
 // Private functions accessible only by the secret contract
