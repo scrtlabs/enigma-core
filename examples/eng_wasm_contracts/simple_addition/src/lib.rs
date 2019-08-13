@@ -1,16 +1,10 @@
-// Rust’s standard library provides a lot of useful functionality, but assumes support for various 
-// features of its host system: threads, networking, heap allocation, and others. SGX environments
-// do not have these features, so we tell Rust that we don’t want to use the standard library
+// Rust’s standard library provides a lot of useful functionality,
+// but WebAssembly does not support all of it.
+// eng_wasm exposes a subset of std.
 #![no_std]
-#![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
-
-
-
 
 // The eng_wasm crate allows to use the Enigma runtime, which provides:
-//     - Read from state      read_state!(key)        
-//     - Write to state       write_state!(key => value)
-//     - Print                eprint!(...)
+// manipulating state, creation of random, printing and more
 extern crate eng_wasm;
 
 // The eng_wasm_derive crate provides the following
@@ -22,8 +16,6 @@ use eng_wasm::*;
 
 // For contract-exposed functions first include:
 use eng_wasm_derive::pub_interface;
-
-use eng_wasm::String;
 
 // For contract-exposed functions, declare such functions under the following public trait:
 #[pub_interface]
