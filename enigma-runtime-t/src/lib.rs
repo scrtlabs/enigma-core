@@ -40,6 +40,10 @@ pub mod wasm_execution;
 
 pub use gas::*;
 
+// TODO: Place in some common module. Which one?
+/// The symmertic key byte size
+const SYMMETRIC_KEY_SIZE: usize = 32;
+
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EthereumData {
     pub ethereum_payload: Vec<u8>,
