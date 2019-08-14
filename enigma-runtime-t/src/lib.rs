@@ -26,6 +26,10 @@ extern crate pwasm_utils;
 use crate::data::{ContractState, DeltasInterface, IOInterface, EncryptedPatch};
 use enigma_types::{StateKey, SymmetricKey};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError};
+<<<<<<< HEAD
+=======
+use enigma_types::StateKey;
+>>>>>>> a6ddfd7425b0d517776e82c3a4fd847fd3e9833d
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
 use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
@@ -204,7 +208,12 @@ impl Runtime {
         let result = 0;
         if let Some(v) = val {
             (false, *v)
+<<<<<<< HEAD
         } else {
+=======
+        }
+        else {
+>>>>>>> a6ddfd7425b0d517776e82c3a4fd847fd3e9833d
             self.gas.refund = self.gas.limit;
             (true, result)
         }
@@ -296,9 +305,16 @@ impl Runtime {
 
     /// Destroy the runtime, create state delta, update the used gas and return result of the execution
     pub fn into_result(mut self) -> ::std::result::Result<RuntimeResult, EnclaveError> {
+<<<<<<< HEAD
         if self.gas.counter >= self.gas.refund {
             self.result.used_gas = self.gas.counter - self.gas.refund;
         } else {
+=======
+            if self.gas.counter >= self.gas.refund {
+            self.result.used_gas = self.gas.counter - self.gas.refund;
+        }
+        else {
+>>>>>>> a6ddfd7425b0d517776e82c3a4fd847fd3e9833d
             self.result.used_gas = 0;
         }
         self.result.state_delta = {
