@@ -34,30 +34,23 @@ extern crate hexutil;
 extern crate parity_wasm;
 extern crate sputnikvm;
 extern crate sputnikvm_network_classic;
-extern crate wasmi;
 extern crate rustc_hex;
-/// This module builds Wasm code for contract deployment from the Wasm contract.
-/// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
-/// The code is based on Parity wasm_utils::cli.
 extern crate pwasm_utils as wasm_utils;
 
 mod evm_t;
 mod km_t;
-mod wasm_g;
 
 use crate::evm_t::{abi::{create_callback, prepare_evm_input},
                    evm::call_sputnikvm};
 use crate::km_t::{ecall_build_state_internal, ecall_get_user_key_internal, ecall_ptt_req_internal, ecall_ptt_res_internal};
-use crate::wasm_g::execution;
 use enigma_runtime_t::data::{ContractState, EncryptedPatch};
-use enigma_runtime_t::EthereumData;
+use enigma_runtime_t::{wasm_execution::WasmEngine, EthereumData};
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{asymmetric, CryptoError, symmetric};
 use enigma_tools_t::common::{errors_t::{EnclaveError, EnclaveError::*, FailedTaskError::*}};
 use enigma_tools_m::utils::{EthereumAddress, LockExpectMutex};
 use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t, esgx::ocalls_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
-use wasm_utils::{build, SourceTarget};
 
 use sgx_types::*;
 use std::{mem, ptr, slice, str};
@@ -263,14 +256,14 @@ fn get_io_key(user_key: &PubKey) -> Result<DhKey, EnclaveError> {
         Ok(io_key)
 }
 
-fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: &DhKey) -> Result<(Vec<u8>, Vec<u8>, String, String), EnclaveError>{
+fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: &DhKey) -> Result<(Vec<u8>, String), EnclaveError>{
     let decrypted_callable = decrypt_callable(callable, &inputs_key)?;
     let decrypted_args = decrypt_args(&args, &inputs_key)?;
-    let (types, function_name) = {
+    let (_, function_name) = {
         let decrypted_callable_str = str::from_utf8(&decrypted_callable)?;
         get_types(&decrypted_callable_str)?
     };
-    Ok((decrypted_args, decrypted_callable, types, function_name))
+    Ok((decrypted_args, function_name))
 }
 
 fn save_enc_delta(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>) -> Result<Hash256, EnclaveError> {
@@ -334,15 +327,16 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     let exe_code_hash = bytecode.keccak256();
     pre_execution_data.push(Box::new(*inputs_hash));
     pre_execution_data.push(Box::new(*exe_code_hash));
-    let pre_execution_state = execution::get_state(db_ptr, address)?;
+    let pre_execution_state = km_t::get_state(db_ptr, address)?;
 
-    let (decrypted_args, _decrypted_callable, types, function_name) =
+    let (decrypted_args, function_name) =
         decrypt_inputs(callable, args, io_key).
              map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let state_key = km_t::get_state_key(address)?;
-    let exec_res = execution::execute_call(&bytecode, gas_limit, pre_execution_state.clone(), function_name, types, decrypted_args.clone(), state_key)?;
-
+    let mut engine = WasmEngine::new_compute(&bytecode, gas_limit, decrypted_args.clone(), pre_execution_state.clone(), function_name, state_key)?;
+    engine.compute()?;
+    let exec_res = engine.into_result()?;
     let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
     if exec_res.state_delta.is_some() {
         encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
@@ -372,42 +366,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     Ok(())
 }
 
-/// Builds Wasm code for contract deployment from the Wasm contract.
-/// Gets byte vector with Wasm code.
-/// Created code contains one function `call`, which invokes `deploy`.
-/// `deploy` invokes the contract constructor from `wasm_code` and returns the bytecode to be deployed
-/// Writes created code to a file constructor.wasm in a current directory.
-/// This code is based on https://github.com/paritytech/wasm-utils/blob/master/cli/build/main.rs#L68
-/// The parameters' values to build function are default parameters as they appear in the original code.
-pub fn build_constructor(wasm_code: &[u8]) -> Result<Vec<u8>, EnclaveError> {
-    let module = parity_wasm::deserialize_buffer(wasm_code)?;
 
-    let (module, ctor_module) = match build(
-        module,
-        SourceTarget::Unknown,
-        None,
-        &Vec::new(),
-        false,
-        "49152".parse().expect("New stack size is not valid u32"),
-        false,
-    ) {
-        Ok(v) => v,
-        Err(e) => panic!("build_constructor: {:?}", e), // TODO: Return error
-    };
-
-    let result;
-
-    if let Some(ctor_module) = ctor_module {
-        result = parity_wasm::serialize(ctor_module); /*.map_err(Error::Encoding)*/
-    } else {
-        result = parity_wasm::serialize(module); /*.map_err(Error::Encoding)*/
-    }
-
-    match result {
-        Ok(v) => Ok(v),
-        Err(e) => panic!("build_constructor: {:?}", e), // TODO: Return Error
-    }
-}
 
 unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecode: &[u8], constructor: &[u8], args: &[u8],
                                 address: ContractAddress, user_key: &PubKey, io_key: &DhKey,
@@ -418,14 +377,15 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
     let inputs_hash = enigma_crypto::hash::prepare_hash_multiple(&[constructor, args, &pre_code_hash[..], user_key][..]).keccak256();
     pre_execution_data.push(Box::new(*inputs_hash));
 
-    let deploy_bytecode = build_constructor(bytecode)?;
-    let (decrypted_args, _, _types, _) = decrypt_inputs(constructor, args, io_key).
+    let (decrypted_args, function_name) = decrypt_inputs(constructor, args, io_key).
         map_err(|e| {FailedTaskError(InputError{ message: format!("{}", e) })})?;
 
     let state = ContractState::new(address);
 
     let state_key = km_t::get_state_key(address)?;
-    let exec_res = execution::execute_constructor(&deploy_bytecode, gas_limit, state, decrypted_args.clone(), state_key)?;
+    let mut engine = WasmEngine::new_deploy(bytecode, gas_limit, decrypted_args.clone(), state, function_name, state_key)?;
+    engine.deploy()?;
+    let exec_res = engine.into_result()?;
 
     let exe_code = &exec_res.result[..];
 
@@ -511,7 +471,7 @@ pub mod tests {
         extern crate sgx_tunittest;
 
         use crate::km_t::principal::tests::*;
-        use crate::wasm_g::execution::tests::*;
+        use enigma_runtime_t::wasm_execution::tests::*;
         use enigma_runtime_t::data::tests::*;
         use enigma_runtime_t::ocalls_t::tests::*;
         use enigma_tools_t::storage_t::tests::*;
