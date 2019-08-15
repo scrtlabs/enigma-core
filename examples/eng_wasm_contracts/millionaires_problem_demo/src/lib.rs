@@ -1,24 +1,38 @@
+// Rust’s standard library provides a lot of useful functionality
+// but WebAssembly does not support all of it;
+// eng_wasm exposes a subset of std.
 #![no_std]
 
+// The eng_wasm crate allows to use the Enigma runtime, which provides:
+// reading and writing to state, printing, random and more
 extern crate eng_wasm;
+
+// The eng_wasm_derive crate provides the following:
+// * Functions exposed by the contract that may be called from the Enigma network
+// * Ability to call functions of Ethereum contracts from ESC
 extern crate eng_wasm_derive;
+
 extern crate serde;
 
 use eng_wasm::*;
+
+// The [pub_interface] trait is required for the definition of ESC public functions 
 use eng_wasm_derive::pub_interface;
+
+// Enables the serializing and deserializing of custom struct types
 use serde::{Serialize, Deserialize};
 
 // Const representing the millionaire structs vector to be saved at the contract state
 static MILLIONAIRES: &str = "millionaires";
 
-// Struct representing a Millionaire
+// Millionaire struct
 #[derive(Serialize, Deserialize)]
 pub struct Millionaire {
     address: H256, // field containing 32 byte hash type for millionaire's address
     net_worth: U256, // field containing 32 byte uint for millionaire's net worth
 }
 
-// Public-facing secret contract function declarations
+// Public secret contract function declarations
 #[pub_interface]
 pub trait ContractInterface{
     fn add_millionaire(address: H256, net_worth: U256);
