@@ -14,24 +14,24 @@ pub enum EngWasmError {
 
 impl From<io::Error> for EngWasmError {
     fn from(error: io::Error) -> Self {
-        match error {
-            _ => EngWasmError::IoError { error: error.to_string() },
+        EngWasmError::IoError {
+            error: error.to_string(),
         }
     }
 }
 
 impl From<serde_json::Error> for EngWasmError {
     fn from(err: serde_json::Error) -> Self {
-        match err {
-            _ => EngWasmError::JsonError { error: err.to_string() },
+        EngWasmError::JsonError {
+            error: err.to_string(),
         }
     }
 }
 
 impl From<syn::parse::Error> for EngWasmError {
     fn from(err: syn::parse::Error) -> Self {
-        match err {
-            _ => EngWasmError::TokenParseError { error: err.to_string() },
+        EngWasmError::TokenParseError {
+            error: err.to_string(),
         }
     }
 }
