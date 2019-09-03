@@ -58,7 +58,7 @@ impl EnigmaContract {
             Some(a) => a.parse()?,
             None => w3.eth().accounts().wait().unwrap()[0], // TODO: Do something with this unwrapping
         };
-        let deployer = &account.to_hex();
+        let deployer = &account.to_fixed_bytes().to_hex();
         let mut deploy_params = w3utils::DeployParams::new(deployer, token_abi, token_bytecode, 5_999_999, 1, 0)?;
         let token_contract = w3utils::deploy_contract(&w3, &deploy_params, ())?;
 
