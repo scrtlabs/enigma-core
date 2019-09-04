@@ -1,4 +1,3 @@
-#![feature(box_patterns)]
 #![feature(slice_concat_ext)]
 
 extern crate proc_macro;

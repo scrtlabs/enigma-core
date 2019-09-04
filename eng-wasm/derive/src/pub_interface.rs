@@ -194,17 +194,19 @@ fn generate_dispatch_function(
 
                 let return_value_count = match output_type {
                     syn::ReturnType::Default => 0,
-                    // If the return value is a tuple, we count it like multiple return values.
-                    // This is the same thing that pwasm_abi does under
-                    // pwasm_abi/derive/src/item.rs :: fn into_signature
-                    // which flows back to
-                    // pwasm_abi/derive/src/lib.rs :: fn generate_eth_endpoint
-                    // which dictates how return values are serialised into the Sink.
-                    // This can be 0 is the return type is () which is correct.
-                    syn::ReturnType::Type(_, box syn::Type::Tuple(return_tuple)) => return_tuple.elems.len(),
-                    // Any other type is a single return value. Arrays such as [u8; 4]
-                    // are not AbiType so Sink will reject them at compile time.
-                    syn::ReturnType::Type(_, _) => 1,
+                    syn::ReturnType::Type(_, type_) => match type_.as_ref() {
+                        // If the return value is a tuple, we count it like multiple return values.
+                        // This is the same thing that pwasm_abi does under
+                        // pwasm_abi/derive/src/item.rs :: fn into_signature
+                        // which flows back to
+                        // pwasm_abi/derive/src/lib.rs :: fn generate_eth_endpoint
+                        // which dictates how return values are serialised into the Sink.
+                        // This can be 0 if the return type is () which is correct.
+                        syn::Type::Tuple(return_tuple) => return_tuple.elems.len(),
+                        // Any other type is a single return value. Arrays such as [u8; 4]
+                        // are not AbiType so Sink will reject them at compile time.
+                        _ => 1,
+                    }
                 };
 
                 match return_value_count {
