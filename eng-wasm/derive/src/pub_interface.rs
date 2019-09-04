@@ -16,10 +16,6 @@ const ARGS_FUNC_NAME: &str = "args";
 const CALL_FUNC_NAME: &str = "call";
 
 pub(crate) fn impl_pub_interface(item: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
-    //    let item = parse_macro_input2!(item as syn::ItemTrait);
-    //    println!("SYNTAX: {:#?}", item);
-    //    item.to_token_stream()
-
     let cloned_item = item.clone();
     let pub_interface_signatures = parse_macro_input2!(cloned_item as PubInterfaceSignatures);
 
@@ -31,7 +27,7 @@ pub(crate) fn impl_pub_interface(item: proc_macro2::TokenStream) -> proc_macro2:
 
     let aux_functions = generate_eng_wasm_aux_functions(&function_name_func_name, &args_func_name);
     let constructor_function =
-        generate_deploy_function(&pub_interface_signatures, &deploy_func_name);
+        generate_deploy_function(&deploy_func_name, &pub_interface_signatures);
     let dispatch_function =
         generate_dispatch_function(&dispatch_func_name, &pub_interface_signatures);
 
@@ -114,8 +110,8 @@ fn generate_eng_wasm_aux_functions(
 }
 
 fn generate_deploy_function(
-    signatures: &PubInterfaceSignatures,
     deploy_func_name: &syn::Ident,
+    signatures: &PubInterfaceSignatures,
 ) -> proc_macro2::TokenStream {
     if let Some(constructor_signature) = signatures
         .signatures
@@ -223,7 +219,7 @@ fn generate_dispatch_function(
                             let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
                             let result = <#implementor>::#method_name(#(stream.pop::<#input_types>().expect(#expectations),)*);
                             // 32 is the size of each argument in the serialised form
-                            // The Sink.drain_to() method might resize this array is any
+                            // The Sink.drain_to() method might resize this array if any
                             // dynamically sized elements are returned, but if not, then only one
                             // allocation (this one) will happen for the Vec.
                             let mut result_bytes = eng_wasm::Vec::with_capacity(#return_value_count * 32);
@@ -295,7 +291,7 @@ mod tests {
         );
 
         let signatures = syn::parse2::<PubInterfaceSignatures>(input)?;
-        let output = generate_deploy_function(&signatures, &DEPLOY_FUNC_NAME.into_ident());
+        let output = generate_deploy_function(&DEPLOY_FUNC_NAME.into_ident(), &signatures);
 
         assert_eq!(
             syn::parse2::<syn::ItemFn>(output)?,

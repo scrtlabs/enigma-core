@@ -49,7 +49,6 @@ enum PubInterfaceInput {
 }
 
 /// The signatures collected while parsing the macro input
-#[allow(dead_code)]
 #[derive(Clone)]
 pub(crate) struct PubInterfaceSignatures {
     /// The path to the type implementing the methods.
@@ -129,7 +128,7 @@ fn get_signatures_from_item_trait(
         .partition::<Vec<_>, _>(|item| item.is_ok());
 
     // Thanks to the .partition() above, we know that:
-    // all `signatures` are `Result::Ok(syn::Signature)`
+    // all `trait_methods` are `Result::Ok(syn::Signature)`
     // and all `errors` are `Result::Err(Vec<syn::Error>)`
     // so we can safely `.ok().unwrap()` and `.err().unwrap()` below.
 
@@ -221,7 +220,7 @@ fn get_signatures_from_item_impl(
         .partition::<Vec<_>, _>(|item| item.is_ok());
 
     // Thanks to the .partition() above, we know that:
-    // all `signatures` are `Result::Ok(syn::Signature)`
+    // all `impl_methods` are `Result::Ok(syn::Signature)`
     // and all `errors` are `Result::Err(Vec<syn::Error>)`
     // so we can safely `.ok().unwrap()` and `.err().unwrap()` below.
 

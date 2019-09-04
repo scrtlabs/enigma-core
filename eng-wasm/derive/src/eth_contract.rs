@@ -144,7 +144,8 @@ pub fn impl_eth_contract(
         impl EthContract{
             fn new(addr_str: /*Address*/&str) -> Self {
                 use core::str::FromStr;
-        // Ethereum Addresses need to start with `0x` so we remove the first two characters
+
+                // Ethereum Addresses need to start with `0x` so we remove the first two characters
                 let addr = Address::from_str(&addr_str[2..]).expect("Failed converting the address from hex");
                 EthContract{ addr }
             }
