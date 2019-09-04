@@ -3,7 +3,7 @@
 use quote::quote;
 use syn::parse::discouraged::Speculative;
 
-use failure::Fail;
+use parse_display::Display;
 
 use crate::into_ident::IntoIdent;
 use crate::reduce_mut::ReduceMut;
@@ -11,35 +11,33 @@ use crate::reduce_mut::ReduceMut;
 /// Failures that can happen while parsing the macro input.
 ///
 /// This type mostly exists to pass into syn::Error as an error message.
-#[derive(Fail, Debug)]
+#[derive(Display, Debug)]
 enum ParseError {
-    #[fail(display = "pub_interface item must be either a trait or an inherent struct impl")]
+    #[display("pub_interface item must be either a trait or an inherent struct impl")]
     BadInputItem,
 
-    #[fail(display = "pub_interface item can not be a trait impl")]
+    #[display("pub_interface item can not be a trait impl")]
     TraitImpl,
 
-    #[fail(display = "pub_interface item can not have methods that receive `self`")]
+    #[display("pub_interface item can not have methods that receive `self`")]
     MethodWithReceiver,
 
-    #[fail(
-        display = "methods in traits annotated with pub_interface should not define default implementations"
+    #[display(
+        "methods in traits annotated with pub_interface should not define default implementations"
     )]
     TraitMethodWithImplementation,
 
-    #[fail(
-        display = "methods in traits annotated with pub_interface should not be annotated with additional attributes"
+    #[display(
+        "methods in traits annotated with pub_interface should not be annotated with additional attributes"
     )]
     TraitMethodWithAttributes,
 
-    #[fail(
-        display = "methods in impls annotated with pub_interface should not be annotated with no_mangle"
+    #[display(
+        "methods in impls annotated with pub_interface should not be annotated with no_mangle"
     )]
     ImplMethodWithNoMangleAttribute,
 
-    #[fail(
-        display = "methods in impls annotated with pub_interface should be either `fn` or `pub fn`"
-    )]
+    #[display("methods in impls annotated with pub_interface should be either `fn` or `pub fn`")]
     ImplMethodWithBadVisibility,
 }
 
