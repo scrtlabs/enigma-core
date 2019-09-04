@@ -337,12 +337,8 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     let mut engine = WasmEngine::new_compute(&bytecode, gas_limit, decrypted_args.clone(), pre_execution_state.clone(), function_name, state_key)?;
     engine.compute()?;
     let exec_res = engine.into_result()?;
-    let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
-    if exec_res.state_delta.is_some() {
-        encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
-    }
     let encrypted_output = symmetric::encrypt(&exec_res.result, io_key)?;
-    prepare_wasm_result(exec_res.state_delta,
+    prepare_wasm_result(&exec_res.state_delta,
                         &encrypted_output,
                         exec_res.ethereum_bridge.clone(),
                         exec_res.used_gas,
@@ -352,6 +348,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, usedGas, optionalEthereumData, Success)
     let used_gas = result.used_gas.to_be_bytes();
     let output_hash = encrypted_output.keccak256();
+    let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
     let to_sign = [
         &*exe_code_hash,
         &*inputs_hash,
@@ -363,6 +360,9 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
         &ethereum_address[..],
         &[ResultStatus::Ok as u8]];
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
+    if exec_res.state_delta.is_some() {
+        encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
+    }
     Ok(())
 }
 
@@ -389,10 +389,7 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
 
     let exe_code = &exec_res.result[..];
 
-    let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
-    encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
-
-    prepare_wasm_result(exec_res.state_delta,
+    prepare_wasm_result(&exec_res.state_delta,
                         exe_code,
                         exec_res.ethereum_bridge.clone(),
                         exec_res.used_gas,
@@ -404,6 +401,7 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
     // Signing: S(inputsHash, exeCodeHash, delta0Hash, usedGas, optionalEthereumData, Success)
     let used_gas = result.used_gas.to_be_bytes();
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
+    let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
     let to_sign = [
         &*(inputs_hash),
         &*(exec_res.result.keccak256()),
@@ -414,10 +412,11 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
         &[ResultStatus::Ok as u8]
     ];
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
+    encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
     Ok(())
 }
 
-unsafe fn prepare_wasm_result(delta_option: Option<EncryptedPatch>, execute_result: &[u8],
+unsafe fn prepare_wasm_result(delta_option: &Option<EncryptedPatch>, execute_result: &[u8],
                               ethereum_bridge: Option<EthereumData>, used_gas: u64,
                               result: &mut ExecuteResult ) -> Result<(), EnclaveError>
 {
