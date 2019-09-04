@@ -216,7 +216,7 @@ mod test {
 
     // helper to quickly mock params for deployment of a contract to generate DeployParams
     fn get_deploy_params(account: Address, ctype: &str) -> w3utils::DeployParams {
-        let deployer = account.to_hex();
+        let deployer = account.to_fixed_bytes().to_hex();
         let gas_limit: u64 = 5999999;
         let poll_interval: u64 = 1;
         let confirmations: usize = 0;
