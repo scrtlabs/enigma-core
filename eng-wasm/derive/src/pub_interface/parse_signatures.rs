@@ -130,12 +130,14 @@ fn get_signatures_from_item_trait(
     // Thanks to the .partition() above, we know that:
     // all `trait_methods` are `Result::Ok(syn::Signature)`
     // and all `errors` are `Result::Err(Vec<syn::Error>)`
-    // so we can safely `.ok().unwrap()` and `.err().unwrap()` below.
+    // so we can safely `.unwrap()` and `.err().unwrap()` below.
+    // Note that `Result::unwrap_err()` requires `T: Debug` which
+    // is false in this case. That's why we instead use `.err().unwrap()`
 
     if errors.is_empty() {
         Ok(trait_methods
             .into_iter()
-            .map(|res| res.ok().unwrap())
+            .map(|res| res.unwrap())
             .map(|method| method.sig)
             .collect())
     } else {
@@ -222,12 +224,14 @@ fn get_signatures_from_item_impl(
     // Thanks to the .partition() above, we know that:
     // all `impl_methods` are `Result::Ok(syn::Signature)`
     // and all `errors` are `Result::Err(Vec<syn::Error>)`
-    // so we can safely `.ok().unwrap()` and `.err().unwrap()` below.
+    // so we can safely `.unwrap()` and `.err().unwrap()` below.
+    // Note that `Result::unwrap_err()` requires `T: Debug` which
+    // is false in this case. That's why we instead use `.err().unwrap()`
 
     if errors.is_empty() {
         Ok(impl_methods
             .into_iter()
-            .map(|res| res.ok().unwrap())
+            .map(|res| res.unwrap())
             .map(|method| method.sig)
             .collect())
     } else {
