@@ -190,7 +190,7 @@ impl ContractQueries for EnigmaContract {
             match self.w3_contract.query("getAllSecretContractAddresses", (),self.account, Options::default(), None).wait() {
                 Ok(addrs) => addrs,
                 Err(e) => {
-                    return Err(errors::Web3Error { message: format!("Unable to query getSecretContractAddresses: {:?}", e) }.into())
+                    return Err(errors::Web3Error { message: format!("Unable to query getAllSecretContractAddresses: {:?}", e) }.into())
                 }
             };
         Ok(addrs.into_iter().map(|a|ContractAddress::from(a.0)).collect())
