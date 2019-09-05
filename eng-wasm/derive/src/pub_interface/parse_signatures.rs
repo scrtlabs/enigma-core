@@ -8,6 +8,8 @@ use parse_display::Display;
 use crate::into_ident::IntoIdent;
 use crate::reduce_mut::ReduceMut;
 
+use crate::pub_interface::CONSTRUCTOR_NAME;
+
 /// Failures that can happen while parsing the macro input.
 ///
 /// This type mostly exists to pass into syn::Error as an error message.
@@ -18,6 +20,12 @@ enum ParseError {
 
     #[display("pub_interface item can not be a trait impl")]
     TraitImpl,
+
+    #[display("The constructor function of a secret contract should be `pub`")]
+    PrivateImplConstructor,
+
+    #[display("The constructor function of a secret contract should not have a return value")]
+    ConstructorWithReturnValue,
 
     #[display("pub_interface item can not have methods that receive `self`")]
     MethodWithReceiver,
@@ -161,6 +169,7 @@ fn get_trait_item_as_method(trait_item: syn::TraitItem) -> Option<syn::TraitItem
 /// * it has no additional attributes on it (except doc comments)
 /// * it has no `self` receiver
 /// * it has no default implementation
+/// * if it's the constructor function, we make sure it returns nothing.
 fn check_trait_method(
     trait_method: syn::TraitItemMethod,
 ) -> Result<syn::TraitItemMethod, Vec<syn::Error>> {
@@ -190,6 +199,13 @@ fn check_trait_method(
         }
     });
 
+    if trait_method.sig.ident == CONSTRUCTOR_NAME && signature_has_return_value(&trait_method.sig) {
+        errors.push(syn::Error::new_spanned(
+            trait_method.sig.output.clone(),
+            ParseError::ConstructorWithReturnValue,
+        ))
+    }
+
     if trait_method.default.is_some() {
         errors.push(syn::Error::new_spanned(
             trait_method.default.clone(),
@@ -197,11 +213,11 @@ fn check_trait_method(
         ))
     }
 
-    return if errors.is_empty() {
+    if errors.is_empty() {
         Ok(trait_method)
     } else {
         Err(errors)
-    };
+    }
 }
 
 /// Extract the signatures of methods defined in an impl.
@@ -210,24 +226,43 @@ fn check_trait_method(
 fn get_signatures_from_item_impl(
     item_impl: syn::ItemImpl,
 ) -> Result<Vec<syn::Signature>, syn::Error> {
-    let (impl_methods, errors) = item_impl
+    // Split the methods to private and non-private
+    let (priv_methods, non_priv_methods) = item_impl
         .items
         .into_iter()
-        // Filter out anything that isn't a public impl method
-        .filter_map(get_pub_impl_item_as_method)
+        .filter_map(get_impl_item_as_method)
+        .partition::<Vec<_>, _>(is_impl_item_method_private);
+
+    // Check things about the non-private methods (pub, pub(crate), pub(in foo::bar))
+    let (impl_non_priv_methods, non_priv_method_errors) = non_priv_methods
+        .into_iter()
         // For each method in the definition, collect problems `Vec<syn::Error>`
-        .map(check_impl_method)
+        .map(check_impl_non_priv_method)
         .partition::<Vec<_>, _>(|item| item.is_ok());
 
+    // Check things about the private methods
+    let (_impl_priv_methods, priv_method_errors) = priv_methods
+        .into_iter()
+        // For each method in the definition, collect problems `Vec<syn::Error>`
+        .map(check_impl_priv_method)
+        .partition::<Vec<_>, _>(|item| item.is_ok());
+
+    // Collect all the different errors we found into one list.
+    let errors = {
+        let mut errors = non_priv_method_errors;
+        errors.extend(priv_method_errors);
+        errors
+    };
+
     // Thanks to the .partition() above, we know that:
-    // all `impl_methods` are `Result::Ok(syn::Signature)`
+    // all `impl_non_priv_methods` are `Result::Ok(syn::Signature)`
     // and all `errors` are `Result::Err(Vec<syn::Error>)`
     // so we can safely `.unwrap()` and `.err().unwrap()` below.
     // Note that `Result::unwrap_err()` requires `T: Debug` which
     // is false in this case. That's why we instead use `.err().unwrap()`
 
     if errors.is_empty() {
-        Ok(impl_methods
+        Ok(impl_non_priv_methods
             .into_iter()
             .map(|res| res.unwrap())
             .map(|method| method.sig)
@@ -240,26 +275,62 @@ fn get_signatures_from_item_impl(
     }
 }
 
-/// Try to extract a public `syn::ImplItemMethod` from a `syn::ImplItem`
-fn get_pub_impl_item_as_method(impl_item: syn::ImplItem) -> Option<syn::ImplItemMethod> {
+/// Try to extract a `syn::ImplItemMethod` from a `syn::ImplItem`
+fn get_impl_item_as_method(impl_item: syn::ImplItem) -> Option<syn::ImplItemMethod> {
     if let syn::ImplItem::Method(impl_method) = impl_item {
-        if let syn::Visibility::Inherited = impl_method.vis {
-            None
-        } else {
-            Some(impl_method)
-        }
+        Some(impl_method)
     } else {
         None
     }
 }
 
-/// Check if the impl method is defined the way we want it.
+/// Check if a `syn::ImplItemMethod` is private
+fn is_impl_item_method_private(method: &syn::ImplItemMethod) -> bool {
+    if let syn::Visibility::Inherited = method.vis {
+        true
+    } else {
+        false
+    }
+}
+
+/// Check if the private impl-method is defined the way we want it.
+///
+/// Specifically we check that:
+/// * it is not named like the constructor.
+/// * if it's named like a constructor, check that it looks like a valid constructor.
+fn check_impl_priv_method(
+    impl_method: syn::ImplItemMethod,
+) -> Result<syn::ImplItemMethod, Vec<syn::Error>> {
+    let mut errors = Vec::new();
+
+    if impl_method.sig.ident == CONSTRUCTOR_NAME {
+        errors.push(syn::Error::new_spanned(
+            impl_method.vis.clone(),
+            ParseError::PrivateImplConstructor,
+        ));
+
+        if signature_has_return_value(&impl_method.sig) {
+            errors.push(syn::Error::new_spanned(
+                impl_method.sig.output.clone(),
+                ParseError::ConstructorWithReturnValue,
+            ))
+        }
+    }
+
+    if errors.is_empty() {
+        Ok(impl_method)
+    } else {
+        Err(errors)
+    }
+}
+
+/// Check if the non-private impl-method is defined the way we want it.
 ///
 /// Specifically we check that:
 /// * it has no `#[no_mangle]` attribute on it
-/// * it is either pub or private. no in between
+/// * it is not pub(crate) or similar
 /// * it has no `self` receiver
-fn check_impl_method(
+fn check_impl_non_priv_method(
     impl_method: syn::ImplItemMethod,
 ) -> Result<syn::ImplItemMethod, Vec<syn::Error>> {
     let mut errors = Vec::new();
@@ -292,11 +363,35 @@ fn check_impl_method(
         }
     });
 
-    return if errors.is_empty() {
+    if impl_method.sig.ident == CONSTRUCTOR_NAME && signature_has_return_value(&impl_method.sig) {
+        errors.push(syn::Error::new_spanned(
+            impl_method.sig.output.clone(),
+            ParseError::ConstructorWithReturnValue,
+        ))
+    }
+
+    if errors.is_empty() {
         Ok(impl_method)
     } else {
         Err(errors)
-    };
+    }
+}
+
+/// This function checks if the function has a non-unit return type.
+///
+/// This has two syntactic forms, either the function specifies no return type at all,
+/// or explicitly states that it returns an empty tuple: `-> ()`.
+fn signature_has_return_value(signature: &syn::Signature) -> bool {
+    match &signature.output {
+        syn::ReturnType::Default => false, // No return type specified
+        syn::ReturnType::Type(_, type_) => match type_.as_ref() {
+            syn::Type::Tuple(tuple) => match tuple.elems.len() {
+                0 => false, // return type is ()
+                _ => true,  // return type is some other tuple
+            },
+            _ => true, // return type is any other explicit type
+        },
+    }
 }
 
 #[cfg(test)]
@@ -412,6 +507,131 @@ mod tests {
             ],
         );
         Ok(())
+    }
+
+    #[test]
+    fn constructor_in_trait_with_no_return_type() -> syn::Result<()> {
+        let tokens = quote!(
+            trait Foo {
+                fn construct();
+            }
+        );
+
+        let signatures = syn::parse2::<PubInterfaceSignatures>(tokens)?;
+
+        assert_eq!(signatures.signatures, vec![signature_of!(fn construct();)],);
+        Ok(())
+    }
+
+    #[test]
+    fn constructor_in_trait_with_unit_return_type() -> syn::Result<()> {
+        let tokens = quote!(
+            trait Foo {
+                fn construct() -> ();
+            }
+        );
+
+        let signatures = syn::parse2::<PubInterfaceSignatures>(tokens)?;
+
+        assert_eq!(
+            signatures.signatures,
+            vec![signature_of!(fn construct() -> ();)],
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn constructor_in_trait_with_return_type_error() {
+        let tokens = quote!(
+            trait Foo {
+                fn construct() -> Foo;
+            }
+        );
+
+        let parse_errors = syn::parse2::<PubInterfaceSignatures>(tokens)
+            .err()
+            .expect("This macro should not accept constructors with return types");
+
+        assert_eq!(
+            vec![ParseError::ConstructorWithReturnValue.to_string(); 1],
+            parse_errors
+                .into_iter()
+                .map(|parse_error| parse_error.to_string())
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn constructor_in_impl_with_no_return_type() -> syn::Result<()> {
+        let tokens = quote!(
+            impl Foo {
+                pub fn construct() {}
+            }
+        );
+
+        let signatures = syn::parse2::<PubInterfaceSignatures>(tokens)?;
+
+        assert_eq!(signatures.signatures, vec![signature_of!(fn construct();)],);
+        Ok(())
+    }
+
+    #[test]
+    fn constructor_in_impl_with_unit_return_type() -> syn::Result<()> {
+        let tokens = quote!(
+            impl Foo {
+                pub fn construct() -> () {}
+            }
+        );
+
+        let signatures = syn::parse2::<PubInterfaceSignatures>(tokens)?;
+
+        assert_eq!(
+            signatures.signatures,
+            vec![signature_of!(fn construct() -> ();)],
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn constructor_in_impl_with_return_type_error() {
+        let tokens = quote!(
+            impl Foo {
+                pub fn construct() -> Foo {}
+            }
+        );
+
+        let parse_errors = syn::parse2::<PubInterfaceSignatures>(tokens)
+            .err()
+            .expect("This macro should not accept constructors with return types");
+
+        assert_eq!(
+            vec![ParseError::ConstructorWithReturnValue.to_string(); 1],
+            parse_errors
+                .into_iter()
+                .map(|parse_error| parse_error.to_string())
+                .collect::<Vec<_>>(),
+        );
+    }
+
+    #[test]
+    fn private_constructor_in_impl_error() {
+        let tokens = quote!(
+            impl Foo {
+                fn construct() {}
+            }
+        );
+
+        let parse_errors = syn::parse2::<PubInterfaceSignatures>(tokens)
+            .err()
+            .expect("This macro should not accept constructors without pub");
+
+        assert_eq!(
+            vec![ParseError::PrivateImplConstructor.to_string(); 1],
+            parse_errors
+                .into_iter()
+                .map(|parse_error| parse_error.to_string())
+                .collect::<Vec<_>>(),
+        );
     }
 
     #[test]
