@@ -269,6 +269,8 @@ dependencies = [
  "enigma-tools-t 0.2.0",
  "enigma-types 0.2.0",
  "json-patch 0.2.5 (git+https://github.com/enigmampc/json-patch.git?rev=0.2.5-sgx-1.0.8)",
+ "parity-wasm 0.31.3 (git+https://github.com/enigmampc/parity-wasm.git?branch=enigma)",
+ "pwasm-utils 0.5.0 (git+https://github.com/enigmampc/wasm-utils.git?rev=0.5.0-sgx-1.0.8)",
  "rmp-serde 0.14.0 (git+https://github.com/enigmampc/msgpack-rust.git?rev=0.14.0-sgx-1.0.8)",
  "serde 1.0.91 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=407aaaa2558dda5c2367d57ba40324c52cf9acc2)",
  "serde_json 1.0.39 (git+https://github.com/enigmampc/serde-json-sgx.git?rev=1.0.39-sgx-1.0.8)",

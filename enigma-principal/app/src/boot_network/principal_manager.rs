@@ -11,6 +11,7 @@ use web3::{
     types::{Address, H160, H256, U256},
     Web3,
 };
+use envy;
 
 use boot_network::{deploy_scripts, keys_provider_http::PrincipalHttpServer, principal_utils::Principal};
 use enigma_tools_u::{
@@ -104,13 +105,19 @@ impl PrincipalConfig {
     // load json config into the struct
     #[logfn(DEBUG)]
     pub fn load_config(config_path: &str) -> Result<PrincipalConfig, Error> {
-        info!("Loading Principal config: {:?}", config_path);
-        let mut f = File::open(config_path)?;
+        info!("loading Principal config");
+        match envy::from_env::<PrincipalConfig>() {
+            Ok(config) => Ok(config),
+            Err(_) => {
+                info!("trying to load from path: {:?}", config_path);
+                let mut f = File::open(config_path)?;
 
-        let mut contents = String::new();
-        f.read_to_string(&mut contents)?;
+                let mut contents = String::new();
+                f.read_to_string(&mut contents)?;
 
-        Ok(serde_json::from_str(&contents)?)
+                Ok(serde_json::from_str(&contents)?)
+            }
+        }
     }
 }
 impl PrincipalManager {

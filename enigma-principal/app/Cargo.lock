@@ -459,6 +459,7 @@ dependencies = [
  "enigma-tools-m 0.2.0",
  "enigma-tools-u 0.2.0",
  "enigma-types 0.2.0",
+ "envy 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "etcommon-rlp 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 6.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethereum-types 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -532,6 +533,14 @@ dependencies = [
  "arrayvec 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "cbindgen 0.8.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.94 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "envy"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
  "serde 1.0.94 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -2420,6 +2429,7 @@ dependencies = [
 "checksum either 1.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "5527cfe0d098f36e3f8839852688e63c8fff1c90b2b405aef730615f9a7bcf7b"
 "checksum elastic-array-plus 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)" = "562cc8504a01eb20c10fb154abd7c4baeb9beba2329cf85838ee2bd48a468b18"
 "checksum encoding_rs 0.8.17 (registry+https://github.com/rust-lang/crates.io-index)" = "4155785c79f2f6701f185eb2e6b4caf0555ec03477cb4c70db67b465311620ed"
+"checksum envy 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "20664407d5097b5a861dffb0c32af2be7215a0050415cb50232aec36d73f69df"
 "checksum error-chain 0.12.1 (registry+https://github.com/rust-lang/crates.io-index)" = "3ab49e9dcb602294bc42f9a7dfc9bc6e936fca4418ea300dbfb84fe16de0b7d9"
 "checksum etcommon-bigint 0.2.10 (registry+https://github.com/rust-lang/crates.io-index)" = "e8375b615f02fc1ea1aea0a323e11c1084c841bd530a6dc57b9e1da80a502abd"
 "checksum etcommon-hexutil 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "20b4d1933bf88b806ba2d9189880b1b4ef205e42df9573b65716f2a50818024c"
