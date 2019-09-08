@@ -106,6 +106,8 @@ impl PrincipalConfig {
     #[logfn(DEBUG)]
     pub fn load_config(config_path: &str) -> Result<PrincipalConfig, Error> {
         info!("loading Principal config");
+        // All configurations from env should be with the same names of the
+        // PrincipalConfig struct fields in uppercase letters
         match envy::from_env::<PrincipalConfig>() {
             Ok(config) => Ok(config),
             Err(_) => {
