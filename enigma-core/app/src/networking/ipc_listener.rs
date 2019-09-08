@@ -281,6 +281,8 @@ pub(self) mod handling {
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
         }
+        // since a new delta was added the state is no longer updated
+        db.update_state_status(false);
         let result = IpcResults::UpdateDeltasResult { status: overall_status, errors };
         Ok(IpcResponse::UpdateDeltas {result})
     }
@@ -314,6 +316,8 @@ pub(self) mod handling {
         let msg = response.response.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
         let res = km_u::ptt_build_state(db, eid)?;
+        // update state status
+        db.update_state_status(true);
         let result: Vec<_> = res
             .into_iter()
             .map(|a| IpcStatusResult{ address: a.to_hex(), status: FAILED, key: None })
@@ -366,6 +370,10 @@ pub(self) mod handling {
         let mut user_pubkey = [0u8; 64];
         user_pubkey.clone_from_slice(&input.user_dhkey.from_hex()?);
 
+        if !db.get_state_status() {
+            let res = km_u::ptt_build_state(db, eid)?;
+            db.update_state_status(true);
+        }
         let bytecode = db.get_contract(address)?;
 
 

@@ -15,6 +15,8 @@ pub struct DB {
     // the DB needs to store the options for creating new
     // cf's that would be able to imitate the DB behaviour
     pub options: Options,
+    // keeps track of the status of the state
+    is_stateful: bool,
 }
 
 impl DB {
@@ -53,8 +55,19 @@ impl DB {
         let cf_list_burrowed = cf_list.iter().map(String::as_str).collect::<Vec<&str>>();
         let database = rocks_db::open_cf(&options, &location, &cf_list_burrowed[..])?;
         let location = location.as_ref().to_path_buf();
-        let db_par = DB { location, database, options };
+        let db_par = DB { location, database, options, is_stateful: true};
         Ok(db_par)
+    }
+
+    /// updates the status of the state according to
+    /// building the state & new deltas which enter the DB
+    pub fn update_state_status(&mut self, state: bool) {
+        self.is_stateful = state;
+    }
+
+    /// get the current status of the state
+    pub fn get_state_status(& mut self) -> bool {
+        self.is_stateful
     }
 }
 
