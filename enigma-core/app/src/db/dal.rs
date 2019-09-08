@@ -55,6 +55,9 @@ impl DB {
         let cf_list_burrowed = cf_list.iter().map(String::as_str).collect::<Vec<&str>>();
         let database = rocks_db::open_cf(&options, &location, &cf_list_burrowed[..])?;
         let location = location.as_ref().to_path_buf();
+        // the is_stateful is initialized to true since it won't be necessary to build
+        // the state if on the first epoch the worker gets a deployment
+        // and a computation, hence the true bool.
         let db_par = DB { location, database, options, is_stateful: true};
         Ok(db_par)
     }
