@@ -119,7 +119,7 @@ fn generate_eng_wasm_aux_functions(
                 0 => String::new(),
                 length => {
                     let mut data = Vec::with_capacity(length as usize);
-                    for _ in 0..length{
+                    for _ in 0..length {
                         data.push(0);
                     }
 
@@ -146,7 +146,7 @@ fn generate_eng_wasm_aux_functions(
                 0 => Vec::new(),
                 length => {
                     let mut data = Vec::with_capacity(length as usize);
-                    for _ in 0..length{
+                    for _ in 0..length {
                         data.push(0);
                     }
 
@@ -174,15 +174,15 @@ fn generate_deploy_function(
         let input_pats_and_types = get_signature_input_pats_and_types(&constructor_signature);
         let expectations = get_contract_input_parsing_error_messages(&input_pats_and_types);
         let input_types = input_pats_and_types.iter().map(|(_pat, type_)| type_);
+        let variables = generate_enumerated_idents("var_", input_pats_and_types.len());
 
         return quote! {
             #[no_mangle]
             pub fn #deploy_func_name() {
                 let args_ = args();
                 let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(&args_);
-                <#implementor>::#constructor_name(#(
-                    stream.pop::<#input_types>().expect(#expectations),
-                )*);
+                #(let #variables = stream.pop::<#input_types>().expect(#expectations);)*
+                <#implementor>::#constructor_name(#(#variables),*);
             }
         };
     } else {
@@ -242,6 +242,7 @@ fn generate_dispatch_function(
                 let input_pats_and_types = get_signature_input_pats_and_types(&signature);
                 let expectations = get_contract_input_parsing_error_messages(&input_pats_and_types);
                 let input_types = input_pats_and_types.iter().map(|(_pat, type_)| type_);
+                let variables = generate_enumerated_idents("var_", input_pats_and_types.len());
 
                 let return_value_count = match output_type {
                     syn::ReturnType::Default => 0,
@@ -260,17 +261,26 @@ fn generate_dispatch_function(
                     }
                 };
 
+                // Make sure we only generate code for initializing the stream of inputs,
+                // if we expect inputs at all
+                let stream_initialization_snippet = match input_pats_and_types.len() {
+                    0 => quote!(),
+                    _ => quote!(let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);),
+                };
+
                 match return_value_count {
                     0 => Some(quote! {
                         #method_name_as_string => {
-                            let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
-                            <#implementor>::#method_name(#(stream.pop::<#input_types>().expect(#expectations),)*);
+                            #stream_initialization_snippet
+                            #(let #variables = stream.pop::<#input_types>().expect(#expectations);)*
+                            <#implementor>::#method_name(#(#variables),*);
                         }
                     }),
                     _ => Some(quote! {
                         #method_name_as_string => {
-                            let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
-                            let result = <#implementor>::#method_name(#(stream.pop::<#input_types>().expect(#expectations),)*);
+                            #stream_initialization_snippet
+                            #(let #variables = stream.pop::<#input_types>().expect(#expectations);)*
+                            let result = <#implementor>::#method_name(#(#variables),*);
                             // 32 is the size of each argument in the serialised form
                             // The Sink.drain_to() method might resize this array if any
                             // dynamically sized elements are returned, but if not, then only one
@@ -297,9 +307,61 @@ fn generate_dispatch_function(
     }
 }
 
+/// Generate `count` identifiers with the specified prefix, and a decimal suffix in ascending order.
+///
+/// for example, calling `generate_enumerated_idents("var_", 5)` will generate a vector with the
+/// identifiers `var_0`, `var_1`, `var_2`, `var_3`, `var_4`.
+fn generate_enumerated_idents(prefix: &str, count: usize) -> Vec<syn::Ident> {
+    (0..count)
+        .map(|index| quote::format_ident!("{}{}", prefix, index))
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// This is here to use as a sanity check on the full generated code.
+    ///
+    /// To see what code is generated, comment out the `#[ignore]` line, and run
+    /// ```sh
+    /// cargo test show_output -- --nocapture
+    /// ```
+    /// Then, take the output from the console (between the two dotted lines, drop it into
+    /// https://play.rust-lang.org/ , and under the tools menu, choose "Rustfmt".
+    #[test]
+    #[ignore]
+    fn show_output() {
+        let input = quote!(
+            pub trait Erc20Interface {
+                fn construct(contract_owner: H256, total_supply: U256);
+                /// creates new tokens and sends to the specified address
+                fn mint(owner: H256, addr: H256, tokens: U256, sig: Vec<u8>);
+                /// get the total_supply
+                fn total_supply() -> U256;
+                /// get the balance of the specified address
+                fn balance_of(token_owner: H256) -> U256;
+                /// get the allowed amount of the owner tokens to be spent by the spender address
+                fn allowance(owner: H256, spender: H256) -> U256;
+                /// transfer tokens from 'from' address to the 'to' address.
+                /// the function panics if the 'from' address does not have enough tokens.
+                fn transfer(from: H256, to: H256, tokens: U256, sig: Vec<u8>);
+                /// approve the 'spender' address to spend 'tokens' from the 'owner's address balance.
+                /// the function panics if the 'owner' address does not have enough tokens.
+                fn approve(token_owner: H256, spender: H256, tokens: U256, sig: Vec<u8>);
+                /// 'spender' address transfers tokens on behalf of the owner address to the 'to' address.
+                /// the function panics if the 'owner' address does not have enough tokens or the 'spender'
+                /// address does not have enough tokens as well.
+                fn transfer_from(owner: H256, spender: H256, to: H256, tokens: U256, sig: Vec<u8>);
+            }
+        );
+
+        let output = impl_pub_interface(quote!(), input);
+
+        eprintln!("{:-<80}", "");
+        eprintln!("{}", output);
+        eprintln!("{:-<80}", "");
+    }
 
     #[test]
     fn apply_macro_attr_works_on_trait() {
@@ -433,14 +495,13 @@ mod tests {
             pub fn deploy() {
                 let args_ = args();
                 let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(&args_);
-                <Contract>::construct(
-                    stream
-                        .pop::<H256>()
-                        .expect("could not decode argument `contract_owner` as `H256`"),
-                    stream
-                        .pop::<U256>()
-                        .expect("could not decode argument `total_supply` as `U256`"),
-                );
+                let var_0 = stream
+                    .pop::<H256>()
+                    .expect("could not decode argument `contract_owner` as `H256`");
+                let var_1 = stream
+                    .pop::<U256>()
+                    .expect("could not decode argument `total_supply` as `U256`");
+                <Contract>::construct(var_0, var_1);
             }
         );
 
@@ -486,23 +547,21 @@ mod tests {
                 match name {
                     "mint" => {
                         let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
-                        <Contract>::mint(
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `owner` as `H256`"),
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `addr` as `H256`"),
-                            stream
-                                .pop::<U256>()
-                                .expect("could not decode argument `tokens` as `U256`"),
-                            stream
-                                .pop::<Vec<u8>>()
-                                .expect("could not decode argument `sig` as `Vec < u8 >`"),
-                        );
+                        let var_0 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `owner` as `H256`");
+                        let var_1 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `addr` as `H256`");
+                        let var_2 = stream
+                            .pop::<U256>()
+                            .expect("could not decode argument `tokens` as `U256`");
+                        let var_3 = stream
+                            .pop::<Vec<u8>>()
+                            .expect("could not decode argument `sig` as `Vec < u8 >`");
+                        <Contract>::mint(var_0, var_1, var_2, var_3);
                     }
                     "total_supply" => {
-                        let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
                         let result = <Contract>::total_supply();
                         let mut result_bytes = eng_wasm::Vec::with_capacity(1usize * 32);
                         let mut sink = eng_wasm::eng_pwasm_abi::eth::Sink::new(1usize);
@@ -517,11 +576,10 @@ mod tests {
                     }
                     "balance_of" => {
                         let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
-                        let result = <Contract>::balance_of(
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `token_owner` as `H256`"),
-                        );
+                        let var_0 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `token_owner` as `H256`");
+                        let result = <Contract>::balance_of(var_0);
                         let mut result_bytes = eng_wasm::Vec::with_capacity(1usize * 32);
                         let mut sink = eng_wasm::eng_pwasm_abi::eth::Sink::new(1usize);
                         sink.push(result);
@@ -535,14 +593,13 @@ mod tests {
                     }
                     "allowance" => {
                         let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
-                        let result = <Contract>::allowance(
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `owner` as `H256`"),
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `spender` as `H256`"),
-                        );
+                        let var_0 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `owner` as `H256`");
+                        let var_1 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `spender` as `H256`");
+                        let result = <Contract>::allowance(var_0, var_1);
                         let mut result_bytes = eng_wasm::Vec::with_capacity(1usize * 32);
                         let mut sink = eng_wasm::eng_pwasm_abi::eth::Sink::new(1usize);
                         sink.push(result);
@@ -556,57 +613,54 @@ mod tests {
                     }
                     "transfer" => {
                         let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
-                        <Contract>::transfer(
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `from` as `H256`"),
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `to` as `H256`"),
-                            stream
-                                .pop::<U256>()
-                                .expect("could not decode argument `tokens` as `U256`"),
-                            stream
-                                .pop::<Vec<u8>>()
-                                .expect("could not decode argument `sig` as `Vec < u8 >`"),
-                        );
+                        let var_0 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `from` as `H256`");
+                        let var_1 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `to` as `H256`");
+                        let var_2 = stream
+                            .pop::<U256>()
+                            .expect("could not decode argument `tokens` as `U256`");
+                        let var_3 = stream
+                            .pop::<Vec<u8>>()
+                            .expect("could not decode argument `sig` as `Vec < u8 >`");
+                        <Contract>::transfer(var_0, var_1, var_2, var_3);
                     }
                     "approve" => {
                         let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
-                        <Contract>::approve(
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `token_owner` as `H256`"),
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `spender` as `H256`"),
-                            stream
-                                .pop::<U256>()
-                                .expect("could not decode argument `tokens` as `U256`"),
-                            stream
-                                .pop::<Vec<u8>>()
-                                .expect("could not decode argument `sig` as `Vec < u8 >`"),
-                        );
+                        let var_0 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `token_owner` as `H256`");
+                        let var_1 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `spender` as `H256`");
+                        let var_2 = stream
+                            .pop::<U256>()
+                            .expect("could not decode argument `tokens` as `U256`");
+                        let var_3 = stream
+                            .pop::<Vec<u8>>()
+                            .expect("could not decode argument `sig` as `Vec < u8 >`");
+                        <Contract>::approve(var_0, var_1, var_2, var_3);
                     }
                     "transfer_from" => {
                         let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);
-                        <Contract>::transfer_from(
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `owner` as `H256`"),
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `spender` as `H256`"),
-                            stream
-                                .pop::<H256>()
-                                .expect("could not decode argument `to` as `H256`"),
-                            stream
-                                .pop::<U256>()
-                                .expect("could not decode argument `tokens` as `U256`"),
-                            stream
-                                .pop::<Vec<u8>>()
-                                .expect("could not decode argument `sig` as `Vec < u8 >`"),
-                        );
+                        let var_0 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `owner` as `H256`");
+                        let var_1 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `spender` as `H256`");
+                        let var_2 = stream
+                            .pop::<H256>()
+                            .expect("could not decode argument `to` as `H256`");
+                        let var_3 = stream
+                            .pop::<U256>()
+                            .expect("could not decode argument `tokens` as `U256`");
+                        let var_4 = stream
+                            .pop::<Vec<u8>>()
+                            .expect("could not decode argument `sig` as `Vec < u8 >`");
+                        <Contract>::transfer_from(var_0, var_1, var_2, var_3, var_4);
                     }
                     _ => panic!("Unknown method called:\"{}\"", name),
                 }
