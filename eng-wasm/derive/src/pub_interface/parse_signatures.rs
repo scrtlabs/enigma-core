@@ -14,7 +14,7 @@ use crate::pub_interface::CONSTRUCTOR_NAME;
 ///
 /// This type mostly exists to pass into syn::Error as an error message.
 #[derive(Display, Debug)]
-enum ParseError {
+pub(crate) enum ParseError {
     #[display("pub_interface item must be either a trait or an inherent struct impl")]
     BadInputItem,
 
@@ -47,11 +47,27 @@ enum ParseError {
 
     #[display("methods in impls annotated with pub_interface should be either `fn` or `pub fn`")]
     ImplMethodWithBadVisibility,
+
+    #[display("custom implementors are not supported when pub_interface is applied to `impl`s")]
+    CustomImplementorOnImpl,
 }
 
+/// This enum is used to present the result of the speculative parsing inside
+/// `impl syn::parse::Parse for PubInterfaceSignatures` which tries to parse the macro input
+/// in one of several ways
 enum PubInterfaceInput {
     ItemTrait(syn::ItemTrait),
     ItemImpl(syn::ItemImpl),
+}
+
+/// This enum is used to record what kind of item the macro was applied to.
+///
+/// This information is used later when considering the macro `attr` to modify the
+/// `PubInterfaceSignatures` that was parsed in this module.
+#[derive(Copy, Clone)]
+pub(crate) enum PubInterfaceItemType {
+    ItemTrait,
+    ItemImpl,
 }
 
 /// The signatures collected while parsing the macro input
@@ -62,6 +78,9 @@ pub(crate) struct PubInterfaceSignatures {
 
     /// The list of exported signatures
     pub(crate) signatures: Vec<syn::Signature>,
+
+    /// This records what kind of item the macro was applied to
+    pub(crate) item_type: PubInterfaceItemType,
 }
 
 impl syn::parse::Parse for PubInterfaceSignatures {
@@ -94,9 +113,11 @@ impl syn::parse::Parse for PubInterfaceSignatures {
         // If none of the options worked, we tell the user that he gave us bad input.
         .map_err(|_err| input.error(ParseError::BadInputItem))?;
 
-        let mut implementor: syn::Type;
+        let item_type: PubInterfaceItemType;
+        let implementor: syn::Type;
         let signatures = match pub_interface_input {
             PubInterfaceInput::ItemTrait(item_trait) => {
+                item_type = PubInterfaceItemType::ItemTrait;
                 let default_implementor_name = super::DEFAULT_IMPLEMENTOR_NAME.into_ident();
                 implementor = syn::parse2::<syn::Type>(quote!(#default_implementor_name)).unwrap();
                 get_signatures_from_item_trait(item_trait)
@@ -104,16 +125,18 @@ impl syn::parse::Parse for PubInterfaceSignatures {
             PubInterfaceInput::ItemImpl(item_impl) => {
                 if let Some(trait_) = item_impl.trait_ {
                     return Err(syn::Error::new_spanned(trait_.1, ParseError::TraitImpl));
-                } else {
-                    implementor = *item_impl.self_ty.clone();
-                    get_signatures_from_item_impl(item_impl)
                 }
+
+                item_type = PubInterfaceItemType::ItemImpl;
+                implementor = *item_impl.self_ty.clone();
+                get_signatures_from_item_impl(item_impl)
             }
         }?;
 
         Ok(Self {
             implementor,
             signatures,
+            item_type,
         })
     }
 }

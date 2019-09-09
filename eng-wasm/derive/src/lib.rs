@@ -38,8 +38,8 @@ use pub_interface::impl_pub_interface;
 /// all methods declared as pub will be exported by the contract. if placed on an impl block,
 /// the implementing struct can have any name you choose.
 #[proc_macro_attribute]
-pub fn pub_interface(_attr: TokenStream, item: TokenStream) -> TokenStream {
-    impl_pub_interface(item.into()).into()
+pub fn pub_interface(attr: TokenStream, item: TokenStream) -> TokenStream {
+    impl_pub_interface(attr.into(), item.into()).into()
 }
 
 #[proc_macro_attribute]

@@ -4,7 +4,7 @@ use syn::spanned::Spanned;
 mod parse_signatures;
 
 use super::into_ident::IntoIdent;
-use parse_signatures::PubInterfaceSignatures;
+use parse_signatures::{ParseError, PubInterfaceItemType, PubInterfaceSignatures};
 
 const DEFAULT_IMPLEMENTOR_NAME: &str = "Contract";
 const CONSTRUCTOR_NAME: &str = "construct";
@@ -15,9 +15,15 @@ const FUNCTION_NAME_FUNC_NAME: &str = "function_name";
 const ARGS_FUNC_NAME: &str = "args";
 const CALL_FUNC_NAME: &str = "call";
 
-pub(crate) fn impl_pub_interface(item: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+pub(crate) fn impl_pub_interface(
+    attr: proc_macro2::TokenStream,
+    item: proc_macro2::TokenStream,
+) -> proc_macro2::TokenStream {
     let cloned_item = item.clone();
-    let pub_interface_signatures = parse_macro_input2!(cloned_item as PubInterfaceSignatures);
+    let mut pub_interface_signatures = parse_macro_input2!(cloned_item as PubInterfaceSignatures);
+    if let Err(error) = apply_macro_attr(attr, &mut pub_interface_signatures) {
+        return error.to_compile_error();
+    }
 
     let deploy_func_name = DEPLOY_FUNC_NAME.into_ident();
     let dispatch_func_name = DISPATCH_FUNC_NAME.into_ident();
@@ -41,6 +47,51 @@ pub(crate) fn impl_pub_interface(item: proc_macro2::TokenStream) -> proc_macro2:
         pub fn #call_func_name(){
             #dispatch_func_name(&#function_name_func_name(), &#args_func_name());
         }
+    }
+}
+
+/// Parse the arguments to the macro and apply them to the `PubInterfaceSignatures`
+///
+/// The arguments to the macro are the parts written between parenthesis in the macro invocation.
+///
+/// # Examples:
+///
+/// (This never actually gets compiled for some reason. You can try doing
+/// `rustdoc --test src/lib.rs` but that generated compilation errors.
+/// Probably because this is a pro-macro crate.)
+///
+/// ```
+/// # use eng_wasm_derive::pub_interface;
+///
+/// #[pub_interface(MyContract)]
+/// trait ContractInterface {
+///     fn foo();
+/// }
+///
+/// struct MyContract;
+///
+/// impl ContractInterface for MyContract {
+///     fn foo() {}
+/// }
+/// ```
+fn apply_macro_attr(
+    attr: proc_macro2::TokenStream,
+    pub_interface_signatures: &mut PubInterfaceSignatures,
+) -> syn::Result<()> {
+    if attr.is_empty() {
+        return Ok(());
+    }
+
+    match pub_interface_signatures.item_type {
+        PubInterfaceItemType::ItemTrait => {
+            let implementor: syn::Type = syn::parse2(attr)?;
+            pub_interface_signatures.implementor = implementor;
+            Ok(())
+        }
+        PubInterfaceItemType::ItemImpl => Err(syn::Error::new_spanned(
+            attr,
+            ParseError::CustomImplementorOnImpl,
+        )),
     }
 }
 
@@ -249,6 +300,107 @@ fn generate_dispatch_function(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn apply_macro_attr_works_on_trait() {
+        let attr_tokens = quote!(Bar);
+
+        let mut pub_interface_signatures = PubInterfaceSignatures {
+            signatures: vec![],
+            implementor: syn::parse2(quote!(Foo)).unwrap(),
+            item_type: PubInterfaceItemType::ItemTrait,
+        };
+
+        apply_macro_attr(attr_tokens.clone(), &mut pub_interface_signatures).unwrap();
+
+        assert_eq!(
+            syn::parse2::<syn::Type>(attr_tokens).unwrap(),
+            pub_interface_signatures.implementor
+        );
+    }
+
+    #[test]
+    fn apply_macro_attr_with_empty_input_works_on_trait() {
+        let attr_tokens = quote!(); // This is empty
+
+        let mut pub_interface_signatures = PubInterfaceSignatures {
+            signatures: vec![],
+            implementor: syn::parse2(quote!(Foo)).unwrap(),
+            item_type: PubInterfaceItemType::ItemTrait,
+        };
+
+        apply_macro_attr(attr_tokens.clone(), &mut pub_interface_signatures).unwrap();
+
+        // Check that the implementor did not change
+        assert_eq!(
+            syn::parse2::<syn::Type>(quote!(Foo)).unwrap(),
+            pub_interface_signatures.implementor
+        );
+    }
+
+    #[test]
+    fn apply_macro_attr_with_bad_input_fails_on_trait() {
+        let attr_tokens = quote!(this is not a valid type);
+
+        let mut pub_interface_signatures = PubInterfaceSignatures {
+            signatures: vec![],
+            implementor: syn::parse2(quote!(Foo)).unwrap(),
+            item_type: PubInterfaceItemType::ItemTrait,
+        };
+
+        let error =
+            apply_macro_attr(attr_tokens.clone(), &mut pub_interface_signatures).unwrap_err();
+
+        assert_eq!(error.to_string(), "unexpected token");
+        // Check that the implementor did not change
+        assert_eq!(
+            syn::parse2::<syn::Type>(quote!(Foo)).unwrap(),
+            pub_interface_signatures.implementor
+        );
+    }
+
+    #[test]
+    fn apply_macro_attr_with_empty_input_works_on_impl() {
+        let attr_tokens = quote!(); // This is empty
+
+        let mut pub_interface_signatures = PubInterfaceSignatures {
+            signatures: vec![],
+            implementor: syn::parse2(quote!(Foo)).unwrap(),
+            item_type: PubInterfaceItemType::ItemImpl,
+        };
+
+        apply_macro_attr(attr_tokens.clone(), &mut pub_interface_signatures).unwrap();
+
+        // Check that the implementor did not change
+        assert_eq!(
+            syn::parse2::<syn::Type>(quote!(Foo)).unwrap(),
+            pub_interface_signatures.implementor
+        );
+    }
+
+    #[test]
+    fn apply_macro_attr_fails_on_impl() {
+        let attr_tokens = quote!(Bar);
+
+        let mut pub_interface_signatures = PubInterfaceSignatures {
+            signatures: vec![],
+            implementor: syn::parse2(quote!(Foo)).unwrap(),
+            item_type: PubInterfaceItemType::ItemImpl,
+        };
+
+        let error =
+            apply_macro_attr(attr_tokens.clone(), &mut pub_interface_signatures).unwrap_err();
+
+        assert_eq!(
+            error.to_string(),
+            ParseError::CustomImplementorOnImpl.to_string()
+        );
+        // Check that the implementor did not change
+        assert_eq!(
+            syn::parse2::<syn::Type>(quote!(Foo)).unwrap(),
+            pub_interface_signatures.implementor
+        );
+    }
 
     #[test]
     fn deploy_generation() -> syn::Result<()> {
