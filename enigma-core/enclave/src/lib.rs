@@ -274,21 +274,16 @@ fn get_enc_delta(delta: &Option<EncryptedPatch>) -> Hash256 {
     }
 }
 
-fn store_delta_and_state(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>, state: &ContractState) -> Result<(), EnclaveError> {
+unsafe fn store_delta_and_state(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>, state: &ContractState) -> Result<(), EnclaveError> {
     match delta {
         Some(d) => {
+            let enc_state = km_t::encrypt_state(state.clone())?;
             enigma_runtime_t::ocalls_t::save_delta(db_ptr, d)?;
-            encrypt_and_save_state(db_ptr,state)?;
+            enigma_runtime_t::ocalls_t::save_state(db_ptr, &enc_state)?;
             Ok(())
         }
         None => Ok(())
     }
-}
-
-fn encrypt_and_save_state(db_ptr: *const RawPointer, state: &ContractState) -> Result<(), EnclaveError>{
-    let enc_state = km_t::encrypt_state(state.clone())?;
-    enigma_runtime_t::ocalls_t::save_state(db_ptr, &enc_state)?;
-    Ok(())
 }
 
 fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
