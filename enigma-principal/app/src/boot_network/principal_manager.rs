@@ -392,4 +392,26 @@ mod test {
         principal.run(tempdir.into_path(), true, GAS_LIMIT).unwrap();
         child.join().unwrap();
     }
+
+    #[test]
+    fn test_load_config_from_env() {
+        env::set_var("ENIGMA_CONTRACT_PATH", "../app/tests/principal_node/contracts/IEnigma.json");
+        env::set_var("ENIGMA_CONTRACT_REMOTE_PATH","");
+        env::set_var("ENIGMA_CONTRACT_ADDRESS", "59d3631c86BbE35EF041872d502F218A39FBa150");
+        env::set_var("ACCOUNT_ADDRESS","1df62f291b2e969fb0849d99d9ce41e2f137006e");
+        env::set_var("TEST_NET","true");
+        env::set_var("WITH_PRIVATE_KEY", "false");
+        env::set_var("PRIVATE_KEY", "");
+        env::set_var("URL", "http://172.20.0.2:9545");
+        env::set_var("EPOCH_SIZE", "10");
+        env::set_var("POLLING_INTERVAL", "1");
+        env::set_var("MAX_EPOCHS","10");
+        env::set_var("SPID", "B0335FD3BC1CCA8F804EB98A6420592D");
+        env::set_var("ATTESTATION_SERVICE_URL", "https://sgx.enigma.co/api");
+        env::set_var("HTTP_PORT","3040");
+        env::set_var("CONFIRMATIONS","0");
+        let config = PrincipalConfig::load_config("this is not a path").unwrap();
+        assert_eq!(config.polling_interval, 1);
+        assert_eq!(config.http_port, 3040);
+    }
 }
