@@ -113,7 +113,8 @@ pub mod tests {
             test_document_sealing_storage,
             test_get_epoch_worker_internal,
             test_state_keys_storage,
-            test_create_epoch_image
+            test_create_epoch_image,
+            test_raw_encode
         );
     }
 }

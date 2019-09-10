@@ -25,6 +25,7 @@ use ocalls_t;
 use crate::SIGNING_KEY;
 
 pub mod epoch_t;
+pub mod nested_encoding;
 
 const INIT_NONCE: uint32_t = 0;
 const EPOCH_DIR: &str = "epoch";
@@ -87,7 +88,7 @@ fn get_epoch_from_cache(epoch_map: &HashMap<U256, Epoch>, nonce: U256) -> Result
 
 /// Store the new `Epoch` as a sealed marker
 fn store_epoch(epoch: Epoch) -> Result<(), EnclaveError> {
-    let hash: [u8; 32] = epoch.raw_encode().keccak256().into();
+    let hash: [u8; 32] = epoch.encode_epoch().keccak256().into();
     let nonce = epoch.nonce.clone();
     let mut data = H256::from(nonce).0.to_vec();
     data.extend(hash.to_vec());
@@ -123,7 +124,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
             let worker_params = worker_params.clone();
             let epoch = Epoch { nonce, seed, worker_params };
             debug_println!("Verifying epoch: {:?}", epoch);
-            let hash = epoch.raw_encode().keccak256();
+            let hash = epoch.encode_epoch().keccak256();
             if hash != marker_hash {
                 return Err(SystemError(WorkerAuthError {
                     err: format!("Given epoch parameters {:?} do not match the marker's epoch hash {:?}", nonce, marker_hash),
@@ -172,7 +173,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
         Some(prev) => debug_println!("New epoch stored successfully"),
         None => debug_println!("Initial epoch stored successfully"),
     }
-    let msg = epoch.raw_encode();
+    let msg = epoch.encode_epoch();
     *sig_out = SIGNING_KEY.sign(&msg)?;
     debug_println!("Signed the message : 0x{}", msg.to_hex::<String>());
     Ok(())
@@ -208,17 +209,16 @@ pub mod tests {
     }
 
     pub fn test_create_epoch_image() {
-        let reference_image_hex1 = String::from("0000000000000020000000000000000000000000000000000000000000000000000000000001622a0000000000000020000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+        let expected_image1: Vec<u8> = vec![1, 0, 0, 0, 0, 0, 0, 0, 64, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 98, 42, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0];
         let worker_params1 = InputWorkerParams {
             block_number: U256::from(1),
             workers: vec![],
             stakes: vec![],
         };
         let epoch1 = Epoch { nonce: U256::from(0), seed: U256::from(90666), worker_params: worker_params1 };
-        let image1 = epoch1.raw_encode();
-        assert_eq!(image1, reference_image_hex1.from_hex::<Vec<u8>>().unwrap());
-
-        let reference_image_hex2 = String::from("0000000000000020000000000000000000000000000000000000000000000000000000000000b64500000000000000200000000000000000000000000000000000000000000000000000000000000001000000000000000700000000000000149c1ac1fca5a7bff4fb7e359a9e0e40c2a430e7b30000000000000014151d1caa3e3a1c0b31d1fd64b6d520ef610bf99c00000000000000141bece83ac1a195cdf6ba8f99dfb9b0a7c05b4b9b0000000000000014be49a926dc3e39173d85c80b87b78cd3971cb16f0000000000000014903cd5c2a29f6c319f58c7f9c6ad6903a13660e200000000000000148f7bfd7185add79c44e45be3bf1f72238ef5b3200000000000000014fead1eb428bf84b61ccbaadb2d3e003e968c28470000000000000007000000000000002000000000000000000000000000000000000000000000000000000014f46b0400000000000000002000000000000000000000000000000000000000000000000000000002540be4000000000000000020000000000000000000000000000000000000000000000000000000003b9aca0000000000000000200000000000000000000000000000000000000000000000000000000077359400000000000000002000000000000000000000000000000000000000000000000000000002540be400000000000000002000000000000000000000000000000000000000000000000000000004a817c800000000000000002000000000000000000000000000000000000000000000000000000000ee6b2800");
+        let image1 = epoch1.encode_epoch();
+        assert_eq!(image1, expected_image1);
+        let expected_image2: Vec<u8> = vec![1, 0, 0, 0, 0, 0, 0, 1, 172, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 182, 69, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 140, 0, 0, 0, 0, 0, 0, 0, 0, 20, 156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179, 0, 0, 0, 0, 0, 0, 0, 0, 20, 21, 29, 28, 170, 62, 58, 28, 11, 49, 209, 253, 100, 182, 213, 32, 239, 97, 11, 249, 156, 0, 0, 0, 0, 0, 0, 0, 0, 20, 27, 236, 232, 58, 193, 161, 149, 205, 246, 186, 143, 153, 223, 185, 176, 167, 192, 91, 75, 155, 0, 0, 0, 0, 0, 0, 0, 0, 20, 190, 73, 169, 38, 220, 62, 57, 23, 61, 133, 200, 11, 135, 183, 140, 211, 151, 28, 177, 111, 0, 0, 0, 0, 0, 0, 0, 0, 20, 144, 60, 213, 194, 162, 159, 108, 49, 159, 88, 199, 249, 198, 173, 105, 3, 161, 54, 96, 226, 0, 0, 0, 0, 0, 0, 0, 0, 20, 143, 123, 253, 113, 133, 173, 215, 156, 68, 228, 91, 227, 191, 31, 114, 35, 142, 245, 179, 32, 0, 0, 0, 0, 0, 0, 0, 0, 20, 254, 173, 30, 180, 40, 191, 132, 182, 28, 203, 170, 219, 45, 62, 0, 62, 150, 140, 40, 71, 1, 0, 0, 0, 0, 0, 0, 0, 224, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 244, 107, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 84, 11, 228, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 59, 154, 202, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 119, 53, 148, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 84, 11, 228, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 168, 23, 200, 0, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 238, 107, 40, 0];
         let workers: Vec<[u8; 20]> = vec![
             [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
             [21, 29, 28, 170, 62, 58, 28, 11, 49, 209, 253, 100, 182, 213, 32, 239, 97, 11, 249, 156],
@@ -243,7 +243,27 @@ pub mod tests {
             stakes: stakes.into_iter().map(|s| U256::from(s.clone())).collect(),
         };
         let epoch2 = Epoch { nonce: U256::from(1), seed: U256::from(46661), worker_params: worker_params2 };
-        let image2 = epoch2.raw_encode();
-        assert_eq!(image2, reference_image_hex2.from_hex::<Vec<u8>>().unwrap());
+        let image2 = epoch2.encode_epoch();
+        assert_eq!(image2, expected_image2);
+    }
+
+    fn create_epoch() -> Epoch {
+        let block_number = U256::from(67);
+        let workers = vec![H160::from_slice(&[1u8;20]), H160::from_slice(&[2u8;20]), H160::from_slice(&[3u8;20])];
+        let stakes = vec![U256::from(20), U256::from(30), U256::from(40)];
+
+        let worker_params = InputWorkerParams {block_number, workers, stakes};
+        let nonce = U256::from(555);
+        let seed = U256::from(666);
+        Epoch { nonce, seed, worker_params }
+    }
+
+    fn get_expected_encoded_epoch() -> Vec<u8> {
+        [1, 0, 0, 0, 0, 0, 0, 0, 220, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 154, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2, 43, 1, 0, 0, 0, 0, 0, 0, 0, 60, 0, 0, 0, 0, 0, 0, 0, 0, 20, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 20, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 20, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 96, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 30, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 40].to_vec()
+    }
+    pub fn test_raw_encode() {
+        let test_epoch = create_epoch();
+        let accepted_res = test_epoch.encode_epoch();
+        assert_eq!(accepted_res, get_expected_encoded_epoch());
     }
 }
