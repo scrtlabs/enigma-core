@@ -109,7 +109,6 @@ impl PrincipalConfig {
 
         let mut contents = String::new();
         f.read_to_string(&mut contents)?;
-
         Ok(serde_json::from_str(&contents)?)
     }
 }
