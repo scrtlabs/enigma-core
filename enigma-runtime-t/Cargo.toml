@@ -11,7 +11,7 @@ enigma-tools-t = { path = "../enigma-tools-t" }
 rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "0.14.0-sgx-1.0.8" }
 json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "0.2.5-sgx-1.0.8" }
 serde_json = { git = "https://github.com/enigmampc/serde-json-sgx.git", rev = "1.0.39-sgx-1.0.8" }
-serde = { git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "407aaaa2558dda5c2367d57ba40324c52cf9acc2", default-features = false, features=["serde_derive"] }
+serde = { git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "b24d50160af8b554400a6d5128dc1a773e2994b9", default-features = false, features=["serde_derive"] }
 wasmi = { git = "https://github.com/enigmampc/wasmi", rev = "0.4.2-sgx-1.0.8" }
 pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", rev = "0.5.0-sgx-1.0.8", default-features = false }
 parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
