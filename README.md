@@ -65,7 +65,7 @@ cd enigma-core/enigma-core
 make 
 ```
 
-If the following error ocures then this is an open issuen that will be solved.
+If the following error occurs then this is an open issue that will be solved.
 
 ```
 error[E0463]: can't find crate for `std`
