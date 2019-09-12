@@ -51,7 +51,7 @@ use enigma_tools_t::{build_arguments_g::*, quote_t, storage_t, esgx::ocalls_t};
 use enigma_types::{traits::SliceCPtr, EnclaveReturn, ExecuteResult, Hash256, ContractAddress, PubKey, ResultStatus, RawPointer, DhKey};
 
 use sgx_types::*;
-use std::{mem, ptr, slice, str};
+use std::{ptr, slice, str};
 use std::{boxed::Box, string::{String, ToString}, vec::Vec};
 
 lazy_static! { pub(crate) static ref SIGNING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper(); }
@@ -264,7 +264,7 @@ fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: &DhKey) -> Result<(V
     Ok((decrypted_args, function_name))
 }
 
-fn save_enc_delta(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>) -> Result<Hash256, EnclaveError> {
+unsafe fn save_enc_delta(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>) -> Result<Hash256, EnclaveError> {
     if let Some(delta) = delta {
         enigma_runtime_t::ocalls_t::save_delta(db_ptr, delta)?;
         Ok(delta.keccak256_patch())
@@ -273,7 +273,7 @@ fn save_enc_delta(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>) -> 
     }
 }
 
-fn encrypt_and_save_state(db_ptr: *const RawPointer, state: &ContractState) -> Result<(), EnclaveError>{
+unsafe fn encrypt_and_save_state(db_ptr: *const RawPointer, state: &ContractState) -> Result<(), EnclaveError>{
     let enc_state = km_t::encrypt_state(state.clone())?;
     enigma_runtime_t::ocalls_t::save_state(db_ptr, &enc_state)?;
     Ok(())
@@ -478,7 +478,7 @@ pub mod tests {
         use std::panic::UnwindSafe;
         use enigma_types::{RawPointer, ResultStatus};
 
-        pub fn internal_tests(db_ptr: *const RawPointer) -> ResultStatus {
+        pub unsafe fn internal_tests(db_ptr: *const RawPointer) -> ResultStatus {
             let mut ctr = 0u64;
             let mut failures = Vec::new();
             rsgx_unit_test_start();
@@ -497,12 +497,12 @@ pub mod tests {
             core_unitests(&mut ctr, &mut failures, test_encrypt_decrypt_patch, "test_encrypt_decrypt_patch" );
             core_unitests(&mut ctr, &mut failures, test_apply_delta, "test_apply_delta" );
             core_unitests(&mut ctr, &mut failures, test_generate_delta, "test_generate_delta" );
-            core_unitests(&mut ctr, &mut failures, ||test_me(db_ptr), "test_me" );
+            core_unitests(&mut ctr, &mut failures, || test_me(db_ptr), "test_me" );
             core_unitests(&mut ctr, &mut failures, test_execute_contract, "test_execute_contract" );
-            core_unitests(&mut ctr, &mut failures, ||test_get_deltas(db_ptr), "test_get_deltas" );
-            core_unitests(&mut ctr, &mut failures, ||test_get_deltas_more(db_ptr), "test_get_deltas_more" );
+            core_unitests(&mut ctr, &mut failures, || test_get_deltas(db_ptr), "test_get_deltas" );
+            core_unitests(&mut ctr, &mut failures, || test_get_deltas_more(db_ptr), "test_get_deltas_more" );
             core_unitests(&mut ctr, &mut failures, ||test_state_internal(db_ptr), "test_state_internal" );
-            core_unitests(&mut ctr, &mut failures, || {test_state(db_ptr)}, "test_state" );
+            core_unitests(&mut ctr, &mut failures, || test_state(db_ptr), "test_state" );
 
 
             let result = failures.is_empty();
@@ -541,11 +541,11 @@ pub mod tests {
     //    use crate::km_t::users::tests::*;
 
     #[no_mangle]
-    pub extern "C" fn ecall_run_tests(db_ptr: *const RawPointer, result: *mut ResultStatus) {
-        unsafe {*result = ResultStatus::Ok};
+    pub unsafe extern "C" fn ecall_run_tests(db_ptr: *const RawPointer, result: *mut ResultStatus) {
+        *result = ResultStatus::Ok;
         #[cfg(debug_assertions)] {
             let internal_tests_result = self::internal_tests::internal_tests(db_ptr);
-            unsafe {*result = internal_tests_result};
+            *result = internal_tests_result;
         }
     }
 
