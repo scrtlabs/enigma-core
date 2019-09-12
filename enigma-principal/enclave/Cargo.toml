@@ -18,7 +18,7 @@ ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "8.0.1-sgx-1.0
 ethereum-types = { git = "https://github.com/enigmampc/primitives.git", rev = "sgx-v0.4.0", default-features = false }
 rustc-hex = { version = "2.0", default-features = false }
 
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
-sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
-sgx_tunittest = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
+sgx_tunittest = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
