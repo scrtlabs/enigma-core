@@ -4,11 +4,12 @@ LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-
 
 sleep 5 # give time to aesm_service to start
 
-pushd /root/enigma-principal/bin
-    . /opt/sgxsdk/environment && . /root/.cargo/env && RUST_BACKTRACE=1 ./enigma-principal-app -w
-popd
+until [ -f /root/.enigma/principal-sign-addr.txt ]; do
+    echo 'Sleeping for 10 seconds until principal-sign-addr will be exist'
+    sleep 10;
+done;
 
-# TODO CONFIG
+# TODO CONFIG CONTRACT
 
 cd /root/enigma-principal/bin
 RUST_BACKTRACE=1 ./enigma-principal-app

@@ -16,4 +16,6 @@ RUN mkdir -p $HOME/.enigma
 
 WORKDIR /root
 
+EXPOSE 3040
+
 CMD ["./execute_km.sh"]
