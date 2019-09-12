@@ -428,6 +428,24 @@ mod tests {
     }
 
     #[test]
+    fn test_dynamic_types() {
+        let (mut db, _dir) = create_test_db();
+        let byte_arr = Token::Array(vec![Token::Bytes(vec![5,4,18,23]), Token::Bytes(vec![5,4,18,23,47])]);
+        let string_arr = Token::Array(vec![Token::String(String::from("enigma")), Token::String(String::from("secret-contract"))]);
+        let fixed_arr = Token::Array(vec![Token::FixedBytes(generate_contract_address().to_vec()), Token::FixedBytes(generate_contract_address().to_vec())]);
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            generate_contract_address(),
+            "construct(uint)",
+            &[Token::Uint(100.into())],
+            "dynamic_types(Array(bytes),Array(String),Array(bytes32))",
+            &[byte_arr,string_arr,fixed_arr]
+        );
+
+    }
+
+    #[test]
     fn test_rand_u8() {
         let (mut db, _dir) = create_test_db();
         let (_, _, result, shared_key) = compile_deploy_execute(

@@ -30,6 +30,7 @@ extern crate structopt;
 extern crate url;
 extern crate web3;
 extern crate rmp_serde;
+extern crate envy;
 
 use cli::options::Opt;
 use enigma_tools_u::common_u::logging::{self, CombinedLogger};
