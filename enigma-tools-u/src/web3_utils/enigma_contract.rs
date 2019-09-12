@@ -186,13 +186,10 @@ impl ContractQueries for EnigmaContract {
 
     #[logfn(INFO)]
     fn get_all_secret_contract_addresses(&self) -> Result<Vec<ContractAddress>, Error> {
-        let addrs: Vec<H256> =
-            match self.w3_contract.query("getAllSecretContractAddresses", (),self.account, Options::default(), None).wait() {
-                Ok(addrs) => addrs,
-                Err(e) => {
-                    return Err(errors::Web3Error { message: format!("Unable to query getAllSecretContractAddresses: {:?}", e) }.into())
-                }
-            };
-        Ok(addrs.into_iter().map(|a|ContractAddress::from(a.0)).collect())
+        self.w3_contract
+            .query("getAllSecretContractAddresses", (),self.account, Options::default(), None)
+            .wait()
+            .map(|addrs: Vec<H256>| addrs.into_iter().map(|a| ContractAddress::from(a.0 )).collect())
+            .map_err(|e| errors::Web3Error { message: format!("Unable to query getAllSecretContractAddresses: {:?}", e) }.into())
     }
 }
