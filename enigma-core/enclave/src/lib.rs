@@ -31,11 +31,9 @@ extern crate error_chain;
 extern crate bigint;
 extern crate ethabi;
 extern crate hexutil;
-extern crate parity_wasm;
 extern crate sputnikvm;
 extern crate sputnikvm_network_classic;
 extern crate rustc_hex;
-extern crate pwasm_utils as wasm_utils;
 
 mod evm_t;
 mod km_t;
