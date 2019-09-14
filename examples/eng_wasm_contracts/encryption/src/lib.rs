@@ -21,14 +21,12 @@ extern crate eng_wasm_derive;
 // The asymmetric features of enigma_crypto
 extern crate enigma_crypto;
 
-// Serialization stuff
-extern crate rustc_hex;
+
 
 // eng_wasm
 use eng_wasm::*;
 use eng_wasm_derive::pub_interface;
 use eng_wasm::{String, Vec};
-use rustc_hex::ToHex;
 use enigma_crypto::asymmetric::KeyPair;
 
 // State key name "mixer_eth_addr" holding eth address of Mixer contract

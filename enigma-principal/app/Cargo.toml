@@ -10,7 +10,7 @@ enigma-crypto = { path = "../../enigma-crypto" }
 enigma-tools-u = { path = "../../enigma-tools-u" }
 enigma-tools-m = { path = "../../enigma-tools-m" }
 
-ethabi = "6.0.1"
+ethabi = "8.0.1"
 etcommon-rlp = "0.2"
 failure = "0.1.3"
 rustc-hex = "1.0.0"
@@ -22,15 +22,16 @@ structopt = "0.2.10"
 url = "1.7.1"
 colour = "0.3"
 dirs = "1.0"
-web3 = { version  = "0.6", default-features = false, features=["http"]  }
+web3 = { version  = "0.8", default-features = false, features=["http"]  }
 jsonrpc-http-server = "11.0.0"
 log = "0.4.6"
 log-derive = "0.3"
+envy = "0.3.2"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
 
 [dev-dependencies]
-ethereum-types = "0.4"
+ethereum-types = "0.6"
 jsonrpc-test = "11.0.0"
 tempfile = "3.0"
