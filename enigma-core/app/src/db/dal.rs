@@ -15,8 +15,8 @@ pub struct DB {
     // the DB needs to store the options for creating new
     // cf's that would be able to imitate the DB behaviour
     pub options: Options,
-    // keeps track of the status of the state
-    is_stateful: bool,
+    // keeps track if the state needs to be rebuilt
+    state_updated: bool,
 }
 
 impl DB {
@@ -55,22 +55,22 @@ impl DB {
         let cf_list_burrowed = cf_list.iter().map(String::as_str).collect::<Vec<&str>>();
         let database = rocks_db::open_cf(&options, &location, &cf_list_burrowed[..])?;
         let location = location.as_ref().to_path_buf();
-        // the is_stateful is initialized to true since it won't be necessary to build
-        // the state if on the first epoch the worker gets a deployment
-        // and a computation, hence the true bool.
-        let db_par = DB { location, database, options, is_stateful: true};
+        // the state_updated is initialized to true since it won't be necessary to build
+        // the state when the DB is empty.
+        let db_par = DB { location, database, options, state_updated: true};
         Ok(db_par)
     }
 
-    /// updates the status of the state according to
-    /// building the state & new deltas which enter the DB
+    /// updates the state_updated field according to the status of the state.
+    /// every time the state is built (=true) and
+    /// on the other hand when new deltas enter the DB (=false).
     pub fn update_state_status(&mut self, state: bool) {
-        self.is_stateful = state;
+        self.state_updated = state;
     }
 
     /// get the current status of the state
     pub fn get_state_status(& mut self) -> bool {
-        self.is_stateful
+        self.state_updated
     }
 }
 

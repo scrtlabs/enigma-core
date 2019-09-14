@@ -250,6 +250,8 @@ pub(self) mod handling {
         if results.into_iter().any(| result | result.is_err()) {
             status = FAILED;
         }
+        // since a new delta and bytecode were added, the state is no longer updated
+        db.update_state_status(false);
         let result = IpcResults::Status(status);
         Ok(IpcResponse::UpdateNewContractOnDeployment { address, result })
     }
