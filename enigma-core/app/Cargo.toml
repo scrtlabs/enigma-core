@@ -32,7 +32,7 @@ sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" 
 sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
 
 [dev-dependencies]
-ethabi = "6.1.0"
+ethabi = "8.0.1"
 cross-test-utils = { path = "cross-test-utils" }
 regex = "1"
 rand = "0.6.5"
