@@ -135,6 +135,9 @@ pub trait ContractQueries {
     // getSecretContractAddresses
     // input: uint _start, uint _stop
     fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<ContractAddress>, Error>;
+
+    // getAllSecretContractAddresses
+    fn get_all_secret_contract_addresses(&self) -> Result<Vec<ContractAddress>, Error>;
 }
 
 impl ContractQueries for EnigmaContract {
@@ -179,5 +182,14 @@ impl ContractQueries for EnigmaContract {
                 }
             };
         Ok(addrs.into_iter().map(|a|ContractAddress::from(a.0)).collect())
+    }
+
+    #[logfn(INFO)]
+    fn get_all_secret_contract_addresses(&self) -> Result<Vec<ContractAddress>, Error> {
+        self.w3_contract
+            .query("getAllSecretContractAddresses", (),self.account, Options::default(), None)
+            .wait()
+            .map(|addrs: Vec<H256>| addrs.into_iter().map(|a| ContractAddress::from(a.0 )).collect())
+            .map_err(|e| errors::Web3Error { message: format!("Unable to query getAllSecretContractAddresses: {:?}", e) }.into())
     }
 }
