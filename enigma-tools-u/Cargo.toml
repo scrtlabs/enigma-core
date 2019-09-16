@@ -7,7 +7,7 @@ build = "build.rs"
 
 [dependencies]
 enigma-crypto = { path = "../enigma-crypto" }
-enigma-types = { path = "../enigma-types" }
+enigma-types = { path = "../enigma-types", features = ["std"] }
 
 serde_json = "1.0"
 serde = { version = "1.0", default-features = false, features=["serde_derive"] }
