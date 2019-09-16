@@ -2,7 +2,7 @@ use core::clone::Clone;
 
 use enigma_tools_m::keeper_types::{decode, EPOCH_CAP, InputWorkerParams, RawEncodable};
 use enigma_tools_m::utils::LockExpectMutex;
-use ethereum_types::{H256, U256};
+use ethereum_types::{H256, U256, BigEndianHash};
 use rustc_hex::ToHex;
 use sgx_trts::trts::rsgx_read_rand;
 use sgx_types::*;
@@ -89,7 +89,7 @@ fn get_epoch_from_cache(epoch_map: &HashMap<U256, Epoch>, nonce: U256) -> Result
 fn store_epoch(epoch: Epoch) -> Result<(), EnclaveError> {
     let hash: [u8; 32] = epoch.raw_encode().keccak256().into();
     let nonce = epoch.nonce.clone();
-    let mut data = H256::from(nonce).0.to_vec();
+    let mut data = H256::from_uint(&nonce).0.to_vec();
     data.extend(hash.to_vec());
     let mut marker_doc: SealedDocumentStorage<EpochMarker> = SealedDocumentStorage {
         version: 0x1234, // TODO: what's this?
@@ -199,7 +199,7 @@ pub mod tests {
     pub fn test_get_epoch_worker_internal() {
         let worker_params = InputWorkerParams {
             block_number: U256::from(1),
-            workers: vec![H160::from(0), H160::from(1), H160::from(2), H160::from(3)],
+            workers: vec![H160::from([0u8;20]), H160::from([1u8;20]), H160::from([2u8;20]), H160::from([3u8;20])],
             stakes: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
         };
         let epoch = Epoch { nonce: U256::from(0), seed: U256::from(1), worker_params };
