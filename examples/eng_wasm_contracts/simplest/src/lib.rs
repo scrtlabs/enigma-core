@@ -16,6 +16,7 @@ pub trait ContractInterface{
     fn addition(x: U256, y: U256) -> U256;
     fn get_last_sum() -> U256;
     fn print_test(x: U256, y: U256);
+    fn dynamic_types(bytes_arr: Vec<Vec<u8>>, string_arr: Vec<String>, fixed_arr: Vec<H256>);
     fn construct(param: U256);
 }
 
@@ -60,6 +61,11 @@ impl ContractInterface for Contract {
         let read_val: H256 = read_state!("addr").unwrap_or_default();
         assert_eq!(read_val, addr);
         read_val
+    }
+    fn dynamic_types(bytes_arr: Vec<Vec<u8>>, string_arr: Vec<String>, fixed_arr: Vec<H256>) {
+        eprint!("array of bytes: {:?}",bytes_arr);
+        eprint!("array of String: {:?}",string_arr);
+        eprint!("array of H256: {:?}",fixed_arr);
     }
 
     fn check_addresses(addr1: H256, addr2: H256) -> Vec<H256> {

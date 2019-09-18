@@ -348,9 +348,7 @@ impl EpochProvider {
     /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
     #[logfn(DEBUG)]
     pub fn confirm_epoch(&self, epoch_state: &mut EpochState, block_number: U256, worker_params: InputWorkerParams) -> Result<(), Error> {
-        let contract_count = self.contract.count_secret_contracts()?;
-        info!("The secret contract count: {:?}", contract_count);
-        let sc_addresses = self.contract.get_secret_contract_addresses(U256::from(0), contract_count)?;
+        let sc_addresses = self.contract.get_all_secret_contract_addresses()?;
         info!("The secret contract addresses: {:?}", sc_addresses);
         epoch_state.confirm(block_number, &worker_params, sc_addresses)?;
         Ok(())

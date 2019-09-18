@@ -37,7 +37,7 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     println!("Evaluating nonce/seed based on EpochState: {:?}", epoch_state);
     let (nonce_in, seed_in) = match epoch_state.clone() {
-        Some(e) => (H256::from(e.nonce).0, H256::from(e.seed).0),
+        Some(e) => (e.nonce.into(), e.seed.into()),
         None => ([0; 32], [0; 32])
     };
     println!("Calling enclave set_worker_params with nonce/seed: {:?}/{:?}", nonce_in.to_vec().to_hex(), seed_in.to_vec().to_hex());

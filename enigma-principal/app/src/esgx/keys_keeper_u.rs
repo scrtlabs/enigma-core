@@ -37,7 +37,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
     let mut response_ptr = 0u64;
-    let epoch_nonce: [u8; 32] = H256::from(epoch_nonce).0;
+    let epoch_nonce: [u8; 32] = epoch_nonce.into();
 
     let msg_bytes: Vec<u8> = request.data.try_into()?;
     let status = unsafe {
