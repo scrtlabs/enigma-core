@@ -318,7 +318,6 @@ pub(self) mod handling {
         let msg = response.response.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
         let res = km_u::ptt_build_state(db, eid)?;
-        // update state status
         db.update_state_status(true);
         let result: Vec<_> = res
             .into_iter()
