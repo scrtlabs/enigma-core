@@ -117,7 +117,7 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
         Err(e) => return e.into(),
     };
 
-// in order to view the specific error print out the result of the function
+    // in order to view the specific error print out the result of the function
     let mut internal_result = ecall_execute_internal(&mut pre_execution_data, bytecode,
                            callable,
                            args, user_key,
@@ -126,9 +126,9 @@ pub unsafe extern "C" fn ecall_execute(bytecode: *const u8, bytecode_len: usize,
                            *gas_limit,
                            db_ptr,
                            result);
-    if let Err(e) = internal_result.clone() {
+    if let Err(e) = &internal_result {
         println!("Error in execution of smart contract function: {}", e);
-        internal_result = output_task_failure(&pre_execution_data,e, result, &io_key);
+        internal_result = output_task_failure(&pre_execution_data, *gas_limit,e, result, &io_key);
     }
     internal_result.into()
 }
@@ -162,9 +162,9 @@ pub unsafe extern "C" fn ecall_deploy(bytecode: *const u8, bytecode_len: usize,
         Err(e) => return e.into(),
     }
     let mut internal_result = ecall_deploy_internal(&mut pre_execution_data, bytecode, constructor, args, (*address).into(), user_key, &io_key, *gas_limit, db_ptr, result);
-    if let Err(e) = internal_result.clone() {
+    if let Err(e) = &internal_result {
         println!("Error in deployment of smart contract function: {}", e);
-        internal_result = output_task_failure(&pre_execution_data, e, result, &io_key);
+        internal_result = output_task_failure(&pre_execution_data, *gas_limit, e, result, &io_key);
     }
     internal_result.into()
 }
@@ -288,22 +288,25 @@ fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
     }
 }
 
-fn output_task_failure (pre_execution_data: &[Box<[u8]>], err: EnclaveError, result: &mut ExecuteResult, key: &DhKey) -> Result<(), EnclaveError>{
+fn output_task_failure(
+    pre_execution_data: &[Box<[u8]>], gas_limit: u64, err: &EnclaveError, result: &mut ExecuteResult, key: &DhKey
+) -> Result<(), EnclaveError> {
     // Signing: S(pre-execution data, usedGas, Failure)
     result.used_gas = 0;
-    let mut return_error = err.clone();
-    match err {
-        FailedTaskError(_) => (),
-        FailedTaskErrorWithGas{used_gas, err} => {
-            result.used_gas = used_gas;
-            return_error = FailedTaskError(err);
+    let return_error = match err {
+        FailedTaskError(_) => err.clone(),
+        FailedTaskErrorWithGas{ used_gas, err } => {
+            result.used_gas = *used_gas;
+            FailedTaskError(err.clone())
         },
-        SystemError(e) => return Err(SystemError(e)),
-    }
+        SystemError(e) => return Err(SystemError(e.clone())),
+    };
     let used_gas = result.used_gas.to_be_bytes();
+    let serialised_gas_limit = gas_limit.to_be_bytes();
     let failure = [ResultStatus::Failure as u8];
-    let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len()+2);
+    let mut to_sign: Vec<&[u8]> = Vec::with_capacity(pre_execution_data.len() + 2);
     pre_execution_data.into_iter().for_each(|x| { to_sign.push(&x) });
+    to_sign.push(&serialised_gas_limit);
     to_sign.push(&used_gas);
     to_sign.push(&failure);
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
@@ -347,24 +350,24 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
                         result)?;
 
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
-    // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, usedGas, optionalEthereumData, Success)
+    // Signing: S(exeCodeHash, inputsHash, delta(X-1)Hash, deltaXHash, outputHash, gasLimit, usedGas, optionalEthereumData, Success)
     let used_gas = result.used_gas.to_be_bytes();
     let output_hash = encrypted_output.keccak256();
-    let to_sign = [
+    let to_sign: &[&[u8]] = &[
         &*exe_code_hash,
         &*inputs_hash,
         &*pre_execution_state.delta_hash,
         &*delta_hash,
         &*output_hash,
-        &used_gas[..],
-        &ethereum_payload[..],
-        &ethereum_address[..],
-        &[ResultStatus::Ok as u8]];
+        &gas_limit.to_be_bytes(),
+        &used_gas,
+        &ethereum_payload,
+        &ethereum_address,
+        &[ResultStatus::Ok as u8]
+    ];
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
     Ok(())
 }
-
-
 
 unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecode: &[u8], constructor: &[u8], args: &[u8],
                                 address: ContractAddress, user_key: &PubKey, io_key: &DhKey,
@@ -396,19 +399,17 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
                         exec_res.used_gas,
                         result)?;
 
-//    let exe_code = &exec_res.result[..];
-//    *output_ptr = ocalls_t::save_to_untrusted_memory(&exe_code)?;
-
-    // Signing: S(inputsHash, exeCodeHash, delta0Hash, usedGas, optionalEthereumData, Success)
+    // Signing: S(inputsHash, exeCodeHash, delta0Hash, gasLimit, usedGas, optionalEthereumData, Success)
     let used_gas = result.used_gas.to_be_bytes();
     let (ethereum_payload, ethereum_address) = create_eth_data_to_sign(exec_res.ethereum_bridge);
-    let to_sign = [
-        &*(inputs_hash),
-        &*(exec_res.result.keccak256()),
+    let to_sign: &[&[u8]] = &[
+        &*inputs_hash,
+        &*exec_res.result.keccak256(),
         &*delta_hash,
-        &used_gas[..],
-        &ethereum_payload[..],
-        &ethereum_address[..],
+        &gas_limit.to_be_bytes(),
+        &used_gas,
+        &ethereum_payload,
+        &ethereum_address,
         &[ResultStatus::Ok as u8]
     ];
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
