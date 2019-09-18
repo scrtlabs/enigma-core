@@ -6,7 +6,6 @@ use enigma_types::traits::SliceCPtr;
 use enigma_types::{EnclaveReturn, ContractAddress, PubKey, RawPointer};
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use std::mem;
 use crate::auto_ffi::{ecall_ptt_req, ecall_ptt_res, ecall_build_state, ecall_get_user_key};
 
 /// This function builds the states that it received in ptt_req and ptt_res
