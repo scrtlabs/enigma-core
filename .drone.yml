@@ -12,6 +12,7 @@ steps:
     commands:
       - LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
       - . /opt/sgxsdk/environment && . /root/.cargo/env
+      - cargo --version
       - cd enigma-core && RUSTFLAGS=-Awarnings make DEBUG=1
       - cd app && RUSTFLAGS=-Awarnings cargo test
     volumes:
