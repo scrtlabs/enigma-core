@@ -20,10 +20,26 @@ pub(crate) fn impl_pub_interface(
     item: proc_macro2::TokenStream,
 ) -> proc_macro2::TokenStream {
     let cloned_item = item.clone();
-    let mut pub_interface_signatures = parse_macro_input2!(cloned_item as PubInterfaceSignatures);
-    if let Err(error) = apply_macro_attr(attr, &mut pub_interface_signatures) {
-        return error.to_compile_error();
-    }
+
+    // Make sure that even if we issue a compilation error, we still generate
+    // the original code, just like a derive macro would.
+    let parse_result = syn::parse2::<PubInterfaceSignatures>(cloned_item)
+        // If the main parsing was successful, check the macro attribute for any overrides
+        .and_then(|mut pub_interface_signatures| {
+            apply_macro_attr(attr, &mut pub_interface_signatures)
+                // This makes sure that the pub_interface_signatures is returned from this nested error handling
+                .map(|()| pub_interface_signatures)
+        });
+    let pub_interface_signatures = match parse_result {
+        Ok(pub_interface_signatures) => pub_interface_signatures,
+        Err(error) => {
+            let compilation_error = error.to_compile_error();
+            return quote!(
+                #item
+                #compilation_error
+            );
+        }
+    };
 
     let deploy_func_name = DEPLOY_FUNC_NAME.into_ident();
     let dispatch_func_name = DISPATCH_FUNC_NAME.into_ident();
