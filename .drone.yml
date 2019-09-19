@@ -6,7 +6,7 @@ steps:
     detach: true
 
   - name: core
-    image: enigmampc/enigma-core:0.0.9
+    image: enigmampc/enigma-core:0.0.10
     depends_on: [clone]
     privileged: true
     commands:
@@ -19,7 +19,7 @@ steps:
         path: /dev/isgx
 
   - name: principal
-    image: enigmampc/enigma-core:0.0.9
+    image: enigmampc/enigma-core:0.0.10
     depends_on: [clone]
     privileged: true
     commands:
@@ -33,7 +33,7 @@ steps:
         path: /dev/isgx
 
   - name: tools_u
-    image: enigmampc/enigma-core:0.0.9
+    image: enigmampc/enigma-core:0.0.10
     depends_on: [clone]
     commands:
       - . /root/.cargo/env
@@ -42,28 +42,31 @@ steps:
       - RUSTFLAGS=-Awarnings cargo test
 
   - name: enigma_crypto
-    image: enigmampc/enigma-core:0.0.9
+    image: enigmampc/enigma-core:0.0.10
     depends_on: [clone]
     commands:
-      - . /root/.cargo/env
+      - LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
+      - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-crypto
       - RUSTFLAGS=-Awarnings cargo test
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
 
   - name: tools_m
-    image: enigmampc/enigma-core:0.0.9
+    image: enigmampc/enigma-core:0.0.10
     depends_on: [clone]
     commands:
-      - . /root/.cargo/env
+      - LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
+      - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-tools-m
       - RUSTFLAGS=-Awarnings cargo test
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
 
   - name: enigma_types
-    image: enigmampc/enigma-core:0.0.9
+    image: enigmampc/enigma-core:0.0.10
     depends_on: [clone]
     commands:
-      - . /root/.cargo/env
+      - LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
+      - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-types
       - RUSTFLAGS=-Awarnings cargo test
       - RUSTFLAGS=-Awarnings cargo build --no-default-features
