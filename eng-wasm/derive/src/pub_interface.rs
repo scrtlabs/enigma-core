@@ -1,4 +1,4 @@
-use quote::{quote, ToTokens};
+use quote::{quote, quote_spanned, ToTokens};
 use syn::spanned::Spanned;
 
 mod parse_signatures;
@@ -173,7 +173,16 @@ fn generate_deploy_function(
         let constructor_name = &constructor_signature.ident;
         let input_pats_and_types = get_signature_input_pats_and_types(&constructor_signature);
         let expectations = get_contract_input_parsing_error_messages(&input_pats_and_types);
-        let input_types = input_pats_and_types.iter().map(|(_pat, type_)| type_);
+
+        // Manually construct the code that implicitly checks properties of the input types
+        // so that the spans of type errors are correctly propagated
+        let parsed_inputs = input_pats_and_types
+            .iter()
+            .map(|(_pat, type_)| type_)
+            .zip(expectations)
+            .map(|(type_, expectation)|
+                quote_spanned!(type_.span()=> stream.pop::<#type_>().expect(#expectation))
+            );
         let variables = generate_enumerated_idents("var_", input_pats_and_types.len());
 
         return quote! {
@@ -181,7 +190,7 @@ fn generate_deploy_function(
             pub fn #deploy_func_name() {
                 let args_ = args();
                 let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(&args_);
-                #(let #variables = stream.pop::<#input_types>().expect(#expectations);)*
+                #(let #variables = #parsed_inputs;)*
                 <#implementor>::#constructor_name(#(#variables),*);
             }
         };
@@ -235,64 +244,84 @@ fn generate_dispatch_function(
         .filter_map(|signature| {
             let method_name = &signature.ident;
             if method_name == CONSTRUCTOR_NAME {
-                None
-            } else {
-                let method_name_as_string = method_name.to_string();
-                let output_type = &signature.output;
-                let input_pats_and_types = get_signature_input_pats_and_types(&signature);
-                let expectations = get_contract_input_parsing_error_messages(&input_pats_and_types);
-                let input_types = input_pats_and_types.iter().map(|(_pat, type_)| type_);
-                let variables = generate_enumerated_idents("var_", input_pats_and_types.len());
+                return None;
+            }
 
-                let return_value_count = match output_type {
-                    syn::ReturnType::Default => 0,
-                    syn::ReturnType::Type(_, type_) => match type_.as_ref() {
-                        // If the return value is a tuple, we count it like multiple return values.
-                        // This is the same thing that pwasm_abi does under
-                        // pwasm_abi/derive/src/item.rs :: fn into_signature
-                        // which flows back to
-                        // pwasm_abi/derive/src/lib.rs :: fn generate_eth_endpoint
-                        // which dictates how return values are serialised into the Sink.
-                        // This can be 0 if the return type is () which is correct.
-                        syn::Type::Tuple(return_tuple) => return_tuple.elems.len(),
-                        // Any other type is a single return value. Arrays such as [u8; 4]
-                        // are not AbiType so Sink will reject them at compile time.
-                        _ => 1,
+            let method_name_as_string = method_name.to_string();
+            let output_type = &signature.output;
+            let input_pats_and_types = get_signature_input_pats_and_types(&signature);
+            let expectations = get_contract_input_parsing_error_messages(&input_pats_and_types);
+
+            // Manually construct the code that implicitly checks properties of the input types
+            // so that the spans of type errors are correctly propagated
+            let parsed_inputs = input_pats_and_types
+                .iter()
+                .map(|(_pat, type_)| type_)
+                .zip(expectations)
+                .map(|(type_, expectation)|
+                    quote_spanned!(type_.span()=> stream.pop::<#type_>().expect(#expectation))
+                );
+            let variables = generate_enumerated_idents("var_", input_pats_and_types.len());
+
+            let return_value_count = match output_type {
+                syn::ReturnType::Default => 0,
+                syn::ReturnType::Type(_, type_) => match type_.as_ref() {
+                    // If the return value is a tuple, we count it like multiple return values.
+                    // This is the same thing that pwasm_abi does under
+                    // pwasm_abi/derive/src/item.rs :: fn into_signature
+                    // which flows back to
+                    // pwasm_abi/derive/src/lib.rs :: fn generate_eth_endpoint
+                    // which dictates how return values are serialised into the Sink.
+                    // This can be 0 if the return type is () which is correct.
+                    syn::Type::Tuple(return_tuple) => return_tuple.elems.len(),
+                    // Any other type is a single return value. Arrays such as [u8; 4]
+                    // are not AbiType so Sink will reject them at compile time.
+                    _ => 1,
+                }
+            };
+
+            // Make sure we only generate code for initializing the stream of inputs,
+            // if we expect inputs at all
+            let stream_initialization_snippet = match input_pats_and_types.len() {
+                0 => quote!(),
+                _ => quote!(let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);),
+            };
+
+            match return_value_count {
+                0 => Some(quote! {
+                    #method_name_as_string => {
+                        #stream_initialization_snippet
+                        #(let #variables = #parsed_inputs;)*
+                        <#implementor>::#method_name(#(#variables),*);
                     }
-                };
-
-                // Make sure we only generate code for initializing the stream of inputs,
-                // if we expect inputs at all
-                let stream_initialization_snippet = match input_pats_and_types.len() {
-                    0 => quote!(),
-                    _ => quote!(let mut stream = eng_wasm::eng_pwasm_abi::eth::Stream::new(args);),
-                };
-
-                match return_value_count {
-                    0 => Some(quote! {
+                }),
+                _ => {
+                    // Manually construct the code that implicitly checks properties of the return type
+                    // so that the spans of type errors are correctly propagated
+                    let result_token = quote!(result);
+                    // disassociate the return type from the arrow.
+                    let output_type = match output_type {
+                        syn::ReturnType::Type(_arrow, type_) => type_,
+                        syn::ReturnType::Default => unreachable!("We know that there is an explicit return type")
+                    };
+                    let push_result_to_sink = quote_spanned!(output_type.span()=> sink.push(#result_token));
+                    Some(quote! {
                         #method_name_as_string => {
                             #stream_initialization_snippet
-                            #(let #variables = stream.pop::<#input_types>().expect(#expectations);)*
-                            <#implementor>::#method_name(#(#variables),*);
-                        }
-                    }),
-                    _ => Some(quote! {
-                        #method_name_as_string => {
-                            #stream_initialization_snippet
-                            #(let #variables = stream.pop::<#input_types>().expect(#expectations);)*
-                            let result = <#implementor>::#method_name(#(#variables),*);
+                            #(let #variables = #parsed_inputs;)*
+                            let #result_token = <#implementor>::#method_name(#(#variables),*);
                             // 32 is the size of each argument in the serialised form
                             // The Sink.drain_to() method might resize this array if any
                             // dynamically sized elements are returned, but if not, then only one
                             // allocation (this one) will happen for the Vec.
                             let mut result_bytes = eng_wasm::Vec::with_capacity(#return_value_count * 32);
                             let mut sink = eng_wasm::eng_pwasm_abi::eth::Sink::new(#return_value_count);
-                            sink.push(result);
+                            #push_result_to_sink;
                             sink.drain_to(&mut result_bytes);
                             unsafe { eng_wasm::external::ret(result_bytes.as_ptr(), result_bytes.len() as u32) }
                         }
-                    }),
-                }
+                    })
+                },
             }
         })
         .collect();
