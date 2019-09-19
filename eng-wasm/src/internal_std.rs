@@ -8,8 +8,7 @@ pub use self::std::vec::Vec;
 pub use self::std::mem;
 pub use self::std::str::from_utf8;
 pub use self::std::io;
-pub use self::std::slice::SliceConcatExt;
-
+pub use self::std::slice::Join;
 //pub fn zeroed_vec(s: usize) -> Vec<u8>  {
 //    vec![0u8; s]
 //}

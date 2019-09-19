@@ -1,4 +1,3 @@
-use std::slice::SliceConcatExt;
 use tiny_keccak::Keccak;
 use ethabi::param_type::{Writer, ParamType};
 
