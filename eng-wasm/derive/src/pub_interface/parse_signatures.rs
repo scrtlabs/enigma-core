@@ -328,7 +328,7 @@ fn check_impl_priv_method(
 
     if impl_method.sig.ident == CONSTRUCTOR_NAME {
         errors.push(syn::Error::new_spanned(
-            impl_method.vis.clone(),
+            impl_method.sig.clone(),
             ParseError::PrivateImplConstructor,
         ));
 
