@@ -334,3 +334,12 @@ pub fn send_update_contract_on_deployment(port: &'static str,  addr: &str, bytec
     let msg = get_msg_format_update_contract_on_deployment(addr, bytecode, delta);
     conn_and_call_ipc(&msg.to_string(), port)
 }
+
+pub fn get_remove_contract_msg(addr: &str) -> Value {
+    json!({"id": &generate_job_id(), "type": "RemoveContract", "address": addr})
+}
+
+pub fn remove_contract(port: &'static str, addr: &str) -> Value {
+    let msg = get_remove_contract_msg(addr);
+    conn_and_call_ipc(&msg.to_string(), port)
+}

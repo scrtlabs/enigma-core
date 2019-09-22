@@ -79,6 +79,7 @@ pub(self) mod handling {
     use serde_json::Value;
     use sgx_types::sgx_enclave_id_t;
     use std::str;
+    use common_u::errors::DBErr;
 
     type ResponseResult = Result<IpcResponse, Error>;
 
@@ -263,8 +264,15 @@ pub(self) mod handling {
         let bytecode_delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
         let result = match db.delete(&bytecode_delta_key) {
             Ok(_) => IpcResults::Status(PASSED),
-            Err(_) => IpcResults::Status(FAILED),
+            Err(e) => {
+                match e.downcast::<DBErr>() {
+                    Ok(_) =>  IpcResults::Status(PASSED),
+                    Err(_) => IpcResults::Status(FAILED),
+                }
+            },
         };
+        // since we remove an item from the DB
+        db.update_state_status(false);
         Ok( IpcResponse::RemoveContract { address, result } )
     }
 

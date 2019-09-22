@@ -2,7 +2,7 @@ pub mod integration_utils;
 
 use integration_utils::{run_core, full_simple_deployment, conn_and_call_ipc,
                         send_update_contract, get_update_deltas_msg, contract_compute,
-                        send_update_contract_on_deployment};
+                        send_update_contract_on_deployment, remove_contract};
 pub extern crate enigma_core_app as app;
 extern crate serde;
 extern crate rustc_hex as hex;
@@ -29,6 +29,34 @@ fn test_ipc_update_contract() {
 
     assert_eq!(updated, 0);
     assert_eq!(updated_addr, new_addr.to_hex());
+}
+
+#[test]
+fn test_ipc_remove_contract() {
+    let port =  "5575";
+    run_core(port);
+
+    let (_, address) = full_simple_deployment(port);
+    let res = remove_contract(port, &address.to_hex());
+    let status: u64 = serde_json::from_value(res["result"]["status"].clone()).unwrap();
+    let accepted_addr: &str = res["address"].as_str().unwrap();
+
+    assert_eq!(status, 0);
+    assert_eq!(accepted_addr, address.to_hex());
+}
+
+#[test]
+fn test_ipc_remove_contract_no_addr() {
+    let port =  "5576";
+    run_core(port);
+
+    let addr = generate_contract_address();
+    let res = remove_contract(port, &addr.to_hex());
+    let status: u64 = serde_json::from_value(res["result"]["status"].clone()).unwrap();
+    let accepted_addr: &str = res["address"].as_str().unwrap();
+
+    assert_eq!(status, 0);
+    assert_eq!(accepted_addr, addr.to_hex());
 }
 
 #[test]
