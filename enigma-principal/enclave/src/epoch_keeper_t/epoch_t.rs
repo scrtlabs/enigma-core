@@ -1,6 +1,6 @@
 use enigma_tools_m::keeper_types::{InputWorkerParams, RawEncodable};
 use ethabi::Bytes;
-use ethereum_types::{H160, H256, U256};
+use ethereum_types::{H160, H256, U256, BigEndianHash};
 use std::string::ToString;
 
 use enigma_tools_t::common::errors_t::{
@@ -30,11 +30,11 @@ impl Epoch {
 impl RawEncodable for Epoch {
     /// Encode the Epoch as Ethereum ABI parameters
     fn raw_encode(&self) -> Bytes {
-        let raw_seed = H256::from(self.seed).0.to_vec();
+        let raw_seed = H256::from_uint(&self.seed).0.to_vec();
         let mut image = raw_seed.len().to_be_bytes().to_vec();
         image.extend(raw_seed);
 
-        let raw_nonce = H256::from(self.nonce).0.to_vec();
+        let raw_nonce = H256::from_uint(&self.nonce).0.to_vec();
         image.extend(raw_nonce.len().to_be_bytes().to_vec());
         image.extend(raw_nonce);
 
@@ -47,7 +47,7 @@ impl RawEncodable for Epoch {
 
         image.extend(self.worker_params.stakes.len().to_be_bytes().to_vec());
         for amount in self.worker_params.stakes.clone() {
-            let raw_amount = H256::from(amount).0.to_vec();
+            let raw_amount = H256::from_uint(&amount).0.to_vec();
             image.extend(raw_amount.len().to_be_bytes().to_vec());
             image.extend(raw_amount);
         }

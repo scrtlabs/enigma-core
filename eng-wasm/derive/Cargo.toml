@@ -1,6 +1,6 @@
 [package]
 name = "eng-wasm-derive"
-version = "0.1.5" # upgrade version in eng-wasm dependancy as well (if needed)
+version = "0.1.6" # upgrade version in eng-wasm dependancy as well (if needed)
 authors = ["moria <moria@enigma.co>"]
 license = "AGPL-3.0"
 description = "Enigma library for creating Secret Contracts"
@@ -8,7 +8,7 @@ keywords = ["wasm", "webassembly", "blockchain", "sgx", "enigma"]
 categories = ["wasm"]
 
 [dependencies]
-eng-wasm = { version = "0.1.5", path = "../" }
+eng-wasm = { version = "0.1.6", path = "../" }
 proc-macro2 = "0.4"
 quote = "0.6"
 syn = { version = "0.15", features = ["full"] }

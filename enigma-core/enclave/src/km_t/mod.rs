@@ -26,8 +26,8 @@ pub fn get_state_key(address: ContractAddress) -> Result<StateKey, EnclaveError>
 }
 
 pub fn encrypt_state(state: ContractState) -> Result<EncryptedContractState<u8>, EnclaveError> {
-    let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
-    let key = statekeys_guard
+    let state_keys_guard = STATE_KEYS.lock_expect("State Keys");
+    let key = state_keys_guard
         .get(&state.contract_address)
         .ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
     state.encrypt(&key)
