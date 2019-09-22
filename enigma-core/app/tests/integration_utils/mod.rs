@@ -262,7 +262,7 @@ pub fn full_mint_compute(port: &'static str,  user_addr: ERC20UserAddress, amoun
 }
 
 pub fn full_supply_compute(port: &'static str, supply: u64) -> (Value,  [u8;32], [u8; 32]) {
-    let (owner, owner_keys) = generate_user_address();
+    let (owner, _owner_keys) = generate_user_address();
     let (_, _, contract_addr): (_, _, [u8; 32]) = full_erc20_deployment(port, owner, Some(supply), None);
 
     let callable  = "total_supply()";
