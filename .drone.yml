@@ -64,8 +64,9 @@ steps:
 
   - name: eng_wasm
     image: enigmampc/enigma-core:0.0.10
-    depends_on: clone
+    depends_on: [clone]
     commands:
+      - . /root/.cargo/env
       - cd eng-wasm/derive
       - cargo test
 
