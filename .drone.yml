@@ -62,6 +62,13 @@ steps:
       - RUSTFLAGS=-Awarnings cargo test
       - RUSTFLAGS=-Awarnings cargo check --no-default-features --features=sgx
 
+  - name: eng_wasm
+    image: enigmampc/enigma-core:0.0.10
+    depends_on: clone
+    commands:
+      - cd eng-wasm/derive
+      - cargo test
+
   - name: enigma_types
     image: enigmampc/enigma-core:0.0.10
     depends_on: [clone]
