@@ -2,7 +2,7 @@ pub mod integration_utils;
 
 use integration_utils::{run_core, full_simple_deployment, conn_and_call_ipc,
                         send_update_contract, get_update_deltas_msg, contract_compute,
-                        send_update_contract_on_deployment, remove_contract};
+                        send_update_contract_on_deployment, remove_contract, remove_deltas};
 pub extern crate enigma_core_app as app;
 extern crate serde;
 extern crate rustc_hex as hex;
@@ -112,4 +112,26 @@ fn test_ipc_update_deltas() {
         assert_eq!(err["status"].as_u64().unwrap(), 0);
     }
     assert_eq!(updated, 0);
+}
+
+#[test]
+fn test_ipc_remove_deltas() {
+    let port = "5577";
+    run_core(port);
+
+    let (deployed_res_a, address_a) = full_simple_deployment(port);
+    let (deployed_res_b, address_b) = full_simple_deployment(port);
+    let (compute_res_a, _) = contract_compute(port, address_a, &[Uint(45.into()), Uint(73.into())], "addition(uint,uint)");
+
+    let deployed_delta_num_a = deployed_res_a["result"]["delta"]["key"].as_u64().unwrap();
+    let deployed_delta_num_b = deployed_res_b["result"]["delta"]["key"].as_u64().unwrap();
+    let computed_delta_num_a = compute_res_a["result"]["delta"]["key"].as_u64().unwrap();
+    let mut input: Vec<(String, u64, u64)> = Vec::with_capacity(1);
+    input.push((address_a.to_hex(), deployed_delta_num_a, computed_delta_num_a));
+    input.push((address_b.to_hex(), deployed_delta_num_b, deployed_delta_num_b));
+    let res = remove_deltas(port, &input);
+    let errors = res["result"]["errors"].as_array().unwrap();
+    let status = res["result"]["status"].as_u64().unwrap();
+    assert_eq!(errors.len(), 0);
+    assert_eq!(status, 0);
 }

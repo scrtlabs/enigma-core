@@ -122,9 +122,9 @@ pub fn get_delta_msg(addr: &str, key: u64) -> Value {
     json!({"id": &generate_job_id(), "type": "GetDelta", "input": {"address": addr, "key": key}})
 }
 
-pub fn get_deltas_msg(input: &[(String, u64, u64)]) -> Value {
+pub fn deltas_msg(input: &[(String, u64, u64)], msg_type: &str) -> Value {
     let input: Vec<Value> = input.iter().map(|(addr, from, to)| json!({"address": addr, "from": from, "to": to})).collect();
-    json!({"id": &generate_job_id(), "type": "GetDeltas", "input": input})
+    json!({"id": &generate_job_id(), "type": msg_type, "input": input})
 }
 
 pub fn get_msg_format_update_contract(addr: &str, bytecode: &str) -> Value {
@@ -341,5 +341,10 @@ pub fn get_remove_contract_msg(addr: &str) -> Value {
 
 pub fn remove_contract(port: &'static str, addr: &str) -> Value {
     let msg = get_remove_contract_msg(addr);
+    conn_and_call_ipc(&msg.to_string(), port)
+}
+
+pub fn remove_deltas(port: &'static str, input: &[(String, u64, u64)]) -> Value {
+    let msg = deltas_msg(input, "RemoveDeltas");
     conn_and_call_ipc(&msg.to_string(), port)
 }

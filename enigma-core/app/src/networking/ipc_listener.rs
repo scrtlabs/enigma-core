@@ -330,7 +330,7 @@ pub(self) mod handling {
         }
         db.update_state_status(false);
         let result = IpcResults::DeltasResult { status: overall_status, errors };
-        Ok(IpcResponse::UpdateDeltas {result})
+        Ok(IpcResponse::RemoveDeltas {result})
     }
 
     #[logfn(INFO)]

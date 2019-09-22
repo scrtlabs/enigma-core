@@ -2,7 +2,7 @@ pub mod integration_utils;
 
 use integration_utils::{run_core, full_simple_deployment, deploy_and_compute_few_contracts,
                         conn_and_call_ipc, get_msg_format_with_input, get_get_tips_msg, get_delta_msg,
-                        get_deltas_msg, get_simple_msg_format, decrypt_delta_to_value};
+                        deltas_msg, get_simple_msg_format, decrypt_delta_to_value};
 pub extern crate enigma_core_app as app;
 extern crate serde;
 extern crate rustc_hex as hex;
@@ -111,7 +111,7 @@ fn test_ipc_get_deltas() {
 
     // receives only delta 2 from address 1 and delta 1 from address 0
     let input = vec![(addresses[1].to_hex(), 1, 2), (addresses[0].to_hex(), 0, 1)];
-    let msg = get_deltas_msg(&input);
+    let msg = deltas_msg(&input, "GetDeltas");
     let res: Value = conn_and_call_ipc(&msg.to_string(), port);
     let deltas_accepted = res["result"]["deltas"].as_array().unwrap();
     let first_address = deltas_accepted[0]["address"].as_str().unwrap();
