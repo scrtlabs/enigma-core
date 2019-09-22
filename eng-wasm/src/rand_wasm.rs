@@ -1,13 +1,10 @@
-//pub use pwasm_abi::types::*;
+// pub use pwasm_abi::types::*;
 use super::*;
 
 pub struct Rand;
 
-
 impl Rand {
-    pub fn gen_slice(slice: &mut [u8]) {
-        unsafe { external::rand(slice.as_ptr(), slice.len() as u32)};
-    }
+    pub fn gen_slice(slice: &mut [u8]) { unsafe { external::rand(slice.as_ptr(), slice.len() as u32) }; }
 }
 
 pub trait RandTypes<T> {
