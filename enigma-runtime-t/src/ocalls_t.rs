@@ -15,6 +15,8 @@ extern "C" {
     fn ocall_new_delta(retval: *mut EnclaveReturn, db_ptr: *const RawPointer,
                        enc_delta: *const u8, delta_len: usize,
                        contract_address: &ContractAddress, _delta_index: *const u32) -> sgx_status_t;
+    fn ocall_remove_delta(retval: *mut EnclaveReturn, db_ptr: *const RawPointer,
+                       contract_address: &ContractAddress, _delta_index: *const u32) -> sgx_status_t;
 
     fn ocall_get_state_size(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &ContractAddress, state_len: *mut usize) -> sgx_status_t;
     fn ocall_get_state(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &ContractAddress, state_ptr: *mut u8, state_len: usize) -> sgx_status_t;
@@ -50,6 +52,25 @@ pub fn save_delta(db_ptr: *const RawPointer, enc: &EncryptedPatch) -> Result<(),
     match res_status {
         sgx_status_t::SGX_SUCCESS => Ok(()),
         _ => Err(SystemError(OcallError { command: "ocall_new_delta".to_string(), err: res_status.__description().to_string() })),
+    }
+}
+
+pub fn remove_delta(db_ptr: *const RawPointer, enc: &EncryptedPatch) -> Result<(), EnclaveError> {
+    let mut res = EnclaveReturn::default();
+    let res_status =
+        unsafe { ocall_remove_delta(&mut res, db_ptr, &enc.contract_address, &enc.index as *const u32) };
+
+    match res {
+        EnclaveReturn::Success => (), // 0 is the OK result
+        EnclaveReturn::OcallDBError => {
+            return Err(SystemError(OcallError { command: "ocall_remove_delta".to_string(), err: "unable to remove the delta".to_string() }))
+        }
+        _ => return Err(SystemError(OcallError { command: "ocall_remove_delta".to_string(), err: format!("return result is: {}", &res) })),
+    }
+
+    match res_status {
+        sgx_status_t::SGX_SUCCESS => Ok(()),
+        _ => Err(SystemError(OcallError { command: "ocall_remove_delta".to_string(), err: res_status.__description().to_string() })),
     }
 }
 

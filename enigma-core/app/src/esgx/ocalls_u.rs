@@ -6,6 +6,7 @@ use enigma_types::{ContractAddress, EnclaveReturn, Hash256, RawPointer};
 use lru_cache::LruCache;
 use std::sync::Mutex;
 use std::{ptr, slice};
+use common_u::errors::DBErr;
 
 lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(500)); }
 
@@ -192,6 +193,32 @@ pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &Cont
                     }
                 },
                 Err(_) => EnclaveReturn::OcallDBError,
+            }
+        }
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn ocall_remove_delta(db_ptr: *const RawPointer,
+                                            contract_address: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
+    let delta_index = ptr::read(_delta_index);
+    let key = DeltaKey::new(*contract_address, Stype::Delta(delta_index));
+    let db: &mut DB = match (*db_ptr).get_mut_ref() {
+        Ok(db) => db,
+        Err(e) => {
+            error!("{}", e);
+            return EnclaveReturn::OcallDBError
+        }
+    };
+    match db.delete(&key) {
+        Ok(_) => EnclaveReturn::Success,
+        Err(e) => {
+            match e.downcast::<DBErr>() {
+                Ok(_) =>  EnclaveReturn::Success,
+                Err(_) => {
+                    println!("Failed removing delta: {:?}", &key);
+                    EnclaveReturn::OcallDBError
+                },
             }
         }
     }

@@ -279,9 +279,14 @@ unsafe fn store_delta_and_state(db_ptr: *const RawPointer, delta: &Option<Encryp
         Some(d) => {
             let enc_state = km_t::encrypt_state(state.clone())?;
             enigma_runtime_t::ocalls_t::save_delta(db_ptr, d)?;
-            // todo: in case the delta was stored and the state wasn't, we should revert the delta- create a new ocall
-            enigma_runtime_t::ocalls_t::save_state(db_ptr, &enc_state)?;
-            Ok(())
+            match enigma_runtime_t::ocalls_t::save_state(db_ptr, &enc_state) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    // if the state isn't able to be stored,
+                    // then remove the delta as well and fail the task
+                    enigma_runtime_t::ocalls_t::remove_delta(db_ptr, d)
+                }
+            }
         }
         None => Ok(())
     }
