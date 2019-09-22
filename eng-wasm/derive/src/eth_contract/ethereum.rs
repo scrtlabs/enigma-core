@@ -1,5 +1,4 @@
 use ethabi::param_type::{ParamType, Writer};
-use std::slice::SliceConcatExt;
 use tiny_keccak::Keccak;
 
 pub fn short_signature(name: &str, params: &[ParamType]) -> u32 /*[u8; 4] */ {

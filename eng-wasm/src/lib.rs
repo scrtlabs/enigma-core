@@ -1,5 +1,5 @@
 #![no_std]
-#![feature(slice_concat_ext)]
+#![feature(slice_concat_trait)]
 #![deny(unused_extern_crates)]
 #![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
 

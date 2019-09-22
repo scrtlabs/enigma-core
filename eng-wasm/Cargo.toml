@@ -1,6 +1,6 @@
 [package]
 name = "eng-wasm"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["moria <moria@enigma.co>"]
 license = "AGPL-3.0"
 description = "Enigma library for creating Secret Contracts"

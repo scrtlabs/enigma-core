@@ -58,7 +58,7 @@ pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Ve
 
     'contract: for (addrs, key) in guard.iter() {
         // Get the state and decrypt it.
-        // if no state exist create new one and if failed decrypting push to failed_contracts and move on.
+        // if no state exists create a new one and if failed decrypting, push to failed_contracts and move on.
         let (mut start, mut state ) = match runtime_ocalls_t::get_state(db_ptr, *addrs) {
             Ok(enc_state) => match ContractState::decrypt(enc_state, &key) {
                 Ok(state) => (state.delta_index+1, state),
