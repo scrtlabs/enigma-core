@@ -44,6 +44,7 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::GetContract { input } => handling::get_contract(db, &input),
             IpcRequest::UpdateNewContract { address, bytecode } => handling::update_new_contract(db, address, &bytecode),
             IpcRequest::UpdateNewContractOnDeployment { address, bytecode, delta } => handling::update_new_contract_on_deployment(db, address, &bytecode, delta),
+            IpcRequest::RemoveContract {address } => handling::remove_contract(db, address),
             IpcRequest::UpdateDeltas { deltas } => handling::update_deltas(db, deltas),
             IpcRequest::NewTaskEncryptionKey { user_pubkey } => handling::get_dh_user_key( &user_pubkey, eid),
             IpcRequest::DeploySecretContract { input } => handling::deploy_contract(db, input, eid),
@@ -254,6 +255,17 @@ pub(self) mod handling {
         db.update_state_status(false);
         let result = IpcResults::Status(status);
         Ok(IpcResponse::UpdateNewContractOnDeployment { address, result })
+    }
+
+    #[logfn(INFO)]
+    pub fn remove_contract(db: &mut DB, address: String) -> ResponseResult {
+        let address_arr = ContractAddress::from_hex(&address)?;
+        let bytecode_delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
+        let result = match db.delete(&bytecode_delta_key) {
+            Ok(_) => IpcResults::Status(PASSED),
+            Err(_) => IpcResults::Status(FAILED),
+        };
+        Ok( IpcResponse::RemoveContract { address, result } )
     }
 
     #[logfn(INFO)]
