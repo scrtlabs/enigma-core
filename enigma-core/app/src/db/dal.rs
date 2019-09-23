@@ -284,6 +284,7 @@ mod test {
 
     use crate::db::{tests::create_test_db, dal::CRUDInterface, primitives::{Array32u8, DeltaKey, Stype}};
     use hex::ToHex;
+    use enigma_types::ContractAddress;
 
     #[test]
     fn test_new_db() {
@@ -348,6 +349,29 @@ mod test {
         let v = b"Enigma";
         db.create(&Array32u8(arr), &v[..]).unwrap();
         db.delete(&Array32u8(arr)).unwrap();
+    }
+
+    #[test]
+    fn test_delete_contract_contents() {
+        let (mut db, _dir) = create_test_db();
+
+        let arr = [5u8; 32];
+        let v = b"Enigma";
+        db.create(&Array32u8(arr), &v[..]).unwrap();
+        db.delete_contract(&Array32u8(arr)).unwrap();
+    }
+
+    #[test]
+    fn test_delete_contract_dk() {
+        let (mut db, _dir) = create_test_db();
+        let addr: ContractAddress = [2u8; 32].into();
+        let dk_code = DeltaKey::new(addr, Stype::ByteCode);
+        let dk_delta = DeltaKey::new(addr, Stype::Delta(0));
+        let v_code = b"This is a Contract";
+        let v_delta = b"This is a Delta";
+        db.create(&dk_code, &v_code[..]).unwrap();
+        db.create(&dk_delta, &v_delta[..]).unwrap();
+        db.delete_contract(&dk_code).unwrap();
     }
 
     #[test]
