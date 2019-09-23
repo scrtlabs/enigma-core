@@ -85,6 +85,7 @@ pub(self) mod handling {
     type ResponseResult = Result<IpcResponse, Error>;
 
     static DEPLOYMENT_VALS_LEN: usize = 2;
+    static FAILED_STATE: i32 = -1;
 
     impl Into<IpcResponse> for WasmTaskFailure{
         fn into(self) -> IpcResponse {
@@ -303,7 +304,7 @@ pub(self) mod handling {
             } else {
                 Status::Passed
             };
-            let key = Some(deltakey.key_type.unwrap_delta());
+            let key = Some(deltakey.key_type.unwrap_delta() as i32);
             let address = deltakey.contract_address.to_hex();
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
@@ -320,12 +321,18 @@ pub(self) mod handling {
         let mut overall_status = Status::Passed;
         for addr_deltas in input {
             for key in addr_deltas.from..addr_deltas.to {
-                let db_result = delete_data_from_db(db,&addr_deltas.address.clone(), Stype::Delta(key))?;
-                if let IpcResults::Status(Status::Failed) = db_result {
-                    let failed_delta = IpcStatusResult { address: addr_deltas.address.clone() , key: Some(key), status: Status::Failed };
+                let delta_res = delete_data_from_db(db,&addr_deltas.address.clone(), Stype::Delta(key))?;
+                if let IpcResults::Status(Status::Failed) = delta_res {
+                    let failed_delta = IpcStatusResult { address: addr_deltas.address.clone() , key: Some(key as i32), status: Status::Failed };
                     errors.push(failed_delta);
                     overall_status = Status::Failed;
                 }
+            }
+            let status_res = delete_data_from_db(db,&addr_deltas.address, Stype::State)?;
+            if let IpcResults::Status(Status::Failed) = status_res {
+                let failed_delta = IpcStatusResult { address: addr_deltas.address.clone() , key: Some(FAILED_STATE), status: Status::Failed };
+                errors.push(failed_delta);
+                overall_status = Status::Failed;
             }
         }
         db.update_state_status(false);
