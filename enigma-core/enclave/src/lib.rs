@@ -515,6 +515,7 @@ pub mod tests {
             core_unitests(&mut ctr, &mut failures, ||test_get_deltas_more(db_ptr), "test_get_deltas_more" );
             core_unitests(&mut ctr, &mut failures, ||test_state_internal(db_ptr), "test_state_internal" );
             core_unitests(&mut ctr, &mut failures, || {test_state(db_ptr)}, "test_state" );
+            core_unitests(&mut ctr, &mut failures, || {test_remove_delta(db_ptr)}, "test_remove_delta" );
 
 
             let result = failures.is_empty();
