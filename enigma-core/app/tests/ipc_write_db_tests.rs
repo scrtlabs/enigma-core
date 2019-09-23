@@ -127,8 +127,10 @@ fn test_ipc_remove_deltas() {
     let deployed_delta_num_b = deployed_res_b["result"]["delta"]["key"].as_u64().unwrap();
     let computed_delta_num_a = compute_res_a["result"]["delta"]["key"].as_u64().unwrap();
     let mut input: Vec<(String, u64, u64)> = Vec::with_capacity(1);
-    input.push((address_a.to_hex(), deployed_delta_num_a, computed_delta_num_a));
-    input.push((address_b.to_hex(), deployed_delta_num_b, deployed_delta_num_b));
+    // in order to remove the last element as well we need the `to` field to be one more
+    // than the delta_num of the the actual delta, because it is not included.
+    input.push((address_a.to_hex(), deployed_delta_num_a, computed_delta_num_a + 1));
+    input.push((address_b.to_hex(), deployed_delta_num_b, deployed_delta_num_b + 1));
     let res = remove_deltas(port, &input);
     let errors = res["result"]["errors"].as_array().unwrap();
     let status = res["result"]["status"].as_u64().unwrap();
