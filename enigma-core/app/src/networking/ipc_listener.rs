@@ -260,25 +260,21 @@ pub(self) mod handling {
         Ok(IpcResponse::UpdateNewContractOnDeployment { address, result })
     }
 
-    fn delete_data_from_db(db: &mut DB, addr: &str, key_type: Stype) -> Result<IpcResults, Error> {
-        let addr_arr = ContractAddress::from_hex(addr)?;
-        let dk = DeltaKey::new(addr_arr, key_type);
-        match db.delete(&dk) {
-            Ok(_) => Ok(IpcResults::Status(Status::Passed)),
-            Err(e) => {
-                match e.downcast::<DBErr>() {
-                    Ok(_) =>  Ok(IpcResults::Status(Status::Passed)),
-                    Err(_) => Ok(IpcResults::Status(Status::Failed)),
-                }
-            },
-        }
-    }
-
     #[logfn(INFO)]
     pub fn remove_contract(db: &mut DB, address: String) -> ResponseResult {
-        let result = delete_data_from_db(db, &address, Stype::ByteCode)?;
-        // since we remove an item from the DB
-        db.update_state_status(false);
+        let addr_arr = ContractAddress::from_hex(&address)?;
+        // the key_type is irrelevant
+        let dk = DeltaKey::new(addr_arr, Stype::ByteCode);
+        let result = match db.delete_contract(&dk) {
+            Ok(_) => IpcResults::Status(Status::Passed),
+            Err(e) => {
+                match e.downcast::<DBErr>() {
+                    Ok(_) =>  IpcResults::Status(Status::Passed),
+                    Err(_) => IpcResults::Status(Status::Failed),
+                }
+            },
+        };
+        // no need to update the state_updated flag since the whole contract content does not exist
         Ok( IpcResponse::RemoveContract { address, result } )
     }
 
@@ -313,6 +309,20 @@ pub(self) mod handling {
         db.update_state_status(false);
         let result = IpcResults::DeltasResult { status: overall_status, errors };
         Ok(IpcResponse::UpdateDeltas {result})
+    }
+
+    fn delete_data_from_db(db: &mut DB, addr: &str, key_type: Stype) -> Result<IpcResults, Error> {
+        let addr_arr = ContractAddress::from_hex(addr)?;
+        let dk = DeltaKey::new(addr_arr, key_type);
+        match db.delete(&dk) {
+            Ok(_) => Ok(IpcResults::Status(Status::Passed)),
+            Err(e) => {
+                match e.downcast::<DBErr>() {
+                    Ok(_) =>  Ok(IpcResults::Status(Status::Passed)),
+                    Err(_) => Ok(IpcResults::Status(Status::Failed)),
+                }
+            },
+        }
     }
 
     #[logfn(INFO)]
