@@ -4,7 +4,7 @@ The Principal node is part of the Enigma node software stack.
 The Principal component  is responsible for emitting random numbers from within an enclave into the Enigma contract. 
 Currently it is a centralized to maintain simplicity while testing and developing Core.
 
-<img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=principal-node-isan" />
+<img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=develop" />
 
 ## JSON RPC Server
 This module implements a [JSON-RPC 2.0](https://www.jsonrpc.org/specification_)-compliant server
@@ -16,13 +16,13 @@ This module implements the following methods:
 Requests the private secret contract state keys. Only the worker node assigned to a given contract for the current epoch
 is authorized to make this request. The Principal node's enclave keeps a sealed list of active worker for 
 each epoch by formally verifying the `WorkerParameterized` event in 
-[Enigma.sol](https://github.com/enigmampc/enigma-contract-internal/blob/master/contracts/Enigma.sol).
+[Enigma.sol](https://github.com/enigmampc/enigma-contract/blob/master/contracts/Enigma.sol).
 The response contains an encrypted list of state keys.
 The encryption method relies on a DH key exchange between the Principal node and the authorized worker node.
 
 **Parameters**
 
-- `data` (String) - The HEX string of a serialized KM [Message](https://github.com/enigmampc/enigma-core-internal/blob/develop/enigma-tools-t/src/km_primitives.rs) struct. The Request data contains a list of secret contract addresses (`Vec<ContractAddress>`).
+- `data` (String) - The HEX string of a serialized KM [Message](https://github.com/enigmampc/enigma-core/blob/develop/enigma-tools-t/src/km_primitives.rs) struct. The Request data contains a list of secret contract addresses (`Vec<ContractAddress>`).
 - `sig` (String) - The signature of the keccak256 hash of the serialized KM Message (`msg.to_message()`). This allows the Principal node to recover the worker's signer address. 
 
 **Returns**

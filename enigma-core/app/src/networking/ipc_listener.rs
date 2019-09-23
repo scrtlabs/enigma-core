@@ -44,7 +44,9 @@ pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_encl
             IpcRequest::GetContract { input } => handling::get_contract(db, &input),
             IpcRequest::UpdateNewContract { address, bytecode } => handling::update_new_contract(db, address, &bytecode),
             IpcRequest::UpdateNewContractOnDeployment { address, bytecode, delta } => handling::update_new_contract_on_deployment(db, address, &bytecode, delta),
+            IpcRequest::RemoveContract {address } => handling::remove_contract(db, address),
             IpcRequest::UpdateDeltas { deltas } => handling::update_deltas(db, deltas),
+            IpcRequest::RemoveDeltas { input } => handling::remove_deltas(db, input),
             IpcRequest::NewTaskEncryptionKey { user_pubkey } => handling::get_dh_user_key( &user_pubkey, eid),
             IpcRequest::DeploySecretContract { input } => handling::deploy_contract(db, input, eid),
             IpcRequest::ComputeTask { input } => handling::compute_task(db, input, eid),
@@ -78,10 +80,12 @@ pub(self) mod handling {
     use serde_json::Value;
     use sgx_types::sgx_enclave_id_t;
     use std::str;
+    use common_u::errors::DBErr;
 
     type ResponseResult = Result<IpcResponse, Error>;
 
     static DEPLOYMENT_VALS_LEN: usize = 2;
+    static FAILED_STATE: i32 = -1;
 
     impl Into<IpcResponse> for WasmTaskFailure{
         fn into(self) -> IpcResponse {
@@ -195,7 +199,7 @@ pub(self) mod handling {
     }
 
     #[logfn(INFO)]
-    pub fn get_deltas(db: &DB, input: &[IpcGetDeltas]) -> ResponseResult {
+    pub fn get_deltas(db: &DB, input: &[IpcDeltasRange]) -> ResponseResult {
         let mut results = Vec::with_capacity(input.len());
         for data in input {
             let address = ContractAddress::from_hex(&data.address)?;
@@ -229,7 +233,7 @@ pub(self) mod handling {
         let bytecode = bytecode.from_hex()?;
         let delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
         db.force_update(&delta_key, &bytecode)?;
-        Ok(IpcResponse::UpdateNewContract { address, result: IpcResults::Status(0) })
+        Ok(IpcResponse::UpdateNewContract { address, result: IpcResults::Status(Status::Passed) })
     }
 
     #[logfn(INFO)]
@@ -246,12 +250,32 @@ pub(self) mod handling {
         tuples.push((delta_key, data));
 
         let results = db.insert_tuples(&tuples);
-        let mut status: i8 = PASSED;
+        let mut status = Status::Passed;
         if results.into_iter().any(| result | result.is_err()) {
-            status = FAILED;
+            status = Status::Failed;
         }
+        // since a new delta and bytecode were added, the state is no longer updated
+        db.update_state_status(false);
         let result = IpcResults::Status(status);
         Ok(IpcResponse::UpdateNewContractOnDeployment { address, result })
+    }
+
+    #[logfn(INFO)]
+    pub fn remove_contract(db: &mut DB, address: String) -> ResponseResult {
+        let addr_arr = ContractAddress::from_hex(&address)?;
+        // the key_type is irrelevant
+        let dk = DeltaKey::new(addr_arr, Stype::ByteCode);
+        let result = match db.delete_contract(&dk) {
+            Ok(_) => IpcResults::Status(Status::Passed),
+            Err(e) => {
+                match e.downcast::<DBErr>() {
+                    Ok(_) =>  IpcResults::Status(Status::Passed),
+                    Err(_) => IpcResults::Status(Status::Failed),
+                }
+            },
+        };
+        // no need to update the state_updated flag since the whole contract content does not exist
+        Ok( IpcResponse::RemoveContract { address, result } )
     }
 
     #[logfn(INFO)]
@@ -268,21 +292,62 @@ pub(self) mod handling {
         }
         let results = db.insert_tuples(&tuples);
         let mut errors = Vec::with_capacity(tuples.len());
-        let mut overall_status = PASSED;
+        let mut overall_status = Status::Passed;
         for ((deltakey, _), res) in tuples.into_iter().zip(results.into_iter()) {
             let status = if res.is_err() {
-                overall_status = FAILED;
-                FAILED
+                overall_status = Status::Failed;
+                Status::Failed
             } else {
-                PASSED
+                Status::Passed
             };
-            let key = Some(deltakey.key_type.unwrap_delta());
+            let key = Some(deltakey.key_type.unwrap_delta() as i32);
             let address = deltakey.contract_address.to_hex();
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
         }
-        let result = IpcResults::UpdateDeltasResult { status: overall_status, errors };
+        // since a new delta was added the state is no longer updated
+        db.update_state_status(false);
+        let result = IpcResults::DeltasResult { status: overall_status, errors };
         Ok(IpcResponse::UpdateDeltas {result})
+    }
+
+    fn delete_data_from_db(db: &mut DB, addr: &str, key_type: Stype) -> Result<IpcResults, Error> {
+        let addr_arr = ContractAddress::from_hex(addr)?;
+        let dk = DeltaKey::new(addr_arr, key_type);
+        match db.delete(&dk) {
+            Ok(_) => Ok(IpcResults::Status(Status::Passed)),
+            Err(e) => {
+                match e.downcast::<DBErr>() {
+                    Ok(_) =>  Ok(IpcResults::Status(Status::Passed)),
+                    Err(_) => Ok(IpcResults::Status(Status::Failed)),
+                }
+            },
+        }
+    }
+
+    #[logfn(INFO)]
+    pub fn remove_deltas(db: &mut DB, input: Vec<IpcDeltasRange>) -> ResponseResult {
+        let mut errors = Vec::new();
+        let mut overall_status = Status::Passed;
+        for addr_deltas in input {
+            for key in addr_deltas.from..addr_deltas.to {
+                let delta_res = delete_data_from_db(db,&addr_deltas.address.clone(), Stype::Delta(key))?;
+                if let IpcResults::Status(Status::Failed) = delta_res {
+                    let failed_delta = IpcStatusResult { address: addr_deltas.address.clone() , key: Some(key as i32), status: Status::Failed };
+                    errors.push(failed_delta);
+                    overall_status = Status::Failed;
+                }
+            }
+            let status_res = delete_data_from_db(db,&addr_deltas.address, Stype::State)?;
+            if let IpcResults::Status(Status::Failed) = status_res {
+                let failed_delta = IpcStatusResult { address: addr_deltas.address.clone() , key: Some(FAILED_STATE), status: Status::Failed };
+                errors.push(failed_delta);
+                overall_status = Status::Failed;
+            }
+        }
+        db.update_state_status(false);
+        let result = IpcResults::DeltasResult { status: overall_status, errors };
+        Ok(IpcResponse::RemoveDeltas {result})
     }
 
     #[logfn(INFO)]
@@ -314,9 +379,10 @@ pub(self) mod handling {
         let msg = response.response.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
         let res = km_u::ptt_build_state(db, eid)?;
+        db.update_state_status(true);
         let result: Vec<_> = res
             .into_iter()
-            .map(|a| IpcStatusResult{ address: a.to_hex(), status: FAILED, key: None })
+            .map(|a| IpcStatusResult{ address: a.to_hex(), status: Status::Failed, key: None })
             .collect();
 
         let result = IpcResults::Errors(result);
@@ -366,6 +432,10 @@ pub(self) mod handling {
         let mut user_pubkey = [0u8; 64];
         user_pubkey.clone_from_slice(&input.user_dhkey.from_hex()?);
 
+        if !db.get_state_status() {
+            let res = km_u::ptt_build_state(db, eid)?;
+            db.update_state_status(true);
+        }
         let bytecode = db.get_contract(address)?;
 
 

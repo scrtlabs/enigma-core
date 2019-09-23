@@ -266,19 +266,30 @@ fn decrypt_inputs(callable: &[u8], args: &[u8], inputs_key: &DhKey) -> Result<(V
     Ok((decrypted_args, function_name))
 }
 
-fn save_enc_delta(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>) -> Result<Hash256, EnclaveError> {
+fn get_enc_delta(delta: &Option<EncryptedPatch>) -> Hash256 {
     if let Some(delta) = delta {
-        enigma_runtime_t::ocalls_t::save_delta(db_ptr, delta)?;
-        Ok(delta.keccak256_patch())
+        delta.keccak256_patch()
     } else {
-        Ok(Hash256::default())
+        Hash256::default()
     }
 }
 
-fn encrypt_and_save_state(db_ptr: *const RawPointer, state: &ContractState) -> Result<(), EnclaveError>{
-    let enc_state = km_t::encrypt_state(state.clone())?;
-    enigma_runtime_t::ocalls_t::save_state(db_ptr, &enc_state)?;
-    Ok(())
+unsafe fn store_delta_and_state(db_ptr: *const RawPointer, delta: &Option<EncryptedPatch>, state: &ContractState) -> Result<(), EnclaveError> {
+    match delta {
+        Some(d) => {
+            let enc_state = km_t::encrypt_state(state.clone())?;
+            enigma_runtime_t::ocalls_t::save_delta(db_ptr, d)?;
+            match enigma_runtime_t::ocalls_t::save_state(db_ptr, &enc_state) {
+                Ok(_) => Ok(()),
+                Err(e) => {
+                    // if the state isn't able to be stored,
+                    // then remove the delta as well and fail the task
+                    enigma_runtime_t::ocalls_t::remove_delta(db_ptr, d)
+                }
+            }
+        }
+        None => Ok(())
+    }
 }
 
 fn create_eth_data_to_sign(input: Option<EthereumData>) -> (Vec<u8>, [u8;20]){
@@ -337,12 +348,10 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
     let mut engine = WasmEngine::new_compute(&bytecode, gas_limit, decrypted_args.clone(), pre_execution_state.clone(), function_name, state_key)?;
     engine.compute()?;
     let exec_res = engine.into_result()?;
-    let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
-    if exec_res.state_delta.is_some() {
-        encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
-    }
+
+    let delta_hash = get_enc_delta(&exec_res.state_delta);
     let encrypted_output = symmetric::encrypt(&exec_res.result, io_key)?;
-    prepare_wasm_result(exec_res.state_delta,
+    prepare_wasm_result(&exec_res.state_delta,
                         &encrypted_output,
                         exec_res.ethereum_bridge.clone(),
                         exec_res.used_gas,
@@ -363,6 +372,7 @@ unsafe fn ecall_execute_internal(pre_execution_data: &mut Vec<Box<[u8]>>, byteco
         &ethereum_address[..],
         &[ResultStatus::Ok as u8]];
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
+    store_delta_and_state(db_ptr, &exec_res.state_delta, &exec_res.updated_state)?;
     Ok(())
 }
 
@@ -389,10 +399,9 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
 
     let exe_code = &exec_res.result[..];
 
-    let delta_hash = save_enc_delta(db_ptr, &exec_res.state_delta)?;
-    encrypt_and_save_state(db_ptr, &exec_res.updated_state)?;
+    let delta_hash = get_enc_delta(&exec_res.state_delta);
 
-    prepare_wasm_result(exec_res.state_delta,
+    prepare_wasm_result(&exec_res.state_delta,
                         exe_code,
                         exec_res.ethereum_bridge.clone(),
                         exec_res.used_gas,
@@ -414,10 +423,11 @@ unsafe fn ecall_deploy_internal(pre_execution_data: &mut Vec<Box<[u8]>>, bytecod
         &[ResultStatus::Ok as u8]
     ];
     result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
+    store_delta_and_state(db_ptr, &exec_res.state_delta, &exec_res.updated_state)?;
     Ok(())
 }
 
-unsafe fn prepare_wasm_result(delta_option: Option<EncryptedPatch>, execute_result: &[u8],
+unsafe fn prepare_wasm_result(delta_option: &Option<EncryptedPatch>, execute_result: &[u8],
                               ethereum_bridge: Option<EthereumData>, used_gas: u64,
                               result: &mut ExecuteResult ) -> Result<(), EnclaveError>
 {
@@ -505,6 +515,7 @@ pub mod tests {
             core_unitests(&mut ctr, &mut failures, ||test_get_deltas_more(db_ptr), "test_get_deltas_more" );
             core_unitests(&mut ctr, &mut failures, ||test_state_internal(db_ptr), "test_state_internal" );
             core_unitests(&mut ctr, &mut failures, || {test_state(db_ptr)}, "test_state" );
+            core_unitests(&mut ctr, &mut failures, || {test_remove_delta(db_ptr)}, "test_remove_delta" );
 
 
             let result = failures.is_empty();

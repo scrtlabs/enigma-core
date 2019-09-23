@@ -1,7 +1,7 @@
 #![deny(unused_extern_crates)]
 #![feature(box_patterns)]
 #![recursion_limit="128"]
-#![feature(slice_concat_ext)]
+#![feature(slice_concat_trait)]
 #![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
 
 

@@ -6,7 +6,7 @@ use std::time;
 
 // general
 use failure::Error;
-use hex::FromHex;
+use hex::{ToHex, FromHex};
 use serde_json;
 use serde_json::Value;
 use web3;
@@ -109,7 +109,7 @@ pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_para
         .confirmations(tx_params.confirmations)
         .poll_interval(time::Duration::from_secs(tx_params.poll_interval));
 
-    match builder.options(options).execute(bytecode, ctor_params, deployer_addr) {
+    match builder.options(options).execute(bytecode.to_hex(), ctor_params, deployer_addr) {
         Ok(builder) => {
             let contract = builder.wait().unwrap();
             println!("deployed contract at address = {}", contract.address());
@@ -216,7 +216,7 @@ mod test {
 
     // helper to quickly mock params for deployment of a contract to generate DeployParams
     fn get_deploy_params(account: Address, ctype: &str) -> w3utils::DeployParams {
-        let deployer = account.to_hex();
+        let deployer = account.to_fixed_bytes().to_hex();
         let gas_limit: u64 = 5999999;
         let poll_interval: u64 = 1;
         let confirmations: usize = 0;

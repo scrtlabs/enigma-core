@@ -73,5 +73,8 @@ enclave {
 
         EnclaveReturn ocall_get_state([in] const RawPointer* db_ptr, [in] const ContractAddress* addr,
                                       [out, count=state_len] uint8_t* state_pt, size_t state_len);
+
+        EnclaveReturn ocall_remove_delta([in] const RawPointer* db_ptr,
+                                              [in] const ContractAddress* contract_address, [in] uint32_t* delta_index);
     };
 };

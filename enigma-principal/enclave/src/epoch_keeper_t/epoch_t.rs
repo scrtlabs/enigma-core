@@ -1,6 +1,6 @@
 use enigma_tools_m::keeper_types::{InputWorkerParams, RawEncodable};
 use ethabi::Bytes;
-use ethereum_types::{H160, H256, U256};
+use ethereum_types::{H160, H256, U256, BigEndianHash};
 use std::string::ToString;
 use std::vec::Vec;
 
