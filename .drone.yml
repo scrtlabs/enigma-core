@@ -91,7 +91,7 @@ steps:
         docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:$TAG --no-cache . &&
         docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:$TAG --no-cache . &&
         cd ..
-      - NODES=3 docker-compose -f docker-compose.yml -f docker-compose.hw.yml -f docker-compose.test.yml --scale core=$NODES --scale p2p=$NODES up --exit-code-from client
+      - export NODES=3 && docker-compose -f docker-compose.yml -f docker-compose.hw.yml -f docker-compose.test.yml up --scale core=$NODES --scale p2p=$NODES --exit-code-from client
     privileged: true
     volumes:
       - name: sock
