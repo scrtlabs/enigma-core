@@ -50,7 +50,7 @@ pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
     match db.force_update(&key, encrypted_delta) {
         Ok(_) => EnclaveReturn::Success,
         Err(e) => {
-            println!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
+            error!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
             EnclaveReturn::OcallDBError
         }
     }
@@ -215,8 +215,8 @@ pub unsafe extern "C" fn ocall_remove_delta(db_ptr: *const RawPointer,
         Err(e) => {
             match e.downcast::<DBErr>() {
                 Ok(_) =>  EnclaveReturn::Success,
-                Err(_) => {
-                    println!("Failed removing delta: {:?}", &key);
+                Err(e) => {
+                    error!("Failed removing delta: {:?} since {:?}", &key, e);
                     EnclaveReturn::OcallDBError
                 },
             }
