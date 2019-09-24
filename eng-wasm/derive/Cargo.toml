@@ -1,6 +1,6 @@
 [package]
 name = "eng-wasm-derive"
-version = "0.1.6" # upgrade version in eng-wasm dependancy as well (if needed)
+version = "0.1.7"
 authors = ["moria <moria@enigma.co>", "Reuven Podmazo <reuven@enigma.co>"]
 edition = "2018"
 license = "AGPL-3.0"
@@ -23,7 +23,7 @@ tiny-keccak = "1.4"
 
 [dev-dependencies]
 syn = { version = "1.0", features = ["full", "extra-traits"] }
-eng-wasm = { path = '..' }
+eng-wasm = { path = '..', version = "0.1" }
 
 [[example]]
 name = 'struct-impl'
