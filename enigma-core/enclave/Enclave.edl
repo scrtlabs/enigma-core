@@ -56,7 +56,7 @@ enclave {
 
         EnclaveReturn ocall_new_delta([in] const RawPointer* db_ptr,
                                       [in, size=len] const uint8_t* enc_delta, size_t len,
-                                      [in] const ContractAddress* contract_address, [in] uint32_t* delta_index);
+                                      [in] const ContractAddress* contract_address, [in] uint32_t* delta_index_);
 
         uint64_t ocall_save_to_memory( [in, count=data_len] const uint8_t* data_ptr, size_t data_len);
 
@@ -75,6 +75,6 @@ enclave {
                                       [out, count=state_len] uint8_t* state_pt, size_t state_len);
 
         EnclaveReturn ocall_remove_delta([in] const RawPointer* db_ptr,
-                                              [in] const ContractAddress* contract_address, [in] uint32_t* delta_index);
+                                              [in] const ContractAddress* contract_address, [in] uint32_t* delta_index_);
     };
 };

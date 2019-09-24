@@ -14,9 +14,9 @@ extern "C" {
                         res_ptr: *mut u8, res_len: usize) -> sgx_status_t;
     fn ocall_new_delta(retval: *mut EnclaveReturn, db_ptr: *const RawPointer,
                        enc_delta: *const u8, delta_len: usize,
-                       contract_address: &ContractAddress, _delta_index: *const u32) -> sgx_status_t;
+                       contract_address: &ContractAddress, delta_index_: *const u32) -> sgx_status_t;
     fn ocall_remove_delta(retval: *mut EnclaveReturn, db_ptr: *const RawPointer,
-                       contract_address: &ContractAddress, _delta_index: *const u32) -> sgx_status_t;
+                       contract_address: &ContractAddress, delta_index_: *const u32) -> sgx_status_t;
 
     fn ocall_get_state_size(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &ContractAddress, state_len: *mut usize) -> sgx_status_t;
     fn ocall_get_state(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &ContractAddress, state_ptr: *mut u8, state_len: usize) -> sgx_status_t;

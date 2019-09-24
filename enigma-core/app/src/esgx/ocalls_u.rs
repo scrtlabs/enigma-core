@@ -36,8 +36,8 @@ pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &Cont
 #[no_mangle]
 pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
                                          enc_delta: *const u8, delta_len: usize,
-                                         contract_address: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
-    let delta_index = ptr::read(_delta_index);
+                                         contract_address: &ContractAddress, delta_index_: *const u32) -> EnclaveReturn {
+    let delta_index = ptr::read(delta_index_);
     let encrypted_delta = slice::from_raw_parts(enc_delta, delta_len);
     let key = DeltaKey::new(*contract_address, Stype::Delta(delta_index));
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
@@ -200,8 +200,8 @@ pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &Cont
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_remove_delta(db_ptr: *const RawPointer,
-                                            contract_address: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
-    let delta_index = ptr::read(_delta_index);
+                                            contract_address: &ContractAddress, delta_index_: *const u32) -> EnclaveReturn {
+    let delta_index = ptr::read(delta_index_);
     let key = DeltaKey::new(*contract_address, Stype::Delta(delta_index));
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
         Ok(db) => db,
