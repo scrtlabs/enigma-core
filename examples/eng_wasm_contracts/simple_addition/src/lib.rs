@@ -20,7 +20,7 @@ use eng_wasm_derive::pub_interface;
 // For contract-exposed functions, declare such functions under the following public trait:
 #[pub_interface]
 pub trait ContractInterface{
-    fn addition(U256, U256) -> U256 ;
+    fn addition(x: U256, y: U256) -> U256 ;
 }
 
 // The implementation of the exported ESC functions should be defined in the trait implementation 
