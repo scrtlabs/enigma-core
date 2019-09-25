@@ -1,4 +1,4 @@
-FROM enigmampc/enigma-core-base
+FROM enigmampc/enigma-core-base:latest
 
 LABEL maintainer=enigmampc
 
@@ -20,7 +20,9 @@ ARG SGX_MODE
 
 ENV SGX_MODE=${SGX_MODE:-SW}
 
-RUN make DEBUG=1
+RUN . /opt/sgxsdk/environment && env && make full-clean
+
+RUN . /opt/sgxsdk/environment && env && SGX_MODE=${SGX_MODE} RUSTFLAGS=-Awarnings RUST_BACKTRACE=1 make DEBUG=1
 
 ADD *.sh ./
 
