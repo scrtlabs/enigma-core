@@ -9,7 +9,12 @@ until [ -f /root/.enigma/principal-sign-addr.txt ]; do
     sleep 10;
 done;
 
+echo Found signing address $(cat /root/.enigma/principal-sign-addr.txt) 
+
 # TODO CONFIG CONTRACT
 
+cd /root/.enigma
+rm -rf debug.log enigmacontract.txt enigmatokencontract.txt epoch state-keys
+
 cd /root/enigma-principal/bin
-RUST_BACKTRACE=1 ./enigma-principal-app
+. /opt/sgxsdk/environment && RUST_BACKTRACE=1 ./enigma-principal-app
