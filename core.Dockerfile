@@ -24,10 +24,10 @@ RUN . /opt/sgxsdk/environment && env && make full-clean
 
 RUN . /opt/sgxsdk/environment && env && SGX_MODE=${SGX_MODE} RUSTFLAGS=-Awarnings RUST_BACKTRACE=1 make DEBUG=1
 
-ADD *.sh ./
-
 RUN mkdir -p $HOME/.enigma 
 
 WORKDIR /root
+
+ADD ./execute_core.sh ./
 
 CMD ["./execute_core.sh"]
