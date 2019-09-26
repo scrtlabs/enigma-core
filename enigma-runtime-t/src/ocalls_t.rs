@@ -190,7 +190,7 @@ pub mod tests {
         let (start, end) = (0, 1);
         let deltas = save_deltas(db_ptr, start, end, &contract_address);
         let res = remove_delta(db_ptr, deltas.last().unwrap());
-        assert_eq!(res.unwrap(), ());
+        assert!(res.is_ok());
     }
 
     fn save_deltas(db_ptr: *const RawPointer, start: u32, end: u32, contract_address: &ContractAddress) -> Vec<EncryptedPatch> {

@@ -6,7 +6,7 @@ use enigma_types::{ContractAddress, EnclaveReturn, Hash256, RawPointer};
 use lru_cache::LruCache;
 use std::sync::Mutex;
 use std::{ptr, slice};
-use common_u::errors::DBErr;
+use common_u::errors::{DBErr, self};
 
 lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(500)); }
 
@@ -213,7 +213,7 @@ pub unsafe extern "C" fn ocall_remove_delta(db_ptr: *const RawPointer,
     match db.delete(&key) {
         Ok(_) => EnclaveReturn::Success,
         Err(e) => {
-            match e.downcast::<DBErr>() {
+            match errors::is_db_err_type(e) {
                 Ok(_) =>  EnclaveReturn::Success,
                 Err(e) => {
                     error!("Failed removing delta: {:?} since {:?}", &key, e);
