@@ -30,4 +30,6 @@ WORKDIR /root
 
 ADD ./execute_core.sh ./
 
+EXPOSE 5552
+
 CMD ["./execute_core.sh"]
