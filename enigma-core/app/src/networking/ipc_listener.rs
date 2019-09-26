@@ -300,7 +300,7 @@ pub(self) mod handling {
             } else {
                 Status::Passed
             };
-            let key = Some(deltakey.key_type.unwrap_delta() as i32);
+            let key = Some(deltakey.key_type.unwrap_delta() as i64);
             let address = deltakey.contract_address.to_hex();
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
