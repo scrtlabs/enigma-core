@@ -453,7 +453,7 @@ unsafe fn ecall_execute_internal(
         &ethereum_address,
         &[ResultStatus::Ok as u8],
     ];
-    result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
+    result.signature = SIGNING_KEY.sign_multiple(to_sign)?;
     store_delta_and_state(db_ptr, &exec_res.state_delta, &exec_res.updated_state)?;
     Ok(())
 }
@@ -504,7 +504,7 @@ unsafe fn ecall_deploy_internal(
         &ethereum_address,
         &[ResultStatus::Ok as u8],
     ];
-    result.signature = SIGNING_KEY.sign_multiple(&to_sign)?;
+    result.signature = SIGNING_KEY.sign_multiple(to_sign)?;
     store_delta_and_state(db_ptr, &exec_res.state_delta, &exec_res.updated_state)?;
     Ok(())
 }
