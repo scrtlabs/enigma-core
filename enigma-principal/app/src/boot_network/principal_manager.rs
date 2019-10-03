@@ -39,6 +39,7 @@ pub struct PrincipalConfig {
     pub max_epochs: Option<usize>,
     pub spid: String,
     pub attestation_service_url: String,
+    pub attestation_retries: u32,
     pub http_port: u16,
     pub confirmations: u64,
 }
@@ -65,7 +66,7 @@ pub struct PrincipalManager {
 
 impl ReportManager {
     pub fn new(config: PrincipalConfig, eid: sgx_enclave_id_t) -> Result<Self, Error> {
-        let as_service = service::AttestationService::new(&config.attestation_service_url);
+        let as_service = service::AttestationService::new_with_retries(&config.attestation_service_url, config.attestation_retries);
         Ok(ReportManager { config, as_service, eid })
     }
 
@@ -408,6 +409,7 @@ mod test {
         env::set_var("MAX_EPOCHS","10");
         env::set_var("SPID", "B0335FD3BC1CCA8F804EB98A6420592D");
         env::set_var("ATTESTATION_SERVICE_URL", "https://sgx.enigma.co/api");
+        env::set_var("ATTESTATION_RETRIES", "11");
         env::set_var("HTTP_PORT","3040");
         env::set_var("CONFIRMATIONS","0");
         let config = PrincipalConfig::load_config("this is not a path").unwrap();

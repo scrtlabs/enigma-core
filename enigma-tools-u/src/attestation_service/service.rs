@@ -17,6 +17,8 @@ use std::io::Read;
 use std::mem;
 use std::string::ToString;
 
+const ATTESTATION_SERVICE_DEFAULT_RETRIES: u32 = 10;
+
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ASReport {
     pub id: String,
@@ -101,10 +103,18 @@ pub struct QReportBody {
 
 pub struct AttestationService {
     connection_str: String,
+    /// amount of attempts per network call
+    retries: u32,
 }
 
 impl AttestationService {
-    pub fn new(conn_str: &str) -> AttestationService { AttestationService { connection_str: conn_str.to_string() } }
+    pub fn new(conn_str: &str) -> AttestationService {
+        AttestationService { connection_str: conn_str.to_string(), retries: ATTESTATION_SERVICE_DEFAULT_RETRIES }
+    }
+
+    pub fn new_with_retries(conn_str: &str, retries: u32) -> AttestationService {
+        AttestationService { connection_str: conn_str.to_string(), retries }
+    }
 
     #[logfn(INFO)]
     pub fn get_report(&self, quote: String) -> Result<ASResponse, Error> {
@@ -130,23 +140,22 @@ impl AttestationService {
     // request the report object
     pub fn send_request(&self, quote_req: &QuoteRequest) -> Result<ASResponse, Error> {
         let client = reqwest::Client::new();
-        let mut res = client.post(self.connection_str.as_str()).json(&quote_req).send()?;
-        let response_str = res.text()?;
-        let json_response: Value = serde_json::from_str(response_str.as_str())?;
+        let mut final_status = String::from("No calls to Service");
+        for _ in 0..self.retries {
+            let mut res = client.post(self.connection_str.as_str()).json(&quote_req).send()?;
+            let response_str = res.text()?;
+            let json_response: Value = serde_json::from_str(response_str.as_str())?;
 
-        if res.status().is_success() {
-            // parse the Json object into an ASResponse struct
-            let response: ASResponse = self.unwrap_response(&json_response);
-            Ok(response)
-        } else if res.status().is_server_error() {
-            let mut message = String::from("[-] AttestationService: Server Error happened. Status code: ");
-            message.push_str(res.status().to_string().as_str());
-            Err(errors::AttestationServiceErr { message }.into())
-        } else {
-            let mut message = String::from("[-] AttestationService: Unkown Error happened. Status code: ");
-            message.push_str(res.status().to_string().as_str());
-            Err(errors::AttestationServiceErr { message }.into())
+            if res.status().is_success() {
+                // parse the Json object into an ASResponse struct
+                let response: ASResponse = self.unwrap_response(&json_response);
+                return Ok(response)
+            }
+            final_status = res.status().to_string();
         }
+        let message = format!("[-] AttestationService: An Error occurred. \
+                                        \nStatus code: {:?}\nNum of retries: {:?}", final_status, self.retries);
+        Err(errors::AttestationServiceErr { message }.into())
     }
 
     // encode to rlp the report -> registration for the enigma contract

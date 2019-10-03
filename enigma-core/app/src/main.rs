@@ -32,7 +32,7 @@ fn main() {
     let server = IpcListener::new(&format!("tcp://*:{}", opt.port));
 
     server
-        .run(move |multi| ipc_listener::handle_message(&mut db, multi, &opt.spid, eid))
+        .run(move |multi| ipc_listener::handle_message(&mut db, multi, &opt.spid, eid, opt.retries))
         .wait()
         .unwrap();
 }

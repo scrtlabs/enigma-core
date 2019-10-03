@@ -28,13 +28,13 @@ impl IpcListener {
     }
 }
 
-pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_enclave_id_t) -> Multipart {
+pub fn handle_message(db: &mut DB, request: Multipart, spid: &str, eid: sgx_enclave_id_t, retries: u32) -> Multipart {
     let mut responses = Multipart::new();
     for msg in request {
         let msg: IpcMessageRequest = msg.into();
         let id = msg.id.clone();
         let response_msg = match msg.request {
-            IpcRequest::GetRegistrationParams => handling::get_registration_params(eid, spid),
+            IpcRequest::GetRegistrationParams => handling::get_registration_params(eid, spid, retries),
             IpcRequest::GetTip { input } => handling::get_tip(db, &input),
             IpcRequest::GetTips { input } => handling::get_tips(db, &input),
             IpcRequest::GetAllTips => handling::get_all_tips(db),
@@ -122,7 +122,7 @@ pub(self) mod handling {
     }
 
     #[logfn(INFO)]
-    pub fn get_registration_params(eid: sgx_enclave_id_t, spid: &str) -> ResponseResult {
+    pub fn get_registration_params(eid: sgx_enclave_id_t, spid: &str, retries: u32) -> ResponseResult {
         let sigining_key = equote::get_register_signing_address(eid)?;
 
         let enc_quote = equote_tools::retry_quote(eid, spid, 18)?;
@@ -134,7 +134,7 @@ pub(self) mod handling {
             let sig = String::new();
             (sig, report)
         } else { // Hardware Mode
-            let service: AttestationService = AttestationService::new(ATTESTATION_SERVICE_URL);
+            let service: AttestationService = AttestationService::new_with_retries(ATTESTATION_SERVICE_URL, retries);
             let response = service.get_report(enc_quote)?;
             let report = response.result.report_string.as_bytes().to_hex();
             let sig = response.result.signature;
@@ -404,6 +404,7 @@ mod test {
     use enigma_types::ContractAddress;
 
     pub const SPID: &str = "B0335FD3BC1CCA8F804EB98A6420592D";
+    pub const RETRIES: u32 = 10;
     #[ignore]
     #[test]
     fn test_the_listener() {
@@ -449,7 +450,7 @@ mod test {
 
         let conn = "tcp://*:2456";
         let server = IpcListener::new(conn);
-        server.run(|multi| handle_message(&mut db, multi,  SPID, enclave.geteid())).wait().unwrap();
+        server.run(|multi| handle_message(&mut db, multi,  SPID, enclave.geteid(), RETRIES)).wait().unwrap();
     }
 
 }
