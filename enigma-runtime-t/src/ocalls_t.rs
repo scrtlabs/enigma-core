@@ -188,7 +188,7 @@ pub mod tests {
     pub fn test_remove_delta(db_ptr: *const RawPointer) {
         let contract_address = b"test_delta_removal".sha256();
         let (start, end) = (0, 1);
-        let deltas = save_deltas(db_ptr, start, end, &contract_address);
+        let deltas = unsafe { save_deltas(db_ptr, start, end, &contract_address) };
         let res = remove_delta(db_ptr, deltas.last().unwrap());
         assert!(res.is_ok());
     }
