@@ -22,6 +22,7 @@ extern crate rustc_hex as hex;
 extern crate lru_cache;
 #[macro_use]
 extern crate serde;
+extern crate serde_repr;
 #[macro_use]
 pub extern crate log;
 #[macro_use]
