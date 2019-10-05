@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use sgx_types::*;
 use std::fmt;
+use failure::Error;
 
 // error while requesting to produce a quote (registration)
 #[derive(Fail, Debug)]
@@ -51,6 +52,14 @@ pub struct P2PErr {
 pub struct DBErr {
     pub command: String,
     pub kind: DBErrKind,
+}
+
+/// This method is called by all functions removing data from the DB. checks if the error
+/// is of DBErr type, is so, the error is a missing key error
+/// (The only option for an error of that type in the delete methods)
+/// which is considered as a success for this matter
+pub fn is_db_err_type(e: Error) -> Result<DBErr, Error> {
+    e.downcast::<DBErr>()
 }
 
 #[derive(Debug)]

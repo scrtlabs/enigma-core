@@ -353,9 +353,9 @@ unsafe fn store_delta_and_state(
         Some(d) => {
             let enc_state = km_t::encrypt_state(state.clone())?;
             enigma_runtime_t::ocalls_t::save_delta(db_ptr, d)?;
-            // todo: in case the delta was stored and the state wasn't, we should revert the delta- create a new ocall
-            enigma_runtime_t::ocalls_t::save_state(db_ptr, &enc_state)?;
-            Ok(())
+            // if the state isn't able to be stored, then remove the delta as well and fail the task
+            enigma_runtime_t::ocalls_t::save_state(db_ptr, &enc_state).
+                or_else(|_| enigma_runtime_t::ocalls_t::remove_delta(db_ptr, d))
         }
         None => Ok(()),
     }
@@ -597,7 +597,7 @@ pub mod tests {
             core_unitests(&mut ctr, &mut failures, || test_get_deltas_more(db_ptr), "test_get_deltas_more");
             core_unitests(&mut ctr, &mut failures, || test_state_internal(db_ptr), "test_state_internal");
             core_unitests(&mut ctr, &mut failures, || test_state(db_ptr), "test_state");
-
+            core_unitests(&mut ctr, &mut failures, || {test_remove_delta(db_ptr)}, "test_remove_delta");
             let result = failures.is_empty();
             rsgx_unit_test_end(ctr, failures);
             result.into()

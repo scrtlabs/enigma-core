@@ -148,6 +148,25 @@ pub trait CRUDInterface<E, K, T, V> {
     ///
     ///  ```
     fn delete(&mut self, key: K) -> Result<(), E>;
+    /// Deletes an existing contract with all of it's contents
+    ///
+    /// # Examples
+    /// ```should_panic
+    /// # extern crate tempfile;
+    /// # extern crate enigma_core_app;
+    /// # use enigma_core_app::db::dal::{DB, CRUDInterface};
+    /// # use enigma_core_app::db::primitives::Array32u8;
+    ///
+    /// # let tempdir = tempfile::tempdir().unwrap();
+    /// # let mut db = DB::new(tempdir.path(), true).unwrap();
+    /// # let key = Array32u8([7u8; 32]);
+    /// # let val = b"Enigma";
+    /// # db.create(&key, &val[..]).unwrap();
+    /// db.delete_contract(&key).unwrap();
+    /// let no_val = db.read(&key).unwrap();
+    ///
+    ///  ```
+    fn delete_contract(&mut self, key: K) -> Result<(), E>;
     /// This is the same as update but it will create the key if it doesn't exist.
     ///
     /// # Examples
@@ -173,7 +192,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     #[logfn(DEBUG)]
     fn create(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
-            debug!("DB: Create: cf: {}, key: {:?}, value: {:?}", hash, index_key, value);
+            debug!("DB: Create: contract_address: {}, key: {:?}, value: {:?}", hash, index_key, value);
             // creates the ColumnFamily and verifies that it doesn't already exist
             let cf_key = match self.database.cf_handle(hash) {
                 Some(cf) => cf,
@@ -196,7 +215,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     #[logfn(DEBUG)]
     fn read(&self, key: &'a K) -> Result<Vec<u8>, Error> {
         key.as_split(|hash, index_key| {
-            debug!("DB: Read: cf: {}, key: {:?}", hash, index_key);
+            debug!("DB: Read: contract_address: {}, key: {:?}", hash, index_key);
             let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
             let value = self.database.get_cf(cf_key, &index_key)?.ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
             Ok(value.to_vec())
@@ -206,7 +225,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     #[logfn(DEBUG)]
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
-            debug!("Updating DB: cf: {}, key: {:?}, value: {:?}", hash, index_key, value);
+            debug!("Updating DB: contract_address: {}, key: {:?}, value: {:?}", hash, index_key, value);
             let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey })?;
 
             if self.database.get_cf(cf_key, &index_key)?.is_none() {
@@ -223,7 +242,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     #[logfn(DEBUG)]
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
-            debug!("DB: Delete: cf: {}, key: {:?}", hash, index_key);
+            debug!("DB: Delete: contract_address: {}, key: {:?}", hash, index_key);
             let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey })?;
 
             if self.database.get_cf(cf_key, &index_key)?.is_none() {
@@ -235,9 +254,18 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     }
 
     #[logfn(DEBUG)]
+    fn delete_contract(&mut self, key: &'a K) -> Result<(), Error> {
+        key.as_split(|hash, _| {
+            debug!("DB: Delete Contract: contract_address: {}", hash);
+            self.database.drop_cf(&hash).
+                map_err(|_| DBErr { command: "delete_contract".to_string(), kind: DBErrKind::MissingKey }.into())
+        })
+    }
+
+    #[logfn(DEBUG)]
     fn force_update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
-            debug!("DB: Force Update: cf: {}, key: {:?}, value: {:?}", hash, index_key, value);
+            debug!("DB: Force Update: contract_address: {}, key: {:?}, value: {:?}", hash, index_key, value);
             // if the address does not exist, in force update, we would like to write it anyways.
             let cf_key = match self.database.cf_handle(hash) {
                 Some(cf) => cf,
@@ -256,6 +284,7 @@ mod test {
 
     use crate::db::{tests::create_test_db, dal::CRUDInterface, primitives::{Array32u8, DeltaKey, Stype}};
     use hex::ToHex;
+    use enigma_types::ContractAddress;
 
     #[test]
     fn test_new_db() {
@@ -320,6 +349,43 @@ mod test {
         let v = b"Enigma";
         db.create(&Array32u8(arr), &v[..]).unwrap();
         db.delete(&Array32u8(arr)).unwrap();
+    }
+
+    #[test]
+    fn test_delete_contract_contents() {
+        let (mut db, _dir) = create_test_db();
+
+        let arr = [5u8; 32];
+        let v = b"Enigma";
+        db.create(&Array32u8(arr), &v[..]).unwrap();
+        db.delete_contract(&Array32u8(arr)).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_delete_contract_contents_fail() {
+        let (mut db, _dir) = create_test_db();
+
+        let arr = [5u8; 32];
+        let v = b"Enigma";
+        db.create(&Array32u8(arr), &v[..]).unwrap();
+        db.delete_contract(&Array32u8(arr)).unwrap();
+        db.read(&Array32u8(arr)).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_delete_contract_dk() {
+        let (mut db, _dir) = create_test_db();
+        let addr: ContractAddress = [2u8; 32].into();
+        let dk_code = DeltaKey::new(addr, Stype::ByteCode);
+        let dk_delta = DeltaKey::new(addr, Stype::Delta(0));
+        let v_code = b"This is a Contract";
+        let v_delta = b"This is a Delta";
+        db.create(&dk_code, &v_code[..]).unwrap();
+        db.create(&dk_delta, &v_delta[..]).unwrap();
+        db.delete_contract(&dk_code).unwrap();
+        db.read(&dk_delta).unwrap();
     }
 
     #[test]
