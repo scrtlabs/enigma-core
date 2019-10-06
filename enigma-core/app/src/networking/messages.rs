@@ -1,12 +1,17 @@
 use serde_json;
+use serde_repr::{Serialize_repr, Deserialize_repr};
 use zmq::Message;
 use crate::db::{Delta, Stype, DeltaKey};
 use hex::ToHex;
 use failure::Error;
 
-type Status = i8;
-pub const FAILED: Status = -1;
-pub const PASSED: Status = 0;
+// These attributes enable the status to be casted as an i8 object as well
+#[derive(Serialize_repr, Deserialize_repr, Clone, Debug)]
+#[repr(i8)]
+pub enum Status {
+    Failed = -1,
+    Passed = 0,
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct IpcMessageRequest {
@@ -35,7 +40,9 @@ pub enum IpcResponse {
     GetContract { #[serde(flatten)] result: IpcResults },
     UpdateNewContract { address: String, result: IpcResults },
     UpdateNewContractOnDeployment { address: String, result: IpcResults },
+    RemoveContract { address: String, result: IpcResults },
     UpdateDeltas { #[serde(flatten)] result: IpcResults },
+    RemoveDeltas { #[serde(flatten)] result: IpcResults},
     NewTaskEncryptionKey { #[serde(flatten)] result: IpcResults },
     DeploySecretContract { #[serde(flatten)] result: IpcResults},
     ComputeTask { #[serde(flatten)] result: IpcResults },
@@ -95,7 +102,7 @@ pub enum IpcResults {
     Status(Status),
     Tips(Vec<IpcDelta>),
     #[serde(rename = "result")]
-    UpdateDeltasResult { status: Status, errors: Vec<IpcStatusResult> },
+    DeltasResult { status: Status, errors: Vec<IpcStatusResult> },
     #[serde(rename = "result")]
     DHKey { #[serde(rename = "workerEncryptionKey")] dh_key: String, #[serde(rename = "workerSig")] sig: String },
     #[serde(rename = "result")]
@@ -144,11 +151,13 @@ pub enum IpcRequest {
     GetAllTips,
     GetAllAddrs,
     GetDelta { input: IpcDelta },
-    GetDeltas { input: Vec<IpcGetDeltas> },
+    GetDeltas { input: Vec<IpcDeltasRange> },
     GetContract { input: String },
     UpdateNewContract { address: String, bytecode: String },
     UpdateNewContractOnDeployment {address: String, bytecode: String, delta: IpcDelta},
+    RemoveContract { address: String },
     UpdateDeltas { deltas: Vec<IpcDelta> },
+    RemoveDeltas { input: Vec<IpcDeltasRange> },
     NewTaskEncryptionKey { #[serde(rename = "userPubKey")] user_pubkey: String },
     DeploySecretContract { input: IpcTask},
     ComputeTask { input: IpcTask },
@@ -177,7 +186,7 @@ pub struct IpcTask {
 pub struct IpcStatusResult {
     pub address: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub key: Option<u32>,
+    pub key: Option<i64>,
     pub status: Status,
 }
 
@@ -192,7 +201,7 @@ pub struct IpcDelta {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct IpcGetDeltas {
+pub struct IpcDeltasRange {
     pub address: String,
     pub from: u32,
     pub to: u32,

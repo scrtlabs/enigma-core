@@ -68,3 +68,11 @@ extern "C" {
         state_len: usize,
     ) -> sgx_status_t;
 }
+extern "C" {
+    pub fn ocall_remove_delta(
+        retval: *mut EnclaveReturn,
+        db_ptr: *const RawPointer,
+        contract_address: *const ContractAddress,
+        delta_index_: *mut u32,
+    ) -> sgx_status_t;
+}
