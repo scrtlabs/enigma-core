@@ -186,7 +186,7 @@ pub struct IpcTask {
 pub struct IpcStatusResult {
     pub address: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub key: Option<i32>,
+    pub key: Option<i64>,
     pub status: Status,
 }
 

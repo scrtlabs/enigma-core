@@ -362,6 +362,19 @@ mod test {
     }
 
     #[test]
+    #[should_panic]
+    fn test_delete_contract_contents_fail() {
+        let (mut db, _dir) = create_test_db();
+
+        let arr = [5u8; 32];
+        let v = b"Enigma";
+        db.create(&Array32u8(arr), &v[..]).unwrap();
+        db.delete_contract(&Array32u8(arr)).unwrap();
+        db.read(&Array32u8(arr)).unwrap();
+    }
+
+    #[test]
+    #[should_panic]
     fn test_delete_contract_dk() {
         let (mut db, _dir) = create_test_db();
         let addr: ContractAddress = [2u8; 32].into();
@@ -372,6 +385,7 @@ mod test {
         db.create(&dk_code, &v_code[..]).unwrap();
         db.create(&dk_delta, &v_delta[..]).unwrap();
         db.delete_contract(&dk_code).unwrap();
+        db.read(&dk_delta).unwrap();
     }
 
     #[test]

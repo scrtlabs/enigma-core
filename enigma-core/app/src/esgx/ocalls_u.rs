@@ -6,7 +6,7 @@ use enigma_types::{ContractAddress, EnclaveReturn, Hash256, RawPointer};
 use lru_cache::LruCache;
 use std::sync::Mutex;
 use std::{ptr, slice};
-use common_u::errors::DBErr;
+use common_u::errors::{DBErr, self};
 
 lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(500)); }
 
@@ -36,8 +36,8 @@ pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &Cont
 #[no_mangle]
 pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
                                          enc_delta: *const u8, delta_len: usize,
-                                         contract_address: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
-    let delta_index = ptr::read(_delta_index);
+                                         contract_address: &ContractAddress, delta_index_: *const u32) -> EnclaveReturn {
+    let delta_index = ptr::read(delta_index_);
     let encrypted_delta = slice::from_raw_parts(enc_delta, delta_len);
     let key = DeltaKey::new(*contract_address, Stype::Delta(delta_index));
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
@@ -50,7 +50,7 @@ pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
     match db.force_update(&key, encrypted_delta) {
         Ok(_) => EnclaveReturn::Success,
         Err(e) => {
-            println!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
+            error!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
             EnclaveReturn::OcallDBError
         }
     }
@@ -200,8 +200,8 @@ pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &Cont
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_remove_delta(db_ptr: *const RawPointer,
-                                            contract_address: &ContractAddress, _delta_index: *const u32) -> EnclaveReturn {
-    let delta_index = ptr::read(_delta_index);
+                                            contract_address: &ContractAddress, delta_index_: *const u32) -> EnclaveReturn {
+    let delta_index = ptr::read(delta_index_);
     let key = DeltaKey::new(*contract_address, Stype::Delta(delta_index));
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
         Ok(db) => db,
@@ -213,10 +213,10 @@ pub unsafe extern "C" fn ocall_remove_delta(db_ptr: *const RawPointer,
     match db.delete(&key) {
         Ok(_) => EnclaveReturn::Success,
         Err(e) => {
-            match e.downcast::<DBErr>() {
+            match errors::is_db_err_type(e) {
                 Ok(_) =>  EnclaveReturn::Success,
-                Err(_) => {
-                    println!("Failed removing delta: {:?}", &key);
+                Err(e) => {
+                    error!("Failed removing delta: {:?} since {:?}", &key, e);
                     EnclaveReturn::OcallDBError
                 },
             }

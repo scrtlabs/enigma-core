@@ -73,6 +73,6 @@ extern "C" {
         retval: *mut EnclaveReturn,
         db_ptr: *const RawPointer,
         contract_address: *const ContractAddress,
-        delta_index: *mut u32,
+        delta_index_: *mut u32,
     ) -> sgx_status_t;
 }

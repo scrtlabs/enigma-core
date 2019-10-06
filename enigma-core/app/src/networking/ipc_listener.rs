@@ -80,12 +80,12 @@ pub(self) mod handling {
     use serde_json::Value;
     use sgx_types::sgx_enclave_id_t;
     use std::str;
-    use common_u::errors::DBErr;
+    use common_u::errors::{DBErr, self};
 
     type ResponseResult = Result<IpcResponse, Error>;
 
     static DEPLOYMENT_VALS_LEN: usize = 2;
-    static FAILED_STATE: i32 = -1;
+    static FAILED_STATE: i64 = -1;
 
     impl Into<IpcResponse> for WasmTaskFailure{
         fn into(self) -> IpcResponse {
@@ -263,13 +263,13 @@ pub(self) mod handling {
     #[logfn(INFO)]
     pub fn remove_contract(db: &mut DB, address: String) -> ResponseResult {
         let addr_arr = ContractAddress::from_hex(&address)?;
-        // the key_type is irrelevant
+        // the key_type of dk is irrelevant since we are removing all the contract data
         let dk = DeltaKey::new(addr_arr, Stype::ByteCode);
         let result = match db.delete_contract(&dk) {
             Ok(_) => IpcResults::Status(Status::Passed),
             Err(e) => {
-                match e.downcast::<DBErr>() {
-                    Ok(_) =>  IpcResults::Status(Status::Passed),
+                match errors::is_db_err_type(e) {
+                    Ok(_) => IpcResults::Status(Status::Passed),
                     Err(_) => IpcResults::Status(Status::Failed),
                 }
             },
@@ -300,7 +300,7 @@ pub(self) mod handling {
             } else {
                 Status::Passed
             };
-            let key = Some(deltakey.key_type.unwrap_delta() as i32);
+            let key = Some(deltakey.key_type.unwrap_delta() as i64);
             let address = deltakey.contract_address.to_hex();
             let delta = IpcStatusResult { address, key, status };
             errors.push(delta);
@@ -317,7 +317,7 @@ pub(self) mod handling {
         match db.delete(&dk) {
             Ok(_) => Ok(IpcResults::Status(Status::Passed)),
             Err(e) => {
-                match e.downcast::<DBErr>() {
+                match errors::is_db_err_type(e) {
                     Ok(_) =>  Ok(IpcResults::Status(Status::Passed)),
                     Err(_) => Ok(IpcResults::Status(Status::Failed)),
                 }
@@ -333,7 +333,7 @@ pub(self) mod handling {
             for key in addr_deltas.from..addr_deltas.to {
                 let delta_res = delete_data_from_db(db,&addr_deltas.address.clone(), Stype::Delta(key))?;
                 if let IpcResults::Status(Status::Failed) = delta_res {
-                    let failed_delta = IpcStatusResult { address: addr_deltas.address.clone() , key: Some(key as i32), status: Status::Failed };
+                    let failed_delta = IpcStatusResult { address: addr_deltas.address.clone() , key: Some(key as i64), status: Status::Failed };
                     errors.push(failed_delta);
                     overall_status = Status::Failed;
                 }
