@@ -56,3 +56,42 @@ impl <T: NestedSerialization> NestedSerialization for Vec<T> {
         (res.len(), res)
     }
 }
+
+pub mod tests {
+    use ethereum_types::{H160, U256};
+
+    use super::*;
+
+    pub fn test_u256_nested() {
+        let expected_arr : Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 24];
+        let num = U256::from(24);
+        let (accepted_len, accepted_arr) = num.hash_encode();
+        assert_eq!(expected_arr, accepted_arr);
+        assert_eq!(accepted_len, accepted_arr.len());
+    }
+
+    pub fn test_h160_nested() {
+        let expected_arr : Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 20, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2];
+        let addr = H160::from([2u8; 20]);
+        let (accepted_len, accepted_arr) = addr.hash_encode();
+        assert_eq!(expected_arr, accepted_arr);
+        assert_eq!(accepted_len, accepted_arr.len());
+    }
+
+    pub fn test_vec_u256_nested() {
+        let expected_arr = vec![1, 0, 0, 0, 0, 0, 0, 0, 164, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 194, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 243, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 140, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 82, 232];
+        let vec_nums: Vec<U256> = vec![U256::from(2498), U256::from(243), U256::from(2444), U256::from(21224)];
+        let (accepted_len, accepted_arr) = vec_nums.hash_encode();
+        assert_eq!(expected_arr, accepted_arr);
+        assert_eq!(accepted_len, accepted_arr.len());
+    }
+
+    pub fn test_double_nested_vec_h160() {
+        let expected_arr = vec![1, 0, 0, 0, 0, 0, 0, 0, 125, 1, 0, 0, 0, 0, 0, 0, 0, 116, 0, 0, 0, 0, 0, 0, 0, 0, 20, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 17, 0, 0, 0, 0, 0, 0, 0, 0, 20, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 41, 0, 0, 0, 0, 0, 0, 0, 0, 20, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 0, 0, 0, 0, 0, 0, 0, 0, 20, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231, 231];
+        let vec_vec_addr: Vec<Vec<H160>> = vec![vec![H160::from([17u8; 20]), H160::from([41u8; 20]), H160::from([12u8; 20]), H160::from([231u8; 20])]];
+        let (accepted_len, accepted_arr) = vec_vec_addr.hash_encode();
+        println!("arr: {:?}",accepted_arr);
+        assert_eq!(expected_arr, accepted_arr);
+        assert_eq!(accepted_len, accepted_arr.len());
+    }
+}
