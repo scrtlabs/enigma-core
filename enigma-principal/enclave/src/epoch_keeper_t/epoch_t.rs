@@ -28,7 +28,7 @@ impl Epoch {
             .ok_or_else(|| SystemError(EnclaveSystemError::WorkerAuthError { err: "Worker selection returns nothing.".to_string() }))
     }
 
-    pub fn encode_epoch(&self) -> Bytes {
+    pub fn encode_for_hashing(&self) -> Bytes {
         let mut encoding_len: usize = 0;
         let mut encoding: Vec<u8> = Vec::new();
 
@@ -40,7 +40,7 @@ impl Epoch {
         encoding_len = len_seed + len_nonce + len_workers + len_stakes;
 
         encoding.push(ONE);
-        encoding.extend_from_slice(&encoding_len.to_be_bytes());
+        encoding.extend_from_slice(&(encoding_len as u64).to_be_bytes());
         encoding.extend_from_slice(&seed_encoding);
         encoding.extend_from_slice(&nonce_encoding);
         encoding.extend_from_slice(&workers_encoding);

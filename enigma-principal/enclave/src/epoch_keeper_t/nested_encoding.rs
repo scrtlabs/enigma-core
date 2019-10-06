@@ -15,12 +15,12 @@ impl NestedSerialization for U256 {
         let mut msg = [0u8;32];
 
         self.to_big_endian(&mut msg);
-        let len = msg.len().to_be_bytes();
+        let len = (msg.len() as u64).to_be_bytes();
 
         res.push(ZERO);
         res.extend_from_slice(&len);
         res.extend_from_slice(&msg);
-        (msg.len(), res)
+        (res.len(), res)
     }
 }
 
@@ -28,12 +28,12 @@ impl NestedSerialization for H160 {
     fn hash_encode(&self) -> (usize, Vec<u8>) {
         let mut res: Vec<u8> = Vec::new();
         let msg: &[u8] = self.as_ref();
-        let len = msg.len().to_be_bytes();
+        let len = (msg.len() as u64).to_be_bytes();
 
         res.push(ZERO);
         res.extend_from_slice(&len);
         res.extend_from_slice(&msg);
-        (msg.len(), res)
+        (res.len(), res)
     }
 }
 
@@ -49,10 +49,10 @@ impl <T: NestedSerialization> NestedSerialization for Vec<T> {
             messages.extend_from_slice(&msg);
         }
 
-        let final_len = res_len.to_be_bytes();
+        let final_len = (res_len as u64).to_be_bytes();
         res.push(ONE);
         res.extend_from_slice(&final_len);
         res.extend_from_slice(&messages);
-        (res_len, res)
+        (res.len(), res)
     }
 }
