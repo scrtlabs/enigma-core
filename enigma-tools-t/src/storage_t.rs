@@ -35,8 +35,9 @@ impl SecretKeyStorage {
     pub fn seal_key(&self, sealed_log_out: &mut [u8; SEAL_LOG_SIZE]) {
         let additional: [u8; 0] = [0_u8; 0];
         let attribute_mask = sgx_attributes_t { flags: 0xffff_ffff_ffff_fff3, xfrm: 0 };
+        // todo: change the key policy to MRENCLAVE and create an upgrade mechanism for updating the enclave
         let sealed_data = SgxSealedData::<SecretKeyStorage>::seal_data_ex(
-            sgx_types::SGX_KEYPOLICY_MRENCLAVE, //key policy
+            sgx_types::SGX_KEYPOLICY_MRSIGNER, //key policy
             attribute_mask,
             0, //misc mask
             &additional,
