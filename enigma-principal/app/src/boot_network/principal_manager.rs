@@ -415,5 +415,6 @@ mod test {
         let config = PrincipalConfig::load_config("this is not a path").unwrap();
         assert_eq!(config.polling_interval, 1);
         assert_eq!(config.http_port, 3040);
+        assert_eq!(config.attestation_retries, 11);
     }
 }
