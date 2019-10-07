@@ -142,13 +142,15 @@ impl AttestationService {
         let response_str = res.text()?;
         let json_response: Value = serde_json::from_str(response_str.as_str())?;
 
-        if res.status().is_success() {
+        if res.status().is_success() && !json_response["error"].is_object() {
             // parse the Json object into an ASResponse struct
             let response: ASResponse = self.unwrap_response(&json_response);
             Ok(response)
         }
         else {
-            let message = format!("[-] AttestationService: An Error occurred. Status code: {:?}", res.status());
+            let message = format!("[-] AttestationService: An Error occurred. \
+                                            Status code: {:?}\nError response: {:?}",
+                                            res.status(), json_response["error"]["message"].as_str());
             Err(errors::AttestationServiceErr { message }.into())
         }
     }
