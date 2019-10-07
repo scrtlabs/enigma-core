@@ -5,7 +5,7 @@ authors = ["Enigma <support@enigma.co>"]
 build = "build.rs"
 
 [dependencies]
-enigma-types = { path = "../../enigma-types" }
+enigma-types = { path = "../../enigma-types", features = ["std"] }
 enigma-crypto = { path = "../../enigma-crypto" }
 enigma-tools-u = { path = "../../enigma-tools-u" }
 enigma-tools-m = { path = "../../enigma-tools-m" }

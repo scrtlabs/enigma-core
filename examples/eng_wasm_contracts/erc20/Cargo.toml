@@ -7,7 +7,7 @@ eng-wasm = "0.1"
 eng-wasm-derive = "0.1"
 enigma-crypto = { path = "../../../enigma-crypto", default-features = false, features = ["asymmetric", "hash"] }
 rustc-hex = "2.0.1"
-serde = { version = "1.0", default-features = false, features=["serde_derive"] }
+serde = { version = "1.0", default-features = false, features=["derive"] }
 
 [lib]
 crate-type = ["cdylib"]

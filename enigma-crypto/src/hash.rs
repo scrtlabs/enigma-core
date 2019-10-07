@@ -20,10 +20,21 @@ use enigma_types::Hash256;
 #[allow(unused_imports)]
 pub fn prepare_hash_multiple<B: AsRef<[u8]>>(messages: &[B]) -> crate::localstd::vec::Vec<u8> {
     use crate::localstd::{vec::Vec, mem};
-    let mut res = Vec::with_capacity(messages.len() * mem::size_of::<usize>());
+
+    // The length field is always a u64.
+    // On 16/32 bit platforms we pad the type to 64 bits.
+    // On platforms with bigger address spaces (which don't currently exist)
+    // we do not expect such ridiculously big slices.
+    let length_width = mem::size_of::<u64>();
+    // Pre-allocate the vector once instead of reallocating as we build it.
+    let mut res = Vec::with_capacity(
+        // This is the exact size of the final vector.
+        length_width * messages.len() + messages.iter().map(|message| message.as_ref().len()).sum::<usize>()
+    );
     for msg in messages {
         let msg = msg.as_ref();
-        let len = msg.len().to_be_bytes();
+        // See wall of text above :)
+        let len = (msg.len() as u64).to_be_bytes();
         res.extend_from_slice(&len);
         res.extend_from_slice(&msg);
     }

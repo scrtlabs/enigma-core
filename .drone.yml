@@ -60,7 +60,15 @@ steps:
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-tools-m
       - RUSTFLAGS=-Awarnings cargo test
-      - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
+      - RUSTFLAGS=-Awarnings cargo check --no-default-features --features=sgx
+
+  - name: eng_wasm
+    image: enigmampc/enigma-core:0.0.10
+    depends_on: [clone]
+    commands:
+      - . /root/.cargo/env
+      - cd eng-wasm/derive
+      - cargo test
 
   - name: enigma_types
     image: enigmampc/enigma-core:0.0.10
@@ -70,9 +78,10 @@ steps:
       - . /opt/sgxsdk/environment && . /root/.cargo/env
       - cd enigma-types
       - RUSTFLAGS=-Awarnings cargo test
-      - RUSTFLAGS=-Awarnings cargo build --no-default-features
-      - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
-      - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=alloc
+      - RUSTFLAGS=-Awarnings cargo check
+      - RUSTFLAGS=-Awarnings cargo check --features=std
+      - RUSTFLAGS=-Awarnings cargo check --features=sgx
+      - RUSTFLAGS=-Awarnings cargo check --features=alloc
 
   - name: integration
     image: enigmampc/docker-client
