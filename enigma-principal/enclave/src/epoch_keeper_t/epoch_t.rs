@@ -32,12 +32,12 @@ impl Epoch {
         let mut encoding_len: usize = 0;
         let mut encoding: Vec<u8> = Vec::new();
 
-        let (len_seed, seed_encoding) = self.seed.hash_encode();
-        let (len_nonce, nonce_encoding) = self.nonce.hash_encode();
-        let (len_workers, workers_encoding) = self.worker_params.workers.hash_encode();
-        let (len_stakes, stakes_encoding) = self.worker_params.stakes.hash_encode();
+        let seed_encoding = self.seed.hash_encode();
+        let nonce_encoding = self.nonce.hash_encode();
+        let workers_encoding = self.worker_params.workers.hash_encode();
+        let stakes_encoding = self.worker_params.stakes.hash_encode();
 
-        encoding_len = len_seed + len_nonce + len_workers + len_stakes;
+        encoding_len = seed_encoding.len() + nonce_encoding.len() + workers_encoding.len() + stakes_encoding.len();
 
         encoding.push(ONE);
         encoding.extend_from_slice(&(encoding_len as u64).to_be_bytes());
