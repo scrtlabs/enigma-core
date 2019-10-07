@@ -320,6 +320,7 @@ mod test {
     use crate::attestation_service::{self, service::*};
     use std::str::from_utf8;
     use hex::FromHex;
+    use common_u::errors::AttestationServiceErr;
 
     // this unit-test is for the attestation service
     // it uses a hardcoded quote that is validated
@@ -338,6 +339,29 @@ mod test {
         assert_eq!(true, as_response.result.validate);
         assert_eq!("2.0", as_response.jsonrpc);
     }
+
+    // Run the same test but with no option of retries
+    #[test]
+    fn test_get_response_attestation_service_no_retries() {
+        // build a request with an initialized amount of 0 retries
+        let service: AttestationService = AttestationService::new_with_retries(attestation_service::constants::ATTESTATION_SERVICE_URL, 0);
+        let quote = String::from("AgAAANoKAAAHAAYAAAAAALAzX9O8HMqPgE65imQgWS3bL6zst0H4QfxKAKurXXnVBAX/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAAIzp3AzhlP03bwcSpF+o5J3dlTq2zu0T03uf7PbnLtMYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD9sUtS1/Vn5lvk3Mxh+eX0AOjdoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqAIAADM2OO98uEjJQLRmzAvAqO4nirzimAHK0PjdgI8MT0xKDy/Paohf208N04YWgzl4kOjrG0X/T8LUphwzn3qB7XkycWqDO9RsLbNIpKRiVBIttztbn0/kxcwo6p54OeOLfhFbxaTn0wkzEYJhGWVR+j6IUGxubDwinf0fO+2vPu20kW1NzSV/Le8fyYzC4v5sIblVW8VZESsbuFd+bFbbcNzco9cH6cNI68FMkeMHoZF/Z4HvP7DR2sIiLnmYcavDbTlzG7OwaTDNcTCNfKsKReK76TRtu+m018QArsRTdrAwx7gZY2788RBpn0veSkU+v9QxNnZmqfpMolAXdu3ksQul4R8bzQ8HoiRkQvedCY8K+5j3GLvDjLCUgB4JP8Vhtt6KjABRO5o4+s3Uj2gBAABJIOqpxIvbG5zmizV7zUe4jAJQoPVM3jtcxXwU9PH5saXiCPHBpTEBpK/2r/5bUnIIBkshRbQ8/kP6/lLhEOu3Fkfh7UMMoizPO8uGQimLBGwbAFyAgU4G8TGeUbYWEGuRRJoKDoclzm9edJZ7mApMlmiT9t2VMLMsg7l49sO1T1TtgK/zpwwLvr2f4a/vmkJWviOcIRimFD+V20xw+EMXYl8Aj4x4Rw62+oiQe0mKvh3K4gXIamejnQHZ/Mrbeh8ai0n1J+GMeKFxxSkeytGZVrT+a75WjLAcJtt5QAU3Em1ELsWLUVUI58mLTe/u+hsjTlWizXAruElzhCIijvR96aHc+lzd/a+EmsQ4mI/mWPxqdoUciznhG4VlxNAhXSw8zn77k8m+1GaBSxvAUDwFOf/V3KcQUYp5Cswo1MD4t26Rn5LBqF1I0I27d/BHD+KUwl7W5doG4Ec6egnoofkSTUnjI3G+9btxIVV2nYWzfXauZzseiZQn");
+        let as_response = service.get_report(quote).unwrap();
+
+        assert_eq!(true, as_response.result.validate);
+        assert_eq!("2.0", as_response.jsonrpc);
+    }
+
+    #[test]
+    fn test_response_attestation_service_failure_no_retries() {
+        // build a faulty request
+        let service: AttestationService = AttestationService::new_with_retries(attestation_service::constants::ATTESTATION_SERVICE_URL, 0);
+        let quote = String::from("Wrong quote");
+        let as_response = service.get_report(quote.clone());
+        // if it's able to do the downcast, we got the correct error
+        assert!(as_response.unwrap_err().downcast::<AttestationServiceErr>().is_ok());
+    }
+
     // get rlp_encoded Vec<u8> that contains the bytes array for worker registration in the enigma smart contract.
     #[test]
     fn test_get_response_attestation_service_rlp_encoded() {
