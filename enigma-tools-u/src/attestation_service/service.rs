@@ -9,7 +9,7 @@ use hex::FromHex;
 use openssl::hash::MessageDigest;
 use openssl::sign::Verifier;
 use openssl::x509::{X509VerifyResult, X509};
-use reqwest;
+use reqwest::{self, Client};
 use rlp;
 use serde_json;
 use serde_json::Value;
@@ -137,25 +137,33 @@ impl AttestationService {
         }
     }
 
+    fn attempt_request(&self, client: &Client, quote_req: &QuoteRequest) -> Result<ASResponse, Error> {
+        let mut res = client.post(self.connection_str.as_str()).json(&quote_req).send()?;
+        let response_str = res.text()?;
+        let json_response: Value = serde_json::from_str(response_str.as_str())?;
+
+        if res.status().is_success() {
+            // parse the Json object into an ASResponse struct
+            let response: ASResponse = self.unwrap_response(&json_response);
+            Ok(response)
+        }
+        else {
+            let message = format!("[-] AttestationService: An Error occurred. Status code: {:?}", res.status());
+            Err(errors::AttestationServiceErr { message }.into())
+        }
+    }
     // request the report object
     pub fn send_request(&self, quote_req: &QuoteRequest) -> Result<ASResponse, Error> {
         let client = reqwest::Client::new();
-        let mut final_status = String::from("No calls to Service");
-        for _ in 0..self.retries {
-            let mut res = client.post(self.connection_str.as_str()).json(&quote_req).send()?;
-            let response_str = res.text()?;
-            let json_response: Value = serde_json::from_str(response_str.as_str())?;
-
-            if res.status().is_success() {
-                // parse the Json object into an ASResponse struct
-                let response: ASResponse = self.unwrap_response(&json_response);
-                return Ok(response)
+        self.attempt_request(&client, quote_req).or_else(|mut res_err| {
+            for _ in 0..self.retries {
+                match self.attempt_request(&client, quote_req) {
+                    Ok(response) => return Ok(response),
+                    Err(e) => res_err = e,
+                }
             }
-            final_status = res.status().to_string();
-        }
-        let message = format!("[-] AttestationService: An Error occurred. \
-                                        \nStatus code: {:?}\nNum of retries: {:?}", final_status, self.retries);
-        Err(errors::AttestationServiceErr { message }.into())
+            return Err(res_err)
+        })
     }
 
     // encode to rlp the report -> registration for the enigma contract
