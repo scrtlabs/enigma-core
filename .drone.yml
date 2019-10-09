@@ -95,7 +95,7 @@ steps:
       - export MATCHING_BRANCH_P2P="$(git ls-remote --heads https://github.com/enigmampc/enigma-p2p.git ${DRONE_BRANCH} | wc -l)"
       - export MATCHING_BRANCH_CONTRACT="$(git ls-remote --heads https://github.com/enigmampc/enigma-contract.git ${DRONE_BRANCH} | wc -l)"
       - |
-        if [[ ${DRONE_BRANCH} == "master" ]]; then
+        if [[ "${DRONE_BRANCH}" == "master" ]]; then
           export TAG=latest;
           docker-compose pull
         else
@@ -167,13 +167,18 @@ steps:
     image: enigmampc/docker-client
     depends_on:
       - integration
+    when:
+      branch:
+          exclude:
+            - master
+            - develop
     commands:
       - |
         if (( $MATCHING_BRANCH_P2P + $MATCHING_BRANCH_CONTRACT )); then
-          docker rmi enigmampc/enigma_core_hw:$TAG || true
-          docker rmi enigmampc/enigma_km_hw:$TAG || true
-          docker rmi enigmampc/enigma_contract:$TAG || true
-          docker rmi enigmampc/enigma_p2p:$TAG || true
+          docker rmi enigmampc/enigma_core_hw:$TAG
+          docker rmi enigmampc/enigma_km_hw:$TAG
+          docker rmi enigmampc/enigma_contract:$TAG
+          docker rmi enigmampc/enigma_p2p:$TAG
         fi
 
 volumes:
