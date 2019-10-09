@@ -99,7 +99,7 @@ steps:
           export TAG=latest;
           docker-compose pull
         else
-          if ! (( $MATCHING_BRANCH_P2P + $MATCHING_BRANCH_CONTRACT )); then
+          if [ $MATCHING_BRANCH_P2P -eq 0 ] &&  [ $MATCHING_BRANCH_CONTRACT -eq 0 ]; then
             export TAG=develop;
             sed -i "s/DOCKER_TAG=latest/DOCKER_TAG=develop/" .env;
             docker-compose pull
@@ -127,7 +127,10 @@ steps:
         docker build --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_core_hw:$TAG --no-cache . &&
         docker build -f Dockerfile.km --build-arg GIT_BRANCH_CORE=$DRONE_BRANCH --build-arg SGX_MODE=HW -t enigmampc/enigma_km_hw:$TAG --no-cache . &&
         cd ..
-      - export NODES=3 && docker-compose -f docker-compose.yml -f docker-compose.hw.yml -f docker-compose.test.yml up --scale core=$NODES --scale p2p=$NODES --exit-code-from client
+      - export NODES=3 
+      - docker-compose -f docker-compose.yml -f docker-compose.hw.yml -f docker-compose.test.yml up --scale core=$NODES --scale p2p=$NODES --exit-code-from client && export RESULT=$? || export RESULT=$?
+      - if [[ "${DRONE_BRANCH}" == "$TAG" ]]; then docker-compose down -v --rmi all; else docker-compose down -v; fi
+      - if [ $RESULT -ne 0 ]; exit 1; fi
     privileged: true
     volumes:
       - name: sock
@@ -162,24 +165,6 @@ steps:
     volumes:
       - name: sock
         path: /var/run/docker.sock
-
-  - name: cleanup
-    image: enigmampc/docker-client
-    depends_on:
-      - integration
-    when:
-      branch:
-          exclude:
-            - master
-            - develop
-    commands:
-      - |
-        if (( $MATCHING_BRANCH_P2P + $MATCHING_BRANCH_CONTRACT )); then
-          docker rmi enigmampc/enigma_core_hw:$TAG
-          docker rmi enigmampc/enigma_km_hw:$TAG
-          docker rmi enigmampc/enigma_contract:$TAG
-          docker rmi enigmampc/enigma_p2p:$TAG
-        fi
 
 volumes:
   - name: isgx
