@@ -375,6 +375,24 @@ mod tests {
     }
 
     #[test]
+    fn test_factorization() {
+        let (mut db, _dir) = create_test_db();
+
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/factorization",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "find_number_of_prime_factors(uint32)",
+            &[Token::Uint(199998.into())]
+        );
+        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        let decoded_output = &(ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output).unwrap())[0];
+        assert_eq!(decoded_output.clone().to_uint().unwrap().as_u64(), 5);
+    }
+
+    #[test]
     fn test_sc_encryption() {
         let (mut db, _dir) = create_test_db();
         let message = b"Enigma";
