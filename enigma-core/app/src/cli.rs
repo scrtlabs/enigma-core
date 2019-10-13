@@ -26,4 +26,7 @@ pub struct Opt {
     /// Select a port for the enigma-p2p listener
     #[structopt(long = "port", short = "p", default_value = "5552")]
     pub port: u16,
+    /// Specify the number of Attestation call retries when failing
+    #[structopt(long = "retries", short = "r", default_value = "10")]
+    pub retries: u32,
 }
