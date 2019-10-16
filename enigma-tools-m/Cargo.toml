@@ -3,7 +3,7 @@
 
 [package]
 name = "enigma-tools-m"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Elichai Turkel <elichai@enigma.co>"]
 edition = "2018"
 
