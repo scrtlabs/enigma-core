@@ -11,6 +11,7 @@ use web3::{
     types::{Address, H160, H256, U256},
     Web3,
 };
+use envy;
 
 use boot_network::{deploy_scripts, keys_provider_http::PrincipalHttpServer, principal_utils::Principal};
 use enigma_tools_u::{
@@ -38,6 +39,7 @@ pub struct PrincipalConfig {
     pub max_epochs: Option<usize>,
     pub spid: String,
     pub attestation_service_url: String,
+    pub attestation_retries: u32,
     pub http_port: u16,
     pub confirmations: u64,
 }
@@ -64,7 +66,7 @@ pub struct PrincipalManager {
 
 impl ReportManager {
     pub fn new(config: PrincipalConfig, eid: sgx_enclave_id_t) -> Result<Self, Error> {
-        let as_service = service::AttestationService::new(&config.attestation_service_url);
+        let as_service = service::AttestationService::new_with_retries(&config.attestation_service_url, config.attestation_retries);
         Ok(ReportManager { config, as_service, eid })
     }
 
@@ -104,13 +106,21 @@ impl PrincipalConfig {
     // load json config into the struct
     #[logfn(DEBUG)]
     pub fn load_config(config_path: &str) -> Result<PrincipalConfig, Error> {
-        info!("Loading Principal config: {:?}", config_path);
-        let mut f = File::open(config_path)?;
+        info!("loading Principal config");
+        // All configurations from env should be with the same names of the
+        // PrincipalConfig struct fields in uppercase letters
+        match envy::from_env::<PrincipalConfig>() {
+            Ok(config) => Ok(config),
+            Err(_) => {
+                info!("trying to load from path: {:?}", config_path);
+                let mut f = File::open(config_path)?;
 
-        let mut contents = String::new();
-        f.read_to_string(&mut contents)?;
+                let mut contents = String::new();
+                f.read_to_string(&mut contents)?;
 
-        Ok(serde_json::from_str(&contents)?)
+                Ok(serde_json::from_str(&contents)?)
+            }
+        }
     }
 }
 impl PrincipalManager {
@@ -382,5 +392,29 @@ mod test {
         // run principal
         principal.run(tempdir.into_path(), true, GAS_LIMIT).unwrap();
         child.join().unwrap();
+    }
+
+    #[test]
+    fn test_load_config_from_env() {
+        env::set_var("ENIGMA_CONTRACT_PATH", "../app/tests/principal_node/contracts/IEnigma.json");
+        env::set_var("ENIGMA_CONTRACT_REMOTE_PATH","");
+        env::set_var("ENIGMA_CONTRACT_ADDRESS", "59d3631c86BbE35EF041872d502F218A39FBa150");
+        env::set_var("ACCOUNT_ADDRESS","1df62f291b2e969fb0849d99d9ce41e2f137006e");
+        env::set_var("TEST_NET","true");
+        env::set_var("WITH_PRIVATE_KEY", "false");
+        env::set_var("PRIVATE_KEY", "");
+        env::set_var("URL", "http://172.20.0.2:9545");
+        env::set_var("EPOCH_SIZE", "10");
+        env::set_var("POLLING_INTERVAL", "1");
+        env::set_var("MAX_EPOCHS","10");
+        env::set_var("SPID", "B0335FD3BC1CCA8F804EB98A6420592D");
+        env::set_var("ATTESTATION_SERVICE_URL", "https://sgx.enigma.co/api");
+        env::set_var("ATTESTATION_RETRIES", "11");
+        env::set_var("HTTP_PORT","3040");
+        env::set_var("CONFIRMATIONS","0");
+        let config = PrincipalConfig::load_config("this is not a path").unwrap();
+        assert_eq!(config.polling_interval, 1);
+        assert_eq!(config.http_port, 3040);
+        assert_eq!(config.attestation_retries, 11);
     }
 }

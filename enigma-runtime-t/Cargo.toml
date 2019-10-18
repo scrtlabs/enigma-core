@@ -1,6 +1,6 @@
 [package]
 name = "enigma-runtime-t"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Elichai Turkel <elichai@enigma.co>"]
 
 [dependencies]
@@ -8,13 +8,14 @@ enigma-types = { path = "../enigma-types", default-features = false, features = 
 enigma-crypto = { path = "../enigma-crypto", default-features = false, features = ["sgx", "asymmetric"] }
 enigma-tools-t = { path = "../enigma-tools-t" }
 
-rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "0.14.0-sgx-1.0.8" }
-json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "0.2.5-sgx-1.0.8" }
-serde_json = { git = "https://github.com/enigmampc/serde-json-sgx.git", rev = "1.0.39-sgx-1.0.8" }
-serde = { git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "407aaaa2558dda5c2367d57ba40324c52cf9acc2", default-features = false, features=["serde_derive"] }
-wasmi = { git = "https://github.com/enigmampc/wasmi", rev = "0.4.2-sgx-1.0.8" }
+rmp-serde = { git = "https://github.com/enigmampc/msgpack-rust.git", rev =  "0.14.0-sgx-1.0.9" }
+json-patch = { git = "https://github.com/enigmampc/json-patch.git", rev = "0.2.5-sgx-1.0.9" }
+serde_json = { git = "https://github.com/enigmampc/serde-json-sgx.git", rev = "1.0.39-sgx-1.0.9" }
+serde = { git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "bc160eaaa364448e0831c6fbfc9c77cbf59f09db", default-features = false, features=["serde_derive"] }
+wasmi = { git = "https://github.com/enigmampc/wasmi", rev = "0.4.2-sgx-1.0.9" }
+pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", rev = "0.5.0-sgx-1.0.9", default-features = false }
+parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
 
-
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
-sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8" }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }

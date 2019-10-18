@@ -375,6 +375,22 @@ mod tests {
     }
 
     #[test]
+    fn test_sc_encryption() {
+        let (mut db, _dir) = create_test_db();
+        let message = b"Enigma";
+
+        compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/encryption",
+            generate_contract_address(),
+            "construct()",
+            &[],
+            "encrypt_decrypt(bytes)",
+            &[Token::Bytes(message.to_vec())]
+        );
+    }
+
+    #[test]
     fn test_write_simple() {
         let (mut db, _dir) = create_test_db();
 
@@ -409,6 +425,24 @@ mod tests {
         );
 
         assert_eq!(symmetric::decrypt(&result.output, &shared_key).unwrap(), *addr);
+    }
+
+    #[test]
+    fn test_dynamic_types() {
+        let (mut db, _dir) = create_test_db();
+        let byte_arr = Token::Array(vec![Token::Bytes(vec![5,4,18,23]), Token::Bytes(vec![5,4,18,23,47])]);
+        let string_arr = Token::Array(vec![Token::String(String::from("enigma")), Token::String(String::from("secret-contract"))]);
+        let fixed_arr = Token::Array(vec![Token::FixedBytes(generate_contract_address().to_vec()), Token::FixedBytes(generate_contract_address().to_vec())]);
+        let (_, _, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/simplest",
+            generate_contract_address(),
+            "construct(uint)",
+            &[Token::Uint(100.into())],
+            "dynamic_types(Array(bytes),Array(String),Array(bytes32))",
+            &[byte_arr,string_arr,fixed_arr]
+        );
+
     }
 
     #[test]

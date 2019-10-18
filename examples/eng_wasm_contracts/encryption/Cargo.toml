@@ -1,0 +1,18 @@
+[package]
+name = "contract"
+version = "0.1.0"
+
+[dependencies]
+eng-wasm = "0.1"
+eng-wasm-derive = "0.1"
+serde_derive = "1.0.84"
+serde = "1.0.84"
+enigma-crypto = { path = "../../../enigma-crypto", default-features = false, features = ["asymmetric", "hash"] }
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = "z"

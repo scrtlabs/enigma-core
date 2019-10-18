@@ -9,13 +9,15 @@ use hex::FromHex;
 use openssl::hash::MessageDigest;
 use openssl::sign::Verifier;
 use openssl::x509::{X509VerifyResult, X509};
-use reqwest;
+use reqwest::{self, Client};
 use rlp;
 use serde_json;
 use serde_json::Value;
 use std::io::Read;
 use std::mem;
 use std::string::ToString;
+
+const ATTESTATION_SERVICE_DEFAULT_RETRIES: u32 = 10;
 
 #[derive(Serialize, Deserialize, Debug, Default)]
 pub struct ASReport {
@@ -101,10 +103,18 @@ pub struct QReportBody {
 
 pub struct AttestationService {
     connection_str: String,
+    /// amount of attempts per network call
+    retries: u32,
 }
 
 impl AttestationService {
-    pub fn new(conn_str: &str) -> AttestationService { AttestationService { connection_str: conn_str.to_string() } }
+    pub fn new(conn_str: &str) -> AttestationService {
+        AttestationService { connection_str: conn_str.to_string(), retries: ATTESTATION_SERVICE_DEFAULT_RETRIES }
+    }
+
+    pub fn new_with_retries(conn_str: &str, retries: u32) -> AttestationService {
+        AttestationService { connection_str: conn_str.to_string(), retries }
+    }
 
     #[logfn(INFO)]
     pub fn get_report(&self, quote: String) -> Result<ASResponse, Error> {
@@ -127,26 +137,35 @@ impl AttestationService {
         }
     }
 
-    // request the report object
-    pub fn send_request(&self, quote_req: &QuoteRequest) -> Result<ASResponse, Error> {
-        let client = reqwest::Client::new();
+    fn attempt_request(&self, client: &Client, quote_req: &QuoteRequest) -> Result<ASResponse, Error> {
         let mut res = client.post(self.connection_str.as_str()).json(&quote_req).send()?;
         let response_str = res.text()?;
         let json_response: Value = serde_json::from_str(response_str.as_str())?;
 
-        if res.status().is_success() {
+        if res.status().is_success() && !json_response["error"].is_object() {
             // parse the Json object into an ASResponse struct
             let response: ASResponse = self.unwrap_response(&json_response);
             Ok(response)
-        } else if res.status().is_server_error() {
-            let mut message = String::from("[-] AttestationService: Server Error happened. Status code: ");
-            message.push_str(res.status().to_string().as_str());
-            Err(errors::AttestationServiceErr { message }.into())
-        } else {
-            let mut message = String::from("[-] AttestationService: Unkown Error happened. Status code: ");
-            message.push_str(res.status().to_string().as_str());
+        }
+        else {
+            let message = format!("[-] AttestationService: An Error occurred. \
+                                            Status code: {:?}\nError response: {:?}",
+                                            res.status(), json_response["error"]["message"].as_str());
             Err(errors::AttestationServiceErr { message }.into())
         }
+    }
+    // request the report object
+    pub fn send_request(&self, quote_req: &QuoteRequest) -> Result<ASResponse, Error> {
+        let client = reqwest::Client::new();
+        self.attempt_request(&client, quote_req).or_else(|mut res_err| {
+            for _ in 0..self.retries {
+                match self.attempt_request(&client, quote_req) {
+                    Ok(response) => return Ok(response),
+                    Err(e) => res_err = e,
+                }
+            }
+            return Err(res_err)
+        })
     }
 
     // encode to rlp the report -> registration for the enigma contract
@@ -301,6 +320,7 @@ mod test {
     use crate::attestation_service::{self, service::*};
     use std::str::from_utf8;
     use hex::FromHex;
+    use common_u::errors::AttestationServiceErr;
 
     // this unit-test is for the attestation service
     // it uses a hardcoded quote that is validated
@@ -319,6 +339,29 @@ mod test {
         assert_eq!(true, as_response.result.validate);
         assert_eq!("2.0", as_response.jsonrpc);
     }
+
+    // Run the same test but with no option of retries
+    #[test]
+    fn test_get_response_attestation_service_no_retries() {
+        // build a request with an initialized amount of 0 retries
+        let service: AttestationService = AttestationService::new_with_retries(attestation_service::constants::ATTESTATION_SERVICE_URL, 0);
+        let quote = String::from("AgAAANoKAAAHAAYAAAAAALAzX9O8HMqPgE65imQgWS3bL6zst0H4QfxKAKurXXnVBAX/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwAAAAAAAAAHAAAAAAAAAIzp3AzhlP03bwcSpF+o5J3dlTq2zu0T03uf7PbnLtMYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACD1xnnferKFHD2uvYqTXdDA8iZ22kCD5xw7h38CMfOngAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD9sUtS1/Vn5lvk3Mxh+eX0AOjdoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAqAIAADM2OO98uEjJQLRmzAvAqO4nirzimAHK0PjdgI8MT0xKDy/Paohf208N04YWgzl4kOjrG0X/T8LUphwzn3qB7XkycWqDO9RsLbNIpKRiVBIttztbn0/kxcwo6p54OeOLfhFbxaTn0wkzEYJhGWVR+j6IUGxubDwinf0fO+2vPu20kW1NzSV/Le8fyYzC4v5sIblVW8VZESsbuFd+bFbbcNzco9cH6cNI68FMkeMHoZF/Z4HvP7DR2sIiLnmYcavDbTlzG7OwaTDNcTCNfKsKReK76TRtu+m018QArsRTdrAwx7gZY2788RBpn0veSkU+v9QxNnZmqfpMolAXdu3ksQul4R8bzQ8HoiRkQvedCY8K+5j3GLvDjLCUgB4JP8Vhtt6KjABRO5o4+s3Uj2gBAABJIOqpxIvbG5zmizV7zUe4jAJQoPVM3jtcxXwU9PH5saXiCPHBpTEBpK/2r/5bUnIIBkshRbQ8/kP6/lLhEOu3Fkfh7UMMoizPO8uGQimLBGwbAFyAgU4G8TGeUbYWEGuRRJoKDoclzm9edJZ7mApMlmiT9t2VMLMsg7l49sO1T1TtgK/zpwwLvr2f4a/vmkJWviOcIRimFD+V20xw+EMXYl8Aj4x4Rw62+oiQe0mKvh3K4gXIamejnQHZ/Mrbeh8ai0n1J+GMeKFxxSkeytGZVrT+a75WjLAcJtt5QAU3Em1ELsWLUVUI58mLTe/u+hsjTlWizXAruElzhCIijvR96aHc+lzd/a+EmsQ4mI/mWPxqdoUciznhG4VlxNAhXSw8zn77k8m+1GaBSxvAUDwFOf/V3KcQUYp5Cswo1MD4t26Rn5LBqF1I0I27d/BHD+KUwl7W5doG4Ec6egnoofkSTUnjI3G+9btxIVV2nYWzfXauZzseiZQn");
+        let as_response = service.get_report(quote).unwrap();
+
+        assert_eq!(true, as_response.result.validate);
+        assert_eq!("2.0", as_response.jsonrpc);
+    }
+
+    #[test]
+    fn test_response_attestation_service_failure_no_retries() {
+        // build a faulty request
+        let service: AttestationService = AttestationService::new_with_retries(attestation_service::constants::ATTESTATION_SERVICE_URL, 0);
+        let quote = String::from("Wrong quote");
+        let as_response = service.get_report(quote.clone());
+        // if it's able to do the downcast, we got the correct error
+        assert!(as_response.unwrap_err().downcast::<AttestationServiceErr>().is_ok());
+    }
+
     // get rlp_encoded Vec<u8> that contains the bytes array for worker registration in the enigma smart contract.
     #[test]
     fn test_get_response_attestation_service_rlp_encoded() {

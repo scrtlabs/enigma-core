@@ -9,14 +9,21 @@ extern "C" {
 }
 extern "C" {
     pub fn ocall_update_state(
-        retval: *mut EnclaveReturn, db_ptr: *const RawPointer, contract_address: *const ContractAddress, enc_state: *const u8,
+        retval: *mut EnclaveReturn,
+        db_ptr: *const RawPointer,
+        contract_address: *const ContractAddress,
+        enc_state: *const u8,
         len: usize,
     ) -> sgx_status_t;
 }
 extern "C" {
     pub fn ocall_new_delta(
-        retval: *mut EnclaveReturn, db_ptr: *const RawPointer, enc_delta: *const u8, len: usize,
-        contract_address: *const ContractAddress, delta_index: *mut u32,
+        retval: *mut EnclaveReturn,
+        db_ptr: *const RawPointer,
+        enc_delta: *const u8,
+        len: usize,
+        contract_address: *const ContractAddress,
+        delta_index: *mut u32,
     ) -> sgx_status_t;
 }
 extern "C" {
@@ -24,23 +31,48 @@ extern "C" {
 }
 extern "C" {
     pub fn ocall_get_deltas_sizes(
-        retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: *const ContractAddress, start: *const u32, end: *const u32,
-        res_ptr: *mut usize, res_len: usize,
+        retval: *mut EnclaveReturn,
+        db_ptr: *const RawPointer,
+        addr: *const ContractAddress,
+        start: *const u32,
+        end: *const u32,
+        res_ptr: *mut usize,
+        res_len: usize,
     ) -> sgx_status_t;
 }
 extern "C" {
     pub fn ocall_get_deltas(
-        retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: *const ContractAddress, start: *const u32, end: *const u32,
-        res_ptr: *mut u8, res_len: usize,
+        retval: *mut EnclaveReturn,
+        db_ptr: *const RawPointer,
+        addr: *const ContractAddress,
+        start: *const u32,
+        end: *const u32,
+        res_ptr: *mut u8,
+        res_len: usize,
     ) -> sgx_status_t;
 }
 extern "C" {
     pub fn ocall_get_state_size(
-        retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: *const ContractAddress, state_size: *mut usize,
+        retval: *mut EnclaveReturn,
+        db_ptr: *const RawPointer,
+        addr: *const ContractAddress,
+        state_size: *mut usize,
     ) -> sgx_status_t;
 }
 extern "C" {
     pub fn ocall_get_state(
-        retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: *const ContractAddress, state_pt: *mut u8, state_len: usize,
+        retval: *mut EnclaveReturn,
+        db_ptr: *const RawPointer,
+        addr: *const ContractAddress,
+        state_pt: *mut u8,
+        state_len: usize,
+    ) -> sgx_status_t;
+}
+extern "C" {
+    pub fn ocall_remove_delta(
+        retval: *mut EnclaveReturn,
+        db_ptr: *const RawPointer,
+        contract_address: *const ContractAddress,
+        delta_index_: *mut u32,
     ) -> sgx_status_t;
 }

@@ -3,7 +3,7 @@
 
 [package]
 name = "enigma-types"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Elichai Turkel <elichai@enigma.co>"]
 edition = "2018"
 categories = ["no-std"]
@@ -11,14 +11,14 @@ categories = ["no-std"]
 [dependencies]
 rustc-hex = { version = "2.0.1", default-features = false }
 arrayvec = { version = "0.4.10", default-features = false }
-serde_sgx = { package = "serde", git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "407aaaa2558dda5c2367d57ba40324c52cf9acc2", features = ["derive"], optional = true }
-serde_std = { package = "serde", version = "1.0", default-features = false, features = ["derive"] }
+serde_sgx = { package = "serde", git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "bc160eaaa364448e0831c6fbfc9c77cbf59f09db", optional = true }
+serde_std = { package = "serde", version = "1.0", default-features = false, optional = true }
 
 [build-dependencies]
 cbindgen = "0.8"
 
 [features]
-default = ["std"] # This library should work without std if `--no-default-features` is supplied.
-std = ["serde_std/std"]
-alloc = ["serde_std/alloc"]
-sgx = ["serde_sgx"]
+default = ["serde_std/derive"] # This library is no_std with the default features.
+std = ["serde_std/std", "serde_std/derive"]
+alloc = ["serde_std/alloc", "serde_std/derive"]
+sgx = ["serde_sgx", "serde_sgx/derive"]

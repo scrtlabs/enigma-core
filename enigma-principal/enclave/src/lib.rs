@@ -41,7 +41,7 @@ lazy_static! {
 
 #[no_mangle]
 pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, real_report: &mut sgx_report_t) -> sgx_status_t {
-    quote_t::create_report_with_data(&target_info, real_report, &SIGNING_KEY.get_pubkey().address())
+    quote_t::create_report_with_data(target_info, real_report, &SIGNING_KEY.get_pubkey().address())
 }
 
 #[no_mangle]
@@ -50,8 +50,9 @@ pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) { pubkey.copy
 fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     // Get Home path via Ocall
     let mut path_buf = ocalls_t::get_home_path().unwrap();
-    // add the filename to the path: `keypair.sealed`
-    path_buf.push("keypair.sealed");
+    // add the filename to the path: `km_keypair.sealed`,
+    // in order to distinguish from core's enclave in a local build
+    path_buf.push("km_keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
 
     // TODO: Decide what to do if failed to obtain keys.

@@ -1,37 +1,45 @@
+// Rust’s standard library provides a lot of useful functionality
+// but WebAssembly does not support all of it;
+// eng_wasm exposes a subset of std.
 #![no_std]
-#![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
 
-
-
-
+// The eng_wasm crate allows to use the Enigma runtime, which provides:
+// reading and writing to state, printing, random and more
 extern crate eng_wasm;
+
+// The eng_wasm_derive crate provides the following:
+// * Functions exposed by the contract that may be called from the Enigma network
+// * Ability to call functions of Ethereum contracts from ESC
 extern crate eng_wasm_derive;
-extern crate rustc_hex as hex;
-#[macro_use]
-extern crate serde_derive;
+
 extern crate serde;
 
 use eng_wasm::*;
+
+// The [pub_interface] trait is required for the definition of ESC public functions 
 use eng_wasm_derive::pub_interface;
+
+// Enables the serializing and deserializing of custom struct types
 use serde::{Serialize, Deserialize};
 
-// State key name "millionaires" holding a vector of Millionaire structs
+// Const representing the millionaire structs vector to be saved at the contract state
 static MILLIONAIRES: &str = "millionaires";
 
-// Struct representing a Millionaire
+// Millionaire struct
 #[derive(Serialize, Deserialize)]
 pub struct Millionaire {
     address: H256, // field containing 32 byte hash type for millionaire's address
     net_worth: U256, // field containing 32 byte uint for millionaire's net worth
 }
 
-// Public-facing secret contract function declarations
+// Public secret contract function declarations
 #[pub_interface]
 pub trait ContractInterface{
     fn add_millionaire(address: H256, net_worth: U256);
     fn compute_richest() -> H256;
 }
 
+// Public Contract struct which will consist of private and public-facing secret contract functions
 pub struct Contract;
 
 // Private functions accessible only by the secret contract
@@ -47,7 +55,6 @@ impl Contract {
 
 impl ContractInterface for Contract {
     // Add millionaire with 32-byte hash type for address and 32-byte uint for net worth
-    #[no_mangle]
     fn add_millionaire(address: H256, net_worth: U256) {
         // Read state to get vector of Millionaires
         let mut millionaires = Self::get_millionaires();
@@ -61,7 +68,6 @@ impl ContractInterface for Contract {
     }
 
     // Compute the richest millionaire by returning the 32-byte hash type for the address
-    #[no_mangle]
     fn compute_richest() -> H256 {
         // Read state to get vector of Millionaires and obtain the struct corresponding to the
         // richest millionaire by net worth

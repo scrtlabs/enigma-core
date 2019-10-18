@@ -20,7 +20,7 @@ lazy_static! {
 
 pub(crate) unsafe fn ecall_ptt_req_internal(sig: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
     let keys = KeyPair::new()?;
-    let mut data = PrincipalMessageType::Request;
+    let data = PrincipalMessageType::Request;
     let req = PrincipalMessage::new(data, keys.get_pubkey())?;
     let id = req.get_id();
     *sig = SIGNING_KEY.sign(&req.to_sign()?)?;
@@ -51,14 +51,14 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     Ok(())
 }
 
-pub(crate) fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Vec<ContractAddress>, EnclaveError> {
+pub(crate) unsafe fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Vec<ContractAddress>, EnclaveError> {
     let guard = STATE_KEYS.lock_expect("State Keys");
     let mut failed_contracts = Vec::with_capacity(guard.len());
     debug_println!("building state for {} contracts", guard.len());
 
     'contract: for (addrs, key) in guard.iter() {
         // Get the state and decrypt it.
-        // if no state exist create new one and if failed decrypting push to failed_contracts and move on.
+        // if no state exists create a new one and if failed decrypting, push to failed_contracts and move on.
         let (mut start, mut state ) = match runtime_ocalls_t::get_state(db_ptr, *addrs) {
             Ok(enc_state) => match ContractState::decrypt(enc_state, &key) {
                 Ok(state) => (state.delta_index+1, state),
@@ -144,7 +144,7 @@ pub mod tests {
     use std::string::ToString;
 
 
-    pub fn test_state_internal(db_ptr: *const RawPointer) {
+    pub unsafe fn test_state_internal(db_ptr: *const RawPointer) {
         // Making the ground work
         let address = vec![b"meee".sha256(), b"moo".sha256(), b"maa".sha256()];
         let state_keys = vec![*b"first_key".sha256(), *b"second_key".sha256(), *b"third_key".sha256()];
@@ -160,7 +160,7 @@ pub mod tests {
         runtime_ocalls_t::save_state(db_ptr, &gibrish_state).unwrap();
         // Generating the request
         let mut _sig = [0u8; 65];
-        let req_msg = unsafe { ecall_ptt_req_internal(&mut _sig).unwrap() };
+        let req_msg = ecall_ptt_req_internal(&mut _sig).unwrap();
         let req_obj = PrincipalMessage::from_message(&req_msg).unwrap();
 
         // Mimicking the Principal/KM Node

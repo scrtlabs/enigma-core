@@ -1,7 +1,4 @@
 #![no_std]
-#![allow(unused_attributes)] // TODO: Remove on future nightly https://github.com/rust-lang/rust/issues/60050
-
-
 
 extern crate eng_wasm;
 extern crate eng_wasm_derive;
@@ -19,7 +16,6 @@ pub trait ContractInterface{
 
 pub struct Contract;
 impl ContractInterface for Contract {
-    #[no_mangle]
     fn add(a: U256, b: U256) -> U256 {
         let res = a.checked_add(b);
         match res {
@@ -28,7 +24,6 @@ impl ContractInterface for Contract {
         }
     }
 
-    #[no_mangle]
     fn sub(a: U256, b: U256) -> U256 {
         let res = a.checked_sub(b);
         match res {
@@ -37,7 +32,6 @@ impl ContractInterface for Contract {
         }
     }
 
-    #[no_mangle]
     fn mul(a: U256, b: U256) -> U256 {
         let res = a.checked_mul(b);
         match res {
@@ -46,7 +40,6 @@ impl ContractInterface for Contract {
         }
     }
 
-    #[no_mangle]
     fn div(a: U256, b: U256) -> U256 {
         let res = a.checked_div(b);
         match res {

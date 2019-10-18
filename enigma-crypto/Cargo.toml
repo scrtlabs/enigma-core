@@ -3,13 +3,13 @@
 
 [package]
 name = "enigma-crypto"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Elichai Turkel <elichai@enigma.co>"]
 edition = "2018"
 description = "A Cryptography library used for easy usage in the Enigma Protocol."
 
 [dependencies]
-enigma-types = { path = "../enigma-types", default-features = false }
+enigma-types = { path = "../enigma-types" }
 rustc-hex = { version = "2.0.1", default-features = false }
 failure = { version = "0.1", default-features = false, features = ["derive"] }
 
@@ -20,9 +20,9 @@ ring = { git = "https://github.com/elichai/ring.git", rev = "sgx-0.14.6", defaul
 
 rand_std = { package = "rand", version = "0.6.4", optional = true }
 
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8", optional = true }
-sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8", optional = true }
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.8", optional = true }
+sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9", optional = true }
+sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9", optional = true }
+sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9", optional = true }
 
 
 # Right now symmetric encryption requires regular std or sgx std.
@@ -32,5 +32,5 @@ asymmetric = ["libsecp256k1", "hash"]
 hash = ["sha2", "tiny-keccak"]
 symmetric = []
 # both regular std and sgx will import symmetric encryption.
-std = ["rand_std", "ring/default", "symmetric"]
+std = ["rand_std", "enigma-types/std", "ring/default", "symmetric"]
 sgx = ["sgx_trts", "sgx_tstd", "sgx_types", "enigma-types/sgx", "ring/sgx", "symmetric"]

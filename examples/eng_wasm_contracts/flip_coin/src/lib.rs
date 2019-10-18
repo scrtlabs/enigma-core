@@ -1,7 +1,5 @@
 #![no_std]
 
-
-
 extern crate eng_wasm;
 extern crate eng_wasm_derive;
 
@@ -14,7 +12,7 @@ pub trait ContractInterface{
     fn flip() -> bool;
 
     /// Player 1 commits to a coin value
-    fn commit(bool);
+    fn commit(commitment: bool);
 
     /// Player 2 guesses the value that player 1 was committed to. The commitment is removed.
     /// True is returned on successful guess.

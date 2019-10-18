@@ -1,10 +1,10 @@
 [package]
 name = "cross-test-utils"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Enigma <support@enigma.co>"]
 
 [dependencies]
-enigma-types = { path = "../../../enigma-types" }
+enigma-types = { path = "../../../enigma-types", features = ["std"] }
 enigma-crypto = { path = "../../../enigma-crypto" }
 futures = "0.1.25"
 serde_json = "1.0"

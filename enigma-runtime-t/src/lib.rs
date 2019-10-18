@@ -17,21 +17,36 @@ extern crate json_patch;
 extern crate rmp_serde as rmps;
 extern crate serde;
 extern crate wasmi;
+extern crate parity_wasm;
+/// This module builds Wasm code for contract deployment from the Wasm contract.
+/// The contract should be written in rust and then compiled to Wasm with wasm32-unknown-unknown target.
+/// The code is based on Parity wasm_utils::cli.
+extern crate pwasm_utils;
 
 use crate::data::{ContractState, DeltasInterface, IOInterface, EncryptedPatch};
+use enigma_types::{StateKey, SymmetricKey};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError};
-use enigma_types::{ContractAddress, StateKey};
+
 use std::{str, vec::Vec};
 use std::string::{String, ToString};
 use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
 use sgx_trts::trts::rsgx_read_rand;
+use enigma_crypto::symmetric::{encrypt, decrypt};
 
 pub mod data;
 pub mod eng_resolver;
 pub mod ocalls_t;
+pub mod gas;
+pub mod wasm_execution;
+
+pub use gas::*;
+
+// TODO: Place in some common module. Which one?
+/// The symmertic key byte size
+const SYMMETRIC_KEY_SIZE: usize = 32;
 
 #[derive(Debug, Clone, Default, PartialEq)]
-pub struct EthereumData{
+pub struct EthereumData {
     pub ethereum_payload: Vec<u8>,
     pub ethereum_contract_addr: [u8; 20],
 }
@@ -46,52 +61,23 @@ pub struct RuntimeResult {
 }
 
 #[derive(Debug, Clone)]
-pub struct RuntimeWasmCosts {
-    write_value: u64,
-    write_additional_byte: u64,
-    deploy_byte: u64,
-    execution: u64,
-}
-
-impl Default for RuntimeWasmCosts {
-    fn default() -> Self {
-        RuntimeWasmCosts {
-            write_value: 10,
-            write_additional_byte: 1,
-            deploy_byte: 1,
-            execution: 10_000,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
 pub struct Runtime {
-    gas_counter: u64,
-    gas_limit: u64,
-    gas_return: u64,
     memory: MemoryRef,
     function_name: String,
-    args_types: String,
     args: Vec<u8>,
     result: RuntimeResult,
     pre_execution_state: ContractState,
     post_execution_state: ContractState,
     key: StateKey,
-    gas_costs: RuntimeWasmCosts,
+    gas : RuntimeGas,
 }
 
 type Result<T> = ::std::result::Result<T, WasmError>;
 
 impl Runtime {
 
-    pub fn new(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, contract_address: ContractAddress,
-               function_name: String, args_types: String, key: StateKey) -> Runtime {
-        let state = ContractState::new(contract_address);
-        Self::new_with_state(gas_limit, memory, args, state, function_name, args_types, key, RuntimeWasmCosts::default())
-    }
-
-    pub fn new_with_state(gas_limit: u64, memory: MemoryRef, args: Vec<u8>, state: ContractState,
-                          function_name: String, args_types: String, key: StateKey, costs: RuntimeWasmCosts) -> Runtime {
+    pub fn new(memory: MemoryRef, gas_limit: u64, args: Vec<u8>, state: ContractState,
+                          function_name: String, key: StateKey, costs: RuntimeWasmCosts) -> Runtime {
         let pre_execution_state = state.clone();
         let post_execution_state = state;
         let result = RuntimeResult {
@@ -101,11 +87,17 @@ impl Runtime {
             ethereum_bridge: Default::default(),
             used_gas: 0,
         };
-        Runtime { gas_counter: 0, gas_limit, gas_return: 0, memory, function_name, args_types, args, result, pre_execution_state, post_execution_state, key, gas_costs: costs }
+        let gas = RuntimeGas{
+            counter: 0,
+            limit: gas_limit,
+            refund: 0,
+            costs,
+        };
+        Runtime { memory, function_name, args, result, pre_execution_state, post_execution_state, key, gas }
     }
 
     pub fn get_used_gas(&self) -> u64 {
-        self.gas_counter
+        self.gas.counter
     }
 
     fn fetch_args_length(&mut self) -> RuntimeValue { RuntimeValue::I32(self.args.len() as i32) }
@@ -126,15 +118,6 @@ impl Runtime {
         Ok(())
     }
 
-    fn fetch_types_length(&mut self) -> RuntimeValue { RuntimeValue::I32(self.args_types.len() as i32) }
-
-    fn fetch_types(&mut self, args: RuntimeArgs) -> Result<()> {
-        let ptr: u32 = args.nth_checked(0)?;
-
-        self.memory.set(ptr, &self.args_types.as_bytes())?;
-        Ok(())
-    }
-
     fn read_state_key_from_memory(&self, args: &RuntimeArgs, arg_index: usize, arg_len_index: usize) -> Result<String>{
         let key = args.nth_checked(arg_index)?;
         let key_len: u32 = args.nth_checked(arg_len_index)?;
@@ -146,13 +129,13 @@ impl Runtime {
         Ok(key_str.to_string())
     }
 
-    pub fn read_state_len (&self, args: RuntimeArgs) -> Result<i32> {
+    pub fn read_state_len(&self, args: RuntimeArgs) -> Result<i32> {
         // TODO: Handle the error here, should we return len=0?;
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value_vec =
             serde_json::to_vec(&self.post_execution_state.json[&key]).
                 expect("Failed converting Value to vec in Runtime while reading state");
-        Ok( value_vec.len() as i32 )
+        Ok(value_vec.len() as i32)
     }
 
 
@@ -162,7 +145,7 @@ impl Runtime {
     ///
     /// Read `key` from the memory, then read from the state the value under the `key`
     /// and copy it to `value_holder`.
-    pub fn read_state (&mut self, args: RuntimeArgs) -> Result<()> {
+    pub fn read_state(&mut self, args: RuntimeArgs) -> Result<()> {
         // TODO: Handle the error here, should we return len=0?;
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value_holder: u32 = args.nth_checked(2)?;
@@ -178,7 +161,7 @@ impl Runtime {
     /// * `key_len` - the length of key
     ///
     /// Read `key` from the memory, then remove the `key` from the state
-    pub fn remove_from_state (&mut self, args: RuntimeArgs) -> Result<()> {
+    pub fn remove_from_state(&mut self, args: RuntimeArgs) -> Result<()> {
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
 
         self.post_execution_state.remove_key(&key);
@@ -193,7 +176,7 @@ impl Runtime {
     ///
     /// Read `key` and `value` from memory, and write (key, value) pair to the state
     /// the cost of writing into the state is calculated by `calculate_gas_for_writing`
-    pub fn write_state (&mut self, args: RuntimeArgs) -> Result<()>{
+    pub fn write_state(&mut self, args: RuntimeArgs) -> Result<()> {
         let key = self.read_state_key_from_memory(&args, 0, 1)?;
         let value: u32 = args.nth_checked(2)?;
         let value_len: u32 = args.nth_checked(3)?;
@@ -209,12 +192,11 @@ impl Runtime {
         Ok(())
     }
 
-    fn treat_gas_overflow(&mut self, val: &Option<u64>) -> Result<()>{
+    fn treat_gas_overflow(&mut self, val: &Option<u64>) -> Result<()> {
         if val.is_none() {
-            self.gas_counter = self.gas_limit;
+            self.gas.counter = self.gas.limit;
             Err(WasmError::GasLimit)
-        }
-        else {
+        } else {
             Ok(())
         }
     }
@@ -223,9 +205,8 @@ impl Runtime {
         let result = 0;
         if let Some(v) = val {
             (false, *v)
-        }
-        else {
-            self.gas_return = self.gas_limit;
+        } else {
+            self.gas.refund = self.gas.limit;
             (true, result)
         }
     }
@@ -249,19 +230,19 @@ impl Runtime {
         }
         // If the new value is larger than the old one, the gas should be charged
         if new_value_len >= old_value_len {
-            let checked_val = (new_value_len - old_value_len).checked_mul(self.gas_costs.write_additional_byte);
+            let checked_val = (new_value_len - old_value_len).checked_mul(self.gas.costs.write_additional_byte);
             self.treat_gas_overflow(&checked_val)?;
-            result = self.gas_costs.write_value.checked_add(checked_val.unwrap());
+            result = self.gas.costs.write_value.checked_add(checked_val.unwrap());
             self.treat_gas_overflow(&result)?;
         } // If the new value is smaller than the old one, the gas should be returned
         else {
-            let decrease_cost = (old_value_len - new_value_len).checked_mul(self.gas_costs.write_additional_byte);
+            let decrease_cost = (old_value_len - new_value_len).checked_mul(self.gas.costs.write_additional_byte);
             let (underflow, _val) = self.treat_gas_underflow(&decrease_cost);
             if !underflow {
-                let tmp = self.gas_return.checked_add(decrease_cost.unwrap());
+                let tmp = self.gas.refund.checked_add(decrease_cost.unwrap());
                 let (underflow, val) = self.treat_gas_underflow(&tmp);
                 if !underflow {
-                    self.gas_return = val;
+                    self.gas.refund = val;
                 }
             }
         }
@@ -279,7 +260,7 @@ impl Runtime {
         let payload_len: u32 = args.nth_checked(1)?;
         let address = args.nth_checked(2)?;
 
-        let mut bridge = EthereumData{ethereum_payload: vec![0u8; payload_len as usize], ethereum_contract_addr: Default::default()};
+        let mut bridge = EthereumData { ethereum_payload: vec![0u8; payload_len as usize], ethereum_contract_addr: Default::default() };
 
         self.memory.get_into(payload, &mut bridge.ethereum_payload[..])?;
         self.memory.get_into(address, &mut bridge.ethereum_contract_addr[..])?;
@@ -309,17 +290,16 @@ impl Runtime {
             Ok(_) => {
                 self.memory.set(ptr, &buf[..])?;
                 Ok(())
-            },
-            Err(e) => Err(SystemError(SgxError{ err: format!("{}", e), description: e.__description().to_string() }))?
+            }
+            Err(e) => Err(SystemError(SgxError { err: format!("{}", e), description: e.__description().to_string() }))?
         }
     }
 
-    /// Destroy the runtime, returning currently recorded result of the execution
+    /// Destroy the runtime, create state delta, update the used gas and return result of the execution
     pub fn into_result(mut self) -> ::std::result::Result<RuntimeResult, EnclaveError> {
-            if self.gas_counter >= self.gas_return {
-            self.result.used_gas = self.gas_counter - self.gas_return;
-        }
-        else {
+        if self.gas.counter >= self.gas.refund {
+            self.result.used_gas = self.gas.counter - self.gas.refund;
+        } else {
             self.result.used_gas = 0;
         }
         self.result.state_delta = {
@@ -352,12 +332,12 @@ impl Runtime {
 
     pub fn charge_deployment(&mut self) -> Result<()> {
         let deployed_bytecode_len = self.result.result.len() as u64;
-        let gas_for_byte = self.gas_costs.deploy_byte;
+        let gas_for_byte = self.gas.costs.deploy_byte;
         self.charge_gas(deployed_bytecode_len * gas_for_byte)
     }
 
     pub fn charge_execution(&mut self) -> Result<()> {
-        let initial_execution_gas = self.gas_costs.execution;
+        let initial_execution_gas = self.gas.costs.execution;
         self.charge_gas(initial_execution_gas)
     }
 
@@ -365,27 +345,60 @@ impl Runtime {
         if self.charge_gas_if_enough(amount) {
             Ok(())
         } else {
-            self.gas_counter = self.gas_limit;
+            self.gas.counter = self.gas.limit;
             Err(WasmError::GasLimit)
         }
     }
 
     fn charge_gas_if_enough(&mut self, amount: u64) -> bool {
-        let prev = self.gas_counter;
+        let prev = self.gas.counter;
         match prev.checked_add(amount) {
             None => false,
-            Some(val) if val > self.gas_limit => false,
+            Some(val) if val > self.gas.limit => false,
             Some(_) => {
-                self.gas_counter = prev + amount;
+                self.gas.counter = prev + amount;
                 true
             }
         }
+    }
+
+    pub fn encrypt(&mut self, args: RuntimeArgs) -> Result<()> {
+        let message_ptr: u32 = args.nth_checked(0)?;
+        let message_len: u32 = args.nth_checked(1)?;
+        let message = self.memory.get(message_ptr, message_len as usize)?;
+        debug_println!("In encrypt: {:?}", message);
+
+        let key_ptr: u32 = args.nth_checked(2)?;
+        let mut key: SymmetricKey = [0u8; SYMMETRIC_KEY_SIZE];
+        self.memory.get_into(key_ptr, &mut key)?;
+
+        let ptr: u32 = args.nth_checked(3)?;
+        let enc_message = encrypt(&message, &key)?;
+        debug_println!("Encrypted message: {:?}", enc_message);
+        self.memory.set(ptr, &enc_message)?;
+        Ok(())
+    }
+
+    pub fn decrypt(&mut self, args: RuntimeArgs) -> Result<()> {
+        let cipheriv_ptr: u32 = args.nth_checked(0)?;
+        let cipheriv_len: u32 = args.nth_checked(1)?;
+        let cipheriv = self.memory.get(cipheriv_ptr, cipheriv_len as usize)?;
+
+        let key_ptr: u32 = args.nth_checked(2)?;
+        let mut key: SymmetricKey = [0u8; SYMMETRIC_KEY_SIZE];
+        self.memory.get_into(key_ptr, &mut key)?;
+
+        let ptr: u32 = args.nth_checked(3)?;
+        let message = decrypt(&cipheriv, &key)?;
+        self.memory.set(ptr, &message[..])?;
+        Ok(())
     }
 }
 
 mod ext_impl {
     use super::{eng_resolver, Runtime};
     use wasmi::{Externals, RuntimeArgs, RuntimeValue, Trap};
+
     impl Externals for Runtime {
         fn invoke_index(&mut self, index: usize, args: RuntimeArgs) -> Result<Option<RuntimeValue>, Trap> {
             match index {
@@ -428,13 +441,6 @@ mod ext_impl {
                     Ok(None)
                 }
 
-                eng_resolver::ids::TYPES_LENGTH_FUNC => Ok(Some(Runtime::fetch_types_length(self))),
-
-                eng_resolver::ids::TYPES_FUNC => {
-                    Runtime::fetch_types(self, args)?;
-                    Ok(None)
-                }
-
                 eng_resolver::ids::WRITE_ETH_BRIDGE_FUNC => {
                     Runtime::write_eth_bridge(self, args)?;
                     Ok(None)
@@ -447,6 +453,16 @@ mod ext_impl {
 
                 eng_resolver::ids::RAND_FUNC => {
                     Runtime::rand(self, args)?;
+                    Ok(None)
+                }
+
+                eng_resolver::ids::ENCRYPT_FUNC => {
+                    Runtime::encrypt(self, args)?;
+                    Ok(None)
+                }
+
+                eng_resolver::ids::DECRYPT_FUNC => {
+                    Runtime::decrypt(self, args)?;
                     Ok(None)
                 }
 

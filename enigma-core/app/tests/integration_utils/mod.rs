@@ -49,8 +49,9 @@ pub fn run_core(port: &'static str) {
         let (mut db, _datadir) = create_test_db();
         let server = IpcListener::new(&format!("tcp://*:{}", port));
         let spid = "B0335FD3BC1CCA8F804EB98A6420592D";
+        let retries = 10;
         server
-            .run(move |multi| ipc_listener::handle_message(&mut db, multi, spid, eid))
+            .run(move |multi| ipc_listener::handle_message(&mut db, multi, spid, eid, retries))
             .wait()
             .unwrap();
 
@@ -122,9 +123,9 @@ pub fn get_delta_msg(addr: &str, key: u64) -> Value {
     json!({"id": &generate_job_id(), "type": "GetDelta", "input": {"address": addr, "key": key}})
 }
 
-pub fn get_deltas_msg(input: &[(String, u64, u64)]) -> Value {
+pub fn deltas_msg(input: &[(String, u64, u64)], msg_type: &str) -> Value {
     let input: Vec<Value> = input.iter().map(|(addr, from, to)| json!({"address": addr, "from": from, "to": to})).collect();
-    json!({"id": &generate_job_id(), "type": "GetDeltas", "input": input})
+    json!({"id": &generate_job_id(), "type": msg_type, "input": input})
 }
 
 pub fn get_msg_format_update_contract(addr: &str, bytecode: &str) -> Value {
@@ -262,7 +263,7 @@ pub fn full_mint_compute(port: &'static str,  user_addr: ERC20UserAddress, amoun
 }
 
 pub fn full_supply_compute(port: &'static str, supply: u64) -> (Value,  [u8;32], [u8; 32]) {
-    let (owner, owner_keys) = generate_user_address();
+    let (owner, _owner_keys) = generate_user_address();
     let (_, _, contract_addr): (_, _, [u8; 32]) = full_erc20_deployment(port, owner, Some(supply), None);
 
     let callable  = "total_supply()";
@@ -332,5 +333,19 @@ pub fn send_update_contract(port: &'static str,  addr: &str, bytecode: &str) -> 
 
 pub fn send_update_contract_on_deployment(port: &'static str,  addr: &str, bytecode: &str, delta: &(String, u64, Vec<u8>)) -> Value {
     let msg = get_msg_format_update_contract_on_deployment(addr, bytecode, delta);
+    conn_and_call_ipc(&msg.to_string(), port)
+}
+
+pub fn get_remove_contract_msg(addr: &str) -> Value {
+    json!({"id": &generate_job_id(), "type": "RemoveContract", "address": addr})
+}
+
+pub fn remove_contract(port: &'static str, addr: &str) -> Value {
+    let msg = get_remove_contract_msg(addr);
+    conn_and_call_ipc(&msg.to_string(), port)
+}
+
+pub fn remove_deltas(port: &'static str, input: &[(String, u64, u64)]) -> Value {
+    let msg = deltas_msg(input, "RemoveDeltas");
     conn_and_call_ipc(&msg.to_string(), port)
 }
