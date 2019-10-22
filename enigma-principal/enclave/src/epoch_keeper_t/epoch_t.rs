@@ -9,7 +9,7 @@ use enigma_tools_t::common::errors_t::{
     EnclaveSystemError,
 };
 use enigma_types::ContractAddress;
-use super::nested_encoding::{ONE, NestedSerialization};
+use super::nested_encoding::NestedSerialization;
 
 pub type EpochNonce = [u8; 32];
 pub type EpochMarker = [u8; 64];
@@ -29,7 +29,6 @@ impl Epoch {
     }
 
     pub fn encode_for_hashing(&self) -> Bytes {
-        let mut encoding_len: usize = 0;
         let mut encoding: Vec<u8> = Vec::new();
 
         let seed_encoding = self.seed.hash_encode();
@@ -37,10 +36,6 @@ impl Epoch {
         let workers_encoding = self.worker_params.workers.hash_encode();
         let stakes_encoding = self.worker_params.stakes.hash_encode();
 
-        encoding_len = seed_encoding.len() + nonce_encoding.len() + workers_encoding.len() + stakes_encoding.len();
-
-        encoding.push(ONE);
-        encoding.extend_from_slice(&(encoding_len as u64).to_be_bytes());
         encoding.extend_from_slice(&seed_encoding);
         encoding.extend_from_slice(&nonce_encoding);
         encoding.extend_from_slice(&workers_encoding);
