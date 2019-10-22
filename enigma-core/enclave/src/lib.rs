@@ -172,7 +172,7 @@ pub unsafe extern "C" fn ecall_execute(
         result,
     );
     if let Err(e) = &internal_result {
-        println!("Error in execution of smart contract function: {}", e);
+        println!("Error in execution of secret contract function: {}", e);
         internal_result = output_task_failure(&pre_execution_data, *gas_limit, e, result, &io_key);
     }
     internal_result.into()
@@ -227,7 +227,7 @@ pub unsafe extern "C" fn ecall_deploy(
         result,
     );
     if let Err(e) = &internal_result {
-        println!("Error in deployment of smart contract function: {}", e);
+        println!("Error in deployment of secret contract function: {}", e);
         internal_result = output_task_failure(&pre_execution_data, *gas_limit, e, result, &io_key);
     }
     internal_result.into()
