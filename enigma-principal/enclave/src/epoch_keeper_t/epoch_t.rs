@@ -2,12 +2,14 @@ use enigma_tools_m::keeper_types::{InputWorkerParams, RawEncodable};
 use ethabi::Bytes;
 use ethereum_types::{H160, H256, U256, BigEndianHash};
 use std::string::ToString;
+use std::vec::Vec;
 
 use enigma_tools_t::common::errors_t::{
     EnclaveError::{self, SystemError},
     EnclaveSystemError,
 };
 use enigma_types::ContractAddress;
+use super::nested_encoding::NestedSerialization;
 
 pub type EpochNonce = [u8; 32];
 pub type EpochMarker = [u8; 64];
@@ -25,32 +27,20 @@ impl Epoch {
             .get_selected_worker(sc_addr, self.seed)
             .ok_or_else(|| SystemError(EnclaveSystemError::WorkerAuthError { err: "Worker selection returns nothing.".to_string() }))
     }
-}
 
-impl RawEncodable for Epoch {
-    /// Encode the Epoch as Ethereum ABI parameters
-    fn raw_encode(&self) -> Bytes {
-        let raw_seed = H256::from_uint(&self.seed).0.to_vec();
-        let mut image = raw_seed.len().to_be_bytes().to_vec();
-        image.extend(raw_seed);
+    pub fn encode_for_hashing(&self) -> Bytes {
+        let mut encoding: Vec<u8> = Vec::new();
 
-        let raw_nonce = H256::from_uint(&self.nonce).0.to_vec();
-        image.extend(raw_nonce.len().to_be_bytes().to_vec());
-        image.extend(raw_nonce);
+        let seed_encoding = self.seed.hash_encode();
+        let nonce_encoding = self.nonce.hash_encode();
+        let workers_encoding = self.worker_params.workers.hash_encode();
+        let stakes_encoding = self.worker_params.stakes.hash_encode();
 
-        image.extend(self.worker_params.workers.len().to_be_bytes().to_vec());
-        for addr in self.worker_params.workers.clone() {
-            let raw_addr = addr.0.to_vec();
-            image.extend(raw_addr.len().to_be_bytes().to_vec());
-            image.extend(raw_addr);
-        }
+        encoding.extend_from_slice(&seed_encoding);
+        encoding.extend_from_slice(&nonce_encoding);
+        encoding.extend_from_slice(&workers_encoding);
+        encoding.extend_from_slice(&stakes_encoding);
 
-        image.extend(self.worker_params.stakes.len().to_be_bytes().to_vec());
-        for amount in self.worker_params.stakes.clone() {
-            let raw_amount = H256::from_uint(&amount).0.to_vec();
-            image.extend(raw_amount.len().to_be_bytes().to_vec());
-            image.extend(raw_amount);
-        }
-        image
+        encoding
     }
 }
