@@ -31,7 +31,7 @@ use std::{str, vec::Vec};
 use std::string::{String, ToString};
 use wasmi::{MemoryRef, RuntimeArgs, RuntimeValue};
 use sgx_trts::trts::rsgx_read_rand;
-use enigma_crypto::symmetric::{encrypt, decrypt};
+use enigma_crypto::symmetric::{encrypt, decrypt, IV_SIZE, get_tag_size};
 
 pub mod data;
 pub mod eng_resolver;
@@ -393,6 +393,14 @@ impl Runtime {
         self.memory.set(ptr, &message[..])?;
         Ok(())
     }
+
+    pub fn get_iv_size() -> Result<i32> {
+        Ok(IV_SIZE as i32)
+    }
+
+    pub fn get_tag_size() -> Result<i32> {
+        Ok(get_tag_size() as i32)
+    }
 }
 
 mod ext_impl {
@@ -464,6 +472,16 @@ mod ext_impl {
                 eng_resolver::ids::DECRYPT_FUNC => {
                     Runtime::decrypt(self, args)?;
                     Ok(None)
+                }
+
+                eng_resolver::ids::GET_IV_SIZE_FUNC => {
+                    let res = Runtime::get_iv_size()?;
+                    Ok(Some(RuntimeValue::I32(res)))
+                }
+
+                eng_resolver::ids::GET_TAG_SIZE_FUNC => {
+                    let res = Runtime::get_tag_size()?;
+                    Ok(Some(RuntimeValue::I32(res)))
                 }
 
                 _ => unimplemented!("Unimplemented function at {}", index),

@@ -74,6 +74,12 @@ pub fn decrypt(cipheriv: &[u8], key: &SymmetricKey) -> Result<Vec<u8>, CryptoErr
     Ok(decrypted_data.to_vec())
 }
 
+/// Get tag size
+pub fn get_tag_size() -> usize {
+    AES_MODE.tag_len()
+}
+
+
 #[cfg(test)]
 mod tests {
     use crate::rand;
