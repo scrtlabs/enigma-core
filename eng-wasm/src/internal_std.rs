@@ -8,6 +8,7 @@ pub use self::std::{
     str::from_utf8,
     string::{String, ToString},
     vec::Vec,
+    vec,
 };
 
 #[macro_use]
