@@ -11,6 +11,8 @@ use enigma_crypto::hash::Keccak256;
 use enigma_types::ContractAddress;
 pub use rlp::{decode, encode as rlpEncode, Encodable, Decodable, DecoderError, UntrustedRlp, RlpStream};
 
+pub const EPOCH_CAP: usize = 2;
+
 pub trait FromBigint<T>: Sized {
     fn from_bigint(_: T) -> Self;
 }

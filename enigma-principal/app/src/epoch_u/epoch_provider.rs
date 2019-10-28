@@ -8,7 +8,7 @@ use std::{
 use std::clone::Clone;
 use std::sync::MutexGuard;
 
-use enigma_tools_m::keeper_types::InputWorkerParams;
+use enigma_tools_m::keeper_types::{InputWorkerParams, EPOCH_CAP};
 use ethabi::{Log, RawLog};
 use failure::Error;
 use rmp_serde::{Deserializer, Serializer};
@@ -227,8 +227,8 @@ pub struct EpochProvider {
 }
 
 impl EpochProvider {
-    pub fn new(eid: Arc<sgx_enclave_id_t>, dir_path: PathBuf, contract: Arc<EnigmaContract>, epoch_cap: usize) -> Result<EpochProvider, Error> {
-        let epoch_state_manager = Arc::new(EpochStateManager::new(dir_path, epoch_cap)?);
+    pub fn new(eid: Arc<sgx_enclave_id_t>, dir_path: PathBuf, contract: Arc<EnigmaContract>) -> Result<EpochProvider, Error> {
+        let epoch_state_manager = Arc::new(EpochStateManager::new(dir_path, EPOCH_CAP)?);
         let epoch_provider = Self { contract, epoch_state_manager, eid };
         epoch_provider.verify_worker_params()?;
         Ok(epoch_provider)
@@ -272,7 +272,7 @@ impl EpochProvider {
                 let block_number = confirmed.block_number;
                 let (workers, stakes) = self.contract.get_active_workers(block_number)?;
                 let worker_params = InputWorkerParams { block_number, workers, stakes };
-                set_or_verify_worker_params(*self.eid, &worker_params, Some(epoch_state.clone()), self.epoch_state_manager.cap)?;
+                set_or_verify_worker_params(*self.eid, &worker_params, Some(epoch_state.clone()))?;
             }
         }
         Ok(())
@@ -321,7 +321,7 @@ impl EpochProvider {
     fn set_worker_params_internal<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize, epoch_state: Option<EpochState>) -> Result<H256, Error> {
         let result = self.contract.get_active_workers(block_number)?;
         let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
-        let mut epoch_state = set_or_verify_worker_params(*self.eid, &worker_params, epoch_state, self.epoch_state_manager.cap)?;
+        let mut epoch_state = set_or_verify_worker_params(*self.eid, &worker_params, epoch_state)?;
         info!("Storing unconfirmed EpochState: {:?}", epoch_state);
         self.epoch_state_manager.append_unconfirmed(epoch_state.clone())?;
         info!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);

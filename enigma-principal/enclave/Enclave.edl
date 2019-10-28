@@ -19,7 +19,7 @@ enclave {
         public void ecall_get_signing_address([out] uint8_t arr[20]);
 
         public EnclaveReturn ecall_set_worker_params([in, size=worker_params_rlp_len] const uint8_t* worker_params_rlp, size_t worker_params_rlp_len,
-                                        [in, size=32] uint8_t* seed_in, [in, size=32] uint8_t* nonce_in, size_t epoch_cap,
+                                        [in, size=32] uint8_t* seed_in, [in, size=32] uint8_t* nonce_in,
                                         [out] uint8_t rand_out[32], [out] uint8_t nonce_out[32],
                                         [out] uint8_t sig_out[65]);
 

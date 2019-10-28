@@ -11,7 +11,7 @@ use epoch_u::epoch_types::{encode, EpochState};
 extern "C" {
     fn ecall_set_worker_params(
         eid: sgx_enclave_id_t, retval: &mut EnclaveReturn, worker_params_rlp: *const u8, worker_params_rlp_len: usize,
-        seed_in: &[u8; 32], nonce_in: &[u8; 32], epoch_cap: usize,
+        seed_in: &[u8; 32], nonce_in: &[u8; 32],
         rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32], sig_out: &mut [u8; 65],
     ) -> sgx_status_t;
 }
@@ -33,7 +33,7 @@ extern "C" {
 /// let sig = set_worker_params(enclave.geteid(), worker_params, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<EpochState>, epoch_cap: usize) -> Result<EpochState, Error> {
+pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<EpochState>) -> Result<EpochState, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     println!("Evaluating nonce/seed based on EpochState: {:?}", epoch_state);
     let (nonce_in, seed_in) = match epoch_state.clone() {
@@ -53,7 +53,6 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
             worker_params_rlp.len(),
             &seed_in,
             &nonce_in,
-            epoch_cap,
             &mut rand_out,
             &mut nonce_out,
             &mut sig_out,
@@ -85,8 +84,6 @@ pub mod tests {
 
     use super::*;
 
-    pub const EPOCH_CAP: usize = 2;
-
     pub fn get_worker_params(block_number: u64, workers: Vec<[u8; 20]>, stakes: Vec<u64>) -> InputWorkerParams {
         InputWorkerParams {
             block_number: U256::from(block_number),
@@ -106,7 +103,7 @@ pub mod tests {
         let stakes: Vec<u64> = vec![90000000000];
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
-        let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None, EPOCH_CAP).unwrap();
+        let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
         assert!(epoch_state.confirmed_state.is_none());
         enclave.destroy();
     }
@@ -121,7 +118,7 @@ pub mod tests {
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
         for i in 0..5 {
-            let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None, EPOCH_CAP).unwrap();
+            let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
             assert!(epoch_state.confirmed_state.is_none());
         }
         enclave.destroy();
