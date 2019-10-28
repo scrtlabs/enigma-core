@@ -206,7 +206,7 @@ mod test {
     use enigma_types::ContractAddress;
     use epoch_u::epoch_types::ConfirmedEpochState;
     use esgx::epoch_keeper_u::set_or_verify_worker_params;
-    use esgx::epoch_keeper_u::tests::get_worker_params;
+    use esgx::epoch_keeper_u::tests::{get_worker_params, EPOCH_CAP};
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
@@ -225,7 +225,7 @@ mod test {
         let stakes: Vec<u64> = vec![10000000000];
         let block_number = 1;
         let worker_params = get_worker_params(block_number, workers, stakes);
-        let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None, EPOCH_CAP).unwrap();
         let rpc = {
             let mut io = IoHandler::new();
             let eid = enclave.geteid();

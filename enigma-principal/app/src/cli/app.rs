@@ -57,7 +57,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
 
         let eid_safe = Arc::new(eid);
         //TODO: Ugly, refactor to instantiate only once, consider passing to the run method
-        let epoch_provider = EpochProvider::new(eid_safe, path.clone(), principal.contract.clone())?;
+        let epoch_provider = EpochProvider::new(eid_safe, path.clone(), principal.contract.clone(), principal_config.epoch_cap)?;
         if opt.reset_epoch_state {
             epoch_provider.epoch_state_manager.reset()?;
         }

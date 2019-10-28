@@ -1,6 +1,6 @@
 use core::clone::Clone;
 
-use enigma_tools_m::keeper_types::{decode, EPOCH_CAP, InputWorkerParams, RawEncodable};
+use enigma_tools_m::keeper_types::{decode, InputWorkerParams, RawEncodable};
 use enigma_tools_m::utils::LockExpectMutex;
 use ethereum_types::{H256, U256, BigEndianHash};
 use rustc_hex::ToHex;
@@ -109,7 +109,7 @@ fn store_epoch(epoch: Epoch) -> Result<(), EnclaveError> {
 
 pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in: &[u8; 32], nonce_in: &[u8; 32],
                                                rand_out: &mut [u8; 32], nonce_out: &mut [u8; 32],
-                                               sig_out: &mut [u8; 65]) -> Result<(), EnclaveError> {
+                                               sig_out: &mut [u8; 65], epoch_cap: usize) -> Result<(), EnclaveError> {
     // RLP decoding the necessary data
     let worker_params: InputWorkerParams = decode(worker_params_rlp);
     const EMPTY_SLICE: [u8; 32] = [0; 32];
@@ -160,12 +160,12 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     };
     debug_println!("Inserting epoch: {:?} in cache", epoch);
     // Removing the first item (lower nonce) from the cache if capacity is reached
-    if guard.len() == EPOCH_CAP {
+    if guard.len() == epoch_cap {
         // Safe to unwrap because we just verified the size of the `HashMap`
         // Cloning because I couldn't mutably borrow the key enough to satisfy the borrow checker
         let key = guard.keys().min().unwrap().clone();
         if let Some(removed_epoch) = guard.remove(&key) {
-           debug_println!("Cache reached its capacity of {}, removed first epoch: {:?}", EPOCH_CAP, removed_epoch);
+           debug_println!("Cache reached its capacity of {}, removed first epoch: {:?}", epoch_cap, removed_epoch);
         }
     }
     // Add the `Epoch` to the epoch cache regardless of weather it was created or recovered from a sealed marker
