@@ -32,7 +32,7 @@ error-chain = {git = "https://github.com/enigmampc/error-chain.git", rev = "0.12
 sputnikvm-network-classic = { git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-next", default-features = false }
 sputnikvm = { git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-next", default-features = false }
 
-serde_json = { git = "https://github.com/mesalock-linux/serde-json-sgx.git", rev = "sgx_1.0.9" }
+serde_json = { git = "https://github.com/enigmampc/serde-json-sgx.git", rev = "1.0.39-sgx-1.0.9" }
 wasmi = { git = "https://github.com/enigmampc/wasmi", rev = "0.4.2-sgx-1.0.9" }
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
