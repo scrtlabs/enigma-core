@@ -42,6 +42,7 @@ pub struct PrincipalConfig {
     pub attestation_retries: u32,
     pub http_port: u16,
     pub confirmations: u64,
+    pub epoch_cap: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -232,7 +233,7 @@ impl Sampler for PrincipalManager {
         // get enigma contract
         // Start the WorkerParameterized Web3 log filter
         let eid: Arc<sgx_enclave_id_t> = Arc::new(self.eid);
-        let epoch_provider = Arc::new(EpochProvider::new(eid, path, self.contract.clone())?);
+        let epoch_provider = Arc::new(EpochProvider::new(eid, path, self.contract.clone(), self.config.epoch_cap)?);
         if reset_epoch {
             epoch_provider.epoch_state_manager.reset()?;
         }
@@ -340,7 +341,7 @@ mod test {
 
         let block_number = principal.get_block_number().unwrap();
         let eid_safe = Arc::new(eid);
-        let epoch_provider = EpochProvider::new(eid_safe, tempdir.into_path(), principal.contract.clone()).unwrap();
+        let epoch_provider = EpochProvider::new(eid_safe, tempdir.into_path(), principal.contract.clone(), principal.config.epoch_cap).unwrap();
         epoch_provider.epoch_state_manager.reset().unwrap();
         epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();
     }
@@ -412,9 +413,11 @@ mod test {
         env::set_var("ATTESTATION_RETRIES", "11");
         env::set_var("HTTP_PORT","3040");
         env::set_var("CONFIRMATIONS","0");
+        env::set_var("EPOCH_CAP", "3");
         let config = PrincipalConfig::load_config("this is not a path").unwrap();
         assert_eq!(config.polling_interval, 1);
         assert_eq!(config.http_port, 3040);
         assert_eq!(config.attestation_retries, 11);
+        assert_eq!(config.epoch_cap, 3);
     }
 }

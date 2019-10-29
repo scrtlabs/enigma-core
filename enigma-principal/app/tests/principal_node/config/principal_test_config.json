@@ -14,5 +14,6 @@
     "attestation_service_url": "https://sgx.enigma.co/api",
     "attestation_retries": 10,
     "http_port": 3040,
-    "confirmations": 0
+    "confirmations": 0,
+    "epoch_cap": 2
 }
