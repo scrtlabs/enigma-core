@@ -69,7 +69,7 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
             let seed = U256::from_big_endian(&rand_out);
             let sig = Bytes(sig_out.to_vec());
             let nonce = U256::from_big_endian(&nonce_out);
-            EpochState::new(seed, sig, nonce)
+            EpochState::new(seed, sig, nonce, worker_params.km_block_number)
         }
     };
     Ok(epoch_state_out)
@@ -84,9 +84,9 @@ pub mod tests {
 
     use super::*;
 
-    pub fn get_worker_params(block_number: u64, workers: Vec<[u8; 20]>, stakes: Vec<u64>) -> InputWorkerParams {
+    pub fn get_worker_params(km_block_number: u64, workers: Vec<[u8; 20]>, stakes: Vec<u64>) -> InputWorkerParams {
         InputWorkerParams {
-            block_number: U256::from(block_number),
+            km_block_number: U256::from(km_block_number),
             workers: workers.into_iter().map(|a| H160(a)).collect::<Vec<H160>>(),
             stakes: stakes.into_iter().map(|s| U256::from(s)).collect::<Vec<U256>>(),
         }
@@ -101,8 +101,8 @@ pub mod tests {
             [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
         ];
         let stakes: Vec<u64> = vec![90000000000];
-        let block_number = 1;
-        let worker_params = get_worker_params(block_number, workers, stakes);
+        let km_block_number = 1;
+        let worker_params = get_worker_params(km_block_number, workers, stakes);
         let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
         assert!(epoch_state.confirmed_state.is_none());
         enclave.destroy();
@@ -115,8 +115,8 @@ pub mod tests {
             [156, 26, 193, 252, 165, 167, 191, 244, 251, 126, 53, 154, 158, 14, 64, 194, 164, 48, 231, 179],
         ];
         let stakes: Vec<u64> = vec![90000000000];
-        let block_number = 1;
-        let worker_params = get_worker_params(block_number, workers, stakes);
+        let km_block_number = 1;
+        let worker_params = get_worker_params(km_block_number, workers, stakes);
         for i in 0..5 {
             let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
             assert!(epoch_state.confirmed_state.is_none());
