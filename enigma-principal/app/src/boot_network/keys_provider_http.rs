@@ -16,11 +16,13 @@ use enigma_crypto::KeyPair;
 use enigma_types::{ContractAddress, EnclaveReturn};
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
+use esgx;
 use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
-use web3::types::U256;
+use web3::types::{U256, H160};
 use std::convert::AsRef;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
+const METHOD_GET_HEALTH_CHECK: &str = "getHealthCheck";
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StringWrapper(pub String);
@@ -168,7 +170,22 @@ impl PrincipalHttpServer {
         };
     }
 
-    /// Endpoint for the get_state_keys method
+    /// This function should check
+    pub fn health_check(epoch_provider: Arc<EpochProvider>) -> bool {
+        // Ethereum
+        let contract_signing_address = epoch_provider.contract.get_signing_address().unwrap_or(return false);
+        // enclave
+        let enclave_signing_address: H160 = match esgx::equote::get_register_signing_address(*epoch_provider.eid) {
+            Ok(addr) => addr.into(),
+            Err(_) => return false,
+        };
+        if contract_signing_address == enclave_signing_address {
+            return true
+        }
+        return false
+    }
+
+    /// Endpoint for the get_state_keys and the health check method
     ///
     /// Example:
     /// curl -X POST --data '{"jsonrpc": "2.0", "method": "get_state_keys", "params": ["84a46461746181a75265717565737493dc0020cca7cc937b64ccb8cccacca5cc8f03721bccb6ccbacccf5c78cccb235fccebcce0cce70b1bcc84cccdcc99541461cca0cc8edc002016367accacccb67a4a017ccc8dcca8ccabcc95682ccccb390863780f7114ccddcca0cca0cce0ccc55644ccc7ccc4dc0020ccb1cce9cc9324505bccd32dcca0cce1ccf85dcccf5e19cca0cc9dccb0481ecc8a15ccf62c41cceb320304cca8cce927a269649c1363ccb3301c101f33cce1cc9a0524a67072656669789e456e69676d61204d657373616765a67075626b6579dc0040cce5ccbe28cc9dcc9a2eccbd08ccc0457a5f16ccdfcc9fccdc256c5d5f6c3514cccdcc95ccb47c11ccc4cccd3e31ccf0cce4ccefccc83ccc80cce8121c3939ccbb2561cc80ccec48ccbecca8ccc569ccd2cca3ccda6bcce415ccfa20cc9bcc98ccda", "43f19586b0a0ae626b9418fe8355888013be1c9b4263a4b3a27953de641991e936ed6c4076a2a383b3b001936bf0eb6e23c78fbec1ee36f19c6a9d24d75e9e081c"]' -H "Content-Type: application/json" http://127.0.0.1:3040/
@@ -180,6 +197,11 @@ impl PrincipalHttpServer {
             let epoch_provider = epoch_provider.clone();
             let request = params.parse::<StateKeyRequest>()?;
             let body = Self::get_state_keys(epoch_provider, request).map_err(Self::handle_error)?; // Not sure that this is the best idiom
+            Ok(body)
+        });
+        io.add_method(METHOD_GET_HEALTH_CHECK, move |_| {
+            let epoch_provider = epoch_provider.clone();
+            let body = Self::health_check(epoch_provider);
             Ok(body)
         });
         let server =
