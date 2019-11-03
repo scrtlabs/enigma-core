@@ -11,5 +11,12 @@
 #### Bug Fixes
 
 * The length field in serialization of multiple values for hashing is now always a `u64` independent of the platform.
-* Building the state when a computation is executed in a scenario in which the deltas were updated after the epoch has changed.
-* Moving storing updated state and delta to the very end of a computation, which prevents possible inconsistency.
+* Now the state is rebuilt if it was updated by others after PTT
+* Storing of updated state and delta is moved to the very end of a computation, which prevents possible inconsistency.
+* Now the status returned by _update deltas_ depends on the individual deltas status.
+
+#### Enhancement
+
+* Adding retries for getting the attestation report from the proxy server. The number of retries may be obtained as an input, otherwise the default number is used.
+
+
