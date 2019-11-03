@@ -49,8 +49,9 @@ pub fn run_core(port: &'static str) {
         let (mut db, _datadir) = create_test_db();
         let server = IpcListener::new(&format!("tcp://*:{}", port));
         let spid = "B0335FD3BC1CCA8F804EB98A6420592D";
+        let retries = 10;
         server
-            .run(move |multi| ipc_listener::handle_message(&mut db, multi, spid, eid))
+            .run(move |multi| ipc_listener::handle_message(&mut db, multi, spid, eid, retries))
             .wait()
             .unwrap();
 
