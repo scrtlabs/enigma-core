@@ -105,7 +105,7 @@ pub mod tests {
 
     use enigma_tools_t::{document_storage_t::tests::*, storage_t::tests::*};
 
-    use crate::{epoch_keeper_t::tests::*, keys_keeper_t::tests::*};
+    use crate::{epoch_keeper_t::tests::*, keys_keeper_t::tests::*, epoch_keeper_t::nested_encoding::tests::*};
 
     #[no_mangle]
     pub extern "C" fn ecall_run_tests() {
@@ -114,7 +114,11 @@ pub mod tests {
             test_document_sealing_storage,
             test_get_epoch_worker_internal,
             test_state_keys_storage,
-            test_create_epoch_image
+            test_create_epoch_image,
+            test_u256_nested,
+            test_h160_nested,
+            test_vec_u256_nested,
+            test_double_nested_vec_h160
         );
     }
 }
