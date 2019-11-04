@@ -12,8 +12,10 @@
 use core::{fmt, mem, ptr, default::Default};
 
 pub use crate::hash::Hash256;
-/// SymmetricKey is the 256bit symmetric key we use for encryption.
-pub type SymmetricKey = [u8; 32];
+/// The size of the symmetric 256 bit key we use for encryption (in bytes).
+pub const SYMMETRIC_KEY_SIZE: usize = 256 / 8;
+/// symmetric key we use for encryption.
+pub type SymmetricKey = [u8; SYMMETRIC_KEY_SIZE];
 /// StateKey is the key used for state encryption.
 pub type StateKey = SymmetricKey;
 /// DHKey is the key that results from the ECDH [`enigma_crypto::KeyPair::derive_key`](../replace_me)

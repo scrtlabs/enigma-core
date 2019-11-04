@@ -5,6 +5,8 @@
 
 /// Enigma implementation of bindings to the Enigma runtime.
 /// This crate should be used in contracts.
+#[macro_use(vec)]
+extern crate std;
 #[macro_use]
 extern crate serde_json;
 extern crate serde;
