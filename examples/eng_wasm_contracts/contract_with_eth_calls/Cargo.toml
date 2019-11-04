@@ -5,6 +5,7 @@ version = "0.1.0"
 [dependencies]
 eng-wasm = "0.1"
 eng-wasm-derive = "0.1"
+rustc-hex = "2.0.1"
 
 [lib]
 crate-type = ["cdylib"]
