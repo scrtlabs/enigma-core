@@ -375,6 +375,43 @@ mod tests {
     }
 
     #[test]
+    fn test_factorization() {
+        let (mut db, _dir) = create_test_db();
+        let address = generate_contract_address();
+
+        let (enclave, contract_code, result, shared_key) = compile_deploy_execute(
+            &mut db,
+            "../../examples/eng_wasm_contracts/factorization",
+            address,
+            "construct()",
+            &[],
+            "find_number_of_prime_factors(uint32)",
+            &[Token::Uint(199998.into())]
+        );
+        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        let decoded_output = &ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output).unwrap()[0];
+        assert_eq!(decoded_output.clone().to_uint().unwrap().as_u64(), 5);
+
+        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable = symmetric::encrypt(b"find_number_of_prime_factors(uint32)", &shared_key).unwrap();
+        let encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Uint(71.into())]), &shared_key).unwrap();
+        let result = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable,
+            &encrypted_args,
+            &keys.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        let encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
+        let decoded_output = &ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output).unwrap()[0];
+        assert_eq!(decoded_output.clone().to_uint().unwrap().as_u64(), 0);
+    }
+
+    #[test]
     fn test_sc_encryption() {
         let (mut db, _dir) = create_test_db();
         let message = b"Enigma";
