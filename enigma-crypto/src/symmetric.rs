@@ -18,7 +18,7 @@ use crate::rand;
 static AES_MODE: &aead::Algorithm = &aead::AES_256_GCM;
 
 /// The IV key byte size
-pub const IV_SIZE: usize = 96/8;
+const IV_SIZE: usize = 96/8;
 /// Type alias for the IV byte array
 type IV = [u8; IV_SIZE];
 
@@ -73,12 +73,6 @@ pub fn decrypt(cipheriv: &[u8], key: &SymmetricKey) -> Result<Vec<u8>, CryptoErr
 
     Ok(decrypted_data.to_vec())
 }
-
-/// Get tag size
-pub fn get_tag_size() -> usize {
-    AES_MODE.tag_len()
-}
-
 
 #[cfg(test)]
 mod tests {

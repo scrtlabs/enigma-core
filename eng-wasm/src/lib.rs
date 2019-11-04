@@ -39,8 +39,6 @@ pub mod external {
         pub fn rand(payload: *const u8, payload_len: u32);
         pub fn encrypt(message: *const u8, message_len: u32, key: *const u8, payload: *const u8);
         pub fn decrypt(cipheriv: *const u8, cipheriv_len: u32, key: *const u8, payload: *const u8);
-        pub fn get_iv_size() -> u32;
-        pub fn get_tag_size() -> u32;
     }
 }
 

@@ -22,9 +22,6 @@ pub mod ids {
     pub const RAND_FUNC: usize = 15;
     pub const ENCRYPT_FUNC: usize = 16;
     pub const DECRYPT_FUNC: usize = 17;
-    pub const GET_IV_SIZE_FUNC: usize = 18;
-    pub const GET_TAG_SIZE_FUNC: usize = 19;
-
 }
 
 pub mod signatures {
@@ -62,10 +59,6 @@ pub mod signatures {
     pub const ENCRYPT: StaticSignature = StaticSignature(&[I32, I32, I32, I32], None);
 
     pub const DECRYPT: StaticSignature = StaticSignature(&[I32, I32, I32, I32], None);
-
-    pub const GET_IV_SIZE: StaticSignature = StaticSignature(&[], Some(I32));
-
-    pub const GET_TAG_SIZE: StaticSignature = StaticSignature(&[], Some(I32));
 
     impl Into<wasmi::Signature> for StaticSignature {
         fn into(self) -> wasmi::Signature { wasmi::Signature::new(self.0, self.1) }
@@ -126,8 +119,6 @@ impl ModuleImportResolver for ImportResolver {
             "rand" => FuncInstance::alloc_host(signatures::RAND.into(), ids::RAND_FUNC),
             "encrypt" => FuncInstance::alloc_host(signatures::ENCRYPT.into(), ids::ENCRYPT_FUNC),
             "decrypt" => FuncInstance::alloc_host(signatures::DECRYPT.into(), ids::DECRYPT_FUNC),
-            "get_iv_size" => FuncInstance::alloc_host(signatures::GET_IV_SIZE.into(), ids::GET_IV_SIZE_FUNC),
-            "get_tag_size" => FuncInstance::alloc_host(signatures::GET_TAG_SIZE.into(), ids::GET_TAG_SIZE_FUNC),
             _ => return Err(wasmi::Error::Instantiation(format!("Export {} not found", field_name))),
         };
 

@@ -9,10 +9,13 @@ use rand_wasm::Rand;
 
 const SYMMETRIC_KEY_SIZE: usize = 256 / 8;
 pub type SymmetricKey = [u8; SYMMETRIC_KEY_SIZE];
+const AES_256_GCM_TAG_SIZE: usize = 16;
+const AES_256_GCM_IV_SIZE: usize = 96 / 8;
+
 
 /// The extra length (IV and authentication tag) of the encryption result
 fn extra_size_for_encrypted_text() -> usize {
-    unsafe {(external::get_iv_size() + external::get_tag_size()) as usize }
+    unsafe {AES_256_GCM_IV_SIZE + AES_256_GCM_TAG_SIZE}
 }
 
 
