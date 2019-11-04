@@ -5,6 +5,8 @@
 
 /// Enigma implementation of bindings to the Enigma runtime.
 /// This crate should be used in contracts.
+#[macro_use(vec)]
+extern crate std;
 #[macro_use]
 extern crate serde_json;
 extern crate serde;
@@ -39,8 +41,7 @@ pub mod external {
         pub fn decrypt(cipheriv: *const u8, cipheriv_len: u32, key: *const u8, payload: *const u8);
         pub fn get_iv_size() -> u32;
         pub fn get_tag_size() -> u32;
-
-}
+    }
 }
 
 #[no_mangle]

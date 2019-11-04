@@ -13,7 +13,7 @@ use core::{fmt, mem, ptr, default::Default};
 
 pub use crate::hash::Hash256;
 /// The size of the symmetric 256 bit key we use for encryption (in bytes).
-pub const SYMMETRIC_KEY_SIZE: usize = 32;
+pub const SYMMETRIC_KEY_SIZE: usize = 256 / 8;
 /// symmetric key we use for encryption.
 pub type SymmetricKey = [u8; SYMMETRIC_KEY_SIZE];
 /// StateKey is the key used for state encryption.
