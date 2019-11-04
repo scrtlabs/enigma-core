@@ -27,13 +27,11 @@ impl<T> SealedDocumentStorage<T> where
     /// 
     /// The flags are from here: https://github.com/intel/linux-sgx/blob/master/common/inc/sgx_attributes.h#L38
     /// additional is a part of AES-GCM that you can authenticate data with the MAC without encrypting it.
-    /// 
-    /// the key policy shouldn't show explicit hex. it should use the provided flags (i.e. sgx_types::SGX_KEYPOLICY_MRENCLAVE)
     pub fn seal(&self, sealed_log_out: &mut [u8; SEAL_LOG_SIZE]) -> Result<(), EnclaveError> {
         let additional: [u8; 0] = [0_u8; 0];
         let attribute_mask = sgx_attributes_t { flags: 0xffff_ffff_ffff_fff3, xfrm: 0 };
         let sealed_data = SgxSealedData::<Self>::seal_data_ex(
-            0x0001, //key policy
+            sgx_types::SGX_KEYPOLICY_MRSIGNER, //key policy
             attribute_mask,
             0, //misc mask
             &additional,
