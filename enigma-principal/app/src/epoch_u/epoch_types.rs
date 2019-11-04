@@ -17,7 +17,9 @@ pub const WORKER_PARAMETERIZED_EVENT: &str = "WorkersParameterized";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfirmedEpochState {
     pub selected_workers: HashMap<Hash256, H160>,
-    pub block_number: U256,
+    /// The ether_block_number is the block_number which we conclude from the actual start of the epoch
+    /// (it may differ from km_block_number due to latency issues in the network)
+    pub ether_block_number: U256,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -25,11 +27,17 @@ pub struct EpochState {
     pub seed: U256,
     pub sig: Bytes,
     pub nonce: U256,
+    /// The km_block_number is the block in which the KM decided to start a new epoch and
+    /// the active workers are concluded from for the epoch
+    /// (It might differ from the ether_block_number due to latency in networks)
+    pub km_block_number: U256,
     pub confirmed_state: Option<ConfirmedEpochState>,
 }
 
 impl EpochState {
-    pub fn new(seed: U256, sig: Bytes, nonce: U256) -> Self { Self { seed, sig, nonce, confirmed_state: None } }
+    pub fn new(seed: U256, sig: Bytes, nonce: U256, km_block_number: U256) -> Self {
+        Self { seed, sig, nonce, km_block_number, confirmed_state: None }
+    }
 
     /// Build a local mapping of smart contract address => selected worker for the epoch
     ///
@@ -39,7 +47,7 @@ impl EpochState {
     /// * `sc_addresses` - The Secret Contract addresses for which to retrieve the selected worker
     #[logfn(DEBUG)]
     pub fn confirm(
-        &mut self, block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<ContractAddress>,
+        &mut self, ether_block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<ContractAddress>,
     ) -> Result<(), Error> {
         println!("Confirmed epoch with worker params: {:?}", worker_params);
         let mut selected_workers: HashMap<ContractAddress, Address> = HashMap::new();
@@ -58,7 +66,7 @@ impl EpochState {
                 }
             }
         }
-        self.confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+        self.confirmed_state = Some(ConfirmedEpochState { selected_workers, ether_block_number });
         Ok(())
     }
 
