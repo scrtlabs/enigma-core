@@ -27,7 +27,9 @@ dirs = "1.0.4"
 # TODO: Change after a new version is released.
 # Add more transport layers via features if needed.
 web3 = { version  = "0.8", default-features = false, features=["http"]  }
-ethabi = "8.0.1"
+ethabi = "8"
+ethereum-types = "0.6"
+ethereum-tx-sign = "2"
 
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }

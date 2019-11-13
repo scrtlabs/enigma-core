@@ -13,7 +13,7 @@ use log::LevelFilter;
 use simplelog::{SharedLogger, WriteLogger};
 pub use simplelog::{CombinedLogger, TermLogger};
 
-pub fn get_logger<P: AsRef<Path>>(stdout: bool, data_dir: P, verbose: u8) ->  Result<Vec<Box<SharedLogger>>, Error> {
+pub fn get_logger<P: AsRef<Path>>(stdout: bool, data_dir: P, verbose: u8) ->  Result<Vec<Box<dyn SharedLogger>>, Error> {
     let file_level = log_level_from_verbose(verbose + 2); // This plus 2 means that by default it logs from Warn level and up
 
     // Make sure the directory exist.
@@ -23,7 +23,7 @@ pub fn get_logger<P: AsRef<Path>>(stdout: bool, data_dir: P, verbose: u8) ->  Re
     debug_path.push("debug.log");
     let file = File::create(debug_path)?;
 
-    let mut loggers: Vec<Box<SharedLogger>> = Vec::with_capacity(2);
+    let mut loggers: Vec<Box<dyn SharedLogger>> = Vec::with_capacity(2);
     let config = simplelog::Config::default();
     let file_log = WriteLogger::new(file_level, config, file);
     loggers.push(file_log);
