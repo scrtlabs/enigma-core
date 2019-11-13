@@ -179,10 +179,7 @@ impl PrincipalHttpServer {
             Ok(addr) => addr.into(),
             Err(_) => return false,
         };
-        if contract_signing_address == enclave_signing_address {
-            return true
-        }
-        return false
+        return contract_signing_address == enclave_signing_address
     }
 
     /// Endpoint for the get_state_keys and the health check method
