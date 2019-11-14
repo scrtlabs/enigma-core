@@ -58,39 +58,6 @@ impl EnigmaContract {
         Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, ethabi_contract, account })
     }
 
-    #[logfn(INFO)]
-    pub fn deploy_contract<P: AsRef<Path>>(
-        token_path: P,
-        enigma_path: P,
-        ethereum_url: &str,
-        account: Option<&str>,
-        sgx_address: &str
-    ) -> Result<Self, Error> {
-        let (enigma_abi, enigma_bytecode) = w3utils::load_contract_abi_bytecode(enigma_path)?;
-        let (token_abi, token_bytecode) = w3utils::load_contract_abi_bytecode(token_path)?;
-
-        let (eloop, w3) = w3utils::connect(ethereum_url)?;
-
-        let account: Address = match account {
-            Some(a) => a.parse()?,
-            None => w3.eth().accounts().wait()?[0],
-        };
-        let deployer = &account.to_fixed_bytes().to_hex();
-        let mut deploy_params = w3utils::DeployParams::new(deployer, token_abi, token_bytecode, 5_999_999, 1, 0)?;
-        let token_contract = w3utils::deploy_contract(&w3, &deploy_params, ())?;
-
-        let ethabi_contract = ethabi::Contract::load(enigma_abi.as_bytes()).map_err(|e| failure::err_msg(e.to_string()))?;
-        deploy_params.bytecode = enigma_bytecode;
-        deploy_params.abi = enigma_abi;
-
-        let signer: H160 = sgx_address.parse()?;
-        let enigma_contract = w3utils::deploy_contract(&w3, &deploy_params, (token_contract.address(), signer))?;
-
-        let web3 = Arc::new(w3);
-
-        Ok(EnigmaContract { web3, eloop, w3_contract: enigma_contract, ethabi_contract, account })
-    }
-
     pub fn address(&self) -> Address { self.w3_contract.address() }
 }
 
