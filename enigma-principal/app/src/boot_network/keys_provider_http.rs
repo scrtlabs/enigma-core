@@ -1,7 +1,7 @@
 use std::{convert::TryInto, sync::Arc};
 
 use enigma_tools_m::{
-    primitives::km_primitives::{PrincipalMessage, PrincipalMessageType},
+    primitives::km_primitives::PrincipalMessage,
     utils::EthereumAddress,
 };
 use failure::Error;
@@ -18,7 +18,6 @@ use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
 use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
 use web3::types::U256;
-use std::convert::AsRef;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 

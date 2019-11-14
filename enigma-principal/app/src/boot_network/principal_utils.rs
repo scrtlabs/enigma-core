@@ -1,6 +1,5 @@
 use std::{sync::Arc, thread, time};
 
-use failure::Error;
 use web3::{futures::Future, types::U256};
 
 use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
@@ -8,23 +7,30 @@ use epoch_u::epoch_provider::EpochProvider;
 
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
-    fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error>
-        where Self: Sized;
-
-    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
-                                   confirmations: usize, max_epochs: Option<usize>);
+    fn watch_blocks<G: Into<U256>>(
+        &self,
+        epoch_size: usize,
+        polling_interval: u64,
+        epoch_provider: Arc<EpochProvider>,
+        gas_limit: G,
+        confirmations: usize,
+        max_epochs: Option<usize>
+    );
 }
 
 impl Principal for EnigmaContract {
-    fn new(address: &str, path: String, account: &str, url: &str) -> Result<Self, Error> {
-        Ok(Self::from_deployed(address, path, Some(account), url)?)
-    }
-
     /// Watches the blocks for new epoch using the epoch size and the previous epoch block number.
     /// For each new epoch, set the worker parameters.
     #[logfn(INFO)]
-    fn watch_blocks<G: Into<U256>>(&self, epoch_size: usize, polling_interval: u64, epoch_provider: Arc<EpochProvider>, gas_limit: G,
-                                   confirmations: usize, max_epochs: Option<usize>) {
+    fn watch_blocks<G: Into<U256>>(
+        &self,
+        epoch_size: usize,
+        polling_interval: u64,
+        epoch_provider: Arc<EpochProvider>,
+        gas_limit: G,
+        confirmations: usize,
+        max_epochs: Option<usize>
+    ) {
         let gas_limit: U256 = gas_limit.into();
         let max_epochs = max_epochs.unwrap_or(0);
         let mut epoch_counter = 0;
