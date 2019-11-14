@@ -5,7 +5,7 @@
 | CI Badge | [![Build Status](https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg)](https://drone.enigma.co/enigmampc/enigma-core) | [![Build Status](https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?ref=/refs/heads/develop)](https://drone.enigma.co/enigmampc/enigma-core) |
 
 Pure Rust Enclave && Untrusted in Rust. 
-Core is part of the Enigma node software stack. The Core component as it's name suggests is responsible for the core operations. The core includes Remote Attestation (SGX SDK), Cryptography and the Ethereum EVM.
+Core is part of the Enigma node software stack. The Core component as it's name suggests is responsible for the core operations. The core includes Remote Attestation (SGX SDK), Cryptography and execution of WASM secret contracts.
 
 
 ## Getting Started (With the Enigma Docker)
