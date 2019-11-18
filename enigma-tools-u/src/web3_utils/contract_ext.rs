@@ -93,7 +93,7 @@ from_error!(Error::SerdeJsonError, serde_json::Error);
 from_error!(Error::ParseIntError, std::num::ParseIntError);
 
 fn option_to_u256(value: Option<U256>) -> ethereum_types::U256 {
-    value.unwrap_or_else(|| ethereum_types::U256::from(0))
+    value.unwrap_or_else(|| ethereum_types::U256::zero())
 }
 
 /// Confused? You should be. Please read the documentation in the top of this file.
