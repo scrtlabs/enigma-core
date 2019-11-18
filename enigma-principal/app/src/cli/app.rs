@@ -1,6 +1,12 @@
 use boot_network::{
     keys_provider_http::{PrincipalHttpServer, StateKeyRequest},
-    principal_manager::{self, PrincipalManager, ReportManager, Sampler, PrincipalConfig},
+    principal_manager::{
+        self,
+        PrincipalManager,
+        ReportManager,
+        Sampler,
+        PrincipalConfig
+    },
 };
 use cli;
 use enigma_tools_u::{esgx::general::storage_dir, web3_utils::enigma_contract::EnigmaContract};
@@ -38,6 +44,8 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             &contract_address,
             Path::new(&principal_config.enigma_contract_path),
             Some(&principal_config.account_address),
+            principal_config.private_key.parse()?,
+            principal_config.chain_id,
             &principal_config.url,
         )?);
 

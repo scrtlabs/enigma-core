@@ -3,7 +3,7 @@ use std::str;
 use std::sync::Arc;
 
 use failure::Error;
-use hex::{FromHex, ToHex};
+use hex::FromHex;
 use web3::contract::{Contract, Options};
 use web3::futures::Future;
 use web3::transports::{EventLoopHandle, Http};
@@ -26,6 +26,8 @@ pub struct EnigmaContract {
     pub w3_contract: Contract<Http>,
     ethabi_contract: ethabi::Contract, // This should match the `ethabi::Contract` in `self.web3_contract`
     pub account: Address,
+    pub private_key: H256,
+    pub chain_id: u64,
 }
 
 impl EnigmaContract {
@@ -35,16 +37,20 @@ impl EnigmaContract {
         contract_address: &str,
         abi_path: P,
         account: Option<&str>,
+        private_key: H256,
+        chain_id: u64,
         url: &str
     ) -> Result<Self, Error> {
         let (eloop, web3) = w3utils::connect(url)?;
-        Self::from_deployed_web3(contract_address, abi_path, account, web3, eloop)
+        Self::from_deployed_web3(contract_address, abi_path, account, private_key, chain_id, web3, eloop)
     }
 
     pub fn from_deployed_web3<P: AsRef<Path>>(
         contract_address: &str,
         abi_path: P,
         account: Option<&str>,
+        private_key: H256,
+        chain_id: u64,
         web3: Web3<Http>,
         eloop: EventLoopHandle
     ) -> Result<Self, Error> {
@@ -55,7 +61,7 @@ impl EnigmaContract {
         let abi_json = w3utils::load_contract_abi(abi_path)?;
         let ethabi_contract = ethabi::Contract::load(abi_json.as_bytes()).map_err(|e| failure::err_msg(e.to_string()))?;
         let w3_contract = Contract::new(web3.eth(), contract_address.parse()?, ethabi_contract.clone());
-        Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, ethabi_contract, account })
+        Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, ethabi_contract, account, private_key, chain_id })
     }
 
     pub fn address(&self) -> Address { self.w3_contract.address() }
@@ -84,12 +90,12 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
             &self.web3,
             &self.ethabi_contract,
             self.w3_contract.address(),
-            H256([0; 32]), // TODO set to a real key
+            self.private_key,
             self.account,
             "register",
             (signing_address, report, signature),
             opts,
-            /* chain_id */ 1, // TODO get this from configuration
+            self.chain_id as u8,
             confirmations,
         )?;
 
@@ -108,12 +114,12 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
             &self.web3,
             &self.ethabi_contract,
             self.w3_contract.address(),
-            H256([0; 32]), // TODO set to a real key
+            self.private_key,
             self.account,
             "setWorkersParams",
             (block_number, seed, sig.0),
             opts,
-            /* chain_id */ 1, // TODO get this from configuration
+            self.chain_id as u8,
             confirmations,
         )?;
 

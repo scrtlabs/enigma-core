@@ -30,6 +30,7 @@ pub struct PrincipalConfig {
     pub enigma_contract_remote_path: String,
     pub enigma_contract_address: String,
     pub account_address: String,
+    pub chain_id: u64, // This can technically be a u64, but ethereum-tx-sign is stupid right now so it's truncated to u8.
     pub test_net: bool,
     pub with_private_key: bool,
     pub private_key: String,
