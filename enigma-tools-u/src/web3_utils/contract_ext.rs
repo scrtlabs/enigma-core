@@ -62,6 +62,8 @@ pub enum Error {
     ParseIntError(#[cause] std::num::ParseIntError),
 }
 
+/// some error types can not be used with failure because they don't implement
+/// `(dyn std::error::Error + Send + Sync + 'static)`, and that's why we convert them to Strings
 macro_rules! from_error_to_string {
     ($variant: path, $source: ty) => {
         impl From<$source> for Error {
@@ -95,6 +97,9 @@ fn option_to_u256(value: Option<U256>) -> ethereum_types::U256 {
 }
 
 /// Confused? You should be. Please read the documentation in the top of this file.
+///
+/// This function is based on the implementation of the following method in web3:
+/// https://tomusdrw.github.io/rust-web3/web3/contract/struct.Contract.html#method.call_with_confirmations
 pub fn signed_call_with_confirmations<T: Transport, P>(
     // general tools
     web3: &web3::api::Web3<T>,
