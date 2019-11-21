@@ -33,7 +33,6 @@ pub extern crate simplelog;
 pub mod common_u;
 pub mod db;
 pub mod esgx;
-pub mod evm_u;
 pub mod km_u;
 pub mod networking;
 pub mod wasm_u;

@@ -141,9 +141,6 @@ pub enum FailedTaskError {
 
     #[fail(display = "Invocation resulted in gas limit violated")]
     GasLimitError,
-
-    #[fail(display = "Error in EVM:  {}", err)]
-    EvmError { err: String },
 }
 
 #[derive(Debug, Fail, Clone)]
