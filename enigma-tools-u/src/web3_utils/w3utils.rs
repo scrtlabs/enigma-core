@@ -1,7 +1,6 @@
 use std::fs::File;
 use std::path::Path;
 use std::str;
-use std::sync::Arc;
 use std::time;
 
 // general
@@ -14,12 +13,8 @@ use web3::contract::{Contract, Options};
 use web3::contract::tokens::Tokenize;
 use web3::futures::Future;
 use web3::transports::{Http};
-use web3::types::{Address, Log, U256};
-use web3::types::BlockNumber;
-use web3::types::FilterBuilder;
+use web3::types::{Address, U256};
 use web3::Web3;
-
-use enigma_crypto::hash::Keccak256;
 
 // files
 use crate::common_u::errors;
@@ -118,61 +113,6 @@ pub fn deploy_contract<P>(web3: &Web3<Http>, tx_params: &DeployParams, ctor_para
         Err(_) => Err(errors::Web3Error { message: String::from("unable to deploy the contract") }.into()),
     }
 }
-
-//////////////////////// EVENTS LISTENING START ///////////////////////////
-
-fn build_event_filter(event_name: &str, contract_addr: Option<&str>) -> web3::types::Filter {
-    let filter = FilterBuilder::default()
-        .topics(Some(vec![(*event_name.as_bytes().keccak256()).into()]), None, None, None)
-        .from_block(BlockNumber::Earliest)
-        .to_block(BlockNumber::Latest);
-    match contract_addr {
-        Some(addr) => filter.address(vec![addr.parse().unwrap()]).build(),
-        None => filter.build(),
-    }
-}
-
-/// TESTING: filter the network for events
-pub fn filter_blocks(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_name: &str) -> Result<Vec<Log>, Error> {
-    let filter = build_event_filter(event_name, contract_addr);
-
-    match w3.eth().logs(filter).wait() {
-        Ok(logs) => Ok(logs),
-        Err(_) => Err(errors::Web3Error { message: String::from("unable to retrieve logs") }.into()),
-    }
-}
-// TODO:: implement this function, it should work but needs more improvements and of course a future from the outside as a parameter.
-// pub fn filter_blocks_async(contract_addr : String ,url : String){
-//     let (eloop,w3) = connect(&url.as_str())
-//         .expect("cannot connect to ethereum");
-
-//     let contract_addr = contract_addr.clone();
-//     //"Hello(address)"
-//     // let filter = build_event_fuilder(String::from("Hello(address)"),Some(contract_addr.clone()));
-//     let filter = build_event_fuilder(String::from("Hello(address)"),None);
-
-//     let future = w3.eth()
-//             .logs(filter)
-//             .then(move |res|{
-//                 match res {
-//                     Ok(logs)=>{
-//                         println!("Ok got log  {:?}", logs );
-//                     },
-//                     Err(e) =>{
-//                         println!("Err got log {:?} ",e );
-//                     },
-//                 }
-
-//             Ok(())
-//         });
-//         eloop.remote().spawn(|_| future);
-//         loop{
-//           thread::sleep(time::Duration::from_secs(1));
-//         }
-// }
-//////////////////////// EVENTS LISTENING END ///////////////////////////
-
-//////////////////////// TESTS  /////////////////////////////////////////
 
 #[cfg(test)]
 mod test {

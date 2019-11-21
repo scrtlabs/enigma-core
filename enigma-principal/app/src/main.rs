@@ -63,18 +63,11 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use enigma_tools_u::common_u::logging::TermLogger;
     use esgx::general::init_enclave_wrapper;
-    use log::LevelFilter;
     use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 
     extern "C" {
         fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;
-    }
-
-    pub fn log_to_stdout(level: Option<LevelFilter>) {
-        let level = level.unwrap_or_else(|| LevelFilter::max());
-        TermLogger::init(level, Default::default()).unwrap();
     }
 
     #[test]

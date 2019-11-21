@@ -365,14 +365,10 @@ impl EpochProvider {
 
 #[cfg(test)]
 pub mod test {
-    extern crate tempfile;
-
-    use self::tempfile::TempDir;
     use std::collections::HashMap;
 
     use web3::types::{Bytes, H160};
 
-    use enigma_tools_u::{esgx::general::storage_dir};
     use enigma_types::ContractAddress;
 
     use super::*;
@@ -382,7 +378,7 @@ pub mod test {
 
     pub fn setup_epoch_storage_dir() -> PathBuf {
         let tempdir = tempfile::tempdir().unwrap();
-        let mut temp_path = tempdir.into_path();
+        let temp_path = tempdir.into_path();
         println!("path is: {:?}", temp_path);
         temp_path
     }

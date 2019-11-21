@@ -195,10 +195,8 @@ mod test {
     extern crate jsonrpc_test as test;
 
     use std::collections::HashMap;
-    use std::thread;
 
     use rustc_hex::FromHex;
-    use serde_json::error::ErrorCode::EofWhileParsingObject;
     use web3::types::{H160, U256};
     use web3::types::Bytes;
 
@@ -238,7 +236,7 @@ mod test {
             });
             test::Rpc::from(io)
         };
-        for i in 0..5 {
+        for _ in 0..5 {
             let response = rpc.request(METHOD_GET_STATE_KEYS, &(REF_MSG, REF_SIG, Value::Null, Value::Null));
             assert!(response.contains(REF_RESPONSE));
         }

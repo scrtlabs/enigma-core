@@ -1,7 +1,6 @@
 #![crate_type = "lib"]
 #![warn(unused_extern_crates)]
 
-extern crate enigma_crypto;
 extern crate enigma_types;
 #[macro_use]
 extern crate failure;

@@ -275,34 +275,19 @@ pub fn run_miner(account: Address, w3: Arc<Web3<Http>>, interval: u64) -> thread
 mod test {
     extern crate tempfile;
     use std::{env, path::Path, sync::Arc, thread, time};
-    use self::tempfile::TempDir;
 
     use web3::{
         futures::{Future, stream::Stream},
-        transports::Http,
-        types::{FilterBuilder, Log},
-        Web3,
+        types::FilterBuilder,
     };
 
-    use enigma_tools_u::web3_utils::{enigma_contract::EnigmaContract, w3utils};
+    use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
     use epoch_u::epoch_types::{WorkersParameterizedEvent, WORKER_PARAMETERIZED_EVENT};
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
 
     const GAS_LIMIT: usize = 5999999;
-    /// This function is important to enable testing both on the CI server and local.
-        /// On the CI Side:
-        /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-        /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-        /// The default is set to ganache cli "http://localhost:8545"
-    pub fn get_node_url() -> String { env::var("NODE_URL").unwrap_or(String::from("http://localhost:8545")) }
-
-    /// helps in assertion to check if a random event was indeed broadcast.
-    pub fn filter_random(w3: &Arc<Web3<Http>>, contract_addr: Option<&str>, event_name: &str) -> Result<Vec<Log>, Error> {
-        let logs = w3utils::filter_blocks(w3, contract_addr, event_name)?;
-        Ok(logs)
-    }
 
     #[logfn(DEBUG)]
     pub fn get_config() -> Result<PrincipalConfig, Error> {
@@ -319,6 +304,8 @@ mod test {
             &config.enigma_contract_address,
             Path::new(&config.enigma_contract_path),
             Some(&config.account_address),
+            config.private_key.parse()?,
+            config.chain_id,
             &config.url,
         )?);
         let _gas_limit = 5_999_999;
@@ -404,6 +391,7 @@ mod test {
         env::set_var("TEST_NET","true");
         env::set_var("WITH_PRIVATE_KEY", "false");
         env::set_var("PRIVATE_KEY", "");
+        env::set_var("CHAIN_ID", "123");
         env::set_var("URL", "http://172.20.0.2:9545");
         env::set_var("EPOCH_SIZE", "10");
         env::set_var("POLLING_INTERVAL", "1");

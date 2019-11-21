@@ -65,12 +65,6 @@ mod tests {
         (db, tempdir)
     }
 
-    #[allow(dead_code)]
-    pub fn log_to_stdout(level: Option<LevelFilter>) {
-        let level = level.unwrap_or_else(|| LevelFilter::max());
-        TermLogger::init(level, Default::default()).unwrap();
-    }
-
     #[test]
     pub fn test_enclave_internal() {
         let (mut db, _dir) = create_test_db();
