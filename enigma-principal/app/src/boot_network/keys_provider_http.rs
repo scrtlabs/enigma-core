@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 
 use enigma_crypto::KeyPair;
 use enigma_types::{ContractAddress, EnclaveReturn};
+use enigma_tools_u::web3_utils::enigma_contract::ContractQueries;
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
 use esgx;
@@ -111,7 +112,7 @@ impl PrincipalHttpServer {
     }
 
     #[logfn(DEBUG)]
-    pub fn get_state_keys(epoch_provider: Arc<EpochProvider>, request: StateKeyRequest) -> Result<Value, Error> {
+    pub fn get_state_keys(epoch_provider: &EpochProvider, request: StateKeyRequest) -> Result<Value, Error> {
         println!("Got get_state_keys request: {:?}", request);
         let epoch_state = match request.block_number.clone() {
             Some(block_number) => epoch_provider.find_epoch(block_number.try_into()?)?,
@@ -171,15 +172,15 @@ impl PrincipalHttpServer {
     }
 
     /// This function should check
-    pub fn health_check(epoch_provider: Arc<EpochProvider>) -> bool {
+    pub fn health_check(epoch_provider: &EpochProvider) -> Value {
         // Ethereum
-        let contract_signing_address = epoch_provider.contract.get_signing_address().unwrap_or(return false);
-        // enclave
+        let contract_signing_address = epoch_provider.contract.get_signing_address().unwrap_or(return Value::Bool(false));
+        // Enclave
         let enclave_signing_address: H160 = match esgx::equote::get_register_signing_address(*epoch_provider.eid) {
             Ok(addr) => addr.into(),
-            Err(_) => return false,
+            Err(_) => return Value::Bool(false),
         };
-        return contract_signing_address == enclave_signing_address
+        return Value::Bool(contract_signing_address == enclave_signing_address)
     }
 
     /// Endpoint for the get_state_keys and the health check method
@@ -191,14 +192,13 @@ impl PrincipalHttpServer {
         let mut io = IoHandler::default();
         let epoch_provider = Arc::clone(&self.epoch_provider);
         io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
-            let epoch_provider = epoch_provider.clone();
             let request = params.parse::<StateKeyRequest>()?;
-            let body = Self::get_state_keys(epoch_provider, request).map_err(Self::handle_error)?; // Not sure that this is the best idiom
+            let body = Self::get_state_keys(&epoch_provider, request).map_err(Self::handle_error)?; // Not sure that this is the best idiom
             Ok(body)
         });
+        let hc_epoch_provider = Arc::clone(&self.epoch_provider);
         io.add_method(METHOD_GET_HEALTH_CHECK, move |_| {
-            let epoch_provider = epoch_provider.clone();
-            let body = Self::health_check(epoch_provider);
+            let body = Self::health_check(&hc_epoch_provider);
             Ok(body)
         });
         let server =
