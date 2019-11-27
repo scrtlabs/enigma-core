@@ -16,25 +16,6 @@ extern "C" {
     pub fn ecall_run_tests(eid: sgx_enclave_id_t, db_ptr: *const RawPointer, result: *mut ResultStatus) -> sgx_status_t;
 }
 extern "C" {
-    pub fn ecall_evm(
-        eid: sgx_enclave_id_t,
-        retval: *mut EnclaveReturn,
-        bytecode: *const u8,
-        bytecode_len: usize,
-        callable: *const u8,
-        callable_len: usize,
-        callable_args: *const u8,
-        callable_args_len: usize,
-        preprocessor: *const u8,
-        preprocessor_len: usize,
-        callback: *const u8,
-        callback_len: usize,
-        output: *mut u8,
-        signiture: *mut [u8; 65usize],
-        result_length: *mut u64,
-    ) -> sgx_status_t;
-}
-extern "C" {
     pub fn ecall_deploy(
         eid: sgx_enclave_id_t,
         retval: *mut EnclaveReturn,

@@ -46,7 +46,7 @@ impl RawEncodable for WorkerSelectionToken {
 
 #[derive(Debug, Clone)]
 pub struct InputWorkerParams {
-    pub block_number: U256,
+    pub km_block_number: U256,
     pub workers: Vec<Address>,
     pub stakes: Vec<U256>,
 }
@@ -115,7 +115,7 @@ impl InputWorkerParams {
 impl Decodable for InputWorkerParams {
     fn decode(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
         Ok(Self {
-            block_number: U256::from_bigint(rlp.val_at(0)?),
+            km_block_number: U256::from_bigint(rlp.val_at(0)?),
             workers: rlp.list_at(1)?.iter().map(|a| H160::from_bigint(*a)).collect::<Vec<_>>(),
             stakes: rlp.list_at(2)?.iter().map(|b| U256::from_bigint(*b)).collect::<Vec<_>>(),
         })
@@ -125,7 +125,7 @@ impl Decodable for InputWorkerParams {
 impl Encodable for InputWorkerParams {
     fn rlp_append(&self, s: &mut RlpStream) {
         s.begin_list(3);
-        s.append(&bigint::U256(self.block_number.0));
+        s.append(&bigint::U256(self.km_block_number.0));
         s.append_list(&self.workers.iter().map(|a| bigint::H160(a.0)).collect::<Vec<_>>());
         s.append_list(&self.stakes.iter().map(|b| bigint::U256(b.0)).collect::<Vec<_>>());
     }

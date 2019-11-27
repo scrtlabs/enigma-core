@@ -24,7 +24,7 @@ extern crate parity_wasm;
 extern crate pwasm_utils;
 
 use crate::data::{ContractState, DeltasInterface, IOInterface, EncryptedPatch};
-use enigma_types::{StateKey, SymmetricKey};
+use enigma_types::{StateKey, SymmetricKey, SYMMETRIC_KEY_SIZE};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*, WasmError};
 
 use std::{str, vec::Vec};
@@ -40,10 +40,6 @@ pub mod gas;
 pub mod wasm_execution;
 
 pub use gas::*;
-
-// TODO: Place in some common module. Which one?
-/// The symmertic key byte size
-const SYMMETRIC_KEY_SIZE: usize = 32;
 
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EthereumData {

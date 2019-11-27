@@ -125,7 +125,7 @@ impl EpochStateManager {
         let epoch_states = self.get_all_confirmed()?;
         for epoch_state in epoch_states.iter() {
             let confirmed: &ConfirmedEpochState = epoch_state.confirmed_state.as_ref().unwrap();
-            if confirmed.block_number <= block_number {
+            if confirmed.ether_block_number <= block_number {
                 result = Some(epoch_state);
             }
         }
@@ -268,10 +268,12 @@ impl EpochProvider {
     #[logfn(DEBUG)]
     fn verify_worker_params(&self) -> Result<(), Error> {
         for epoch_state in self.epoch_state_manager.get_all_confirmed()?.iter() {
-            if let Some(confirmed) = &epoch_state.confirmed_state {
-                let block_number = confirmed.block_number;
-                let (workers, stakes) = self.contract.get_active_workers(block_number)?;
-                let worker_params = InputWorkerParams { block_number, workers, stakes };
+            // if the epoch is confirmed by the Enigma Contract
+            if let Some(_) = &epoch_state.confirmed_state {
+                // Get the km_block_number which indicates where to take the list of active workers from
+                let km_block_number = epoch_state.km_block_number;
+                let (workers, stakes) = self.contract.get_active_workers(km_block_number)?;
+                let worker_params = InputWorkerParams { km_block_number, workers, stakes };
                 set_or_verify_worker_params(*self.eid, &worker_params, Some(epoch_state.clone()))?;
             }
         }
@@ -318,21 +320,28 @@ impl EpochProvider {
     }
 
     #[logfn(DEBUG)]
-    fn set_worker_params_internal<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize, epoch_state: Option<EpochState>) -> Result<H256, Error> {
-        let result = self.contract.get_active_workers(block_number)?;
-        let worker_params = InputWorkerParams { block_number, workers: result.0, stakes: result.1 };
+    fn set_worker_params_internal<G: Into<U256>>(&self, km_block_number: U256, gas_limit: G, confirmations: usize, epoch_state: Option<EpochState>) -> Result<H256, Error> {
+        let (workers, stakes) = self.contract.get_active_workers(km_block_number)?;
+        let worker_params = InputWorkerParams { km_block_number, workers, stakes };
         let mut epoch_state = set_or_verify_worker_params(*self.eid, &worker_params, epoch_state)?;
+
         info!("Storing unconfirmed EpochState: {:?}", epoch_state);
         self.epoch_state_manager.append_unconfirmed(epoch_state.clone())?;
-        info!("Waiting for setWorkerParams({:?}, {:?}, {:?})", block_number, epoch_state.seed, epoch_state.sig);
-        let receipt = self.contract.set_workers_params(block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
+
+        info!("Waiting for setWorkerParams({:?}, {:?}, {:?})", km_block_number, epoch_state.seed, epoch_state.sig);
+        let receipt = self.contract.set_workers_params(km_block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
         info!("Got the receipt: {:?}", receipt);
+
         let log = self.parse_worker_parameterized(&receipt)?;
         match log.params.into_iter().find(|x| x.name == "firstBlockNumber") {
             Some(param) => {
-                let block_number = param.value.to_uint().unwrap();
-                self.confirm_epoch(&mut epoch_state, block_number, worker_params)?;
+                let ether_block_number = param.value.to_uint().unwrap();
+                if ether_block_number < km_block_number {
+                    return Err(Web3Error { message: "The block number given by the Enigma Contract is smaller than the one defined by the KM".to_string() }.into());
+                }
+                self.confirm_epoch(&mut epoch_state, ether_block_number, worker_params)?;
                 info!("Storing confirmed EpochState: {:?}", epoch_state);
+
                 self.epoch_state_manager.confirm_last(epoch_state)?;
                 Ok(receipt.transaction_hash)
             }
@@ -347,10 +356,10 @@ impl EpochProvider {
     /// * `epoch_state` - The mutable `EpochState` to be confirmed
     /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
     #[logfn(DEBUG)]
-    pub fn confirm_epoch(&self, epoch_state: &mut EpochState, block_number: U256, worker_params: InputWorkerParams) -> Result<(), Error> {
+    pub fn confirm_epoch(&self, epoch_state: &mut EpochState, ether_block_number: U256, worker_params: InputWorkerParams) -> Result<(), Error> {
         let sc_addresses = self.contract.get_all_secret_contract_addresses()?;
         info!("The secret contract addresses: {:?}", sc_addresses);
-        epoch_state.confirm(block_number, &worker_params, sc_addresses)?;
+        epoch_state.confirm(ether_block_number, &worker_params, sc_addresses)?;
         Ok(())
     }
 }
@@ -390,15 +399,16 @@ pub mod test {
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
         let mock_address = [1u8; 32];
         selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
-        let block_number = U256::from(1);
-        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+        let ether_block_number = U256::from(3);
+        let confirmed_state = Some(ConfirmedEpochState { selected_workers, ether_block_number });
 
         let seed = U256::from(1);
         let mock_sig = [1u8; 65];
         let sig = Bytes::from(mock_sig.to_vec());
         let nonce = U256::from(0);
+        let km_block_number = U256::from(2);
 
-        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        let epoch_state = EpochState { seed, sig, nonce, km_block_number, confirmed_state };
         epoch_manager_calculated.append_unconfirmed(epoch_state.clone()).unwrap();
 
         let epoch_manager_accepted = EpochStateManager::new(path, cap).unwrap();
@@ -414,15 +424,16 @@ pub mod test {
         let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
         let mock_address = [1u8; 32];
         selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
-        let block_number = U256::from(1);
-        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+        let ether_block_number = U256::from(4);
+        let confirmed_state = Some(ConfirmedEpochState { selected_workers, ether_block_number });
 
         let seed = U256::from(1);
         let mock_sig = [1u8; 65];
         let sig = Bytes::from(mock_sig.to_vec());
         let nonce = U256::from(0);
+        let km_block_number = U256::from(4);
 
-        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        let epoch_state = EpochState { seed, sig, nonce, km_block_number, confirmed_state };
         epoch_manager_calculated.append_unconfirmed(epoch_state.clone()).unwrap();
 
         epoch_manager_calculated.reset().unwrap();

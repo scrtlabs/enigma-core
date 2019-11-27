@@ -199,7 +199,7 @@ pub mod tests {
     // noinspection RsTypeCheck
     pub fn test_get_epoch_worker_internal() {
         let worker_params = InputWorkerParams {
-            block_number: U256::from(1),
+            km_block_number: U256::from(1),
             workers: vec![H160::from([0u8;20]), H160::from([1u8;20]), H160::from([2u8;20]), H160::from([3u8;20])],
             stakes: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
         };
@@ -211,7 +211,7 @@ pub mod tests {
     pub fn test_create_epoch_image() {
         let expected_image1: Vec<u8> = vec![0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 98, 42, 0, 0, 0, 0, 0, 0, 0, 0, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0];
         let worker_params1 = InputWorkerParams {
-            block_number: U256::from(1),
+            km_block_number: U256::from(1),
             workers: vec![],
             stakes: vec![],
         };
@@ -238,7 +238,7 @@ pub mod tests {
             4000000000,
         ];
         let worker_params2 = InputWorkerParams {
-            block_number: U256::from(1),
+            km_block_number: U256::from(1),
             workers: workers.into_iter().map(|a| H160(a)).collect(),
             stakes: stakes.into_iter().map(|s| U256::from(s.clone())).collect(),
         };

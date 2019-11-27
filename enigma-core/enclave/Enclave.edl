@@ -17,23 +17,6 @@ enclave {
 
         public void ecall_run_tests([in] const RawPointer* db_ptr, [out] ResultStatus* result);
 
-	    public EnclaveReturn ecall_evm(
-	        [in, size=bytecode_len] const uint8_t* bytecode,
-	        size_t bytecode_len,
-	        [in, size=callable_len] const uint8_t* callable,
-	        size_t callable_len,
-            [in, size=callable_args_len] const uint8_t* callable_args,
-            size_t callable_args_len,
-            [in, size=preprocessor_len] const uint8_t* preprocessor,
-            size_t preprocessor_len,
-            [in, size=callback_len] const uint8_t* callback,
-            size_t callback_len,
-	        [out, size=100000] uint8_t* output,
-	        [out] uint8_t signiture[65],
-	        [out] uint64_t* result_length
-        );
-
-
         public EnclaveReturn ecall_deploy(
             [in, size=bytecode_len] const uint8_t* bytecode,
             size_t bytecode_len,

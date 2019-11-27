@@ -25,14 +25,6 @@ pub struct GetRegisterKeyErr {
     pub message: String,
 }
 
-// error while requesting execevm computation
-#[derive(Fail, Debug)]
-#[fail(display = "Error doing execevm command sgx_status = {}. info = ({})", status, message)]
-pub struct ExecEvmErr {
-    pub status: sgx_status_t,
-    pub message: String,
-}
-
 // error while request attestation service
 #[derive(Fail, Debug)]
 #[fail(display = "Error while using the attestation service info = ({})", message)]

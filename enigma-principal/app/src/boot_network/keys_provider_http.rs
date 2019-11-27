@@ -222,7 +222,7 @@ mod test {
     use web3::types::{H160, U256};
     use web3::types::Bytes;
 
-    use enigma_types::ContractAddress;
+    use enigma_types::{ContractAddress, Hash256};
     use epoch_u::epoch_types::ConfirmedEpochState;
     use esgx::epoch_keeper_u::set_or_verify_worker_params;
     use esgx::epoch_keeper_u::tests::get_worker_params;
@@ -242,8 +242,8 @@ mod test {
         let enclave = init_enclave_wrapper().unwrap();
         let workers: Vec<[u8; 20]> = vec![REF_WORKER];
         let stakes: Vec<u64> = vec![10000000000];
-        let block_number = 1;
-        let worker_params = get_worker_params(block_number, workers, stakes);
+        let km_block_number = 1;
+        let worker_params = get_worker_params(km_block_number, workers, stakes);
         let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
         let rpc = {
             let mut io = IoHandler::new();
@@ -269,15 +269,16 @@ mod test {
     pub fn test_find_epoch_contract_addresses() {
         let msg = REF_MSG.from_hex().unwrap();
         let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(REF_SIG.to_string()), block_number: None, addresses: None };
-        let address = ContractAddress::from(REF_CONTRACT_ADDR);
-        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        let address = Hash256::from(REF_CONTRACT_ADDR);
+        let mut selected_workers: HashMap<Hash256, H160> = HashMap::new();
         selected_workers.insert(address, H160(REF_WORKER));
-        let block_number = U256::from(1);
-        let confirmed_state = Some(ConfirmedEpochState { selected_workers, block_number });
+        let ether_block_number = U256::from(3);
+        let confirmed_state = Some(ConfirmedEpochState { selected_workers, ether_block_number });
         let seed = U256::from(1);
         let sig = Bytes::from(REF_SIG.from_hex().unwrap());
         let nonce = U256::from(0);
-        let epoch_state = EpochState { seed, sig, nonce, confirmed_state };
+        let km_block_number = U256::from(1);
+        let epoch_state = EpochState { seed, sig, nonce, km_block_number, confirmed_state };
         let msg = PrincipalMessage::from_message(&request.get_data().unwrap()).unwrap();
         let results = PrincipalHttpServer::find_epoch_contract_addresses(&request, &msg, &epoch_state).unwrap();
         assert_eq!(results, vec![address])

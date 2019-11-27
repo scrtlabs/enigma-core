@@ -1,8 +1,6 @@
-pub extern crate std;
+pub use std::fmt;
 
-pub use self::std::fmt;
-
-pub use self::std::{
+pub use std::{
     io, iter, mem,
     slice::Join,
     str::from_utf8,

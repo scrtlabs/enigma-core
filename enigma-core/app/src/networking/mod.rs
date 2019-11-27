@@ -1,4 +1,3 @@
-pub mod constants;
 pub mod ipc_listener;
 pub mod messages;
 
