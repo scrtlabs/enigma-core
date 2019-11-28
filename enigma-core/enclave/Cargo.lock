@@ -108,9 +108,9 @@ dependencies = [
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "proc-macro2 0.4.30 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.6.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.42 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.15.44 (registry+https://github.com/rust-lang/crates.io-index)",
  "tempfile 3.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.4.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -266,7 +266,7 @@ dependencies = [
  "parity-wasm 0.31.3 (git+https://github.com/enigmampc/parity-wasm.git?branch=enigma)",
  "pwasm-utils 0.5.0 (git+https://github.com/enigmampc/wasm-utils.git?rev=0.5.0-sgx-1.0.9)",
  "rmp-serde 0.14.0 (git+https://github.com/enigmampc/msgpack-rust.git?rev=0.14.0-sgx-1.0.9)",
- "serde 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
  "serde_json 1.0.40 (git+https://github.com/enigmampc/serde-json-sgx.git?rev=1.0.39-sgx-1.0.9)",
  "sgx_trts 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
  "sgx_tstd 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
@@ -286,10 +286,10 @@ dependencies = [
  "ethereum-types 0.7.0 (git+https://github.com/enigmampc/parity-common.git?rev=0.7.0-sgx-1.0.9)",
  "failure 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "log-derive 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log-derive 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "rmp-serde 0.14.0 (git+https://github.com/enigmampc/msgpack-rust.git?rev=0.14.0-sgx-1.0.9)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
  "serde_json 1.0.40 (git+https://github.com/enigmampc/serde-json-sgx.git?rev=1.0.39-sgx-1.0.9)",
  "sgx_tstd 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
 ]
@@ -310,7 +310,7 @@ dependencies = [
  "pwasm-utils 0.5.0 (git+https://github.com/enigmampc/wasm-utils.git?rev=0.5.0-sgx-1.0.9)",
  "rmp-serde 0.14.0 (git+https://github.com/enigmampc/msgpack-rust.git?rev=0.14.0-sgx-1.0.9)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
  "serde_json 1.0.40 (git+https://github.com/enigmampc/serde-json-sgx.git?rev=1.0.39-sgx-1.0.9)",
  "sgx_trts 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
  "sgx_tse 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
@@ -327,8 +327,8 @@ dependencies = [
  "arrayvec 0.4.12 (registry+https://github.com/rust-lang/crates.io-index)",
  "cbindgen 0.8.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
- "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -382,7 +382,7 @@ dependencies = [
  "error-chain 0.12.0 (git+https://github.com/enigmampc/error-chain.git?rev=0.12.0-sgx-1.0.9)",
  "ethereum-types 0.7.0 (git+https://github.com/enigmampc/parity-common.git?rev=0.7.0-sgx-1.0.9)",
  "rustc-hex 2.0.1 (git+https://github.com/enigmampc/rustc-hex.git?rev=2.0.1-sgx-1.0.9)",
- "serde 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
  "serde_json 1.0.40 (git+https://github.com/enigmampc/serde-json-sgx.git?rev=1.0.39-sgx-1.0.9)",
  "sgx_tstd 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
  "tiny-keccak 1.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -533,8 +533,8 @@ name = "json-patch"
 version = "0.2.5"
 source = "git+https://github.com/enigmampc/json-patch.git?rev=0.2.5-sgx-1.0.9#518e71e58ba456dffc0aacd38ccd905b4205697a"
 dependencies = [
- "serde 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
- "serde_derive 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde_derive 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
  "serde_json 1.0.40 (git+https://github.com/enigmampc/serde-json-sgx.git?rev=1.0.39-sgx-1.0.9)",
  "sgx_tstd 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
  "treediff 3.0.1 (git+https://github.com/enigmampc/treediff-rs.git?rev=3.0.1-sgx-1.0.9)",
@@ -576,7 +576,7 @@ dependencies = [
 
 [[package]]
 name = "log-derive"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "darling 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -807,7 +807,7 @@ source = "git+https://github.com/enigmampc/msgpack-rust.git?rev=0.14.0-sgx-1.0.9
 dependencies = [
  "byteorder 1.3.2 (git+https://github.com/mesalock-linux/byteorder-sgx?rev=sgx_1.0.9)",
  "rmp 0.8.7 (git+https://github.com/enigmampc/msgpack-rust.git?rev=0.14.0-sgx-1.0.9)",
- "serde 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
  "sgx_tstd 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
 ]
 
@@ -831,25 +831,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "serde"
-version = "1.0.102"
-source = "git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9#2f794d6a1c785598820e999b4acb9f4ee4a5788a"
+version = "1.0.103"
+source = "git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9#2db1fd3880d2a938bade73f0647b243ccfb3206b"
 dependencies = [
- "serde_derive 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde_derive 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
  "sgx_tstd 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
 ]
 
 [[package]]
 name = "serde"
-version = "1.0.102"
+version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "serde_derive 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.102"
-source = "git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9#2f794d6a1c785598820e999b4acb9f4ee4a5788a"
+version = "1.0.103"
+source = "git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9#2db1fd3880d2a938bade73f0647b243ccfb3206b"
 dependencies = [
  "proc-macro2 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -858,7 +858,7 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.102"
+version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "proc-macro2 1.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -873,18 +873,18 @@ source = "git+https://github.com/enigmampc/serde-json-sgx.git?rev=1.0.39-sgx-1.0
 dependencies = [
  "itoa 0.4.4 (git+https://github.com/mesalock-linux/itoa-sgx.git?rev=sgx_1.0.9)",
  "ryu 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
+ "serde 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)",
  "sgx_tstd 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
 ]
 
 [[package]]
 name = "serde_json"
-version = "1.0.41"
+version = "1.0.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "itoa 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "ryu 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1147,7 +1147,7 @@ name = "toml"
 version = "0.4.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1299,7 +1299,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum libc 0.2.65 (registry+https://github.com/rust-lang/crates.io-index)" = "1a31a0627fdf1f6a39ec0dd577e101440b7db22672c0901fe00a9a6fbb5c24e8"
 "checksum libsecp256k1 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "688e8d65e495567c2c35ea0001b26b9debf0b4ea11f8cccc954233b75fc3428a"
 "checksum log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)" = "14b6052be84e6b71ab17edffc2eeabf5c2c3ae1fdb464aae35ac50c67a44e1f7"
-"checksum log-derive 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "af5ac4192220bd122fe6589742bf3873f7207ef5f39d82d036b424448f3434c7"
+"checksum log-derive 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "2c7f436d3b5b51857b145075009f3a0d88dd37d2e93f42bb227045f4562a131e"
 "checksum memory_units 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "71d96e3f3c0b6325d8ccd83c33b28acb183edcb6c67938ba104ec546854b0882"
 "checksum nodrop 0.1.14 (registry+https://github.com/rust-lang/crates.io-index)" = "72ef4a56884ca558e5ddb05a1d1e7e1bfd9a68d9ed024c21704cc98872dae1bb"
 "checksum num-traits 0.2.9 (git+https://github.com/mesalock-linux/num-traits-sgx?rev=sgx_1.0.9)" = "<none>"
@@ -1330,12 +1330,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rustc-hex 2.0.1 (git+https://github.com/enigmampc/rustc-hex.git?rev=2.0.1-sgx-1.0.9)" = "<none>"
 "checksum rustc-hex 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "403bb3a286107a04825a5f82e1270acc1e14028d3d554d7a1e08914549575ab8"
 "checksum ryu 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "bfa8506c1de11c9c4e4c38863ccbe02a305c8188e85a05a784c9e11e1c3910c8"
-"checksum serde 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)" = "<none>"
-"checksum serde 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)" = "0c4b39bd9b0b087684013a792c59e3e07a46a01d2322518d8a1104641a0b1be0"
-"checksum serde_derive 1.0.102 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)" = "<none>"
-"checksum serde_derive 1.0.102 (registry+https://github.com/rust-lang/crates.io-index)" = "ca13fc1a832f793322228923fbb3aba9f3f44444898f835d31ad1b74fa0a2bf8"
+"checksum serde 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)" = "<none>"
+"checksum serde 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)" = "1217f97ab8e8904b57dd22eb61cde455fa7446a9c1cf43966066da047c1f3702"
+"checksum serde_derive 1.0.103 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.0.9)" = "<none>"
+"checksum serde_derive 1.0.103 (registry+https://github.com/rust-lang/crates.io-index)" = "a8c6faef9a2e64b0064f48570289b4bf8823b7581f1d6157c1b52152306651d0"
 "checksum serde_json 1.0.40 (git+https://github.com/enigmampc/serde-json-sgx.git?rev=1.0.39-sgx-1.0.9)" = "<none>"
-"checksum serde_json 1.0.41 (registry+https://github.com/rust-lang/crates.io-index)" = "2f72eb2a68a7dc3f9a691bfda9305a1c017a6215e5a4545c258500d2099a37c2"
+"checksum serde_json 1.0.42 (registry+https://github.com/rust-lang/crates.io-index)" = "1a3351dcbc1f067e2c92ab7c3c1f288ad1a4cffc470b5aaddb4c2e0a3ae80043"
 "checksum sgx_alloc 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)" = "<none>"
 "checksum sgx_backtrace_sys 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)" = "<none>"
 "checksum sgx_build_helper 0.1.0 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)" = "<none>"
