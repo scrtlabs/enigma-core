@@ -171,7 +171,9 @@ impl PrincipalHttpServer {
         };
     }
 
-    /// This function should check
+    /// This function is used to make sure the km is up and running.
+    /// it can be requested via the jsonRPC server using the following command:
+    /// curl -sb -o /dev/null -X POST -d '{"jsonrpc": "2.0", "id": "1", "method": "getHealthCheck", "params": []}' -H "Content-Type: application/json" 127.0.0.1:3040
     pub fn health_check(epoch_provider: &EpochProvider) -> Value {
         // Ethereum
         let contract_signing_address = match epoch_provider.contract.get_signing_address() {
