@@ -81,7 +81,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "byteorder"
 version = "1.3.2"
-source = "git+https://github.com/mesalock-linux/byteorder-sgx?rev=sgx_1.0.9#5f940008ffb86cdfad5ec3c5ea5af43bb2fe2359"
+source = "git+https://github.com/mesalock-linux/byteorder-sgx?rev=sgx_1.0.9#fd49590f8f537c59f101d1a9f7ac61cd7fac87a7"
 dependencies = [
  "sgx_tstd 1.0.9 (git+https://github.com/baidu/rust-sgx-sdk.git?rev=v1.0.9)",
 ]
