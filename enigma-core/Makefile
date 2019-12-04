@@ -144,7 +144,7 @@ $(App_Enclave_u_Object): app/Enclave_u.o
 # Untrusted Rust binary. Cargo gets parameters through app/build.rs.
 # The binary is copied to $(CUSTOM_BIN_PATH)
 $(App_Name): $(App_Enclave_u_Object) $(App_SRC_Files)
-	@cd app && cargo build -p enigma-types
+	@cd app && cargo build -p enigma-types $(App_Rust_Flags)
 	@cd app && SGX_SDK_RUST=$(SGX_SDK_RUST) SGX_SDK=$(SGX_SDK) cargo build $(App_Rust_Flags)
 	@echo "Cargo  =>  $@"
 	mkdir -p $(CUSTOM_BIN_PATH)

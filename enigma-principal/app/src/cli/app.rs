@@ -1,8 +1,17 @@
 use boot_network::{
     keys_provider_http::{PrincipalHttpServer, StateKeyRequest},
-    principal_manager::{self, PrincipalManager, ReportManager, Sampler, PrincipalConfig},
+    principal_manager::{
+        self,
+        PrincipalManager,
+        ReportManager,
+        Sampler,
+        PrincipalConfig,
+        SgxEthereumSigner,
+        PrivateKeyEthereumSigner
+    },
 };
 use cli;
+use enigma_crypto::EcdsaSign;
 use enigma_tools_u::{esgx::general::storage_dir, web3_utils::enigma_contract::EnigmaContract};
 use epoch_u::epoch_provider::EpochProvider;
 use esgx::general::ENCLAVE_DIR;
@@ -10,6 +19,19 @@ use failure::Error;
 use sgx_types::sgx_enclave_id_t;
 use std::{fs::File, io::prelude::*, path::Path, sync::Arc};
 use structopt::StructOpt;
+use rustc_hex::FromHex;
+
+pub fn create_signer(eid: sgx_enclave_id_t, with_private_key: bool, private_key: &[u8]) -> Box<dyn EcdsaSign + Send + Sync> {
+    if with_private_key {
+        let mut pk_32 = [0u8; 32];
+        pk_32.copy_from_slice(private_key);
+        let signer = Box::new(PrivateKeyEthereumSigner::new(pk_32)) as Box<dyn EcdsaSign + Send + Sync>;
+        signer
+    } else {
+        let signer = Box::new(SgxEthereumSigner::new(eid)) as Box<dyn EcdsaSign + Send + Sync>;
+        signer
+    }
+}
 
 #[logfn(INFO)]
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
@@ -17,16 +39,29 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     let mut principal_config = PrincipalConfig::load_config(opt.principal_config.as_str())?;
     let report_manager = ReportManager::new(principal_config.clone(), eid)?;
     let signing_address = report_manager.get_signing_address()?;
+    let ethereum_address = report_manager.get_ethereum_address()?;
     let mut path = storage_dir(ENCLAVE_DIR)?;
 
+    let private_key = principal_config.private_key.from_hex()?;
+
+    let ethereum_signer = create_signer(eid, principal_config.with_private_key, &private_key);
+
     if opt.info {
-        cli::options::print_info(&signing_address);
+        cli::options::print_info(&signing_address, &ethereum_address);
     } else if opt.sign_address {
         path.push("principal-sign-addr.txt");
-        let mut file = File::create(path.clone())?;
+        let mut file = File::create(&path)?;
         let prefixed_signing_address = format!("0x{}", signing_address);
         file.write_all(prefixed_signing_address.as_bytes())?;
         println!("Wrote signing address: {:?} in file: {:?}", prefixed_signing_address, path);
+
+        path.pop();
+        path.push("ethereum-account-addr.txt");
+        let mut file = File::create(&path)?;
+        let prefixed_ethereum_address = format!("0x{}", ethereum_address);
+        file.write_all(prefixed_ethereum_address.as_bytes())?;
+        println!("Wrote ethereum address: {:?} in file: {:?}", prefixed_ethereum_address, path);
+
     } else if opt.deploy {
         unimplemented!("Self-deploy mode not yet implemented. Fix issues with linked libraries in the Enigma contract.");
     } else {
@@ -37,8 +72,10 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
         let enigma_contract = Arc::new(EnigmaContract::from_deployed(
             &contract_address,
             Path::new(&principal_config.enigma_contract_path),
-            Some(&principal_config.account_address),
+            Some(&ethereum_address),
+            principal_config.chain_id,
             &principal_config.url,
+            ethereum_signer,
         )?);
 
         principal_config.max_epochs = if opt.time_to_live > 0 { Some(opt.time_to_live) } else { None };

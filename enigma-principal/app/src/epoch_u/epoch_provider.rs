@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    io::{self, prelude::*},
+    io::prelude::*,
     ops::Deref,
     path::PathBuf,
     sync::{Arc, Mutex},
@@ -17,13 +17,10 @@ use sgx_types::sgx_enclave_id_t;
 use web3::types::{H256, TransactionReceipt, U256};
 
 use common_u::errors::{EpochStateIOErr, EpochStateTransitionErr, EpochStateUndefinedErr};
-use enigma_tools_u::{
-    esgx::general::storage_dir,
-    web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract},
-};
+use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
 use enigma_tools_u::common_u::errors::Web3Error;
 use epoch_u::epoch_types::{ConfirmedEpochState, EPOCH_STATE_UNCONFIRMED, EpochState, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
-use esgx::{epoch_keeper_u::set_or_verify_worker_params, general::ENCLAVE_DIR};
+use esgx::epoch_keeper_u::set_or_verify_worker_params;
 use esgx::general::{EPOCH_DIR, EPOCH_FILE};
 use std::mem::replace;
 
