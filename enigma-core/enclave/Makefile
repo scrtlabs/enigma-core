@@ -27,6 +27,6 @@ endif
 
 .PHONY: bindgen
 bindgen: Enclave_t.h
-	cargo build -p enigma-types # Meant to make sure `enigma-types.h` already exists and can be included.
+	cargo build -p enigma-types $(CARGO_FLAGS) # Meant to make sure `enigma-types.h` already exists and can be included.
 	bindgen Enclave_t.h $(BINDGEN_FLAGS) -- $(BINDGEN_CLANG_FLAGS) > $(BINDGEN_OUTPUT_FILE)
 	rustfmt  $(BINDGEN_OUTPUT_FILE)

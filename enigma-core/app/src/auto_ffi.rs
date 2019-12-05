@@ -52,6 +52,7 @@ extern "C" {
 extern "C" {
     pub fn ecall_get_signing_address(eid: sgx_enclave_id_t, arr: *mut [u8; 20usize]) -> sgx_status_t;
 }
+
 extern "C" {
     pub fn ecall_ptt_req(
         eid: sgx_enclave_id_t,

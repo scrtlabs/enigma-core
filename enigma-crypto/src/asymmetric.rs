@@ -111,11 +111,16 @@ impl KeyPair {
     /// The `v` variable or so called `Recovery ID` is to tell you if the public key that's needed to verify is even or odd. <br>
     /// Ususally that byte is just 0/1 for some reasons these are represented as 0/1 so we just add 27 to it.
     pub fn sign(&self, message: &[u8]) -> Result<[u8; 65], CryptoError> {
-        let hashed_msg = message.keccak256();
-        let message_to_sign = secp256k1::Message::parse(&hashed_msg);
+        self.sign_hashed(&message.keccak256().into())
+    }
+
+    /// Interface for usage without forcing a keccak hash of the input. However, the input must be 32 bytes long.
+    /// Mainly useful for when the data is created already hashed and we just want to sign it
+    pub fn sign_hashed(&self, message: &[u8; 32]) -> Result<[u8; 65], CryptoError> {
+        let message_to_sign = secp256k1::Message::parse(message);
 
         let (sig, recovery) = secp256k1::sign(&message_to_sign, &self.privkey)
-            .map_err(|_| CryptoError::SigningError { hashed_msg: *hashed_msg })?;
+            .map_err(|_| CryptoError::SigningError { hashed_msg: *message })?;
 
         let v: u8 = recovery.into();
         let mut returnvalue = [0u8; 65];

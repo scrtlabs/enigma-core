@@ -13,6 +13,7 @@ use web3::{
 };
 use envy;
 
+use enigma_crypto::EcdsaSign;
 use boot_network::{deploy_scripts, keys_provider_http::PrincipalHttpServer, principal_utils::Principal};
 use enigma_tools_u::{
     attestation_service::service,
@@ -24,23 +25,45 @@ use esgx;
 use enigma_tools_u::common_u::errors::Web3Error;
 use std::path::PathBuf;
 
+use secp256k1::key::SecretKey;
+use secp256k1::Message;
+use secp256k1::Secp256k1;
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
+    // Path to IEnigma.Json ** probably a good place to document that IEnigma.Json is used because parsing the entire Enigma.json will fail to due missing types
     pub enigma_contract_path: String,
+    // Not 100% sure on this one. Path to where we download the enigma.json ABI from? Either way, probably unused
     pub enigma_contract_remote_path: String,
+    // Address of the deployed contract -- expected to be set externally
     pub enigma_contract_address: String,
+    // Ethereum address of the *operating address* of the KM
     pub account_address: String,
+    // Chain ID of the ethereum node we're working with
+    pub chain_id: u64,
+    // TODO: Not sure what this does
     pub test_net: bool,
+    // Flag whether we're using a predefined private key (true) or self-generated keys in SGX (false)
     pub with_private_key: bool,
+    // Private key, as hex string (without "0x"). Only used if with_private_key is set to true
     pub private_key: String,
+    // Uh
     pub url: String,
+    // Length of epoch in blocks
     pub epoch_size: usize,
+    // TODO: this
     pub polling_interval: u64,
+    // TODO: this
     pub max_epochs: Option<usize>,
+    // TODO: this
     pub spid: String,
+    // Address of SGX attestation proxy (enigma attestation service)
     pub attestation_service_url: String,
+    // Number of retires before we give up on connection to attestation service?
     pub attestation_retries: u32,
+    // JSON-RPC port. Usually 3040
     pub http_port: u16,
+    // Number of confirmations on-chain before accepting a transaction as complete
     pub confirmations: u64,
 }
 
@@ -64,6 +87,52 @@ pub struct PrincipalManager {
     pub eid: sgx_enclave_id_t,
 }
 
+pub struct SgxEthereumSigner {
+    eid: sgx_enclave_id_t,
+}
+
+impl SgxEthereumSigner {
+    pub fn new(eid: sgx_enclave_id_t) -> SgxEthereumSigner {
+        SgxEthereumSigner{ eid }
+    }
+}
+
+impl EcdsaSign for SgxEthereumSigner {
+    fn sign_hashed(&self, to_sign: &[u8; 32]) -> [u8; 65] {
+        match esgx::equote::sign_ethereum(self.eid, to_sign) {
+            Ok(sig) => sig,
+            Err(err) => {
+                panic!("Error signing data: {:?}", err);
+            }
+            // println!("Signed data: {:?}", sig.to_vec().to_hex());
+        }
+    }
+}
+
+pub struct PrivateKeyEthereumSigner {
+    private_key: [u8; 32]
+}
+
+impl PrivateKeyEthereumSigner {
+    pub fn new(private_key: [u8; 32]) -> PrivateKeyEthereumSigner {
+        PrivateKeyEthereumSigner{ private_key }
+    }
+}
+
+impl EcdsaSign for PrivateKeyEthereumSigner {
+    fn sign_hashed(&self, to_sign: &[u8; 32]) -> [u8; 65] {
+        let s = Secp256k1::signing_only();
+        let msg = Message::from_slice(to_sign).unwrap();
+        let key = SecretKey::from_slice(&self.private_key).unwrap();
+        let (v, sig_bytes) = s.sign_recoverable(&msg, &key).serialize_compact();
+
+        let mut sig_recoverable: [u8; 65] = [0u8; 65];
+        sig_recoverable[0..64].copy_from_slice(&sig_bytes);
+        sig_recoverable[64] = (v.to_i32() + 27) as u8;
+        sig_recoverable
+    }
+}
+
 impl ReportManager {
     pub fn new(config: PrincipalConfig, eid: sgx_enclave_id_t) -> Result<Self, Error> {
         let as_service = service::AttestationService::new_with_retries(&config.attestation_service_url, config.attestation_retries);
@@ -72,6 +141,15 @@ impl ReportManager {
 
     pub fn get_signing_address(&self) -> Result<String, Error> {
         let _signing_address = esgx::equote::get_register_signing_address(self.eid)?;
+        let signing_address = _signing_address.to_vec().to_hex();
+        Ok(signing_address)
+    }
+
+    pub fn get_ethereum_address(&self) -> Result<String, Error> {
+        if self.config.with_private_key {
+            return Ok(self.config.account_address.clone());
+        }
+        let _signing_address = esgx::equote::get_ethereum_address(self.eid)?;
         let signing_address = _signing_address.to_vec().to_hex();
         Ok(signing_address)
     }
@@ -273,7 +351,7 @@ pub fn run_miner(account: Address, w3: Arc<Web3<Http>>, interval: u64) -> thread
 #[cfg(test)]
 mod test {
     extern crate tempfile;
-    use std::{env, path::Path, sync::Arc, thread, time};
+    use std::{env, path::Path, sync::Arc, sync::Mutex, thread, time};
     use self::tempfile::TempDir;
 
     use web3::{
@@ -313,12 +391,14 @@ mod test {
     pub fn init_no_deploy(eid: u64) -> Result<PrincipalManager, Error> {
         let mut config = get_config()?;
         let enclave_manager = ReportManager::new(config.clone(), eid)?;
-
+        let ethereum_signer = Box::new(SgxEthereumSigner{eid}) as Box<dyn EcdsaSign + Send + Sync>;
         let contract = Arc::new(EnigmaContract::from_deployed(
             &config.enigma_contract_address,
             Path::new(&config.enigma_contract_path),
             Some(&config.account_address),
+            config.chain_id,
             &config.url,
+            ethereum_signer,
         )?);
         let _gas_limit = 5_999_999;
         config.max_epochs = None;
@@ -412,6 +492,7 @@ mod test {
         env::set_var("ATTESTATION_RETRIES", "11");
         env::set_var("HTTP_PORT","3040");
         env::set_var("CONFIRMATIONS","0");
+        env::set_var("CHAIN_ID", "13");
         let config = PrincipalConfig::load_config("this is not a path").unwrap();
         assert_eq!(config.polling_interval, 1);
         assert_eq!(config.http_port, 3040);

@@ -105,7 +105,7 @@ pub fn print_logo() {
     );
     yellow!("<>------------------------------------------<>\n");
 }
-pub fn print_info(signing_address: &str) {
+pub fn print_info(signing_address: &str, ethereum_address: &str) {
     print_logo();
     yellow!("<>------------------------------------------<>\n");
     green!("--info                                 => Print the signing address and help.\n");
@@ -125,6 +125,7 @@ pub fn print_info(signing_address: &str) {
     green!("--deploy-config <path from current>    => Optional, if --deploy load deployment config from custom path.\n");
     green!("--principal-config <path from current> => Optional, load the principal config from custom path.\n");
     yellow!("<>------------------------------------------<>\n");
-    red!("Enclave Signing address                => 0x{}\n", signing_address);
+    red!("Enigma address                  => 0x{}\n", signing_address);
+    red!("Ethereum address                => 0x{}\n", ethereum_address);
     yellow!("<>------------------------------------------<>\n");
 }

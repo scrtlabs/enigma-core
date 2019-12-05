@@ -3,7 +3,6 @@ use failure::Error;
 use sgx_types::*;
 use std::str;
 use crate::auto_ffi::ecall_get_signing_address;
-
 // this struct is returned during the process registration back to the surface.
 // quote: the base64 encoded quote
 // address : the clear text public key for ecdsa signing and registration
@@ -25,6 +24,7 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<[u8; 20], E
         Err(errors::GetRegisterKeyErr { status, message: String::from("error in get_register_signing_key") }.into())
     }
 }
+
 
 #[cfg(test)]
 mod test {
