@@ -103,13 +103,15 @@ steps:
           # which includes master and develop because these always exist
           git clone --single-branch --branch ${DRONE_BRANCH} https://github.com/enigmampc/docker-environment.git
         else
-          # otherwise we are on a feature branch, and we'll build against develop
+          # otherwise we are on a feature branch, and we will build against develop
           git clone --single-branch --branch develop https://github.com/enigmampc/docker-environment.git
         fi
       - cd docker-environment && cp .env.template .env
       - sed -i "s/COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=enigma_core_${DRONE_BUILD_NUMBER}/" .env
       - sed -i "s/DOCKER_TAG=latest/DOCKER_TAG=${DOCKER_TAG}/" .env;
       - |
+        # The arrays and for loop below are for consistency across drone.yml files in the other repositories,
+        # and in case it changes again in the future, it will be easier to add an element to the array
         /bin/bash -c '
         declare -a PROJECTS=(contract)
         declare -A DOCKER_IMAGES=([contract]=contract)
@@ -128,7 +130,7 @@ steps:
               # which includes master and develop because these always exist
               make clone-client BRANCH=${DRONE_BRANCH}
             else
-              # otherwise we are on a feature branch, and we'll build against develop
+              # otherwise we are on a feature branch, and we will build against develop
               make clone-client BRANCH=develop
             fi
             make build-contract DOCKER_TAG=$DOCKER_TAG
