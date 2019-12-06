@@ -35,8 +35,13 @@ extern crate itertools;
 
 extern crate secp256k1;
 
+
+use std::str::FromStr;
+
 use cli::options::Opt;
-use enigma_tools_u::common_u::logging::{self, CombinedLogger};
+use enigma_tools_u::common_u::logging;
+use enigma_tools_u::common_u::os;
+
 pub use enigma_tools_u::esgx::ocalls_u::{ocall_get_home, ocall_save_to_memory};
 use structopt::StructOpt;
 
@@ -49,11 +54,14 @@ mod esgx;
 
 fn main() {
     let opt: Opt = Opt::from_args();
-    debug!("CLI params: {:?}", opt);
 
+    let log_level = log::LevelFilter::from_str(&opt.log_level).unwrap();
     let datadir = dirs::home_dir().unwrap().join(".enigma");
-    let loggers = logging::get_logger(opt.debug_stdout, datadir.clone(), opt.verbose).expect("Failed Creating the loggers");
-    CombinedLogger::init(loggers).expect("Failed initializing the logger");
+    // let datadir = opt.data_dir.clone().unwrap_or_else(|| dirs::home_dir().unwrap().join(".enigma"));
+    let hostname = os::hostname();
+    let _handler = logging::init_logger(log_level, &datadir, hostname);
+
+    debug!("CLI params: {:?}", opt);
 
     let enclave = esgx::general::init_enclave_wrapper().expect("[-] Init Enclave Failed");
     let eid = enclave.geteid();

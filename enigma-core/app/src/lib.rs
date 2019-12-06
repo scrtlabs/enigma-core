@@ -28,7 +28,6 @@ pub extern crate log;
 #[macro_use]
 pub extern crate log_derive;
 pub extern crate structopt;
-pub extern crate simplelog;
 
 pub mod common_u;
 pub mod db;

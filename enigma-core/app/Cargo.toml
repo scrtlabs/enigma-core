@@ -25,8 +25,7 @@ lazy_static = "1.3.0"
 lru-cache = "0.1.1"
 log = "0.4.6"
 log-derive = "0.3"
-log4rs = "0.9.0"
-simplelog = "0.5.3"
+log4rs = { version = "0.9.0", features=["all_components"]}
 structopt = "0.2"
 
 sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
