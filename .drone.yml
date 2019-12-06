@@ -123,10 +123,11 @@ steps:
             docker pull "$DOCKER_IMAGE:develop"
             docker tag "$DOCKER_IMAGE:develop" "$DOCKER_IMAGE:$DOCKER_TAG"
           else
-            if [[ "project" == "contract" ]]; then
+            if [[ "$project" == "contract" ]]; then
               make clone-contract BRANCH=${DRONE_BRANCH}
               make build-contract DOCKER_TAG=$DOCKER_TAG
             else
+              # TODO: replace the line below with clone-client-solo once docker-environment#28 has been merged
               make clone-client BRANCH=${DRONE_BRANCH}
               make build-client DOCKER_TAG=$DOCKER_TAG
             fi
