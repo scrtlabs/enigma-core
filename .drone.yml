@@ -110,12 +110,10 @@ steps:
       - sed -i "s/COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=enigma_core_${DRONE_BUILD_NUMBER}/" .env
       - sed -i "s/DOCKER_TAG=latest/DOCKER_TAG=${DOCKER_TAG}/" .env;
       - |
-        # The arrays and for loop below are for consistency across drone.yml files in the other repositories,
-        # and in case it changes again in the future, it will be easier to add an element to the array
         /bin/bash -c '
-        declare -a PROJECTS=(contract)
-        declare -A DOCKER_IMAGES=([contract]=contract)
-        declare -A PROJECT_BRANCH_FOUND=([contract]=$MATCHING_BRANCH_CONTRACT)
+        declare -a PROJECTS=(contract client)
+        declare -A DOCKER_IMAGES=([contract]=contract [client]=client)
+        declare -A PROJECT_BRANCH_FOUND=([contract]=$MATCHING_BRANCH_CONTRACT [client]=$MATCHING_BRANCH_INTEGRATION)
         for project in $${PROJECTS[@]}; do
           DOCKER_IMAGE="enigmampc/$${DOCKER_IMAGES[$project]}"
           if [[ "$DRONE_BRANCH" == "master" ]]; then
@@ -125,16 +123,13 @@ steps:
             docker pull "$DOCKER_IMAGE:develop"
             docker tag "$DOCKER_IMAGE:develop" "$DOCKER_IMAGE:$DOCKER_TAG"
           else
-            make clone-contract BRANCH=${DRONE_BRANCH}
-            if [[ "$MATCHING_BRANCH_INTEGRATION" -eq 1 ]]; then
-              # which includes master and develop because these always exist
-              make clone-client BRANCH=${DRONE_BRANCH}
+            if [[ "project" == "contract" ]]; then
+              make clone-contract BRANCH=${DRONE_BRANCH}
+              make build-contract DOCKER_TAG=$DOCKER_TAG
             else
-              # otherwise we are on a feature branch, and we will build against develop
-              make clone-client BRANCH=develop
+              make clone-client BRANCH=${DRONE_BRANCH}
+              make build-client DOCKER_TAG=$DOCKER_TAG
             fi
-            make build-contract DOCKER_TAG=$DOCKER_TAG
-            make build-client DOCKER_TAG=$DOCKER_TAG
           fi
         done'
       - make clone-km BRANCH=${DRONE_BRANCH}
