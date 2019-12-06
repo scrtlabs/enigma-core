@@ -51,7 +51,7 @@ mod tests {
     use sgx_types::*;
     use crate::db::DB;
     use enigma_types::{RawPointer, ResultStatus};
-    use simplelog::TermLogger;
+    use enigma_tools_u::common_u::logging;
     use log::LevelFilter;
     use self::tempfile::TempDir;
     use crate::auto_ffi::ecall_run_tests;
@@ -67,7 +67,7 @@ mod tests {
     #[allow(dead_code)]
     pub fn log_to_stdout(level: Option<LevelFilter>) {
         let level = level.unwrap_or_else(|| LevelFilter::max());
-        TermLogger::init(level, Default::default()).unwrap();
+        logging::init_logger(level, ".", "Tests".to_string()).unwrap();
     }
 
     #[test]
