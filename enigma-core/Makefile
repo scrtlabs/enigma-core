@@ -7,7 +7,7 @@ SGX_SDK_RUST ?= $(HOME)/sgx
 ######## SGX SDK Settings ########
 
 # The directory where intel sgx is installed
-SGX_SDK ?= /home/bob/workspace/sgxsdk
+SGX_SDK ?= /opt/sgxsdk
 
 # SGX mode:
 #   HW - hardware mode
