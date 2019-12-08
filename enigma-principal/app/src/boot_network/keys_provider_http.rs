@@ -17,8 +17,10 @@ use enigma_types::{ContractAddress, EnclaveReturn};
 use enigma_tools_u::web3_utils::enigma_contract::ContractQueries;
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
+use esgx;
 use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
-use web3::types::U256;
+use web3::types::{U256, H160};
+
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 const METHOD_GET_HEALTH_CHECK: &str = "getHealthCheck";
