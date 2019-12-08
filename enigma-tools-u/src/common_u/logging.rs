@@ -20,7 +20,7 @@ use log4rs::Handle;
 
 pub fn init_logger<P: AsRef<Path>>(level: log::LevelFilter, data_dir: P, name: String) -> Result<Handle, Error> {
 
-    // Make sure the directory exist.
+    // Make sure the directory exists.
     fs::create_dir_all(&data_dir)?;
     let mut file_path = data_dir.as_ref().to_path_buf();
     file_path.push("debug.log");
