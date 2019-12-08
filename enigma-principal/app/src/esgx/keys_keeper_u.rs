@@ -2,7 +2,7 @@ use std::{convert::TryInto, mem};
 
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use web3::types::{H256, U256};
+use web3::types::U256;
 
 use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
 use common_u::errors::EnclaveFailError;

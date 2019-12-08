@@ -1,7 +1,7 @@
 use std::{convert::TryInto, sync::Arc};
 
 use enigma_tools_m::{
-    primitives::km_primitives::{PrincipalMessage, PrincipalMessageType},
+    primitives::km_primitives::PrincipalMessage,
     utils::EthereumAddress,
 };
 use failure::Error;
@@ -17,10 +17,8 @@ use enigma_types::{ContractAddress, EnclaveReturn};
 use enigma_tools_u::web3_utils::enigma_contract::ContractQueries;
 use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
 use esgx::keys_keeper_u::get_enc_state_keys;
-use esgx;
 use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
-use web3::types::{U256, H160};
-use std::convert::AsRef;
+use web3::types::U256;
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 const METHOD_GET_HEALTH_CHECK: &str = "getHealthCheck";
@@ -196,6 +194,7 @@ impl PrincipalHttpServer {
     pub fn start(&self) {
         let mut io = IoHandler::default();
         let epoch_provider = Arc::clone(&self.epoch_provider);
+        let port = self.port;
         io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
             let request = params.parse::<StateKeyRequest>()?;
             let body = Self::get_state_keys(&epoch_provider, request).map_err(Self::handle_error)?; // Not sure that this is the best idiom
@@ -207,8 +206,8 @@ impl PrincipalHttpServer {
             Ok(body)
         });
         let server =
-            ServerBuilder::new(io).start_http(&format!("0.0.0.0:{}", self.port).parse().unwrap()).expect("Unable to start RPC server");
-        println!("JSON-RPC HTTP server listening on port: {}", self.port);
+            ServerBuilder::new(io).start_http(&format!("0.0.0.0:{}", port).parse().unwrap()).expect("Unable to start RPC server");
+        println!("JSON-RPC HTTP server listening on port: {}", port);
         server.wait();
     }
 }

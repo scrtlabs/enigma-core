@@ -2,7 +2,7 @@ use enigma_tools_m::keeper_types::InputWorkerParams;
 use failure::Error;
 use rustc_hex::ToHex;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-use web3::types::{Bytes, H256, U256};
+use web3::types::{Bytes, U256};
 
 use common_u::errors::EnclaveFailError;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};

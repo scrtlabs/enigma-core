@@ -145,7 +145,7 @@ enclave:
 
 .PHONY: compiler-rt
 compiler-rt:
-	$(MAKE) -C $(SGX_SDK_RUST)/compiler-rt/ 2> /dev/null
+	$(MAKE) -C $(SGX_SDK_RUST)/compiler-rt/
 
 .PHONY: test
 test: all

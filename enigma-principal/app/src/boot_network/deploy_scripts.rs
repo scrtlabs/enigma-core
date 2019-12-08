@@ -1,9 +1,7 @@
 use enigma_tools_u::web3_utils::w3utils;
 use failure::Error;
 use rustc_hex::ToHex;
-use serde_derive::*;
-use serde_json;
-use std::{fs::File, io::prelude::*, str, sync::Arc, thread, time};
+use std::{str, sync::Arc, thread, time};
 use web3::{
     contract::{Contract, Options},
     futures::Future,
@@ -11,36 +9,6 @@ use web3::{
     types::Address,
     Web3,
 };
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct ScriptDeployConfig {
-    pub enigma_contract_path: String,
-    pub enigma_token_contract_path: String,
-    pub account_address: String,
-    pub url: String,
-}
-
-impl ScriptDeployConfig {
-    pub fn set_accounts_address(&mut self, new_address: String) { self.account_address = new_address; }
-    pub fn set_ethereum_url(&mut self, new_address: String) { self.url = new_address; }
-}
-
-pub fn load_config(config_path: &str) -> Result<ScriptDeployConfig, Error> {
-    println!("Loading deploy config: {:?}", config_path);
-    let mut f = File::open(config_path)?;
-    let mut contents = String::new();
-    f.read_to_string(&mut contents)?;
-
-    Ok(serde_json::from_str(&contents)?)
-}
-
-/// get the signer addr
-// pub fn get_signing_address(eid: sgx_enclave_id_t) -> Result<String, Error> {
-//    let eid = eid;
-//    let mut signing_address = esgx::equote::get_register_signing_address(eid)?;
-//    signing_address = signing_address[2..].to_string();
-//    Ok(signing_address)
-//}
 
 /// TESTING: deploy the dummy contract
 fn deploy_dummy_miner(w3: &Web3<Http>, deployer: &str) -> Result<Contract<Http>, Error> {

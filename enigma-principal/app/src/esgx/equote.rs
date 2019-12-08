@@ -6,7 +6,13 @@ use std::str;
 extern "C" {
     fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 20]) -> sgx_status_t;
 }
+extern "C" {
+    fn ecall_get_ethereum_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 20]) -> sgx_status_t;
+}
 
+extern "C" {
+    fn ecall_sign_ethereum(eid: sgx_enclave_id_t, data: &[u8; 32], sig: &mut [u8; 65]) -> sgx_status_t;
+}
 // this struct is returned during the process registration back to the surface.
 // quote: the base64 encoded quote
 // address : the clear text public key for ecdsa signing and registration
@@ -26,6 +32,28 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<[u8; 20], E
         Ok(address)
     } else {
         Err(errors::GetRegisterKeyErr { status, message: String::from("error in get_register_signing_key") }.into())
+    }
+}
+
+// wrapper function for getting the enclave public sign key (the one attached with produce_quote())
+pub fn get_ethereum_address(eid: sgx_enclave_id_t) -> Result<[u8; 20], Error> {
+    let mut address = [0u8; 20];
+    let status = unsafe { ecall_get_ethereum_address(eid, &mut address) };
+    if status == sgx_status_t::SGX_SUCCESS {
+        Ok(address)
+    } else {
+        Err(errors::GetRegisterKeyErr { status, message: String::from("error in get_ethereum_address") }.into())
+    }
+}
+
+/// wrapper function for creating a signature using the ethereum key
+pub fn sign_ethereum(eid: sgx_enclave_id_t, to_sign: &[u8; 32]) -> Result<[u8; 65], Error> {
+    let mut sig = [0u8; 65];
+    let status = unsafe { ecall_sign_ethereum(eid,to_sign, &mut sig) };
+    if status == sgx_status_t::SGX_SUCCESS {
+        Ok(sig)
+    } else {
+        Err(errors::GetRegisterKeyErr { status, message: String::from("error in sign_ethereum") }.into())
     }
 }
 

@@ -58,3 +58,9 @@ pub trait Encryption<T, E, R, N>
     fn decrypt(enc: R, key: T) -> Result<Self, E>;
 }
 
+/// This trait is used for structures that can implement an ECDSA signing. Used to allow abstraction
+/// of the actual signer of the data
+pub trait EcdsaSign {
+    /// This function is used to sign pre-hashed data (keccak256, or other 32-byte length hashes)
+    fn sign_hashed(&self, to_sign: &[u8; 32]) -> [u8; 65];
+}
