@@ -59,7 +59,7 @@ pub fn init_logger<P: AsRef<Path>>(level: log::LevelFilter, data_dir: P, name: S
 
     // Use this to change log levels at runtime.
     // This means you can change the default log level to trace
-    // if you are trying to debug an issue and need more logs on then turn it off
+    // if you are trying to debug an issue and need more logs on, then turn it off
     // once you are done.
     let handle = log4rs::init_config(config).unwrap();
     Ok(handle)
