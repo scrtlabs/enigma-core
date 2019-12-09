@@ -69,6 +69,7 @@ use std::{
 
 lazy_static! {
     pub(crate) static ref SIGNING_KEY: asymmetric::KeyPair = get_sealed_keys_wrapper();
+    pub(crate) static ref ETHEREUM_KEY: asymmetric::KeyPair = get_ethereum_keys_wrapper();
 }
 
 #[no_mangle]
@@ -469,6 +470,20 @@ fn get_sealed_keys_wrapper() -> asymmetric::KeyPair {
     let mut path_buf = ocalls_t::get_home_path().unwrap();
     // add the filename to the path: `keypair.sealed`
     path_buf.push("keypair.sealed");
+    let sealed_path = path_buf.to_str().unwrap();
+
+    // TODO: Decide what to do if failed to obtain keys.
+    match storage_t::get_sealed_keys(&sealed_path) {
+        Ok(key) => key,
+        Err(err) => panic!("Failed obtaining keys: {:?}", err),
+    }
+}
+
+fn get_ethereum_keys_wrapper() -> asymmetric::KeyPair {
+    // Get Home path via Ocall
+    let mut path_buf = ocalls_t::get_home_path().unwrap();
+    // add the filename to the path: `keypair.sealed`
+    path_buf.push("eth_keypair.sealed");
     let sealed_path = path_buf.to_str().unwrap();
 
     // TODO: Decide what to do if failed to obtain keys.
