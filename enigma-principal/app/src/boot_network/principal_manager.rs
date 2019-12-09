@@ -183,8 +183,13 @@ impl Sampler for PrincipalManager {
     #[logfn(DEBUG)]
     fn register<G: Into<U256>>(&self, signing_address: H160, gas_limit: G) -> Result<H256, Error> {
         let registration_params = self.report_manager.get_registration_params()?;
+        // the register method on the Enigma contract expects a staking address
+        // since it's suited for the workers as well.
+        // staking is irrelevant for the KM and therefore we are sending an empty address
+        let staking_address = H160::zero();
         println!("Registering worker");
         let receipt = self.contract.register(
+            staking_address,
             signing_address,
             registration_params.report,
             registration_params.signature,

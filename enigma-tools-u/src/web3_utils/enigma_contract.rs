@@ -77,28 +77,21 @@ impl EnigmaContract {
 }
 
 pub trait ContractFuncs<G> {
-    // register
-    // input: _signer: Address, _report: bytes
-    fn register(&self, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
+    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
 
-    // setWorkersParams
-    // input: _seed: U256, _sig: bytes
     fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
     #[logfn(DEBUG)]
-    fn register(&self, signing_address: H160, _report: String, _signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
+    fn register(&self, staking_address: H160, signing_address: H160, _report: String, _signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
         // register
         let mut opts = Options::default();
         opts.gas = Some(gas.into());
         // call the register function
         let report = _report.as_bytes().to_vec();
         let signature = _signature.from_hex()?;
-//        println!("The report signer: {:?}", signing_address);
-//        println!("The report: {}", str::from_utf8(&report).unwrap());
-//        println!("The report signature: {}", signature.to_hex());
-        let call = self.w3_contract.call_with_confirmations("register", (signing_address, report, signature), self.account, opts, confirmations);
+        let call = self.w3_contract.call_with_confirmations("register", (staking_address, signing_address, report, signature), self.account, opts, confirmations);
         let receipt = match call.wait() {
             Ok(receipt) => receipt,
             Err(e) => {
