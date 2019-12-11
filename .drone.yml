@@ -165,6 +165,7 @@ steps:
       - name: sock
         path: /var/run/docker.sock
     commands:
+      - cd docker-environment
       - echo $PASSWORD | docker login -u $USERNAME --password-stdin
       - if [[ ${DRONE_BRANCH} == "master" ]]; then export DOCKER_TAG=latest; else export DOCKER_TAG=develop; fi
       - make clone-core BRANCH=${DRONE_BRANCH}
@@ -172,10 +173,10 @@ steps:
       - make clone-km BRANCH=${DRONE_BRANCH}
       - make build-km SGX_MODE=SW DOCKER_TAG=$DOCKER_TAG
       - make build-worker SGX_MODE=SW DOCKER_TAG=$DOCKER_TAG
+      - make build-km DOCKER_TAG=$DOCKER_TAG
+      - make build-worker DOCKER_TAG=$DOCKER_TAG
       - docker push enigmampc/worker_sw:$DOCKER_TAG
       - docker push enigmampc/key_management_sw:$DOCKER_TAG
-      - docker tag enigmampc/worker_hw:contract_${DRONE_BUILD_NUMBER} enigmampc/worker_hw:$DOCKER_TAG
-      - docker tag enigmampc/key_management_hw:contract_${DRONE_BUILD_NUMBER} enigmampc/key_management_hw:$DOCKER_TAG
       - docker push enigmampc/worker_hw:$DOCKER_TAG
       - docker push enigmampc/key_management_hw:$DOCKER_TAG
 
