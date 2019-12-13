@@ -78,7 +78,14 @@ pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, 
 }
 
 #[no_mangle]
-pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) { pubkey.copy_from_slice(&SIGNING_KEY.get_pubkey().address()); }
+pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) {
+    use rustc_hex::ToHex;
+    let privkey = &SIGNING_KEY.get_privkey();
+    println!("\nPRIVATE KEY\n{}\n", hexutil::to_hex(privkey));
+    let _pubkey = &SIGNING_KEY.get_pubkey().address();
+    println!("PUBLIC KEY\n{}\n", hexutil::to_hex(_pubkey));
+    pubkey.copy_from_slice(_pubkey);
+}
 
 #[no_mangle]
 /// Ecall for invocation of the external function `callable` of deployed contract with code `bytecode`.
