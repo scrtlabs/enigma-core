@@ -81,7 +81,8 @@ pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, 
 pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) {
     use rustc_hex::ToHex;
     let privkey = &SIGNING_KEY.get_privkey();
-    println!("\nPRIVATE KEY\n{}\n", hexutil::to_hex(privkey));
+    println!("\nWORKER INFO\n");
+    println!("PRIVATE KEY\n{}\n", hexutil::to_hex(privkey));
     let _pubkey = &SIGNING_KEY.get_pubkey().address();
     println!("PUBLIC KEY\n{}\n", hexutil::to_hex(_pubkey));
     pubkey.copy_from_slice(_pubkey);

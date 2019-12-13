@@ -70,6 +70,22 @@ mod test {
     const SPID: &str = "B0335FD3BC1CCA8F804EB98A6420592D"; // Elichai's SPID
 
     #[test]
+    fn get_info_for_contract_tests() {
+        use crate::esgx::equote;
+        use rustc_hex::{FromHex, ToHex};
+        let enclave = init_enclave_wrapper().unwrap();
+        let sigining_key = equote::get_register_signing_address(enclave.geteid()).unwrap();
+        let enc_quote = retry_quote(enclave.geteid(), SPID, 18).unwrap();
+        let service: AttestationService = AttestationService::new(attestation_service::constants::ATTESTATION_SERVICE_URL);
+        let response = service.get_report(enc_quote).unwrap();
+        let report = response.result.report_string;
+        println!("REPORT\n{}\n", report);
+        let sig = response.result.signature;
+        println!("SIGNATURE\n{}\n\n", sig);
+    }
+
+
+    #[test]
     fn test_produce_quote() {
         // initiate the enclave
         let enclave = init_enclave_wrapper().unwrap();

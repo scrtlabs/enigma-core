@@ -22,6 +22,7 @@ extern crate sgx_tstd as std;
 extern crate sgx_tunittest;
 extern crate sgx_types;
 extern crate rustc_hex;
+extern crate hexutil;
 
 use enigma_tools_m::utils::EthereumAddress;
 use sgx_types::{sgx_report_t, sgx_status_t, sgx_target_info_t, uint8_t};
@@ -50,7 +51,15 @@ pub extern "C" fn ecall_get_registration_quote(target_info: &sgx_target_info_t, 
 }
 
 #[no_mangle]
-pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) { pubkey.copy_from_slice(&SIGNING_KEY.get_pubkey().address()); }
+pub extern "C" fn ecall_get_signing_address(pubkey: &mut [u8; 20]) {
+    use rustc_hex::ToHex;
+    let privkey = &SIGNING_KEY.get_privkey();
+    println!("\nKM INFO\n");
+    println!("PRIVATE KEY\n{}\n", hexutil::to_hex(privkey));
+    let _pubkey = &SIGNING_KEY.get_pubkey().address();
+    println!("PUBLIC KEY\n{}\n", hexutil::to_hex(_pubkey));
+    pubkey.copy_from_slice(_pubkey);
+}
 
 #[no_mangle]
 pub extern "C" fn ecall_get_ethereum_address(pubkey: &mut [u8; 20]) { pubkey.copy_from_slice(&ETHEREUM_KEY.get_pubkey().address()); }
