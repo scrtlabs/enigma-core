@@ -114,7 +114,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             println!("The setWorkersParams tx: {:?}", tx);
         } else if opt.get_state_keys.is_some() {
             let request: StateKeyRequest = serde_json::from_str(&opt.get_state_keys.unwrap())?;
-            let response = PrincipalHttpServer::get_state_keys(Arc::new(epoch_provider), request)?;
+            let response = PrincipalHttpServer::get_state_keys(&epoch_provider, request)?;
             println!("The getStateKeys response: {}", serde_json::to_string(&response)?);
         } else {
             principal.run(path, false, gas_limit).unwrap();

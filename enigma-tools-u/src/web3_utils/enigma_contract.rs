@@ -70,18 +70,14 @@ impl EnigmaContract {
 }
 
 pub trait ContractFuncs<G> {
-    // register
-    // input: _signer: Address, _report: bytes
-    fn register(&self, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
+    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
 
-    // setWorkersParams
-    // input: _seed: U256, _sig: bytes
     fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
 }
 
 impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
     #[logfn(DEBUG)]
-    fn register(&self, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
+    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
         // register
         let mut opts = Options::default();
         opts.gas = Some(gas.into());
@@ -94,7 +90,7 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
             self.w3_contract.address(),
             self.account,
             "register",
-            (signing_address, report, signature),
+            (staking_address, signing_address, report, signature),
             opts,
             self.chain_id,
             confirmations,
