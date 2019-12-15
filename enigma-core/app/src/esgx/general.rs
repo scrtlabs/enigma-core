@@ -3,6 +3,7 @@ use enigma_tools_u::{self, esgx::general::storage_dir};
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
 use std::{fs, path, io::Write};
+use log;
 
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 static ENCLAVE_TOKEN: &'static str = "enclave.token";
@@ -15,14 +16,15 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     //
     // try to get the token saved in $HOME */
     //let mut home_dir = path::PathBuf::new();
+
     let use_token = match dirs::home_dir() {
         Some(path) => {
-            println!("[+] Home dir is {}", path.display());
+            info!("Home dir is {}", path.display());
             //home_dir = path;
             true
         }
         None => {
-            println!("[-] Cannot get home dir");
+            error!("Cannot get home dir");
             false
         }
     };
@@ -33,10 +35,10 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     let storage_path = storage_dir(ENCLAVE_DIR).unwrap();
     match fs::create_dir(&storage_path) {
         Err(why) => {
-            println!("[-] Create .enigma folder => {:?}", why.kind());
+            error!("Create .enigma folder => {:?}", why.kind());
         }
         Ok(_) => {
-            println!("[+] Created new .enigma folder => {:?}", storage_path);
+            info!("Created new .enigma folder => {:?}", storage_path);
         }
     };
     // Create the home/dir/.enigma folder for storage (Sealed, token , etc )
@@ -48,11 +50,11 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
         // reopen the file with write capability
         match fs::File::create(&token_file) {
             Ok(mut f) => match f.write_all(&launch_token.unwrap()) {
-                Ok(_) => println!("[+] Saved updated launch token!"),
-                Err(_) => println!("[-] Failed to save updated launch token!"),
+                Ok(_) => info!("Saved updated launch token!"),
+                Err(_) => error!("Failed to save updated launch token!"),
             },
             Err(_) => {
-                println!("[-] Failed to save updated enclave token, but doesn't matter");
+                error!("Failed to save updated enclave token, but doesn't matter");
             }
         }
     }

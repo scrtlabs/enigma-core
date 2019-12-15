@@ -11,12 +11,6 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "Enigma Core", about = "Enigma Core CLI commands.")]
 pub struct Opt {
-    /// Increase verbosity of messages (up to 5 -vvvvv)
-    #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
-    pub verbose: u8,
-    /// Print the debugging directly to stdout
-    #[structopt(long = "debug-stdout")]
-    pub debug_stdout: bool,
     /// Specify data directory
     #[structopt(parse(from_os_str), long = "data-dir")]
     pub data_dir: Option<PathBuf>,
@@ -29,4 +23,7 @@ pub struct Opt {
     /// Specify the number of Attestation call retries when failing
     #[structopt(long = "retries", short = "r", default_value = "10")]
     pub retries: u32,
+    /// Optional: change the minimum log level
+    #[structopt(short = "l", long = "log-level", default_value = "info")]
+    pub log_level: String,
 }

@@ -43,7 +43,7 @@ pub fn create_test_db() -> (DB, TempDir) {
 
 pub fn run_core(port: &'static str) {
     thread::spawn(move || {
-        let enclave = esgx::general::init_enclave_wrapper().expect("[-] Init Enclave Failed");
+        let enclave = esgx::general::init_enclave_wrapper().expect("Init Enclave Failed");
         let eid = enclave.geteid();
 
         let (mut db, _datadir) = create_test_db();
