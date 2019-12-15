@@ -2,12 +2,14 @@
 # bindgen into the enclave's build.rs (https://github.com/rust-lang/cargo/issues/2589)
 # The solution is to install the bindgen CLI in the docker and use it manually in the Makefile.
 
+SGX_SDK ?= /opt/sgxsdk
+
 Rust_Enclave_Name := libenclave.a
 Rust_Enclave_Files := $(wildcard src/*.rs)
 
 BINDGEN_OUTPUT_FILE := src/auto_ffi.rs
 BINDGEN_RAW_LINES := "\#![allow(dead_code)] use enigma_types::*; use sgx_types::*;"
-BINDGEN_CLANG_FLAGS := -I/opt/sgxsdk/include -I$(HOME)/sgx/edl
+BINDGEN_CLANG_FLAGS := -I$(SGX_SDK)/include -I$(HOME)/sgx/edl
 BINDGEN_FLAGS := --default-enum-style=rust --rust-target=nightly \
 	--no-recursive-whitelist --use-array-pointers-in-arguments \
 	--whitelist-function ocall_.*  --raw-line $(BINDGEN_RAW_LINES)

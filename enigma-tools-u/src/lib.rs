@@ -20,15 +20,16 @@ extern crate sgx_types;
 extern crate sgx_urts;
 #[macro_use]
 extern crate log;
+extern crate log4rs;
+
 #[macro_use]
 extern crate log_derive;
-extern crate simplelog;
 extern crate dirs;
 extern crate ethabi;
 extern crate ethereum_types;
 extern crate tiny_keccak;
 
-
+extern crate gethostname;
 
 pub mod attestation_service;
 pub mod common_u;

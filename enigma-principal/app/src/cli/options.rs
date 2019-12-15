@@ -8,14 +8,6 @@ pub struct Opt {
     #[structopt(short = "i", long = "info")]
     pub info: bool,
 
-    /// Increase verbosity of messages (up to 5 -vvvvv)
-    #[structopt(short = "v", long = "verbose", parse(from_occurrences))]
-    pub verbose: u8,
-
-    /// Print the debugging directly to stdout
-    #[structopt(short = "o", long = "debug-stdout")]
-    pub debug_stdout: bool,
-
     /// Output the signing address only
     #[structopt(short = "w", long = "write-sign-address")]
     pub sign_address: bool,
@@ -67,6 +59,10 @@ pub struct Opt {
     /// Optional: change the default principal node config
     #[structopt(short = "z", long = "principal-config", default_value = "../app/tests/principal_node/config/principal_test_config.json")]
     pub principal_config: String,
+
+    /// Optional: change the minimum log level
+    #[structopt(short = "l", long = "log-level", default_value = "info")]
+    pub log_level: String,
 }
 
 // fn all_colours() {
