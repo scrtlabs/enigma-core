@@ -26,7 +26,7 @@ dirs = "1.0.4"
 tiny-keccak = { version = "1.5.0", features = ["keccak"] }
 # TODO: Change after a new version is released.
 # Add more transport layers via features if needed.
-web3 = { version  = "0.8", default-features = false, features=["http", "tls"]  }
+web3 = { version  = "0.8", default-features = false, features=["http", "tls", "ws"]  }
 ethabi = "8"
 ethereum-types = "0.6.0"
 rlp = "0.4.3"
