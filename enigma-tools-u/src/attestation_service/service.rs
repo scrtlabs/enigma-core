@@ -221,7 +221,7 @@ impl ASResponse {
 
 impl ASResult {
     /// This function verifies the report and the chain of trust.
-    #[logfn(DEBUG)]
+    #[logfn(TRACE]
     pub fn verify_report(&self) -> Result<bool, Error> {
         let ca = X509::from_pem(&self.ca.as_bytes())?;
         let cert = X509::from_pem(&self.certificate.as_bytes())?;
