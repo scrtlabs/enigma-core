@@ -42,6 +42,8 @@ pub fn init_logger<P: AsRef<Path>>(level: log::LevelFilter, data_dir: P, name: S
 
     // Log Trace level output to file where trace is the default level
     // and the programmatically specified level to stderr.
+    // `logger` is used to define a log level for a crate used by the project.
+    // we want to avoid unnecessary logs so defining the following with a high level.
     let config = Config::builder()
         .appender(Appender::builder().build("logfile", Box::new(logfile)))
         .appender(
