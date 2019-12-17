@@ -13,7 +13,7 @@ use failure::Error;
 use log::{LevelFilter};
 use log4rs::append::console::{ConsoleAppender, Target};
 use log4rs::append::file::FileAppender;
-use log4rs::config::{Appender, Config, Root};
+use log4rs::config::{Appender, Config, Root, Logger};
 use log4rs::encode::pattern::PatternEncoder;
 use log4rs::filter::threshold::ThresholdFilter;
 use log4rs::Handle;
@@ -49,6 +49,9 @@ pub fn init_logger<P: AsRef<Path>>(level: log::LevelFilter, data_dir: P, name: S
                 .filter(Box::new(ThresholdFilter::new(level)))
                 .build("stderr", Box::new(stdout)),
         )
+        .logger(Logger::builder().build("tokio_zmq", LevelFilter::Warn))
+        .logger(Logger::builder().build("hyper", LevelFilter::Warn))
+        .logger(Logger::builder().build("tokio_reactor", LevelFilter::Warn))
         .build(
             Root::builder()
                 .appender("logfile")
