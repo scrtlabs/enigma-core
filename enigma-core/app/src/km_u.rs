@@ -10,7 +10,7 @@ use crate::auto_ffi::{ecall_ptt_req, ecall_ptt_res, ecall_build_state, ecall_get
 
 /// This function builds the states that it received in ptt_req and ptt_res
 /// It returns a Vec of the failed contract addresses
-#[logfn(INFO)]
+#[logfn(TRACE)]
 pub fn ptt_build_state(db: &mut DB, eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Error> {
     let mut ret = EnclaveReturn::Success;
     let mut failed_ptr = 0u64;
