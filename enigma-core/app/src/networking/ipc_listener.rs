@@ -125,7 +125,7 @@ pub(self) mod handling {
         }
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_registration_params(eid: sgx_enclave_id_t, spid: &str, retries: u32) -> ResponseResult {
         let sigining_key = equote::get_register_signing_address(eid)?;
 
@@ -150,7 +150,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetRegistrationParams { result })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_tip(db: &DB, input: &str) -> ResponseResult {
         let address = ContractAddress::from_hex(&input)?;
         let (tip_key, tip_data) = db.get_tip::<DeltaKey>(&address)?;
@@ -160,7 +160,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetTip { result: delta })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_tips(db: &DB, input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
         let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data).unwrap()).collect();
@@ -172,7 +172,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetTips { result: IpcResults::Tips(tips_results) })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_all_tips(db: &DB) -> ResponseResult {
         let tips = db.get_all_tips::<DeltaKey>().unwrap_or_default();
         let mut tips_results = Vec::with_capacity(tips.len());
@@ -183,13 +183,13 @@ pub(self) mod handling {
         Ok(IpcResponse::GetAllTips { result: IpcResults::Tips(tips_results) })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_all_addrs(db: &DB) -> ResponseResult {
         let addresses: Vec<String> = db.get_all_addresses().unwrap_or_default().iter().map(|addr| addr.to_hex()).collect();
         Ok(IpcResponse::GetAllAddrs { result: IpcResults::Addresses(addresses) })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_delta(db: &DB, input: IpcDelta) -> ResponseResult {
         let address = input.contract_address.ok_or(P2PErr { cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?;
         let address = ContractAddress::from_hex(&address)?;
@@ -198,7 +198,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetDelta { result: IpcResults::Delta(delta.to_hex()) })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_deltas(db: &DB, input: &[IpcDeltasRange]) -> ResponseResult {
         let mut results = Vec::with_capacity(input.len());
         for data in input {
@@ -220,14 +220,14 @@ pub(self) mod handling {
         Ok(IpcResponse::GetDeltas { result: IpcResults::Deltas(results) })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_contract(db: &DB, input: &str) -> ResponseResult {
         let address = ContractAddress::from_hex(&input)?;
         let data = db.get_contract(address).unwrap_or_default();
         Ok(IpcResponse::GetContract { result: IpcResults::GetContract{address: address.to_hex(), bytecode: data.to_hex()} })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn update_new_contract(db: &mut DB, address: String, bytecode: &str) -> ResponseResult {
         let address_arr = ContractAddress::from_hex(&address)?;
         let bytecode = bytecode.from_hex()?;
@@ -236,7 +236,7 @@ pub(self) mod handling {
         Ok(IpcResponse::UpdateNewContract { address, result: IpcResults::Status(Status::Passed) })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn update_new_contract_on_deployment(db: &mut DB, address: String, bytecode: &str, delta: IpcDelta) -> ResponseResult {
         let mut tuples = Vec::with_capacity(DEPLOYMENT_VALS_LEN);
         let address_arr = ContractAddress::from_hex(&address)?;
@@ -260,7 +260,7 @@ pub(self) mod handling {
         Ok(IpcResponse::UpdateNewContractOnDeployment { address, result })
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn remove_contract(db: &mut DB, address: String) -> ResponseResult {
         let addr_arr = ContractAddress::from_hex(&address)?;
         // the key_type of dk is irrelevant since we are removing all the contract data
@@ -278,7 +278,7 @@ pub(self) mod handling {
         Ok( IpcResponse::RemoveContract { address, result } )
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn update_deltas(db: &mut DB, deltas: Vec<IpcDelta>) -> ResponseResult {
         let mut tuples = Vec::with_capacity(deltas.len());
 
@@ -325,7 +325,7 @@ pub(self) mod handling {
         }
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn remove_deltas(db: &mut DB, input: Vec<IpcDeltasRange>) -> ResponseResult {
         let mut errors = Vec::new();
         let mut overall_status = Status::Passed;
@@ -350,7 +350,7 @@ pub(self) mod handling {
         Ok(IpcResponse::RemoveDeltas {result})
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_dh_user_key(_user_pubkey: &str, eid: sgx_enclave_id_t) -> ResponseResult {
         let mut user_pubkey = [0u8; 64];
         user_pubkey.clone_from_slice(&_user_pubkey.from_hex().unwrap());
@@ -366,7 +366,7 @@ pub(self) mod handling {
         Ok(IpcResponse::NewTaskEncryptionKey {result})
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_ptt_req(eid: sgx_enclave_id_t) -> ResponseResult {
         let (data, sig) = km_u::ptt_req(eid)?;
         let result = IpcResults::Request { request: data.to_hex(), sig: sig.to_hex() };
@@ -374,7 +374,7 @@ pub(self) mod handling {
         Ok(IpcResponse::GetPTTRequest {result})
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn ptt_response(db: &mut DB, response: &PrincipalResponse, eid: sgx_enclave_id_t) -> ResponseResult {
         let msg = response.response.from_hex()?;
         km_u::ptt_res(eid, &msg)?;
@@ -389,6 +389,7 @@ pub(self) mod handling {
         Ok(IpcResponse::PTTResponse {result})
     }
 
+    #[logfn(TRACE)]
     pub fn deploy_contract(db: &mut DB, input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let bytecode = input.pre_code.expect("Bytecode Missing");
         let contract_address = ContractAddress::from_hex(&input.address)?;
@@ -413,7 +414,7 @@ pub(self) mod handling {
                 db.create(&key, &v.output)?;
                 let ipc_response = v.into_deploy_response(&bytecode);
                 info!("deploy_contract() => Ok({})", ipc_response.display_without_bytecode());
-                debug!("deployed bytecode => {}", ipc_response.display_bytecode());
+                trace!("deployed bytecode => {}", ipc_response.display_bytecode());
                 Ok(ipc_response)
             },
             WasmResult::WasmTaskFailure(v) => {
@@ -424,7 +425,7 @@ pub(self) mod handling {
         }
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     pub fn compute_task(db: &mut DB, input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let enc_args = input.encrypted_args.from_hex()?;
         let address = ContractAddress::from_hex(&input.address)?;
