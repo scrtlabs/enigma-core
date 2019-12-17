@@ -147,7 +147,7 @@ pub trait ContractQueries {
 }
 
 impl ContractQueries for EnigmaContract {
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_signing_address(&self) -> Result<H160, Error> {
         println!("Fetching the signing address for account: {:?}", self.account);
         let signing_address: H160 =
@@ -190,7 +190,7 @@ impl ContractQueries for EnigmaContract {
         Ok(addrs.into_iter().map(|a|ContractAddress::from(a.0)).collect())
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_all_secret_contract_addresses(&self) -> Result<Vec<ContractAddress>, Error> {
         self.w3_contract
             .query("getAllSecretContractAddresses", (),self.account, Options::default(), None)

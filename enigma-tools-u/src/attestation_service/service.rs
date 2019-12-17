@@ -116,7 +116,7 @@ impl AttestationService {
         AttestationService { connection_str: conn_str.to_string(), retries }
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     pub fn get_report(&self, quote: String) -> Result<ASResponse, Error> {
         let request: QuoteRequest = self.build_request(quote);
         let response: ASResponse = self.send_request(&request)?;
@@ -192,7 +192,7 @@ impl AttestationService {
         report_obj
     }
 
-    #[logfn(INFO)]
+    #[logfn(TRACE)]
     fn unwrap_result(&self, r: &Value) -> ASResult {
         let ca = r["result"]["ca"].as_str().unwrap().to_string();
         let certificate = r["result"]["certificate"].as_str().unwrap().to_string();
@@ -221,7 +221,7 @@ impl ASResponse {
 
 impl ASResult {
     /// This function verifies the report and the chain of trust.
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     pub fn verify_report(&self) -> Result<bool, Error> {
         let ca = X509::from_pem(&self.ca.as_bytes())?;
         let cert = X509::from_pem(&self.certificate.as_bytes())?;

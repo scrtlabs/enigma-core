@@ -6,7 +6,7 @@ use failure::Error;
 use sgx_types::*;
 use crate::auto_ffi::{ecall_deploy, ecall_execute};
 
-#[logfn(DEBUG)]
+#[logfn(TRACE)]
 pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
               contract_address: &ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
     let mut retval = EnclaveReturn::Success;
@@ -31,7 +31,7 @@ pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor:
     (result, *contract_address, retval, status).try_into()
 }
 
-#[logfn(DEBUG)]
+#[logfn(TRACE)]
 pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &[u8],
                user_pubkey: &PubKey, contract_address: &ContractAddress, gas_limit: u64)-> Result<WasmResult,Error> {
     let mut retval = EnclaveReturn::Success;

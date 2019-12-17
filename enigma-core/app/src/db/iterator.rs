@@ -264,7 +264,7 @@ impl P2PCalls<Vec<u8>> for DB {
         // check and extract the CF from the DB
         // to_hex converts the [u8] to str
         let str_addr = address.to_hex();
-        debug!("DB: Get Tip: cf: {}, ", str_addr);
+        trace!("DB: Get Tip: cf: {}, ", str_addr);
         let cf_key =
             self.database.cf_handle(&str_addr).ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
 
@@ -272,18 +272,18 @@ impl P2PCalls<Vec<u8>> for DB {
         let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
         let k_key = K::from_split(&str_addr, &*last.0)?;
         let value =  (&*last.1).to_vec();
-        debug!("DB: Continue Get Tip, key: {:?} value: {:?}", k_key, value);
+        trace!("DB: Continue Get Tip, key: {:?} value: {:?}", k_key, value);
         Ok((k_key, value))
     }
 
     #[logfn(DEBUG)]
     fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> ResultVec<(K, Vec<u8>)> {
         let mut deltas_list = Vec::with_capacity(address_list.len());
-        debug!("DB: Get Tips, Address List: {:?}",address_list);
+        trace!("DB: Get Tips, Address List: {:?}",address_list);
         for address in address_list {
             deltas_list.push(self.get_tip(&address)?);
         }
-        debug!("DB: Get Tips Countinue, Deltas: {:?}", deltas_list);
+        trace!("DB: Get Tips Countinue, Deltas: {:?}", deltas_list);
         Ok(deltas_list)
     }
 
@@ -291,7 +291,7 @@ impl P2PCalls<Vec<u8>> for DB {
     /// meaning if an address was'nt saved according to the hex format the function will ignore it.
     #[logfn(DEBUG)]
     fn get_all_addresses(&self) -> Result<Vec<ContractAddress>, Error> {
-        debug!("DB: Get all addresses");
+        trace!("DB: Get all addresses");
         // get a list of all CF's (addresses) in our DB
         let mut cf_list = rocks_db::list_cf(&self.options, &self.location)?;
         match cf_list.len() {
@@ -317,7 +317,7 @@ impl P2PCalls<Vec<u8>> for DB {
             })
             .collect::<Vec<_>>();
 
-        debug!("DB: Continue Get all addresses, list: {:?}", addr_list);
+        trace!("DB: Continue Get all addresses, list: {:?}", addr_list);
         Ok(addr_list)
     }
 
