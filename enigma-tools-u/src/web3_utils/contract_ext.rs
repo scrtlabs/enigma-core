@@ -125,7 +125,7 @@ pub fn signed_call_with_confirmations<T: Transport, P>(
         web3.eth().transaction_count(from, Some(BlockNumber::Pending)).wait()?
     };
 
-    if options.gas_price == U256::zero() {
+    if options.gas_price.is_none() {
         options.gas_price = Some(web3.eth().gas_price().wait()?);
     }
 
