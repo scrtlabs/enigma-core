@@ -106,7 +106,7 @@ pub fn signed_call_with_confirmations<T: Transport, P>(
     func: &str,
     params: P,
     // network details
-    options: Options,
+    mut options: Options,
     chain_id: u64,
     confirmations: usize,
     signer: &Box<dyn EcdsaSign + Send + Sync>,
@@ -124,6 +124,10 @@ pub fn signed_call_with_confirmations<T: Transport, P>(
     } else {
         web3.eth().transaction_count(from, Some(BlockNumber::Pending)).wait()?
     };
+
+    if options.gas_price == U256::zero() {
+        options.gas_price = Some(web3.eth().gas_price().wait()?);
+    }
 
     let tx = raw_transaction::RawTransaction {
         nonce,
