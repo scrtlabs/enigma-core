@@ -54,6 +54,8 @@ pub fn init_logger<P: AsRef<Path>>(level: log::LevelFilter, data_dir: P, name: S
         .logger(Logger::builder().build("tokio_zmq", LevelFilter::Warn))
         .logger(Logger::builder().build("hyper", LevelFilter::Warn))
         .logger(Logger::builder().build("tokio_reactor", LevelFilter::Warn))
+        .logger(Logger::builder().build("tokio_core", LevelFilter::Warn))
+        .logger(Logger::builder().build("web3", LevelFilter::Warn))
         .build(
             Root::builder()
                 .appender("logfile")
