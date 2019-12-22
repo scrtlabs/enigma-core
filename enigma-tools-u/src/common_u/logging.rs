@@ -56,6 +56,8 @@ pub fn init_logger<P: AsRef<Path>>(level: log::LevelFilter, data_dir: P, name: S
         .logger(Logger::builder().build("tokio_reactor", LevelFilter::Warn))
         .logger(Logger::builder().build("tokio_core", LevelFilter::Warn))
         .logger(Logger::builder().build("web3", LevelFilter::Warn))
+        .logger(Logger::builder().build("tokio_threadpool", LevelFilter::Warn))
+        .logger(Logger::builder().build("want", LevelFilter::Warn))
         .build(
             Root::builder()
                 .appender("logfile")
