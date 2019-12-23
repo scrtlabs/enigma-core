@@ -8,7 +8,7 @@ use tokio_zmq::{Error, Multipart, Rep};
 
 pub struct IpcListener {
     _context: Arc<zmq::Context>,
-    rep_future: Box<Future<Item = Rep, Error = Error>>,
+    rep_future: Box<dyn Future<Item = Rep, Error = Error>>,
 }
 
 impl IpcListener {
@@ -80,7 +80,7 @@ pub(self) mod handling {
     use serde_json::Value;
     use sgx_types::sgx_enclave_id_t;
     use std::str;
-    use common_u::errors::{DBErr, self};
+    use common_u::errors;
 
     type ResponseResult = Result<IpcResponse, Error>;
 
@@ -241,11 +241,11 @@ pub(self) mod handling {
         let address_arr = ContractAddress::from_hex(&address)?;
 
         let bytecode_delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
-        tuples.push((bytecode_delta_key, bytecode.to_vec()));
+        tuples.push((bytecode_delta_key, bytecode));
 
         let data = delta.data.ok_or(P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Delta Data Missing".to_string() })?;
         let delta_key = DeltaKey::new(address_arr, Stype::Delta(delta.key));
-        tuples.push((delta_key, data));
+        tuples.push((delta_key, &data));
 
         let results = db.insert_tuples(&tuples);
         let mut status = Status::Passed;
@@ -432,7 +432,7 @@ pub(self) mod handling {
         user_pubkey.clone_from_slice(&input.user_dhkey.from_hex()?);
 
         if !db.get_state_status() {
-            let res = km_u::ptt_build_state(db, eid)?;
+            let _res = km_u::ptt_build_state(db, eid)?;
             db.update_state_status(true);
         }
         let bytecode = db.get_contract(address)?;

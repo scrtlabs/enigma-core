@@ -267,7 +267,7 @@ impl From<Message> for IpcMessageRequest {
 impl Into<Message> for IpcMessageResponse {
     fn into(self) -> Message {
         let msg = serde_json::to_vec(&self).unwrap();
-        Message::from_slice(&msg)
+        Message::from(&msg)
     }
 }
 

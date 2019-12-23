@@ -255,7 +255,7 @@ pub trait P2PCalls<V> {
     ///
     /// The result is a Vec of Results each one corresponds to each Key-Value
     /// If the whole atomic operation failed the vec will contain only the error of the operation.
-    fn insert_tuples<K: SplitKey>(&mut self, key_vals: &[(K, V)]) -> Vec<Result<(), Error>>;
+    fn insert_tuples<K: SplitKey, S: AsRef<[u8]>>(&mut self, key_vals: &[(K, S)]) -> Vec<Result<(), Error>>;
 }
 
 impl P2PCalls<Vec<u8>> for DB {
@@ -390,7 +390,7 @@ impl P2PCalls<Vec<u8>> for DB {
     }
 
     #[logfn(TRACE)]
-    fn insert_tuples<K: SplitKey>(&mut self, key_vals: &[(K, Vec<u8>)]) -> Vec<Result<(), Error>> {
+    fn insert_tuples<K: SplitKey, S: AsRef<[u8]>>(&mut self, key_vals: &[(K, S)]) -> Vec<Result<(), Error>> {
         let mut res = Vec::with_capacity(key_vals.len());
         let mut batch = WriteBatch::default();
         for (key, val) in key_vals {
@@ -762,19 +762,19 @@ mod test {
         let (mut db, _dir) = create_test_db();
 
         let data = vec![
-            (DeltaKey { contract_address: [7u8; 32].into(), key_type: Stype::Delta(1) }, b"Enigma".to_vec()),
-            (DeltaKey { contract_address: [7u8; 32].into(), key_type: Stype::Delta(2) }, b"to".to_vec()),
-            (DeltaKey { contract_address: [7u8; 32].into(), key_type: Stype::Delta(3) }, b"da".to_vec()),
-            (DeltaKey { contract_address: [6u8; 32].into(), key_type: Stype::Delta(4) }, b"moon".to_vec()),
-            (DeltaKey { contract_address: [6u8; 32].into(), key_type: Stype::Delta(5) }, b"and".to_vec()),
-            (DeltaKey { contract_address: [6u8; 32].into(), key_type: Stype::Delta(6) }, b"back".to_vec()),
+            (DeltaKey { contract_address: [7u8; 32].into(), key_type: Stype::Delta(1) }, b"Enigma".as_ref()),
+            (DeltaKey { contract_address: [7u8; 32].into(), key_type: Stype::Delta(2) }, b"to".as_ref()),
+            (DeltaKey { contract_address: [7u8; 32].into(), key_type: Stype::Delta(3) }, b"da".as_ref()),
+            (DeltaKey { contract_address: [6u8; 32].into(), key_type: Stype::Delta(4) }, b"moon".as_ref()),
+            (DeltaKey { contract_address: [6u8; 32].into(), key_type: Stype::Delta(5) }, b"and".as_ref()),
+            (DeltaKey { contract_address: [6u8; 32].into(), key_type: Stype::Delta(6) }, b"back".as_ref()),
         ];
         let results = db.insert_tuples(&data);
         for res in results {
             res.unwrap();
         }
         for (key, val) in data {
-            assert_eq!(db.read(&key).unwrap(), val);
+            assert_eq!((&db.read(&key).unwrap() as &[u8]), val);
         }
     }
 
