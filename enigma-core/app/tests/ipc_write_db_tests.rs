@@ -10,7 +10,7 @@ extern crate ethabi;
 
 use self::app::serde_json;
 use app::serde_json::*;
-use hex::ToHex;
+use hex::{ToHex, FromHex};
 use integration_utils::cross_test_utils::{generate_contract_address};
 use ethabi::Token::Uint;
 
@@ -22,7 +22,7 @@ fn test_ipc_update_contract() {
     let (deployed_res, _) = full_simple_deployment(port);
     let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
     let new_addr = generate_contract_address();
-    let res: Value = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
+    let res: Value = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode.from_hex().unwrap());
 
     let updated: u64 = serde_json::from_value(res["result"]["status"].clone()).unwrap();
     let updated_addr = res["address"].as_str().unwrap();
@@ -69,7 +69,7 @@ fn test_ipc_update_contract_on_deployment() {
     let deployed_delta = deployed_res["result"]["delta"].as_object().unwrap();
     let new_addr = generate_contract_address();
     let delta_to_update = (new_addr.to_hex(), deployed_delta["key"].as_u64().unwrap(), serde_json::from_value(deployed_delta["data"].clone()).unwrap());
-    let res: Value = send_update_contract_on_deployment(port, &new_addr.to_hex(), deployed_bytecode, &delta_to_update);
+    let res: Value = send_update_contract_on_deployment(port, &new_addr.to_hex(), deployed_bytecode.from_hex().unwrap(), &delta_to_update);
     let updated: i8 = serde_json::from_value(res["result"]["status"].clone()).unwrap();
     let updated_addr = res["address"].as_str().unwrap();
 
@@ -89,11 +89,11 @@ fn test_ipc_update_deltas() {
     // create a new address that contains a bytecode we just deployed.
     let deployed_bytecode_a = deployed_res_a["result"]["output"].as_str().unwrap();
     let new_addr_a = generate_contract_address();
-    let _update_contract_a: Value = send_update_contract(port, &new_addr_a.to_hex(), deployed_bytecode_a);
+    let _update_contract_a: Value = send_update_contract(port, &new_addr_a.to_hex(), deployed_bytecode_a.from_hex().unwrap());
 
     let deployed_bytecode_b = deployed_res_b["result"]["output"].as_str().unwrap();
     let new_addr_b = generate_contract_address();
-    let _update_contract_b: Value = send_update_contract(port, &new_addr_b.to_hex(), deployed_bytecode_b);
+    let _update_contract_b: Value = send_update_contract(port, &new_addr_b.to_hex(), deployed_bytecode_b.from_hex().unwrap());
 
     // get the delta for each of the computations above and push it to the input/ deltas vec with their new addr.
     let deployed_delta_a = deployed_res_a["result"]["delta"].as_object().unwrap();

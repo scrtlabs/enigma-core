@@ -101,8 +101,7 @@ fn test_execute_on_existing_contract_with_constructor() {
     let computed_data: Vec<u8> = serde_json::from_value(add_delta["data"].clone()).unwrap();
 
     let new_addr = generate_contract_address();
-    let _msg = get_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
-    let _res_a = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
+    let _res_a = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode.from_hex().unwrap());
 
     let decrypted_delta0_data = decrypt_addr_delta(_old_addr, &delta0_data);
     let encrypted_delta0_data_new = encrypt_addr_delta(new_addr.into(), &decrypted_delta0_data);
