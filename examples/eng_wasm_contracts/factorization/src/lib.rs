@@ -19,6 +19,9 @@ impl S {
                 number = number / i;
             }
         }
+        if number > 1 {
+            result += 1;
+        }
         result
     }
 }
