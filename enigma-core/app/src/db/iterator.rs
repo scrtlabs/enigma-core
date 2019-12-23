@@ -35,7 +35,7 @@ impl<T> ResultType<T> {
     }
 }
 
-pub trait P2PCalls<V> {
+pub trait P2PCalls {
     /// returns the latest delta for the required address.
     /// # Examples
     /// ```
@@ -58,7 +58,7 @@ pub trait P2PCalls<V> {
     /// let (key, tip): (DeltaKey, Vec<u8>)= db.get_tip(&contract_address).unwrap();
     /// assert_eq!(tip, val2);
     /// ```
-    fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, V), Error>;
+    fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, Vec<u8>), Error>;
 
     /// return the latest delta for each of the required addresses.
     /// # Examples
@@ -93,7 +93,7 @@ pub trait P2PCalls<V> {
     ///     }
     /// }
     /// ```
-    fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> ResultVec<(K, V)>;
+    fn get_tips<K: SplitKey>(&self, address_list: &[ContractAddress]) -> ResultVec<(K, Vec<u8>)>;
 
     /// get a list of all valid addresses in the DB.
     /// # Examples
@@ -200,7 +200,7 @@ pub trait P2PCalls<V> {
     ///     }
     /// }
     /// ```
-    fn get_all_tips<K: SplitKey>(&self) -> ResultVec<(K, V)>;
+    fn get_all_tips<K: SplitKey>(&self) -> ResultVec<(K, Vec<u8>)>;
 
     /// returns a list of all keys in the range specified with their corresponding deltas.
     /// the result will contain all of the deltas in each tuple range from the
@@ -226,7 +226,7 @@ pub trait P2PCalls<V> {
     /// let deltas = db.get_deltas(dk1, dk3).unwrap().unwrap();
     /// assert_eq!(deltas.len(), 2);
     /// ```
-    fn get_deltas<K: SplitKey>(&self, from: K, to: K) -> ResultTypeVec<(K, V)>;
+    fn get_deltas<K: SplitKey>(&self, from: K, to: K) -> ResultTypeVec<(K, Vec<u8>)>;
 
     /// Inserts a list of Key-Values into the DB in one atomic operation
     /// # Examples
@@ -258,7 +258,7 @@ pub trait P2PCalls<V> {
     fn insert_tuples<K: SplitKey, S: AsRef<[u8]>>(&mut self, key_vals: &[(K, S)]) -> Vec<Result<(), Error>>;
 }
 
-impl P2PCalls<Vec<u8>> for DB {
+impl P2PCalls for DB {
     #[logfn(TRACE)]
     fn get_tip<K: SplitKey>(&self, address: &ContractAddress) -> Result<(K, Vec<u8>), Error> {
         // check and extract the CF from the DB
