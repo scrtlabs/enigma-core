@@ -154,7 +154,7 @@ pub enum IpcRequest {
     GetDeltas { input: Vec<IpcDeltasRange> },
     GetContract { input: String },
     UpdateNewContract { address: String, bytecode: Vec<u8> },
-    UpdateNewContractOnDeployment {address: String, bytecode: Vec<u8>, delta: IpcDelta},
+    UpdateNewContractOnDeployment {address: String, bytecode: String, delta: IpcDelta},
     RemoveContract { address: String },
     UpdateDeltas { deltas: Vec<IpcDelta> },
     RemoveDeltas { input: Vec<IpcDeltasRange> },

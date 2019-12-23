@@ -236,12 +236,13 @@ pub(self) mod handling {
     }
 
     #[logfn(TRACE)]
-    pub fn update_new_contract_on_deployment(db: &mut DB, address: String, bytecode: &[u8], delta: IpcDelta) -> ResponseResult {
+    pub fn update_new_contract_on_deployment(db: &mut DB, address: String, bytecode: &str, delta: IpcDelta) -> ResponseResult {
         let mut tuples = Vec::with_capacity(DEPLOYMENT_VALS_LEN);
         let address_arr = ContractAddress::from_hex(&address)?;
 
+        let bytecode = bytecode.from_hex()?;
         let bytecode_delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
-        tuples.push((bytecode_delta_key, bytecode));
+        tuples.push((bytecode_delta_key, &bytecode));
 
         let data = delta.data.ok_or(P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Delta Data Missing".to_string() })?;
         let delta_key = DeltaKey::new(address_arr, Stype::Delta(delta.key));

@@ -132,7 +132,7 @@ pub fn get_msg_format_update_contract(addr: &str, bytecode: Vec<u8>) -> Value {
     json!({"id": &generate_job_id(), "type": "UpdateNewContract", "address": addr, "bytecode": bytecode})
 }
 
-pub fn get_msg_format_update_contract_on_deployment(addr: &str, bytecode: Vec<u8>, delta: &(String, u64, Vec<u8>)) -> Value {
+pub fn get_msg_format_update_contract_on_deployment(addr: &str, bytecode: &str, delta: &(String, u64, Vec<u8>)) -> Value {
     let (address, key, data) = delta;
     let delta_json = json!({"address": address, "key": key, "data": data});
     json!({"id": &generate_job_id(), "type": "UpdateNewContractOnDeployment", "address": addr, "bytecode": bytecode, "delta": delta_json})
@@ -331,7 +331,7 @@ pub fn send_update_contract(port: &'static str,  addr: &str, bytecode: Vec<u8>) 
     conn_and_call_ipc(&msg.to_string(), port)
 }
 
-pub fn send_update_contract_on_deployment(port: &'static str,  addr: &str, bytecode: Vec<u8>, delta: &(String, u64, Vec<u8>)) -> Value {
+pub fn send_update_contract_on_deployment(port: &'static str,  addr: &str, bytecode: &str, delta: &(String, u64, Vec<u8>)) -> Value {
     let msg = get_msg_format_update_contract_on_deployment(addr, bytecode, delta);
     conn_and_call_ipc(&msg.to_string(), port)
 }
