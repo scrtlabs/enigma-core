@@ -97,7 +97,7 @@ pub enum IpcResults {
     #[serde(rename = "result")]
     GetContract {
         address: String,
-        bytecode: String,
+        bytecode: Vec<u8>,
     },
     Status(Status),
     Tips(Vec<IpcDelta>),
