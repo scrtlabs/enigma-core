@@ -1,9 +1,8 @@
 extern crate enigma_core_app;
-#[macro_use]
 extern crate log;
 extern crate log_derive;
 
-use log::{debug, error, info, trace, warn};
+use log::{debug, info};
 
 use std::str::FromStr;
 
