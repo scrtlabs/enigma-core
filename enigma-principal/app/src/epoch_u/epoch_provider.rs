@@ -15,6 +15,7 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_types::sgx_enclave_id_t;
 use web3::types::{H256, TransactionReceipt, U256};
+use rustc_hex::{ToHex};
 
 use common_u::errors::{EpochStateIOErr, EpochStateTransitionErr, EpochStateUndefinedErr};
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
@@ -50,7 +51,7 @@ impl EpochStateManager {
                 f.read_to_end(&mut buf)?;
                 let mut des = Deserializer::new(&buf[..]);
                 let mut data: Vec<EpochState> = Deserialize::deserialize(&mut des).unwrap_or_default();
-                println!("Found EpochState list: {:?}", data);
+                trace!("Found epoch state list");
                 if cap < data.len() {
                     return Err(EpochStateIOErr { message: format!("The EpochState entries exceed the cap: {}", cap) }.into());
                 }
@@ -59,7 +60,7 @@ impl EpochStateManager {
                 capped_data
             }
             Err(_) => {
-                println!("No existing epoch state, starting with block 0");
+                trace!("No existing epoch state");
                 vec![]
             }
         };
@@ -156,7 +157,6 @@ impl EpochStateManager {
         let guard = self.lock_guard_or_wait()?;
         let epoch_state_list = guard.deref().clone();
         drop(guard);
-        info!("Saving EpochState list to disk: {:?}", epoch_state_list);
         if epoch_state_list.is_empty() {
             return Ok(fs::remove_file(&self.state_path).unwrap_or_else(|_| println!("No epoch state file to remove")));
         }
@@ -167,7 +167,7 @@ impl EpochStateManager {
             map_err(|e| EpochStateIOErr { message: format!("Unable to write the EpochState list: {}", e)})?;
         file.write_all(&buf).
             map_err(|e| EpochStateIOErr { message: format!("Unable to write the EpochState list: {}", e)})?;
-        info!("Saved EpochState list to: {:?}", &self.state_path);
+        trace!("Saved epoch state list {:?} to {:?}", epoch_state_list, &self.state_path);
         Ok(())
     }
 
@@ -191,7 +191,7 @@ impl EpochStateManager {
         // Remove the first item of the list an shift left if the capacity is reached
         if guard.len() == self.cap {
             let epoch_state = guard.remove(0);
-            println!("Removed first EpochState of capped list: {:?}", epoch_state);
+            trace!("Removed first EpochState of capped list: {:?}", epoch_state);
         }
         guard.push(epoch_state);
         drop(guard);
@@ -258,7 +258,7 @@ impl EpochProvider {
                 message: format!("Unable to parse {} event: {:?}", WORKER_PARAMETERIZED_EVENT, err),
             }.into()),
         };
-        info!("Parsed the {} event: {:?}", WORKER_PARAMETERIZED_EVENT, result);
+        debug!("Parsed the {} event: {:?}", WORKER_PARAMETERIZED_EVENT, result);
         Ok(result)
     }
 
@@ -322,12 +322,12 @@ impl EpochProvider {
         let worker_params = InputWorkerParams { km_block_number, workers, stakes };
         let mut epoch_state = set_or_verify_worker_params(*self.eid, &worker_params, epoch_state)?;
 
-        info!("Storing unconfirmed EpochState: {:?}", epoch_state);
+        debug!("Storing unconfirmed EpochState: {:?}", epoch_state);
         self.epoch_state_manager.append_unconfirmed(epoch_state.clone())?;
 
-        info!("Waiting for setWorkerParams({:?}, {:?}, {:?})", km_block_number, epoch_state.seed, epoch_state.sig);
+        debug!("Waiting for setWorkerParams({:?}, {:?}, {:?})", km_block_number, epoch_state.seed, epoch_state.sig);
         let receipt = self.contract.set_workers_params(km_block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
-        info!("Got the receipt: {:?}", receipt);
+        debug!("Got the receipt: {:?}", receipt);
 
         let log = self.parse_worker_parameterized(&receipt)?;
         match log.params.into_iter().find(|x| x.name == "firstBlockNumber") {
@@ -337,7 +337,7 @@ impl EpochProvider {
                     return Err(Web3Error { message: "The block number given by the Enigma Contract is smaller than the one defined by the KM".to_string() }.into());
                 }
                 self.confirm_epoch(&mut epoch_state, ether_block_number, worker_params)?;
-                info!("Storing confirmed EpochState: {:?}", epoch_state);
+                debug!("Storing confirmed epoch state: {:?}", epoch_state);
 
                 self.epoch_state_manager.confirm_last(epoch_state)?;
                 Ok(receipt.transaction_hash)
@@ -355,7 +355,9 @@ impl EpochProvider {
     #[logfn(DEBUG)]
     pub fn confirm_epoch(&self, epoch_state: &mut EpochState, ether_block_number: U256, worker_params: InputWorkerParams) -> Result<(), Error> {
         let sc_addresses = self.contract.get_all_secret_contract_addresses()?;
-        info!("The secret contract addresses: {:?}", sc_addresses);
+
+        trace!("The secret contract addresses: {:?}",
+               sc_addresses.iter().map(|item| {item.to_hex()}).collect::<Vec<String>>());
         epoch_state.confirm(ether_block_number, &worker_params, sc_addresses)?;
         Ok(())
     }

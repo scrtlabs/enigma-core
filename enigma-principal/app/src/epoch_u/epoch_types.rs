@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use rustc_hex::ToHex;
 
 use enigma_tools_m::keeper_types::InputWorkerParams;
 use ethabi::{Event, EventParam, ParamType};
@@ -52,17 +53,16 @@ impl EpochState {
         println!("Confirmed epoch with worker params: {:?}", worker_params);
         let mut selected_workers: HashMap<ContractAddress, Address> = HashMap::new();
         for sc_address in sc_addresses {
-            println!("Getting the selected worker for: {:?}", sc_address);
             match worker_params.get_selected_worker(sc_address, self.seed) {
                 Some(worker) => {
-                    println!("Found selected worker: {:?} for contract: {:?}", worker, sc_address);
+                    trace!("Found selected worker: {:?} for contract: {:?}", worker, sc_address.to_hex());
                     match selected_workers.insert(sc_address, worker) {
-                        Some(prev) => println!("Selected worker inserted after: {:?}", prev),
-                        None => println!("First selected worker inserted"),
+                        Some(prev) => trace!("Selected worker inserted after: {:?}", prev),
+                        None => trace!("First selected worker inserted"),
                     }
                 }
                 None => {
-                    println!("Selected worker not found for contract: {:?}", sc_address);
+                    trace!("Selected worker not found for contract: {:?}", sc_address.to_hex());
                 }
             }
         }

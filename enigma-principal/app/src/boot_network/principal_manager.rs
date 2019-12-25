@@ -157,21 +157,19 @@ impl ReportManager {
     #[logfn(DEBUG)]
     pub fn get_registration_params(&self) -> Result<RegistrationParams, Error> {
         let signing_address = self.get_signing_address()?;
-        let sim_mode = option_env!("SGX_MODE").unwrap_or_default();
-        println!("Using SGX_MODE: {:?}", sim_mode);
-        println!("Fetching quote with SPID: {:?}", self.config.spid);
+        let mode = option_env!("SGX_MODE").unwrap_or_default();
         let enc_quote = retry_quote(self.eid, &self.config.spid, 18)?;
 
         let report: String;
         let signature: String;
-        if sim_mode == "SW" {
+        if mode == "SW" {
             // Software Mode
-            println!("Simulation mode, using quote as report: {}", &enc_quote);
+            println!("Simulation mode");
             report = enc_quote;
             signature = String::new();
         } else {
             // Hardware Mode
-            println!("Hardware mode, fetching report from the Attestation Service");
+            println!("Hardware mode");
             let response = self.as_service.get_report(enc_quote)?;
             report = response.result.report_string;
             signature = response.result.signature;
@@ -265,7 +263,7 @@ impl Sampler for PrincipalManager {
         // since it's suited for the workers as well.
         // staking is irrelevant for the KM and therefore we are sending an empty address
         let staking_address = H160::zero();
-        println!("Registering worker");
+        println!("Registering");
         let receipt = self.contract.register(
             staking_address,
             signing_address,
@@ -288,11 +286,11 @@ impl Sampler for PrincipalManager {
         let signing_address = self.get_signing_address()?;
         let registered_signing_address = self.contract.get_signing_address()?;
         if signing_address == registered_signing_address {
-            info!("Signing address already registered: {:?}", registered_signing_address);
+            debug!("Already registered with enigma signing address {:?}", registered_signing_address);
             Ok(None)
         } else {
             let tx = self.register(signing_address, gas_limit)?;
-            info!("Registered worker tx: {:?}", tx);
+            debug!("Registered by transaction {:?}", tx);
             Ok(Some(tx))
         }
     }
@@ -324,7 +322,6 @@ impl Sampler for PrincipalManager {
         let port = self.config.http_port;
         let server_ep = Arc::clone(&epoch_provider);
         thread::spawn(move || {
-            println!("Starting the JSON RPC Server");
             let server = PrincipalHttpServer::new(server_ep, port);
             server.start();
         });

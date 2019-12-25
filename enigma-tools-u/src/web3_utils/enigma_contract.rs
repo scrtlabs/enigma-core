@@ -158,7 +158,7 @@ impl ContractQueries for EnigmaContract {
         Ok(signing_address)
     }
 
-    #[logfn(INFO)]
+    #[logfn(DEBUG)]
     fn get_active_workers(&self, block_number: U256) -> Result<(Vec<H160>, Vec<U256>), Error> {
         let worker_params: (Vec<Address>, Vec<U256>) =
             match self.w3_contract.query("getActiveWorkers", block_number, self.account, Options::default(), None).wait() {
