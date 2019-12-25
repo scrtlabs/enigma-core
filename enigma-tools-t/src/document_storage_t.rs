@@ -92,7 +92,7 @@ pub fn save_sealed_document(path: &PathBuf, sealed_document: &[u8]) -> Result<()
         }
     };
     match file.write_all(&sealed_document) {
-        Ok(_) => println!("Sealed document: {:?} written successfully.", path),
+        Ok(_) => debug_println!("Sealed document: {:?} written successfully.", path),
         Err(err) => {
             return Err(SystemError(OcallError { command: "sealed_document".to_string(), err: format!("{:?}", err) }));
         }

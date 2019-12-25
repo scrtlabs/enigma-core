@@ -164,7 +164,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     let response_msg = PrincipalMessage::new_id(response_msg_data, msg_id, pubkey);
     // Generate the iv from the first 12 bytes of a new random number
     let response = response_msg.encrypt(&derived_key)?.into_message()?;
-    println!("The partially encrypted response: {:?}", response.to_hex::<String>());
+    debug_println!("The partially encrypted response: {:?}", response.to_hex::<String>());
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
     *sig_out = SIGNING_KEY.sign(&response)?;

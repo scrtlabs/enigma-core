@@ -99,10 +99,9 @@ pub unsafe extern "C" fn ecall_set_worker_params(worker_params_rlp: *const u8, w
     let worker_params_rlp = slice::from_raw_parts(worker_params_rlp, worker_params_rlp_len);
 
     match ecall_set_worker_params_internal(worker_params_rlp, seed_in, nonce_in, rand_out, nonce_out, sig_out) {
-        Ok(_) => println!("Worker parameters set successfully"),
-        Err(err) => return err.into(),
-    };
-    EnclaveReturn::Success
+        Ok(_) => EnclaveReturn::Success,
+        Err(err) => err.into(),
+    }
 }
 
 #[no_mangle]
