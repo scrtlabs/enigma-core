@@ -380,7 +380,7 @@ mod tests {
         let address = generate_contract_address();
 
         // All prime factors are less than sqrt of an input
-        let (enclave, contract_code, result, shared_key) = compile_deploy_execute(
+        let (enclave, contract_code, result1, shared_key1) = compile_deploy_execute(
             &mut db,
             "../../examples/eng_wasm_contracts/factorization",
             address,
@@ -389,47 +389,66 @@ mod tests {
             "find_number_of_prime_factors(uint32)",
             &[Token::Uint(199998.into())]
         );
-        let mut encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
-        let decoded_output = &ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output).unwrap()[0];
-        assert_eq!(decoded_output.clone().to_uint().unwrap().as_u64(), 5);
+        let encoded_output1 = symmetric::decrypt(&result1.output, &shared_key1).unwrap();
+        let decoded_output1 = &ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output1).unwrap()[0];
+        assert_eq!(decoded_output1.clone().to_uint().unwrap().as_u64(), 5);
 
         // Input is a prime number
-        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
-        let mut encrypted_callable = symmetric::encrypt(b"find_number_of_prime_factors(uint32)", &shared_key).unwrap();
-        let mut encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Uint(71.into())]), &shared_key).unwrap();
-        let mut result = wasm::execute(
+        let (keys2, shared_key2, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable2 = symmetric::encrypt(b"find_number_of_prime_factors(uint32)", &shared_key2).unwrap();
+        let encrypted_args2 = symmetric::encrypt(&ethabi::encode(&[Token::Uint(71.into())]), &shared_key2).unwrap();
+        let result2 = wasm::execute(
             &mut db,
             enclave.geteid(),
             &contract_code,
-            &encrypted_callable,
-            &encrypted_args,
-            &keys.get_pubkey(),
+            &encrypted_callable2,
+            &encrypted_args2,
+            &keys2.get_pubkey(),
             &address,
             GAS_LIMIT
         ).expect("Execution failed").unwrap_result();
 
-        encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
-        let decoded_output = &ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output).unwrap()[0];
-        assert_eq!(decoded_output.clone().to_uint().unwrap().as_u64(), 1);
+        let encoded_output2 = symmetric::decrypt(&result2.output, &shared_key2).unwrap();
+        let decoded_output2 = &ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output2).unwrap()[0];
+        assert_eq!(decoded_output2.clone().to_uint().unwrap().as_u64(), 1);
 
-        // There is a prime factor bigger than sqrt of an input
-        let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
-        encrypted_callable = symmetric::encrypt(b"find_number_of_prime_factors(uint32)", &shared_key).unwrap();
-        encrypted_args = symmetric::encrypt(&ethabi::encode(&[Token::Uint(76.into())]), &shared_key).unwrap();
-        result = wasm::execute(
+        // There is a prime factor bigger than or equal to sqrt of an input
+        let (keys3, shared_key3, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable3 = symmetric::encrypt(b"find_number_of_prime_factors(uint32)", &shared_key3).unwrap();
+        let encrypted_args3 = symmetric::encrypt(&ethabi::encode(&[Token::Uint(76.into())]), &shared_key3).unwrap();
+        let result3 = wasm::execute(
             &mut db,
             enclave.geteid(),
             &contract_code,
-            &encrypted_callable,
-            &encrypted_args,
-            &keys.get_pubkey(),
+            &encrypted_callable3,
+            &encrypted_args3,
+            &keys3.get_pubkey(),
             &address,
             GAS_LIMIT
         ).expect("Execution failed").unwrap_result();
 
-        encoded_output = symmetric::decrypt(&result.output, &shared_key).unwrap();
-        let decoded_output = &ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output).unwrap()[0];
-        assert_eq!(decoded_output.clone().to_uint().unwrap().as_u64(), 3);
+        let encoded_output3 = symmetric::decrypt(&result3.output, &shared_key3).unwrap();
+        let decoded_output3 = &ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output3).unwrap()[0];
+        assert_eq!(decoded_output3.clone().to_uint().unwrap().as_u64(), 3);
+
+        // Input is 0
+        let (keys4, shared_key4, _, _) = exchange_keys(enclave.geteid());
+        let encrypted_callable4 = symmetric::encrypt(b"find_number_of_prime_factors(uint32)", &shared_key4).unwrap();
+        let encrypted_args4 = symmetric::encrypt(&ethabi::encode(&[Token::Uint(0.into())]), &shared_key4).unwrap();
+        let result4 = wasm::execute(
+            &mut db,
+            enclave.geteid(),
+            &contract_code,
+            &encrypted_callable4,
+            &encrypted_args4,
+            &keys4.get_pubkey(),
+            &address,
+            GAS_LIMIT
+        ).expect("Execution failed").unwrap_result();
+
+        let encoded_output4 = symmetric::decrypt(&result4.output, &shared_key4).unwrap();
+        let decoded_output4 = &ethabi::decode(&[ethabi::ParamType::Uint(64)], &encoded_output4).unwrap()[0];
+        assert_eq!(decoded_output4.clone().to_uint().unwrap().as_u64(), 0);
     }
 
     #[test]
