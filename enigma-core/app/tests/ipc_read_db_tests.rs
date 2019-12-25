@@ -136,10 +136,10 @@ fn test_ipc_get_contract() {
     let msg = get_msg_format_with_input(type_msg, &address.to_hex());
     let res: Value = conn_and_call_ipc(&msg.to_string(), port);
     let type_accepted = res["type"].as_str().unwrap();
-    let accepted_bytecode = res["result"]["bytecode"].as_str().unwrap();
+    let accepted_bytecode: Vec<u8> = serde_json::from_value(res["result"]["bytecode"].clone()).unwrap();
     let deployed_bytecode = deployed_res["result"]["output"].as_str().unwrap();
     let accepted_address = res["result"]["address"].as_str().unwrap().from_hex().unwrap();
     assert_eq!(address.to_vec(), accepted_address);
     assert_eq!(type_accepted, type_msg);
-    assert_eq!(deployed_bytecode, accepted_bytecode);
+    assert_eq!(deployed_bytecode, accepted_bytecode.to_hex());
 }

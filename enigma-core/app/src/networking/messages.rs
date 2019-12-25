@@ -97,7 +97,7 @@ pub enum IpcResults {
     #[serde(rename = "result")]
     GetContract {
         address: String,
-        bytecode: String,
+        bytecode: Vec<u8>,
     },
     Status(Status),
     Tips(Vec<IpcDelta>),
@@ -153,7 +153,7 @@ pub enum IpcRequest {
     GetDelta { input: IpcDelta },
     GetDeltas { input: Vec<IpcDeltasRange> },
     GetContract { input: String },
-    UpdateNewContract { address: String, bytecode: String },
+    UpdateNewContract { address: String, bytecode: Vec<u8> },
     UpdateNewContractOnDeployment {address: String, bytecode: String, delta: IpcDelta},
     RemoveContract { address: String },
     UpdateDeltas { deltas: Vec<IpcDelta> },
@@ -267,7 +267,7 @@ impl From<Message> for IpcMessageRequest {
 impl Into<Message> for IpcMessageResponse {
     fn into(self) -> Message {
         let msg = serde_json::to_vec(&self).unwrap();
-        Message::from_slice(&msg)
+        Message::from(&msg)
     }
 }
 

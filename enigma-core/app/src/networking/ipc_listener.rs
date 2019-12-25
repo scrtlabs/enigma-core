@@ -8,7 +8,7 @@ use tokio_zmq::{Error, Multipart, Rep};
 
 pub struct IpcListener {
     _context: Arc<zmq::Context>,
-    rep_future: Box<Future<Item = Rep, Error = Error>>,
+    rep_future: Box<dyn Future<Item = Rep, Error = Error>>,
 }
 
 impl IpcListener {
@@ -80,7 +80,7 @@ pub(self) mod handling {
     use serde_json::Value;
     use sgx_types::sgx_enclave_id_t;
     use std::str;
-    use common_u::errors::{DBErr, self};
+    use common_u::errors;
 
     type ResponseResult = Result<IpcResponse, Error>;
 
@@ -224,15 +224,14 @@ pub(self) mod handling {
     pub fn get_contract(db: &DB, input: &str) -> ResponseResult {
         let address = ContractAddress::from_hex(&input)?;
         let data = db.get_contract(address).unwrap_or_default();
-        Ok(IpcResponse::GetContract { result: IpcResults::GetContract{address: address.to_hex(), bytecode: data.to_hex()} })
+        Ok(IpcResponse::GetContract { result: IpcResults::GetContract{address: address.to_hex(), bytecode: data} })
     }
 
     #[logfn(TRACE)]
-    pub fn update_new_contract(db: &mut DB, address: String, bytecode: &str) -> ResponseResult {
+    pub fn update_new_contract(db: &mut DB, address: String, bytecode: &[u8]) -> ResponseResult {
         let address_arr = ContractAddress::from_hex(&address)?;
-        let bytecode = bytecode.from_hex()?;
         let delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
-        db.force_update(&delta_key, &bytecode)?;
+        db.force_update(&delta_key, bytecode)?;
         Ok(IpcResponse::UpdateNewContract { address, result: IpcResults::Status(Status::Passed) })
     }
 
@@ -243,11 +242,11 @@ pub(self) mod handling {
 
         let bytecode = bytecode.from_hex()?;
         let bytecode_delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
-        tuples.push((bytecode_delta_key, bytecode));
+        tuples.push((bytecode_delta_key, &bytecode));
 
         let data = delta.data.ok_or(P2PErr { cmd: "UpdateNewContractOnDeployment".to_string(), msg: "Delta Data Missing".to_string() })?;
         let delta_key = DeltaKey::new(address_arr, Stype::Delta(delta.key));
-        tuples.push((delta_key, data));
+        tuples.push((delta_key, &data));
 
         let results = db.insert_tuples(&tuples);
         let mut status = Status::Passed;
@@ -434,7 +433,7 @@ pub(self) mod handling {
         user_pubkey.clone_from_slice(&input.user_dhkey.from_hex()?);
 
         if !db.get_state_status() {
-            let res = km_u::ptt_build_state(db, eid)?;
+            let _res = km_u::ptt_build_state(db, eid)?;
             db.update_state_status(true);
         }
         let bytecode = db.get_contract(address)?;
