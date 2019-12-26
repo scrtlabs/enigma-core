@@ -50,7 +50,8 @@ fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
         let key = match keys_map.get(&addr) {
             Some(&key) => Some(key),
             None => {
-                debug_println!("State key for contract {:?} not found in cache, fetching sealed document.", addr.to_hex());
+              //  let p = addr.to_vec().to_hex();
+                debug_println!("State key for contract {:?} not found in cache, fetching sealed document.", addr.to_vec().to_hex::<String>());
                 let path = get_document_path(&addr);
                 if is_document(&path) {
                     let mut sealed_log_out = [0u8; SEAL_LOG_SIZE];
@@ -58,12 +59,12 @@ fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
                     let doc = SealedDocumentStorage::<StateKey>::unseal(&mut sealed_log_out)?;
                     match doc {
                         Some(doc) => {
-                            debug_println!("State key for contract {:?} is unsealed", addr.to_hex());
+                            debug_println!("State key for contract {:?} is unsealed", addr.to_hex::<String>());
                             keys_map.insert(addr, doc.data);
                             Some(doc.data)
                         }
                         None => {
-                            debug_println!("Contract {:?} is new, state key does not exist", addr);
+                            debug_println!("Contract {:?} is new, state key does not exist", addr.to_hex::<String>());
                             None
                         }
                     }
@@ -96,7 +97,7 @@ fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
         save_sealed_document(&path, &sealed_log_in)?;
         // Add to cache
         keys_map.insert(addr, doc.data);
-        debug_println!("New key for contract {:?} is stored successfully", addr.to_hex());
+        debug_println!("New key for contract {:?} is stored successfully", addr.to_hex::<String>());
 
         results.push(doc.data);
     }
@@ -165,7 +166,7 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
     *sig_out = SIGNING_KEY.sign(&response)?;
-    debug_println!("Get state key response requested for secret contract {:?}: {:?}", recovered_addr.to_hex(), response.to_hex::<String>());
+    debug_println!("Get state key response requested for secret contract {:?}: {:?}", recovered_addr.to_hex::<String>(), response.to_hex::<String>());
     Ok(response)
 }
 

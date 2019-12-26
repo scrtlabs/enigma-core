@@ -15,7 +15,7 @@ use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use sgx_types::sgx_enclave_id_t;
 use web3::types::{H256, TransactionReceipt, U256};
-use rustc_hex::{ToHex};
+use rustc_hex::ToHex;
 
 use common_u::errors::{EpochStateIOErr, EpochStateTransitionErr, EpochStateUndefinedErr};
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
