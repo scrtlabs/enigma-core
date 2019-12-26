@@ -158,7 +158,7 @@ impl EpochStateManager {
         let epoch_state_list = guard.deref().clone();
         drop(guard);
         if epoch_state_list.is_empty() {
-            return Ok(fs::remove_file(&self.state_path).unwrap_or_else(|_| println!("No epoch state file to remove")));
+            return Ok(fs::remove_file(&self.state_path).unwrap_or_else(|_| trace!("No epoch state file to remove")));
         }
         let mut file = File::create(&self.state_path).
             map_err(|e| EpochStateIOErr { message: format!("Unable to write the EpochState list: {}", e)})?;
@@ -356,7 +356,7 @@ impl EpochProvider {
     pub fn confirm_epoch(&self, epoch_state: &mut EpochState, ether_block_number: U256, worker_params: InputWorkerParams) -> Result<(), Error> {
         let sc_addresses = self.contract.get_all_secret_contract_addresses()?;
 
-        trace!("The secret contract addresses: {:?}",
+        debug!("The secret contract addresses: {:?}",
                sc_addresses.iter().map(|item| {item.to_hex()}).collect::<Vec<String>>());
         epoch_state.confirm(ether_block_number, &worker_params, sc_addresses)?;
         Ok(())

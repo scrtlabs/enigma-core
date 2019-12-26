@@ -114,7 +114,7 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
     let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, *epoch_nonce, sig_out) {
         Ok(response) => response,
         Err(err) => {
-            println!("get_enc_state_keys error: {:?}", err);
+            debug_println!("get_enc_state_keys error: {:?}", err);
             return err.into();
         }
     };
