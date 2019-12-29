@@ -6,7 +6,7 @@ use enigma_types::{ContractAddress, EnclaveReturn, Hash256, RawPointer};
 use lru_cache::LruCache;
 use std::sync::Mutex;
 use std::{ptr, slice};
-use common_u::errors::{DBErr, self};
+use common_u::errors;
 
 lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> = Mutex::new(LruCache::new(500)); }
 
