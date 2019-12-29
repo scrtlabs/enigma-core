@@ -5,11 +5,10 @@ extern crate rustc_hex as hex;
 extern crate cross_test_utils;
 extern crate enigma_types;
 
-use integration_utils::{conn_and_call_ipc, is_hex, run_core, get_msg_format_update_contract,
-                        get_encryption_msg, full_simple_deployment, full_addition_compute,
+use integration_utils::{conn_and_call_ipc, is_hex, run_core, get_encryption_msg, full_simple_deployment,
                         send_update_contract, run_ptt_round, contract_compute, get_update_deltas_msg,
                         decrypt_addr_delta, encrypt_addr_delta, replace_previous_hash_in_delta_data,
-                        full_supply_compute, decrypt_output_to_uint};
+                        full_supply_compute, full_addition_compute, decrypt_output_to_uint};
 use cross_test_utils::generate_contract_address;
 use self::app::serde_json;
 use app::serde_json::*;
@@ -101,8 +100,7 @@ fn test_execute_on_existing_contract_with_constructor() {
     let computed_data: Vec<u8> = serde_json::from_value(add_delta["data"].clone()).unwrap();
 
     let new_addr = generate_contract_address();
-    let _msg = get_msg_format_update_contract(&new_addr.to_hex(), deployed_bytecode);
-    let _res_a = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode);
+    let _res_a = send_update_contract(port, &new_addr.to_hex(), deployed_bytecode.from_hex().unwrap());
 
     let decrypted_delta0_data = decrypt_addr_delta(_old_addr, &delta0_data);
     let encrypted_delta0_data_new = encrypt_addr_delta(new_addr.into(), &decrypted_delta0_data);
