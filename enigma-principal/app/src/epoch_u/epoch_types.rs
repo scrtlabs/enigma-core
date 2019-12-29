@@ -50,7 +50,7 @@ impl EpochState {
     pub fn confirm(
         &mut self, ether_block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<ContractAddress>,
     ) -> Result<(), Error> {
-        println!("Confirmed epoch with worker params: {:?}", worker_params);
+        info!("Confirmed epoch with worker params: {:?}", worker_params);
         let mut selected_workers: HashMap<ContractAddress, Address> = HashMap::new();
         for sc_address in sc_addresses {
             match worker_params.get_selected_worker(sc_address, self.seed) {
