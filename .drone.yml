@@ -143,7 +143,7 @@ steps:
       - make build-km DOCKER_TAG=$DOCKER_TAG
       - make build-worker DOCKER_TAG=$DOCKER_TAG
       - export NODES=3
-      - SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml -p $DOCKER_TAG up --scale worker=$NODES --exit-code-from client && sleep 300 && docker-compose exec -T ${DOCKER_TAG}_client make test && export RESULT=$? || export RESULT=$?
+      - SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml -p $DOCKER_TAG up --scale worker=$NODES --exit-code-from client & sleep 300 && docker-compose exec -T ${DOCKER_TAG}_client make test && export RESULT=$? || export RESULT=$?
       - docker-compose -f docker-compose.yml -f docker-compose.hw.yml -p $DOCKER_TAG down -v --rmi all || true
       - if [ $RESULT -ne 0 ]; then exit 1; fi
 
