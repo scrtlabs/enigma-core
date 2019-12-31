@@ -186,4 +186,4 @@ volumes:
       path: /dev/isgx
   - name: sock
     host:
-      path: /var/run/docker.sock
+      path: /var/run/docker.sock 
