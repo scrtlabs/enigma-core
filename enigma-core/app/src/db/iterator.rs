@@ -349,8 +349,8 @@ impl P2PCalls for DB {
         // convert the key to the rocksdb representation
         from.as_split(|from_hash, from_key| {
             // make sure the address exists as a CF in the DB
-            let cf_key =
-                self.database.cf_handle(&from_hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey(from_hash.to_string()) })?;
+            let cf_key = self.database.cf_handle(&from_hash).
+                    ok_or(DBErr{ command: "get_deltas".to_string(), kind: DBErrKind::MissingKey(from_hash.to_string()) })?;
 
             // if exists, extract the second key for the range.
             to.as_split(|hash_to, to_key| {
