@@ -17,22 +17,12 @@ extern crate enigma_types;
 //#[cfg(not(target_env = "sgx"))]
 #[macro_use]
 extern crate sgx_tstd as std;
-extern crate sgx_trts;
 extern crate sgx_types;
 
 #[macro_use]
 extern crate serde_json;
 #[macro_use]
 extern crate lazy_static;
-#[macro_use]
-extern crate error_chain;
-
-extern crate bigint;
-extern crate ethabi;
-extern crate hexutil;
-extern crate rustc_hex;
-extern crate sputnikvm;
-extern crate sputnikvm_network_classic;
 
 mod km_t;
 
@@ -56,14 +46,13 @@ use enigma_tools_t::{
     quote_t, storage_t,
 };
 use enigma_types::{
-    traits::SliceCPtr, ContractAddress, DhKey, EnclaveReturn, ExecuteResult, Hash256, PubKey, RawPointer, ResultStatus,
+    ContractAddress, DhKey, EnclaveReturn, ExecuteResult, Hash256, PubKey, RawPointer, ResultStatus,
 };
 
 use sgx_types::*;
 use std::{
-    boxed::Box,
-    ptr, slice, str,
-    string::{String, ToString},
+    boxed::Box, slice, str,
+    string::String,
     vec::Vec,
 };
 
