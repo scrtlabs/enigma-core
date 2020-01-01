@@ -51,7 +51,7 @@ impl Principal for EnigmaContract {
             let prev_block_ref = prev_block.low_u64() as usize;
             trace!("Blocks @ previous: {}, current: {}, next: {}", prev_block_ref, curr_block, (prev_block_ref + epoch_size));
             if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
-                info!("New epoch for block number {} [epoch size {}]", curr_block, epoch_size);
+                trace!("New epoch for block number {} [epoch size {}]", curr_block, epoch_size);
                 epoch_provider
                     .set_worker_params(block_number, gas_limit, confirmations)
                     .expect("Unable to set worker params. Please recover manually.");
