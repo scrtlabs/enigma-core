@@ -19,7 +19,7 @@ pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
     let epoch_storage_path = storage_path.join(EPOCH_DIR);
     fs::create_dir_all(&epoch_storage_path).map_err(|e| { format_err!("Unable to create the epoch storage directory {}: {}", epoch_storage_path.display(), e) }).unwrap();
     let state_storage_path = storage_path.join(STATE_KEYS_DIR);
-    fs::create_dir_all(&state_storage_path).map_err(|e| { format_err!("Unable to create state storage directory {}: {}", state_storage_path.display(), e) }).unwrap();
+    fs::create_dir_all(&state_storage_path).map_err(|e| { format_err!("Unable to create the state storage directory {}: {}", state_storage_path.display(), e) }).unwrap();
 
     let token_file: path::PathBuf = storage_path.join(ENCLAVE_TOKEN);
 
