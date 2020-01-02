@@ -201,7 +201,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
             // verifies that the key inside the CF doesn't already exist
             match self.database.get_cf(cf_key, &index_key)? {
-                Some(_) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists }.into()),
+                Some(_) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists(hash.to_string()) }.into()),
                 None => {
                     let mut write_options = WriteOptions::default();
                     write_options.set_sync(SYNC);
@@ -243,7 +243,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             trace!("DB: Delete: contract_address: {}, key: {:?}", hash, index_key);
-            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) })?;
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr{ command: "delete".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) })?;
 
             if self.database.get_cf(cf_key, &index_key)?.is_none() {
                 return Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) }.into());

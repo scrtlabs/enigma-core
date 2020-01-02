@@ -56,7 +56,7 @@ pub fn is_db_err_type(e: Error) -> Result<DBErr, Error> {
 
 #[derive(Debug)]
 pub enum DBErrKind {
-    KeyExists,
+    KeyExists(String),
     CreateError,
     FetchError,
     MissingKey(String),
@@ -67,12 +67,12 @@ pub enum DBErrKind {
 impl fmt::Display for DBErrKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let printable: String = match &*self {
-            DBErrKind::KeyExists => "The Key already exists".into(),
+            DBErrKind::KeyExists(k) => format!("the key already exists for the following address: {:?}", &k),
             DBErrKind::CreateError => "Failed to create the key".into(),
             DBErrKind::FetchError => "Failed to fetch the data".into(),
             DBErrKind::MissingKey(k) => format!("The following Key doesn't exist: {}", &k),
             DBErrKind::UpdateError => "Failed to update the key".into(),
-            DBErrKind::MissingKeys => "Keys don't exist the DB".into(),
+            DBErrKind::MissingKeys => "No keys exist the DB".into(),
         };
         write!(f, "{}", printable)
     }

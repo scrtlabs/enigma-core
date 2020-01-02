@@ -75,7 +75,7 @@ fn test_deploy_same_contract_twice() {
     let _deploy_first = erc20_deployment_without_ptt_to_addr(port, &address.to_hex());
     let _deploy_second = erc20_deployment_without_ptt_to_addr(port, &address.to_hex());
     let accepted_err =  _deploy_second["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "Error while trying to create, Because: The Key already exists");
+    assert_eq!(accepted_err.to_string(), format!("Error while trying to create, Because: the key already exists for the following address: {:?}", &address.to_hex()));
 }
 
 #[test]
