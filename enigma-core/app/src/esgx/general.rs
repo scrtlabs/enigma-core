@@ -10,7 +10,7 @@ pub static ENCLAVE_DIR: &'static str = ".enigma";
 
 #[logfn(INFO)]
 pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
-    // Create a storage folder for storage (Sealed, token, etc)
+    // Create a folder for storage (Sealed, token, etc)
     // If a storage folder is inaccessible, enclave cannot seal info
     let storage_path = storage_dir(ENCLAVE_DIR).unwrap();
     fs::create_dir_all(&storage_path).map_err(|e| { format_err!("Unable to create storage directory {}: {}", storage_path.display(), e) }).unwrap();
