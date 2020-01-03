@@ -201,7 +201,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
 
             // verifies that the key inside the CF doesn't already exist
             match self.database.get_cf(cf_key, &index_key)? {
-                Some(_) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists }.into()),
+                Some(_) => Err(DBErr { command: "create".to_string(), kind: DBErrKind::KeyExists(hash.to_string()) }.into()),
                 None => {
                     let mut write_options = WriteOptions::default();
                     write_options.set_sync(SYNC);
@@ -216,8 +216,8 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn read(&self, key: &'a K) -> Result<Vec<u8>, Error> {
         key.as_split(|hash, index_key| {
             trace!("DB: Read: contract_address: {}, key: {:?}", hash, index_key);
-            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
-            let value = self.database.get_cf(cf_key, &index_key)?.ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) })?;
+            let value = self.database.get_cf(cf_key, &index_key)?.ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) })?;
             Ok(value.to_vec())
         })
     }
@@ -226,10 +226,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn update(&mut self, key: &'a K, value: &'a [u8]) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             trace!("Updating DB: contract_address: {}, key: {:?}, value: {:?}", hash, index_key, value);
-            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey })?;
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) })?;
 
             if self.database.get_cf(cf_key, &index_key)?.is_none() {
-                return Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey }.into());
+                return Err(DBErr { command: "update".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) }.into());
             }
 
             let mut write_options = WriteOptions::default();
@@ -243,10 +243,10 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
     fn delete(&mut self, key: &'a K) -> Result<(), Error> {
         key.as_split(|hash, index_key| {
             trace!("DB: Delete: contract_address: {}, key: {:?}", hash, index_key);
-            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey })?;
+            let cf_key = self.database.cf_handle(&hash).ok_or(DBErr{ command: "delete".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) })?;
 
             if self.database.get_cf(cf_key, &index_key)?.is_none() {
-                return Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey }.into());
+                return Err(DBErr { command: "delete".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) }.into());
             }
             self.database.delete_cf(cf_key, &index_key)?;
             Ok(())
@@ -258,7 +258,7 @@ impl<'a, K: SplitKey> CRUDInterface<Error, &'a K, Vec<u8>, &'a [u8]> for DB {
         key.as_split(|hash, _| {
             trace!("DB: Delete Contract: contract_address: {}", hash);
             self.database.drop_cf(&hash).
-                map_err(|_| DBErr { command: "delete_contract".to_string(), kind: DBErrKind::MissingKey }.into())
+                map_err(|_| DBErr { command: "delete_contract".to_string(), kind: DBErrKind::MissingKey(hash.to_string()) }.into())
         })
     }
 

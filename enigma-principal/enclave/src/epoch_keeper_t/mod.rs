@@ -148,17 +148,15 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
                 Some(nonce) => nonce + 1,
                 None => INIT_NONCE.into(),
             };
-            debug_println!("Creating new epoch with nonce {:?}", nonce);
             *nonce_out = EpochNonce::from(nonce);
             rsgx_read_rand(&mut rand_out[..])?;
             let seed = U256::from(rand_out.as_ref());
             let epoch = Epoch { nonce, seed, worker_params };
-            debug_println!("Generated random seed: {:?}", seed);
+            debug_println!("Creating new epoch with nonce {:?} and seed: {:?}", nonce, seed);
             store_epoch(epoch.clone())?;
             epoch
         }
     };
-    debug_println!("Inserting epoch: {:?} in cache", epoch);
     // Removing the first item (lower nonce) from the cache if capacity is reached
     if guard.len() == EPOCH_CAP {
         // Safe to unwrap because we just verified the size of the `HashMap`

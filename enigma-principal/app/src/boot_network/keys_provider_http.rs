@@ -106,14 +106,13 @@ impl PrincipalHttpServer {
         let image = msg.to_sign()?;
         let sig = request.get_sig()?;
         let worker = KeyPair::recover(&image, sig)?.address();
-        println!("Searching contract addresses for recovered worker: {:?}", worker.to_vec());
+        trace!("Searching contract addresses for recovered worker: {:?}", worker.to_vec());
         let addrs = epoch_state.get_contract_addresses(&worker.into())?;
         Ok(addrs)
     }
 
     #[logfn(DEBUG)]
     pub fn get_state_keys(epoch_provider: &EpochProvider, request: StateKeyRequest) -> Result<Value, Error> {
-        println!("Got get_state_keys request: {:?}", request);
         let epoch_state = match request.block_number.clone() {
             Some(block_number) => epoch_provider.find_epoch(block_number.try_into()?)?,
             None => epoch_provider.find_last_epoch()?,
@@ -121,12 +120,10 @@ impl PrincipalHttpServer {
         let addresses = &request.addresses;
         let addrs: Vec<ContractAddress> = {
             if let Some(addrs) = addresses {
-                println!("Found addresses in message: {:?}", addrs);
                 let res: Result<Vec<ContractAddress>, _>  = addrs.iter().map(|item| ContractAddress::from_hex(item)).collect();
                 res?
             }
             else{
-                println!("No addresses in message, reading from epoch state...");
                 let msg = PrincipalMessage::from_message(&request.get_data()?)?;
                 Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?
             }
@@ -137,8 +134,8 @@ impl PrincipalHttpServer {
     }
 
     fn handle_error(internal_err: Error) -> ServerError {
-        println!("Got internal error: {:?}", internal_err.as_fail());
         if let Some(err) = internal_err.downcast_ref::<EnclaveFailError>() {
+            error!("{:?}", internal_err.as_fail());
             let server_err = match &err.err {
                 EnclaveReturn::WorkerAuthError => {
                     ServerError {
@@ -209,7 +206,7 @@ impl PrincipalHttpServer {
         });
         let server =
             ServerBuilder::new(io).start_http(&format!("0.0.0.0:{}", port).parse().unwrap()).expect("Unable to start RPC server");
-        println!("JSON-RPC HTTP server listening on port: {}", port);
+        info!("JSON-RPC listening on port: {}", port);
         server.wait();
     }
 }

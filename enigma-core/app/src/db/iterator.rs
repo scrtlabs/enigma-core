@@ -266,10 +266,10 @@ impl P2PCalls for DB {
         let str_addr = address.to_hex();
         trace!("DB: Get Tip: cf: {}, ", str_addr);
         let cf_key =
-            self.database.cf_handle(&str_addr).ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
+            self.database.cf_handle(&str_addr).ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey(str_addr.clone()) })?;
 
         let iter = self.database.prefix_iterator_cf(cf_key, DELTA_PREFIX)?;
-        let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey })?;
+        let last = iter.last().ok_or(DBErr { command: "get_tip".to_string(), kind: DBErrKind::MissingKey(str_addr.clone()) })?;
         let k_key = K::from_split(&str_addr, &*last.0)?;
         let value =  (&*last.1).to_vec();
         trace!("DB: Continue Get Tip, key: {:?} value: {:?}", k_key, value);
@@ -298,7 +298,7 @@ impl P2PCalls for DB {
             // list_cf returns "Default" as the first CF,
             // so we remove it if we have elements other than that in the DB.
             l if l > 1 => cf_list.remove(0),
-            _ => return Err(DBErr { command: "get_all_addresses".to_string(), kind: DBErrKind::MissingKey }.into()),
+            _ => return Err(DBErr { command: "get_all_addresses".to_string(), kind: DBErrKind::MissingKeys }.into()),
         };
         // convert all addresses from strings to slices.
         // filter_map filters all None types from the iterator,
@@ -323,14 +323,16 @@ impl P2PCalls for DB {
 
     #[logfn(TRACE)]
     fn get_delta<K: SplitKey>(&self, key: K) -> ResultVec<u8> {
-
-        Ok(self.read(&key)?)
+        Ok(self.read(&key).map_err(|_|
+            key.as_split(| addr, _ | {
+                DBErr { command: "get_delta".to_string(), kind: DBErrKind::MissingKey(addr.to_string()) }
+            }))?)
     }
 
     #[logfn(TRACE)]
     fn get_contract(&self, contract_address: ContractAddress) -> ResultVec<u8> {
         let key = DeltaKey { contract_address, key_type: Stype::ByteCode };
-        Ok(self.read(&key)?)
+        Ok(self.read(&key).map_err(|_| DBErr { command: "get_contract".to_string(), kind: DBErrKind::MissingKey(contract_address.to_hex()) })?)
     }
 
     #[logfn(TRACE)]
@@ -347,8 +349,8 @@ impl P2PCalls for DB {
         // convert the key to the rocksdb representation
         from.as_split(|from_hash, from_key| {
             // make sure the address exists as a CF in the DB
-            let cf_key =
-                self.database.cf_handle(&from_hash).ok_or(DBErr { command: "read".to_string(), kind: DBErrKind::MissingKey })?;
+            let cf_key = self.database.cf_handle(&from_hash).
+                    ok_or(DBErr{ command: "get_deltas".to_string(), kind: DBErrKind::MissingKey(from_hash.to_string()) })?;
 
             // if exists, extract the second key for the range.
             to.as_split(|hash_to, to_key| {

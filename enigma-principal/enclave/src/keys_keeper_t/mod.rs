@@ -50,20 +50,21 @@ fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
         let key = match keys_map.get(&addr) {
             Some(&key) => Some(key),
             None => {
-                println!("State key not found in cache, fetching sealed document.");
+              //  let p = addr.to_vec().to_hex();
+                debug_println!("State key for contract {:?} not found in cache, fetching sealed document.", addr.to_vec().to_hex::<String>());
                 let path = get_document_path(&addr);
                 if is_document(&path) {
-                    debug_println!("Unsealing state key.");
                     let mut sealed_log_out = [0u8; SEAL_LOG_SIZE];
                     load_sealed_document(&path, &mut sealed_log_out)?;
                     let doc = SealedDocumentStorage::<StateKey>::unseal(&mut sealed_log_out)?;
                     match doc {
                         Some(doc) => {
+                            debug_println!("State key for contract {:?} is unsealed", addr.to_hex::<String>());
                             keys_map.insert(addr, doc.data);
                             Some(doc.data)
                         }
                         None => {
-                            debug_println!("State key {:?} does not exist", addr);
+                            debug_println!("Contract {:?} is new, state key does not exist", addr.to_hex::<String>());
                             None
                         }
                     }
@@ -95,10 +96,9 @@ fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
         let path = get_document_path(&addr);
         save_sealed_document(&path, &sealed_log_in)?;
         // Add to cache
-        match keys_map.insert(addr, doc.data) {
-            Some(prev) => println!("New key stored successfully"),
-            None => println!("Initial key stored successfully"),
-        }
+        keys_map.insert(addr, doc.data);
+        debug_println!("New key for contract {:?} is stored successfully", addr.to_hex::<String>());
+
         results.push(doc.data);
     }
     Ok(results)
@@ -140,7 +140,6 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     let msg_id = msg.get_id();
     // Create the request image before the worker selection guard to avoid cloning the message data
     let image = msg.to_sign()?;
-    debug_println!("Generated hash image: {:?} for request: {:?}", image, msg);
     let recovered_addr = KeyPair::recover(&image, sig)?.address();
     let nonce = U256::from(epoch_nonce.as_ref());
     for sc_addr in sc_addrs.clone() {
@@ -164,10 +163,10 @@ pub(crate) fn ecall_get_enc_state_keys_internal(
     let response_msg = PrincipalMessage::new_id(response_msg_data, msg_id, pubkey);
     // Generate the iv from the first 12 bytes of a new random number
     let response = response_msg.encrypt(&derived_key)?.into_message()?;
-    println!("The partially encrypted response: {:?}", response.to_hex::<String>());
     // Signing the encrypted response
     // This is important because the response might be delivered by an intermediary
     *sig_out = SIGNING_KEY.sign(&response)?;
+    debug_println!("Get state key response requested for secret contract {:?}: {:?}", recovered_addr.to_hex::<String>(), response.to_hex::<String>());
     Ok(response)
 }
 

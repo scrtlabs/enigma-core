@@ -35,12 +35,11 @@ extern "C" {
 #[logfn(DEBUG)]
 pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<EpochState>) -> Result<EpochState, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
-    println!("Evaluating nonce/seed based on EpochState: {:?}", epoch_state);
     let (nonce_in, seed_in) = match epoch_state.clone() {
         Some(e) => (e.nonce.into(), e.seed.into()),
         None => ([0; 32], [0; 32])
     };
-    println!("Calling enclave set_worker_params with nonce/seed: {:?}/{:?}", nonce_in.to_vec().to_hex(), seed_in.to_vec().to_hex());
+    debug!("Calling enclave set_worker_params with nonce/seed: {:?}/{:?}", nonce_in.to_vec().to_hex(), seed_in.to_vec().to_hex());
     let (mut nonce_out, mut rand_out) = ([0; 32], [0; 32]);
     let mut sig_out: [u8; 65] = [0; 65];
     // Serialize the InputWorkerParams into RLP

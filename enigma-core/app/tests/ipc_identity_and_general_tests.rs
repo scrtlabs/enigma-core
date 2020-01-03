@@ -53,7 +53,7 @@ fn test_compute_on_empty_address() {
     let callable  = "mint(bytes32,uint256)";
     let (_val,_) = contract_compute(port, _address.into(), &args, callable);
     let accepted_err =  _val["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "Error while trying to read, Because: The Key doesn\'t exist");
+    assert_eq!(accepted_err.to_string(), format!("Error while trying to get_contract, Because: The following Key doesn\'t exist: {}", _address.to_hex()));
 }
 
 #[test]
@@ -75,7 +75,7 @@ fn test_deploy_same_contract_twice() {
     let _deploy_first = erc20_deployment_without_ptt_to_addr(port, &address.to_hex());
     let _deploy_second = erc20_deployment_without_ptt_to_addr(port, &address.to_hex());
     let accepted_err =  _deploy_second["msg"].as_str().unwrap();
-    assert_eq!(accepted_err, "Error while trying to create, Because: The Key already exists");
+    assert_eq!(accepted_err.to_string(), format!("Error while trying to create, Because: the key already exists for the following address: {:?}", &address.to_hex()));
 }
 
 #[test]
