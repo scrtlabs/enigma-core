@@ -249,6 +249,11 @@ impl EpochProvider {
 
     #[logfn(DEBUG)]
     fn parse_worker_parameterized(&self, receipt: &TransactionReceipt) -> Result<Log, Error> {
+        if receipt.logs.is_empty() {
+            return Err(Web3Error {
+                message: format!("setWorkerParams failed due to wrong arguments given to the contract"),
+            }.into())
+        }
         let log = receipt.logs[0].clone();
         let raw_log = RawLog { topics: log.topics, data: log.data.0 };
         let event = WorkersParameterizedEvent::new();
