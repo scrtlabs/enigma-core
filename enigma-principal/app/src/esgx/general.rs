@@ -11,8 +11,8 @@ pub static STATE_KEYS_DIR: &'static str = "state-keys";
 
 #[logfn(INFO)]
 pub fn init_enclave_wrapper() -> SgxResult<SgxEnclave> {
-    // Create a storage folders for storage (Sealed info, epoch, etc)
-    // If a storage folder is inaccessible, km has wrong functionality
+    // Create folders for storage (Sealed info, epoch, etc)
+    // If the storage folders are inaccessible, km wouldn't operate properly
     let storage_path = storage_dir(ENCLAVE_DIR).unwrap();
     fs::create_dir_all(&storage_path).map_err(|e| { format_err!("Unable to create the storage directory {}: {}", storage_path.display(), e) }).unwrap();
     let epoch_storage_path = storage_path.join(EPOCH_DIR);
