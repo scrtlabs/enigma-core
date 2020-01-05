@@ -63,10 +63,10 @@ fn main() {
 
     debug!("CLI params: {:?}", opt);
 
-    let enclave = esgx::general::init_enclave_wrapper().map_err(|e| {error!("Init Enclave Failed {:?}", e);}).unwrap();
+    let enclave = esgx::general::init_enclave_wrapper().expect("[-] Init Enclave Failed");
     let eid = enclave.geteid();
     cli::app::start(eid).unwrap();
-    info!("Init Enclave Successful. Enclave id {}", eid);
+    info!("[+] Init Enclave Successful {}!", eid);
 
     // drop enclave when done
     enclave.destroy();
