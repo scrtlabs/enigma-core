@@ -134,6 +134,7 @@ steps:
         done'
       - make clone-km BRANCH=${DRONE_BRANCH}
       - make clone-core BRANCH=${DRONE_BRANCH}
+      - make build-core DOCKER_TAG=$DOCKER_TAG
       - |
         if [[ "$MATCHING_BRANCH_P2P" -eq 1 ]]; then
           make clone-p2p BRANCH=${DRONE_BRANCH}
@@ -171,12 +172,16 @@ steps:
       - make clone-core BRANCH=${DRONE_BRANCH}
       - make clone-p2p BRANCH=${DRONE_BRANCH}
       - make clone-km BRANCH=${DRONE_BRANCH}
+      - make build-core SGX_MODE=SW DOCKER_TAG=$DOCKER_TAG 
       - make build-km SGX_MODE=SW DOCKER_TAG=$DOCKER_TAG
       - make build-worker SGX_MODE=SW DOCKER_TAG=$DOCKER_TAG
+      - make build-core DOCKER_TAG=$DOCKER_TAG 
       - make build-km DOCKER_TAG=$DOCKER_TAG
       - make build-worker DOCKER_TAG=$DOCKER_TAG
+      - docker push enigmampc/enigmampc/core-artifact-sw:$DOCKER_TAG
       - docker push enigmampc/worker_sw:$DOCKER_TAG
       - docker push enigmampc/key_management_sw:$DOCKER_TAG
+      - docker push enigmampc/enigmampc/core-artifact-hw:$DOCKER_TAG
       - docker push enigmampc/worker_hw:$DOCKER_TAG
       - docker push enigmampc/key_management_hw:$DOCKER_TAG
 
