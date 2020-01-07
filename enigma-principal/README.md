@@ -1,6 +1,6 @@
 # Enigma Key Management Node
 
-The Key Management node is part of the Enigma node software stack. The Key Management component is responsible for emitting random numbers from within an enclave into the Enigma contract. Currently it is a centralized to maintain simplicity while testing and developing Core, but it will eventually move to a decentralized design matching the rest of the network.
+The Key Management node is part of the Enigma node software stack. The Key Management component is responsible for emitting random numbers from within an enclave into the Enigma contract. Currently, it uses a centralized design in order to maintain simplicity while testing and developing Core, but it will eventually move to a decentralized design matching the rest of the network.
 
 <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=develop" />
 
