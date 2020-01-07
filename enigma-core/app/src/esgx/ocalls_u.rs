@@ -26,7 +26,7 @@ pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &Cont
     match db.force_update(&key, encrypted_state) {
         Ok(_) => EnclaveReturn::Success,
         Err(e) => {
-            println!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
+            error!("Failed creating key in db: {:?} with: \"{}\" ", &key, &e);
             EnclaveReturn::OcallDBError
         }
     }
@@ -187,7 +187,6 @@ pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &Cont
                     ResultType::None => EnclaveReturn::OcallDBError,
                     ResultType::Full(deltas) | ResultType::Partial(deltas) => {
                         let res = deltas.iter().map(|(_, val)| val.clone()).flatten().collect::<Vec<u8>>();
-                        println!("res: {:?}", res);
                         enigma_types::write_ptr(&res[..], res_ptr, res_len);
                         EnclaveReturn::Success
                     }

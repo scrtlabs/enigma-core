@@ -388,7 +388,6 @@ pub(self) mod handling {
         Ok(IpcResponse::PTTResponse {result})
     }
 
-    #[logfn(TRACE)]
     pub fn deploy_contract(db: &mut DB, input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let bytecode = input.pre_code.expect("Bytecode Missing");
         let contract_address = ContractAddress::from_hex(&input.address)?;
@@ -412,13 +411,12 @@ pub(self) mod handling {
                 let key = DeltaKey::new(contract_address, Stype::ByteCode);
                 db.create(&key, &v.output)?;
                 let ipc_response = v.into_deploy_response(&bytecode);
-                info!("deploy_contract() => Ok({})", ipc_response.display_without_bytecode());
-                trace!("deployed bytecode => {}", ipc_response.display_bytecode());
+                debug!("deploy_contract() => Ok({})", ipc_response.display_without_bytecode());
                 Ok(ipc_response)
             },
             WasmResult::WasmTaskFailure(v) => {
                 let response = Ok(v.into());
-                info!("{:?}", response);
+                debug!("{:?}", response);
                 response
             }
         }

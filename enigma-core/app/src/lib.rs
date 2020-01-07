@@ -1,7 +1,6 @@
 #![warn(clippy::all)]
 #![warn(unused_extern_crates)]
 
-extern crate dirs;
 pub extern crate rocksdb;
 pub extern crate sgx_types;
 extern crate sgx_urts;
