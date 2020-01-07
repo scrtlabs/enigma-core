@@ -24,7 +24,6 @@ extern crate log4rs;
 
 #[macro_use]
 extern crate log_derive;
-extern crate dirs;
 extern crate ethabi;
 extern crate ethereum_types;
 extern crate tiny_keccak;
