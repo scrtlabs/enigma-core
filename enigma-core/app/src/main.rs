@@ -1,4 +1,5 @@
 extern crate enigma_core_app;
+#[macro_use]
 extern crate log;
 extern crate log_derive;
 
@@ -33,9 +34,9 @@ fn main() {
     debug!("CLI params: {:?}", opt);
 
 
-    let enclave = esgx::general::init_enclave_wrapper().expect("Init Enclave Failed");
+    let enclave = esgx::general::init_enclave_wrapper().map_err(|e| {error!("Init Enclave Failed {:?}", e);}).unwrap();
     let eid = enclave.geteid();
-    info!("[+] Init Enclave Successful {}!", eid);
+    info!("Init Enclave Successful. Enclave id {}", eid);
 
     let mut db = DB::new(datadir, true).expect("Failed initializing the DB");
     let server = IpcListener::new(&format!("tcp://*:{}", opt.port));
