@@ -1,8 +1,6 @@
-# Enigma Principal Node
+# Enigma Key Management Node
 
-The Principal node is part of the Enigma node software stack. 
-The Principal component  is responsible for emitting random numbers from within an enclave into the Enigma contract. 
-Currently it is a centralized to maintain simplicity while testing and developing Core.
+The Key Management node is part of the Enigma node software stack. The Key Management component is responsible for emitting random numbers from within an enclave into the Enigma contract. Currently, it uses a centralized design in order to maintain simplicity while testing and developing Core, but it will eventually move to a decentralized design matching the rest of the network.
 
 <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=develop" />
 
@@ -61,12 +59,12 @@ $./enigma_principal_app --deploy --mine <number: create blocks rate/seconds>
 
 ## Configuration
 
-* Must have an ethereum network on like ganache. 
+* Must have an Ethereum network running like Ganache. 
 
-All of the parameters can be configured programatically, with flags passed to the binary app or with config file. 
+All of the parameters can be configured programatically, with flags passed to the binary app or with a config file. 
 There are generally 2 types of configuration files and 1 important feature - **mining simulation**. 
 
-### Principal Logic configuration 
+### Key Management Logic configuration 
 
 Responsible for all the logic of the app (i.e epoch size, polling interval etc.)
 
@@ -79,18 +77,17 @@ Responsible for all the logic of the app (i.e epoch size, polling interval etc.)
 ```
 ### Deployment configuration - NOT for production
 
-The Principal Logic has to connect to the Enigma contract, In order to have this we must also implement the EnigmaToken contract.
-The Principal Node can connect to an existing environment or to deploy everything by itself. 
+The Key Management Logic has to connect to the Enigma contract, In order to have this we must also implement the EnigmaToken contract. The Key Management Node can connect to an existing environment or to deploy everything by itself. 
 
 * Default location (enigma-principal/app/tests/principal_node/config/deploy_config.json)
 
-* To run the principal node with a time limit in seconds use the flag 
+* To run the Key Management node with a time limit in seconds use the flag 
 
 ```
 --time-to-live <number>
 ```
 
-* To run the Pricipal in deploy mode add the flag 
+* To run the Key Management node in deploy mode add the flag 
 
 ```
 --deploy
@@ -104,8 +101,8 @@ The Principal Node can connect to an existing environment or to deploy everythin
 
 ### Mining Simulation mode
 
-The idea is that the principal node publishes a random number to the Enigma smart contract every X blocks (i.e epochs). 
-If running a private network like ganache we need a way to simulate mining of blocks and control the rate. 
+The idea is that the Key Management node publishes a random number to the Enigma smart contract every X blocks (i.e epochs). 
+If running a private network like Ganache, we need a way to simulate mining of blocks and control the rate. 
 The mining mode will submit a new blocks as defined to the network and it does not depend on whether the contracts were deployed by this app or not. 
 
 * To run the mining simulation and create a new block every 2 seconds one should type: 
@@ -136,7 +133,7 @@ cd enigma-core/enigma-principal
 make JOBS=8
 ```
 
-## Principal Node Modes 
+## Key Management Node Modes 
 
 ### For more info check the screenshot above.
 
@@ -192,5 +189,3 @@ error[E0463]: can't find crate for `std`
 ```
 rm -rf /root/.cargo/git/checkouts/rust-sgx-sdk-fc8771c5c45bde9a/378a4f0/xargo/
 ```
-
-
