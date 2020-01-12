@@ -189,6 +189,22 @@ steps:
       - docker push enigmampc/worker_hw:$DOCKER_TAG
       - docker push enigmampc/key_management_hw:$DOCKER_TAG
 
+  - name: cleanup
+    image: enigmampc/docker-client
+    privileged: true
+    volumes:
+      - name: sock
+        path: /var/run/docker.sock
+    depends_on:
+      - deploy
+    when:
+      status:
+        - success
+        - failure
+    commands:
+      - cd docker-environment
+      - docker-compose -f docker-compose.yml -f docker-compose.hw.yml down -v --rmi all --remove-orphans
+
 volumes:
   - name: isgx
     host:
