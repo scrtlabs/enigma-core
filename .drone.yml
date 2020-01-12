@@ -150,7 +150,7 @@ steps:
       - docker-compose exec -T client make test
       - export NEW_NODE_NUMBER=$(($NODES + 1))
       - SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml up -d --scale worker="$NEW_NODE_NUMBER"
-      - timeout 1500 /bin/bash -c 'SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml logs -f --tail 10 worker | grep -m 1 -P "worker_${NEW_NODE_NUMBER}.+?success syncing pipeline"'
+      - timeout 1500 /bin/bash -c 'SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml logs -f --tail 10 worker | grep -m 1 -E "worker_${NEW_NODE_NUMBER}.*?success syncing pipeline"'
 
   - name: deploy
     image: enigmampc/docker-client
