@@ -116,7 +116,7 @@ impl ModuleImportResolver for ImportResolver {
             "fetch_args" => (signatures::ARGS, ids::ARGS_FUNC),
             "write_eth_bridge" => (signatures::WRITE_ETH_BRIDGE, ids::WRITE_ETH_BRIDGE_FUNC),
             "gas" => (signatures::GAS, ids::GAS_FUNC),
-            "rand"  => (signatures::RAND, ids::RAND_FUNC),
+            "rand" => (signatures::RAND, ids::RAND_FUNC),
             "encrypt" => (signatures::ENCRYPT, ids::ENCRYPT_FUNC),
             "decrypt" => (signatures::DECRYPT, ids::DECRYPT_FUNC),
             _ => return Err(wasmi::Error::Instantiation(format!("Export {} not found", field_name))),
