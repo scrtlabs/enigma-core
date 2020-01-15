@@ -103,25 +103,26 @@ impl ImportResolver {
 
 impl ModuleImportResolver for ImportResolver {
     fn resolve_func(&self, field_name: &str, _signature: &Signature) -> Result<FuncRef, Error> {
-        let func_ref = match field_name {
-            "ret" => FuncInstance::alloc_host(signatures::RET.into(), ids::RET_FUNC),
-            "write_state" => FuncInstance::alloc_host(signatures::WRITE_STATE.into(), ids::WRITE_STATE_FUNC),
-            "read_state_len" => FuncInstance::alloc_host(signatures::READ_STATE_LEN.into(), ids::READ_STATE_LEN_FUNC),
-            "read_state" => FuncInstance::alloc_host(signatures::READ_STATE.into(), ids::READ_STATE_FUNC),
-            "remove_from_state" => FuncInstance::alloc_host(signatures::REMOVE_STATE.into(), ids::REMOVE_STATE_FUNC),
-            "eprint" => FuncInstance::alloc_host(signatures::EPRINT.into(), ids::EPRINT_FUNC),
-            "fetch_function_name_length" => FuncInstance::alloc_host(signatures::NAME_LENGTH.into(), ids::NAME_LENGTH_FUNC),
-            "fetch_function_name" => FuncInstance::alloc_host(signatures::NAME.into(), ids::NAME_FUNC),
-            "fetch_args_length" => FuncInstance::alloc_host(signatures::ARGS_LENGTH.into(), ids::ARGS_LENGTH_FUNC),
-            "fetch_args" => FuncInstance::alloc_host(signatures::ARGS.into(), ids::ARGS_FUNC),
-            "write_eth_bridge" => FuncInstance::alloc_host(signatures::WRITE_ETH_BRIDGE.into(), ids::WRITE_ETH_BRIDGE_FUNC),
-            "gas" => FuncInstance::alloc_host(signatures::GAS.into(), ids::GAS_FUNC),
-            "rand" => FuncInstance::alloc_host(signatures::RAND.into(), ids::RAND_FUNC),
-            "encrypt" => FuncInstance::alloc_host(signatures::ENCRYPT.into(), ids::ENCRYPT_FUNC),
-            "decrypt" => FuncInstance::alloc_host(signatures::DECRYPT.into(), ids::DECRYPT_FUNC),
+        let (signature, id) = match field_name {
+            "ret" => (signatures::RET, ids::RET_FUNC),
+            "write_state" => (signatures::WRITE_STATE, ids::WRITE_STATE_FUNC),
+            "read_state_len" => (signatures::READ_STATE_LEN, ids::READ_STATE_LEN_FUNC),
+            "read_state" => (signatures::READ_STATE, ids::READ_STATE_FUNC),
+            "remove_from_state" => (signatures::REMOVE_STATE, ids::REMOVE_STATE_FUNC),
+            "eprint" => (signatures::EPRINT, ids::EPRINT_FUNC),
+            "fetch_function_name_length" => (signatures::NAME_LENGTH, ids::NAME_LENGTH_FUNC),
+            "fetch_function_name" => (signatures::NAME, ids::NAME_FUNC),
+            "fetch_args_length" => (signatures::ARGS_LENGTH, ids::ARGS_LENGTH_FUNC),
+            "fetch_args" => (signatures::ARGS, ids::ARGS_FUNC),
+            "write_eth_bridge" => (signatures::WRITE_ETH_BRIDGE, ids::WRITE_ETH_BRIDGE_FUNC),
+            "gas" => (signatures::GAS, ids::GAS_FUNC),
+            "rand" => (signatures::RAND, ids::RAND_FUNC),
+            "encrypt" => (signatures::ENCRYPT, ids::ENCRYPT_FUNC),
+            "decrypt" => (signatures::DECRYPT, ids::DECRYPT_FUNC),
             _ => return Err(wasmi::Error::Instantiation(format!("Export {} not found", field_name))),
         };
 
+        let func_ref = FuncInstance::alloc_host(signature.into(), id);
         Ok(func_ref)
     }
 
