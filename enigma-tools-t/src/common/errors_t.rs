@@ -9,7 +9,7 @@ use std::string::{String, ToString};
 use wasmi::{self, TrapKind};
 use parity_wasm;
 
-// Error of WASM execution by wasmi or runtime
+/// Error of WASM execution by wasmi or runtime
 #[derive(Debug)]
 pub enum WasmError {
     GasLimit,
@@ -220,6 +220,7 @@ impl ResultToEnclaveReturn for EnclaveError {
 
 impl Into<EnclaveReturn> for EnclaveError {
     fn into(self) -> EnclaveReturn {
+        debug_println!("creating EnclaveReturn from EnclaveError: {:?}", self);
         use self::EnclaveError::*;
         match self {
             FailedTaskError {..} => EnclaveReturn::TaskFailure,
@@ -235,9 +236,17 @@ impl Into<EnclaveReturn> for EnclaveError {
                     MessagingError { .. } => EnclaveReturn::MessagingError,
                     CryptoError{err} => match err {
                         RandomError { .. } => EnclaveReturn::SgxError,
-                        DerivingKeyError { .. } | KeyError { .. } | MissingKeyError { .. } => EnclaveReturn::KeysError,
-                        DecryptionError { .. } | EncryptionError { .. } | SigningError { .. } | ImproperEncryption |
-                        ParsingError { ..} | RecoveryError { .. } => EnclaveReturn::EncryptionError,
+                        DerivingKeyError { .. }
+                        | KeyError { .. }
+                        | MissingKeyError { .. }
+                        => EnclaveReturn::KeysError,
+                        DecryptionError { .. }
+                        | EncryptionError { .. }
+                        | SigningError { .. }
+                        | ImproperEncryption
+                        | ParsingError { ..}
+                        | RecoveryError { .. }
+                        => EnclaveReturn::EncryptionError,
                     }
                     WorkerAuthError { .. } => EnclaveReturn::WorkerAuthError,
                     KeyProvisionError { .. } => EnclaveReturn::KeyProvisionError,
@@ -247,4 +256,3 @@ impl Into<EnclaveReturn> for EnclaveError {
         }
     }
 }
-
