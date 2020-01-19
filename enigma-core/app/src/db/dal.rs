@@ -8,6 +8,7 @@ use db::primitives::SplitKey;
 
 // These are global variables for Reade/Write/Create Options
 const SYNC: bool = true;
+const PREFIX_SIZE: usize = 1;
 
 pub struct DB {
     pub location: PathBuf,
@@ -39,7 +40,7 @@ impl DB {
     pub fn new<P: AsRef<Path>>(location: P, create_if_missing: bool) -> Result<DB, Error> {
         // number of bytes to take into consideration when looking for a similar prefix
         // would be helpful when querying the DB using iterators.
-        let prefix_extractor = SliceTransform::create_fixed_prefix(1);
+        let prefix_extractor = SliceTransform::create_fixed_prefix(PREFIX_SIZE);
         let mut options = Options::default();
         options.create_if_missing(create_if_missing);
         options.set_prefix_extractor(prefix_extractor);
@@ -53,7 +54,7 @@ impl DB {
         };
         // converts the Strings to descriptors (adds to each cf an options object)
         let cf_descriptors = cf_list.into_iter().map(|name| {
-            let prefix_extractor = SliceTransform::create_fixed_prefix(1);
+            let prefix_extractor = SliceTransform::create_fixed_prefix(PREFIX_SIZE);
             let mut cf_opts = Options::default();
             cf_opts.set_prefix_extractor(prefix_extractor);
             ColumnFamilyDescriptor::new(name, cf_opts)
