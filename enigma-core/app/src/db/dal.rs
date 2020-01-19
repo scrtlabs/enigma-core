@@ -1,6 +1,6 @@
 use failure::Error;
 use rocksdb::DB as rocks_db;
-use rocksdb::{Options, SliceTransform, WriteOptions};
+use rocksdb::{Options, SliceTransform, WriteOptions, ColumnFamilyDescriptor};
 use std::path::{Path, PathBuf};
 
 use common_u::errors::{DBErr, DBErrKind};
@@ -51,9 +51,14 @@ impl DB {
             Ok(list) => list,
             Err(_) => Vec::new(),
         };
-        // converts the Strings to slices (str)
-        let cf_list_burrowed = cf_list.iter().map(String::as_str).collect::<Vec<&str>>();
-        let database = rocks_db::open_cf(&options, &location, &cf_list_burrowed[..])?;
+        // converts the Strings to descriptors (adds to each cf an options object)
+        let cf_descriptors = cf_list.into_iter().map(|name| {
+            let prefix_extractor = SliceTransform::create_fixed_prefix(1);
+            let mut cf_opts = Options::default();
+            cf_opts.set_prefix_extractor(prefix_extractor);
+            ColumnFamilyDescriptor::new(name, cf_opts)
+        });
+        let database = rocks_db::open_cf_descriptors(&options, &location, cf_descriptors)?;
         let location = location.as_ref().to_path_buf();
         // the state_updated is initialized to true since it won't be necessary to build
         // the state when the DB is empty.
