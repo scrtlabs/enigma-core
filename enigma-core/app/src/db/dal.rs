@@ -1,6 +1,6 @@
 use failure::Error;
 use rocksdb::DB as rocks_db;
-use rocksdb::{Options, SliceTransform, WriteOptions};
+use rocksdb::{Options, SliceTransform, WriteOptions, ColumnFamilyDescriptor};
 use std::path::{Path, PathBuf};
 
 use common_u::errors::{DBErr, DBErrKind};
@@ -8,6 +8,7 @@ use db::primitives::SplitKey;
 
 // These are global variables for Reade/Write/Create Options
 const SYNC: bool = true;
+const PREFIX_SIZE: usize = 1;
 
 pub struct DB {
     pub location: PathBuf,
@@ -39,7 +40,7 @@ impl DB {
     pub fn new<P: AsRef<Path>>(location: P, create_if_missing: bool) -> Result<DB, Error> {
         // number of bytes to take into consideration when looking for a similar prefix
         // would be helpful when querying the DB using iterators.
-        let prefix_extractor = SliceTransform::create_fixed_prefix(1);
+        let prefix_extractor = SliceTransform::create_fixed_prefix(PREFIX_SIZE);
         let mut options = Options::default();
         options.create_if_missing(create_if_missing);
         options.set_prefix_extractor(prefix_extractor);
@@ -51,9 +52,14 @@ impl DB {
             Ok(list) => list,
             Err(_) => Vec::new(),
         };
-        // converts the Strings to slices (str)
-        let cf_list_burrowed = cf_list.iter().map(String::as_str).collect::<Vec<&str>>();
-        let database = rocks_db::open_cf(&options, &location, &cf_list_burrowed[..])?;
+        // converts the Strings to descriptors (adds to each cf an options object)
+        let cf_descriptors = cf_list.into_iter().map(|name| {
+            let prefix_extractor = SliceTransform::create_fixed_prefix(PREFIX_SIZE);
+            let mut cf_opts = Options::default();
+            cf_opts.set_prefix_extractor(prefix_extractor);
+            ColumnFamilyDescriptor::new(name, cf_opts)
+        });
+        let database = rocks_db::open_cf_descriptors(&options, &location, cf_descriptors)?;
         let location = location.as_ref().to_path_buf();
         // the state_updated is initialized to true since it won't be necessary to build
         // the state when the DB is empty.
