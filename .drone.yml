@@ -148,9 +148,6 @@ steps:
       - SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml up --scale worker=$NODES &
       - sleep 240
       - docker-compose exec -T client make test
-      - export NEW_NODE_NUMBER=$(($NODES + 1))
-      - SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml up -d --scale worker="$NEW_NODE_NUMBER"
-      - timeout 1500 /bin/bash -c 'SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml logs -f --tail 10 worker | grep -m 1 -E "worker_${NEW_NODE_NUMBER}.*?success syncing pipeline"'
 
   - name: deploy
     image: enigmampc/docker-client
@@ -203,7 +200,9 @@ steps:
         - failure
     commands:
       - cd docker-environment
+      - export DOCKER_TAG=core_${DRONE_BUILD_NUMBER}
       - docker-compose -f docker-compose.yml -f docker-compose.hw.yml down -v --rmi all --remove-orphans
+      - docker rmi -f enigmampc/core-artifact-hw:$DOCKER_TAG
 
 volumes:
   - name: isgx
