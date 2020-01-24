@@ -106,9 +106,10 @@ steps:
           # otherwise we are on a feature branch, and we will build against develop
           git clone --single-branch --branch develop https://github.com/enigmampc/docker-environment.git
         fi
-      - cd docker-environment && cp .env.template .env
+      - cd docker-environment
+      - cp .env.template .env
       - sed -i "s/COMPOSE_PROJECT_NAME=.*/COMPOSE_PROJECT_NAME=enigma_core_${DRONE_BUILD_NUMBER}/" .env
-      - sed -i "s/DOCKER_TAG=latest/DOCKER_TAG=${DOCKER_TAG}/" .env;
+      - sed -i "s/DOCKER_TAG=latest/DOCKER_TAG=${DOCKER_TAG}/" .env
       - |
         /bin/bash -c '
         declare -a PROJECTS=(contract client)
@@ -144,9 +145,9 @@ steps:
       - make build-km DOCKER_TAG=$DOCKER_TAG
       - make build-worker DOCKER_TAG=$DOCKER_TAG
       - export NODES=3
-      - SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml up --scale worker=$NODES --exit-code-from client & sleep 240 && docker-compose exec -T client make test && export RESULT=$? || export RESULT=$?
-      - docker-compose -f docker-compose.yml -f docker-compose.hw.yml down -v --rmi all || true
-      - if [ $RESULT -ne 0 ]; then exit 1; fi
+      - SGX_MODE=HW docker-compose -f docker-compose.yml -f docker-compose.hw.yml up --scale worker=$NODES &
+      - sleep 240
+      - docker-compose exec -T client make test
 
   - name: deploy
     image: enigmampc/docker-client
@@ -184,6 +185,24 @@ steps:
       - docker push enigmampc/core-artifact-hw:$DOCKER_TAG
       - docker push enigmampc/worker_hw:$DOCKER_TAG
       - docker push enigmampc/key_management_hw:$DOCKER_TAG
+
+  - name: cleanup
+    image: enigmampc/docker-client
+    privileged: true
+    volumes:
+      - name: sock
+        path: /var/run/docker.sock
+    depends_on:
+      - deploy
+    when:
+      status:
+        - success
+        - failure
+    commands:
+      - cd docker-environment
+      - export DOCKER_TAG=core_${DRONE_BUILD_NUMBER}
+      - docker-compose -f docker-compose.yml -f docker-compose.hw.yml down -v --rmi all --remove-orphans
+      - docker rmi -f enigmampc/core-artifact-hw:$DOCKER_TAG
 
 volumes:
   - name: isgx
