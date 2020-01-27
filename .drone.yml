@@ -204,6 +204,7 @@ steps:
       - docker-compose -f docker-compose.yml -f docker-compose.hw.yml down -v --rmi all --remove-orphans
       - docker rmi -f enigmampc/core-artifact-hw:$DOCKER_TAG
 
+type: docker
 volumes:
   - name: isgx
     host:
