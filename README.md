@@ -41,7 +41,7 @@ Step 3/7 : WORKDIR /root
 Step 4/7 : RUN rm -rf /root/sgx
  ---> Using cache
  ---> da313d0a4471
-Step 5/7 : RUN git clone https://github.com/baidu/rust-sgx-sdk.git sgx -b v1.0.0
+Step 5/7 : RUN git clone https://github.com/apache/teaclave-sgx-sdk.git sgx -b v1.0.0
  ---> Using cache
  ---> 704631bc2d68
 Step 6/7 : RUN apt-get install -y libzmq3-dev

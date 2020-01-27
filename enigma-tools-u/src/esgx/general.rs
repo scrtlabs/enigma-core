@@ -13,7 +13,7 @@ pub fn storage_dir<P: AsRef<Path>>(dir_name: P) -> Result<PathBuf, Error> {
 }
 
 pub fn init_enclave(enclave_location: &str)
-    -> SgxResult<(SgxEnclave)> {
+    -> SgxResult<SgxEnclave> {
     let mut launch_token: sgx_launch_token_t = [0; 1024];
     let mut launch_token_updated: i32 = 0;
 

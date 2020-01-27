@@ -25,17 +25,17 @@ etcommon-hexutil = { version = "0.2", default-features = false }
 etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
 rustc-hex = { version = "2.0", default-features = false }
 
-pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", rev = "0.5.0-sgx-1.0.9", default-features = false }
+pwasm-utils = { git = "https://github.com/enigmampc/wasm-utils.git", rev = "0.5.0-sgx-1.1.0", default-features = false }
 parity-wasm = { git = "https://github.com/enigmampc/parity-wasm.git", branch = "enigma", default-features = false }
-ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "8.0.1-sgx-1.0.9", default-features = false}
-error-chain = {git = "https://github.com/enigmampc/error-chain.git", rev = "0.12.0-sgx-1.0.9",  default-features = false }
+ethabi = { git = "https://github.com/enigmampc/ethabi.git", rev = "8.0.1-sgx-1.1.0", default-features = false}
+error-chain = {git = "https://github.com/enigmampc/error-chain.git", rev = "0.12.0-sgx-1.1.0",  default-features = false }
 sputnikvm-network-classic = { git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-next", default-features = false }
 sputnikvm = { git = "https://github.com/enigmampc/sputnikvm.git", rev = "enigma-next", default-features = false }
 
-serde_json = { git = "https://github.com/enigmampc/serde-json-sgx.git", rev = "1.0.39-sgx-1.0.9" }
-wasmi = { git = "https://github.com/enigmampc/wasmi", rev = "0.4.2-sgx-1.0.9" }
+serde_json = { git = "https://github.com/enigmampc/serde-json-sgx.git", rev = "1.0.40-sgx-1.1.0" }
+wasmi = { git = "https://github.com/enigmampc/wasmi", rev = "0.4.5-sgx-1.1.0" }
 
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
-sgx_tstd = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
-sgx_trts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
-sgx_tunittest = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.0" }
+sgx_tstd = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.0" }
+sgx_trts = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.0" }
+sgx_tunittest = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.0" }

@@ -187,7 +187,7 @@ impl UserMessage {
     pub fn into_message(self) -> Result<Vec<u8>, ToolsError> {
         let mut buf = Vec::new();
         let val = serde_json::to_value(self).map_err(|_| MessagingError { err: "Couldn't convert UserMesssage to Value" })?;
-        val.serialize(&mut Serializer::new(&mut buf)).map_err(|_| MessagingError { err: "Couldn't serialize UserMesssage" })?;;
+        val.serialize(&mut Serializer::new(&mut buf)).map_err(|_| MessagingError { err: "Couldn't serialize UserMesssage" })?;
         Ok(buf)
     }
 
@@ -195,7 +195,7 @@ impl UserMessage {
     pub fn from_message(msg: &[u8]) -> Result<Self, ToolsError> {
         let mut des = Deserializer::new(&msg[..]);
         let res: serde_json::Value = Deserialize::deserialize(&mut des)
-            .map_err(|_| MessagingError { err: "Couldn't Deserialize UserMesssage"})?;;
+            .map_err(|_| MessagingError { err: "Couldn't Deserialize UserMesssage"})?;
         let msg: Self = serde_json::from_value(res)
             .map_err(|_| MessagingError { err: "Couldn't convert Value to UserMesssage"})?;
         Ok(msg)

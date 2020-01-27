@@ -11,7 +11,7 @@ categories = ["no-std"]
 [dependencies]
 rustc-hex = { version = "2.0.1", default-features = false }
 arrayvec = { version = "0.4.10", default-features = false }
-serde_sgx = { package = "serde", git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "sgx_1.0.9", optional = true }
+serde_sgx = { package = "serde", git = "https://github.com/mesalock-linux/serde-sgx.git", rev = "sgx_1.1.0", optional = true }
 serde_std = { package = "serde", version = "1.0", default-features = false, optional = true }
 
 [build-dependencies]
