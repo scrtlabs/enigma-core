@@ -487,8 +487,8 @@ dependencies = [
 
 [[package]]
 name = "itoa"
-version = "0.4.4"
-source = "git+https://github.com/mesalock-linux/itoa-sgx.git?rev=sgx_1.1.0#e35b45000adf57e592ccd66273b607fcec998258"
+version = "0.4.5"
+source = "git+https://github.com/mesalock-linux/itoa-sgx.git?rev=sgx_1.1.0#48cac59ceea81c9185d9d91a0d85eeecc0dd4e13"
 dependencies = [
  "sgx_tstd 1.1.0 (git+https://github.com/apache/teaclave-sgx-sdk.git?rev=v1.1.0)",
 ]
@@ -829,7 +829,7 @@ name = "serde_json"
 version = "1.0.40"
 source = "git+https://github.com/enigmampc/serde-json-sgx.git?rev=1.0.40-sgx-1.1.0#b2a6ef8d2300113402aa260fa16c5490538ee011"
 dependencies = [
- "itoa 0.4.4 (git+https://github.com/mesalock-linux/itoa-sgx.git?rev=sgx_1.1.0)",
+ "itoa 0.4.5 (git+https://github.com/mesalock-linux/itoa-sgx.git?rev=sgx_1.1.0)",
  "ryu 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.104 (git+https://github.com/mesalock-linux/serde-sgx.git?rev=sgx_1.1.0)",
  "sgx_tstd 1.1.0 (git+https://github.com/apache/teaclave-sgx-sdk.git?rev=v1.1.0)",
@@ -1204,7 +1204,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum hmac-drbg 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "4fe727d41d2eec0a6574d887914347e5ff96a3b87177817e2a9820c5c87fecc2"
 "checksum ident_case 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b9e0384b61958566e926dc50660321d12159025e767c18e043daf26b70104c39"
 "checksum impl-rlp 0.2.0 (git+https://github.com/enigmampc/parity-common.git?rev=0.7.0-sgx-1.1.0)" = "<none>"
-"checksum itoa 0.4.4 (git+https://github.com/mesalock-linux/itoa-sgx.git?rev=sgx_1.1.0)" = "<none>"
+"checksum itoa 0.4.5 (git+https://github.com/mesalock-linux/itoa-sgx.git?rev=sgx_1.1.0)" = "<none>"
 "checksum itoa 0.4.5 (registry+https://github.com/rust-lang/crates.io-index)" = "b8b7a7c0c47db5545ed3fef7468ee7bb5b74691498139e4b3f6a20685dc6dd8e"
 "checksum json-patch 0.2.5 (git+https://github.com/enigmampc/json-patch.git?rev=0.2.5-sgx-1.1.0)" = "<none>"
 "checksum lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
