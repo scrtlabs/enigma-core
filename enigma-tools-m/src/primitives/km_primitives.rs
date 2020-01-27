@@ -90,6 +90,9 @@ impl PrincipalMessage {
         let res: serde_json::Value =
             Deserialize::deserialize(&mut des).map_err(|_| MessagingError { err: "can't deserialize the message" })?;
         let msg: Self = serde_json::from_value(res).map_err(|_| MessagingError { err: "can't deserialize the message" })?;
+        if msg.pubkey.len() != 64 {
+            return Err(MessagingError { err: "the pub key is not in the right length" })
+        }
         Ok(msg)
     }
 
@@ -198,6 +201,9 @@ impl UserMessage {
             .map_err(|_| MessagingError { err: "Couldn't Deserialize UserMesssage"})?;;
         let msg: Self = serde_json::from_value(res)
             .map_err(|_| MessagingError { err: "Couldn't convert Value to UserMesssage"})?;
+        if msg.pubkey.len() != 64 {
+           return Err(MessagingError { err: "the pub key is not in the right length" })
+        }
         Ok(msg)
     }
 
