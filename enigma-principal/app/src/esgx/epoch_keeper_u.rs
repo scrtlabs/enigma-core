@@ -76,8 +76,7 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
 
 #[cfg(test)]
 pub mod tests {
-    use rustc_hex::{FromHex, ToHex};
-    use web3::types::{Address, H160, H256};
+    use web3::types::H160;
 
     use esgx::general::init_enclave_wrapper;
 
@@ -116,7 +115,7 @@ pub mod tests {
         let stakes: Vec<u64> = vec![90000000000];
         let km_block_number = 1;
         let worker_params = get_worker_params(km_block_number, workers, stakes);
-        for i in 0..5 {
+        for _ in 0..5 {
             let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
             assert!(epoch_state.confirmed_state.is_none());
         }

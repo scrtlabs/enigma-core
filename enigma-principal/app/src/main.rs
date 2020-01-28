@@ -75,19 +75,11 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use enigma_tools_u::common_u::logging;
     use esgx::general::init_enclave_wrapper;
-    use log::LevelFilter;
     use sgx_types::{sgx_enclave_id_t, sgx_status_t};
-    use std::path::Path;
 
     extern "C" {
         fn ecall_run_tests(eid: sgx_enclave_id_t) -> sgx_status_t;
-    }
-
-    pub fn log_to_stdout(level: Option<LevelFilter>) {
-        let level = level.unwrap_or_else(|| LevelFilter::max());
-        logging::init_logger(level, ".", "Tests".to_string()).unwrap();
     }
 
     #[test]

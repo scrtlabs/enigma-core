@@ -47,14 +47,6 @@ pub fn forward_blocks(w3: &Arc<Web3<Http>>, interval: u64, deployer: Address) ->
 #[cfg(test)]
 mod test {
     use esgx::general::init_enclave_wrapper;
-    use std::env;
-
-    /// This function is important to enable testing both on the CI server and local.
-    /// On the CI Side:
-    /// The ethereum network url is being set into env variable 'NODE_URL' and taken from there.
-    /// Anyone can modify it by simply doing $export NODE_URL=<some ethereum node url> and then running the tests.
-    /// The default is set to ganache cli "http://localhost:8545"
-    fn get_node_url() -> String { env::var("NODE_URL").unwrap_or("http://localhost:8545".to_string()) }
 
     #[test]
     fn test_deploy_enigma_contract_environment() {
