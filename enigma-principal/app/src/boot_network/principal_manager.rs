@@ -28,7 +28,7 @@ use std::path::PathBuf;
 use secp256k1::key::SecretKey;
 use secp256k1::Message;
 use secp256k1::Secp256k1;
-use common_u::custom_errors::ConfigError;
+use common_u::custom_errors::{ConfigError, ReportManagerErr};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
@@ -138,26 +138,26 @@ impl ReportManager {
         ReportManager { config, as_service, eid }
     }
 
-    pub fn get_signing_address(&self) -> Result<String, Error> {
-        let _signing_address = esgx::equote::get_register_signing_address(self.eid)?;
+    pub fn get_signing_address(&self) -> Result<String, ReportManagerErr> {
+        let _signing_address = esgx::equote::get_register_signing_address(self.eid).or(Err(ReportManagerErr::GetRegisterAddrErr))?;
         let signing_address = _signing_address.to_vec().to_hex();
         Ok(signing_address)
     }
 
-    pub fn get_ethereum_address(&self) -> Result<String, Error> {
+    pub fn get_ethereum_address(&self) -> Result<String, ReportManagerErr> {
         if self.config.with_private_key {
             return Ok(self.config.account_address.clone());
         }
-        let _signing_address = esgx::equote::get_ethereum_address(self.eid)?;
+        let _signing_address = esgx::equote::get_ethereum_address(self.eid).or(Err(ReportManagerErr::GetEtherAddrErr))?;
         let signing_address = _signing_address.to_vec().to_hex();
         Ok(signing_address)
     }
 
     #[logfn(DEBUG)]
-    pub fn get_registration_params(&self) -> Result<RegistrationParams, Error> {
+    pub fn get_registration_params(&self) -> Result<RegistrationParams, ReportManagerErr> {
         let signing_address = self.get_signing_address()?;
         let mode = option_env!("SGX_MODE").unwrap_or_default();
-        let enc_quote = retry_quote(self.eid, &self.config.spid, 18)?;
+        let enc_quote = retry_quote(self.eid, &self.config.spid, 18).or(Err(ReportManagerErr::QuoteErr))?;
 
         let report: String;
         let signature: String;
@@ -169,7 +169,7 @@ impl ReportManager {
         } else {
             // Hardware Mode
             println!("Hardware mode");
-            let response = self.as_service.get_report(enc_quote)?;
+            let response = self.as_service.get_report(enc_quote).or(Err(ReportManagerErr::QuoteErr))?;
             report = response.result.report_string;
             signature = response.result.signature;
         }

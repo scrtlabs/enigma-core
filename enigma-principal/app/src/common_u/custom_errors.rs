@@ -9,3 +9,13 @@ pub enum ConfigError {
     #[error("Cannot parse data")]
     Parsing,
 }
+
+#[derive(Error, Debug)]
+pub enum ReportManagerErr {
+    #[error("An error occurred while trying to get the registration signing address from inside the enclave")]
+    GetRegisterAddrErr,
+    #[error("An error occurred while trying to get the Ethereum address from inside the enclave")]
+    GetEtherAddrErr,
+    #[error("Error while trying to produce quote")]
+    QuoteErr,
+}
