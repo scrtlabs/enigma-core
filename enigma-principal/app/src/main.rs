@@ -9,6 +9,7 @@ extern crate enigma_tools_m;
 extern crate enigma_tools_u;
 extern crate enigma_types;
 extern crate ethabi;
+extern crate thiserror;
 #[macro_use]
 extern crate failure;
 extern crate jsonrpc_http_server;

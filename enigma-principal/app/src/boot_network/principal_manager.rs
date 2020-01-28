@@ -28,6 +28,7 @@ use std::path::PathBuf;
 use secp256k1::key::SecretKey;
 use secp256k1::Message;
 use secp256k1::Secp256k1;
+use common_u::custom_errors::ConfigError;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PrincipalConfig {
@@ -181,7 +182,7 @@ impl ReportManager {
 impl PrincipalConfig {
     // load json config into the struct
     #[logfn(DEBUG)]
-    pub fn load_config(config_path: &str) -> Result<PrincipalConfig, Error> {
+    pub fn load_config(config_path: &str) -> Result<PrincipalConfig, ConfigError> {
         info!("loading Principal config");
         // All configurations from env should be with the same names of the
         // PrincipalConfig struct fields in uppercase letters
@@ -189,12 +190,12 @@ impl PrincipalConfig {
             Ok(config) => Ok(config),
             Err(_) => {
                 info!("trying to load from path: {:?}", config_path);
-                let mut f = File::open(config_path)?;
+                let mut f = File::open(config_path).or(Err(ConfigError::FileDoesntExist))?;
 
                 let mut contents = String::new();
-                f.read_to_string(&mut contents)?;
+                f.read_to_string(&mut contents).or(Err(ConfigError::NotAString))?;
 
-                Ok(serde_json::from_str(&contents)?)
+                serde_json::from_str(&contents).or(Err(ConfigError::Parsing))
             }
         }
     }
