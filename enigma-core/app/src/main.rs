@@ -20,12 +20,13 @@ use db::DB;
 use cli::Opt;
 use structopt::StructOpt;
 use futures::Future;
+use failure::Fallible;
 
 
-fn main() {
+fn main() -> Fallible<()> {
     let opt: Opt = Opt::from_args();
 
-    let log_level = log::LevelFilter::from_str(&opt.log_level).unwrap();
+    let log_level = log::LevelFilter::from_str(&opt.log_level)?;
 
     let datadir = opt.data_dir.clone().unwrap_or_else(|| dirs::home_dir().unwrap().join(".enigma"));
     let hostname = os::hostname();
@@ -34,7 +35,7 @@ fn main() {
     debug!("CLI params: {:?}", opt);
 
 
-    let enclave = esgx::general::init_enclave_wrapper().map_err(|e| {error!("Init Enclave Failed {:?}", e);}).unwrap();
+    let enclave = esgx::general::init_enclave_wrapper().map_err(|e| {error!("Init Enclave Failed {:?}", e);})?;
     let eid = enclave.geteid();
     info!("Init Enclave Successful. Enclave id {}", eid);
 
@@ -44,5 +45,7 @@ fn main() {
     server
         .run(move |multi| ipc_listener::handle_message(&mut db, multi, &opt.spid, eid, opt.retries))
         .wait()
-        .unwrap();
+        ?;
+
+    Ok(())
 }
