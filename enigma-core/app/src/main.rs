@@ -2,6 +2,7 @@ extern crate enigma_core_app;
 #[macro_use]
 extern crate log;
 extern crate log_derive;
+extern crate failure;
 
 use log::{debug, info};
 
