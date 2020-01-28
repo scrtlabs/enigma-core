@@ -37,7 +37,7 @@ pub fn create_signer(eid: sgx_enclave_id_t, with_private_key: bool, private_key:
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     let opt = cli::options::Opt::from_args();
     let mut principal_config = PrincipalConfig::load_config(opt.principal_config.as_str())?;
-    let report_manager = ReportManager::new(principal_config.clone(), eid)?;
+    let report_manager = ReportManager::new(principal_config.clone(), eid);
     let signing_address = report_manager.get_signing_address()?;
     let ethereum_address = report_manager.get_ethereum_address()?;
     let mut path = storage_dir(ENCLAVE_DIR)?;
@@ -82,7 +82,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
 
         let gas_limit = 5_999_999;
 
-        let principal: PrincipalManager = PrincipalManager::new(principal_config.clone(), enigma_contract, report_manager)?;
+        let principal: PrincipalManager = PrincipalManager::new( enigma_contract, report_manager);
         println!("Connected to the Enigma contract: {:?} with account: {:?}", &contract_address, principal.get_account_address());
 
         // step 2 optional - run miner to simulate blocks
