@@ -19,12 +19,15 @@ use log4rs::filter::threshold::ThresholdFilter;
 use log4rs::Handle;
 use log4rs::append::rolling_file::policy::compound::{trigger::size::SizeTrigger, roll::fixed_window::FixedWindowRoller, CompoundPolicy};
 
+const MEGABYTE: u64 = 1048576;
+const ARCHIVED_LOGS_NUM: u32 = 3;
+const WINDOW_START: u32 = 1;
+
 pub fn init_logger<P: AsRef<Path>>(level: log::LevelFilter, data_dir: P, name: String) -> Result<Handle, Error> {
 
     // Make sure the directory exists.
     fs::create_dir_all(&data_dir)?;
     let mut file_path = data_dir.as_ref().to_path_buf();
-//    file_path.push("debug.{}.log");
 
     let mut foo = "[{d(%Y-%m-%d %H:%M:%S)}] [".to_string();
     foo.push_str(&name);
@@ -34,18 +37,23 @@ pub fn init_logger<P: AsRef<Path>>(level: log::LevelFilter, data_dir: P, name: S
         .encoder(Box::new(PatternEncoder::new(&foo)))
         .target(Target::Stdout).build();
 
-    let window_size = 3;
+    // define how many archived logs there will be aside from the log that will be written into.
+    // see docs here:
+    // https://docs.rs/log4rs/0.9.0/log4rs/append/rolling_file/policy/compound/roll/fixed_window/struct.FixedWindowRoller.html
+    // to understand how it works.
+    // see this issue as well:
+    // https://github.com/estk/log4rs/issues/120
+    let window_size = ARCHIVED_LOGS_NUM;
     let pattern = file_path.clone().into_os_string().into_string().unwrap() + "/debug.{}.log";
     let fixed_window_roller =
-        FixedWindowRoller::builder().build(&pattern ,window_size).unwrap();
+        FixedWindowRoller::builder().base(WINDOW_START).build(&pattern ,window_size).unwrap();
 
-    let size_limit = 5 * 1024; // 5KB as max log file size to roll
+    let size_limit = 300 * MEGABYTE; // 300MB as max log file size to roll
     let size_trigger = SizeTrigger::new(size_limit);
 
     let compound_policy = CompoundPolicy::new(Box::new(size_trigger),Box::new(fixed_window_roller));
 
-    file_path.push("debug.log");
-    // Logging to log file.
+    file_path.push("debug.0.log");
     let logfile = RollingFileAppender::builder()
         // Pattern: https://docs.rs/log4rs/*/log4rs/encode/pattern/index.html
         .encoder(Box::new(PatternEncoder::new("[{d(%Y-%m-%d %H:%M:%S)}] [{t}] {l:5.15} {M} -- {m}{n}")))
@@ -85,12 +93,14 @@ mod test {
     use super::*;
     use log::LevelFilter;
 
+    // a test to check the logfiles and how they are archived.
+    // in order to check it properly, change the FixedWindowRoller trigger size to 5KB or something in that area.
     #[test]
+    #[ignore]
     fn test_the_rolling_logger() {
         let log_level = LevelFilter::Debug;
         let datadir = dirs::home_dir().unwrap().join(".enigma");
-
-        init_logger(log_level, datadir, "what".to_string());
+        init_logger(log_level, datadir, "what".to_string()).unwrap();
         let mut n = 1;
         while n < 250 {
             info!("{:?}_83a464617461a752657175657374a269649cccd763674174cc9b3f300dccd2ccb0cc8ba67075626b6579dc0040ccc90b2205ccf9cc9358661320ccffccb763ccb57614ccf8ccaa1fccb86d6a087869ccd81acce5ccf16fcc9206cc98344136cca4ccefccb105ccbbccca1c5057ccba25067eccc101cc82ccee21445cccf91e79ccb176447239", n);
