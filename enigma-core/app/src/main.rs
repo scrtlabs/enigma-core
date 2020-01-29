@@ -2,6 +2,7 @@ extern crate enigma_core_app;
 #[macro_use]
 extern crate log;
 extern crate log_derive;
+#[macro_use]
 extern crate failure;
 
 use log::{debug, info};
@@ -21,7 +22,7 @@ use db::DB;
 use cli::Opt;
 use structopt::StructOpt;
 use futures::Future;
-use failure::Fallible;
+use failure::{Fallible, format_err};
 
 
 fn main() -> Fallible<()> {
@@ -35,8 +36,10 @@ fn main() -> Fallible<()> {
 
     debug!("CLI params: {:?}", opt);
 
-
-    let enclave = esgx::general::init_enclave_wrapper().map_err(|e| {error!("Init Enclave Failed {:?}", e);})?;
+    let enclave = esgx::general::init_enclave_wrapper().map_err(|e| {
+        error!("Init Enclave Failed sgx_status_t = {:?}", e);
+        failure::format_err!("Init Enclave Failed sgx_status_t = {}", e)
+    })?;
     let eid = enclave.geteid();
     info!("Init Enclave Successful. Enclave id {}", eid);
 
