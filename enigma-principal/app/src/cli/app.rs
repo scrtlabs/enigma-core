@@ -85,12 +85,12 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
         let principal: PrincipalManager = PrincipalManager::new( enigma_contract, report_manager);
         println!("Connected to the Enigma contract: {:?} with account: {:?}", &contract_address, principal.get_account_address());
 
-        // step 2 optional - run miner to simulate blocks
-        let join_handle = if opt.mine > 0 {
-            Some(principal_manager::run_miner(principal.get_account_address(), principal.get_web3(), opt.mine as u64))
-        } else {
-            None
-        };
+//        // step 2 optional - run miner to simulate blocks
+//        let join_handle = if opt.mine > 0 {
+//            Some(principal_manager::run_miner(principal.get_account_address(), principal.get_web3(), opt.mine as u64))
+//        } else {
+//            None
+//        };
 
         let eid_safe = Arc::new(eid);
         //TODO: Ugly, refactor to instantiate only once, consider passing to the run method
@@ -119,9 +119,9 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
         } else {
             principal.run(path, false, gas_limit).unwrap();
         }
-        if let Some(t) = join_handle {
-            t.join().unwrap();
-        }
+//        if let Some(t) = join_handle {
+//            t.join().unwrap();
+//        }
     }
     Ok(())
 }

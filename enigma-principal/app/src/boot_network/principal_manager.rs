@@ -1,4 +1,4 @@
-use std::{fs::File, io::prelude::*, str, sync::Arc, thread};
+use std::{fs::File, io::prelude::*, str, sync::Arc};
 
 use failure::Error;
 use rustc_hex::ToHex;
@@ -12,6 +12,7 @@ use web3::{
     Web3,
 };
 use envy;
+use crossbeam_utils::thread;
 
 use enigma_crypto::EcdsaSign;
 use boot_network::{deploy_scripts, keys_provider_http::PrincipalHttpServer, principal_utils::Principal};
@@ -205,8 +206,7 @@ impl PrincipalManager {
 // General interface of a Sampler == The entity that manages the principal node logic.
 pub trait Sampler {
     /// load with config from file
-    fn new(contract: Arc<EnigmaContract>, report_manager: ReportManager) -> Self
-        where Self: Sized;
+    fn new(contract: Arc<EnigmaContract>, report_manager: ReportManager) -> Self;
 
     fn get_signing_address(&self) -> Result<H160, Error>;
 
@@ -318,31 +318,27 @@ impl Sampler for PrincipalManager {
         // Start the JSON-RPC Server
         let port = self.report_manager.config.http_port;
         let server_ep = Arc::clone(&epoch_provider);
-        thread::spawn(move || {
-            let server = PrincipalHttpServer::new(server_ep, port);
-            server.start();
+        thread::scope(|s| {
+            s.spawn(|_| {
+                let server = PrincipalHttpServer::new(server_ep, port);
+                server.start();
+            });
+            s.spawn(|_|{
+                // watch blocks
+                let polling_interval = self.report_manager.config.polling_interval;
+                let epoch_size = self.report_manager.config.epoch_size;
+                self.contract.watch_blocks(
+                    epoch_size,
+                    polling_interval,
+                    epoch_provider,
+                    gas_limit,
+                    self.report_manager.config.confirmations as usize,
+                    self.report_manager.config.max_epochs,
+                );
+            });
         });
-
-        // watch blocks
-        let polling_interval = self.report_manager.config.polling_interval;
-        let epoch_size = self.report_manager.config.epoch_size;
-        self.contract.watch_blocks(
-            epoch_size,
-            polling_interval,
-            epoch_provider,
-            gas_limit,
-            self.report_manager.config.confirmations as usize,
-            self.report_manager.config.max_epochs,
-        );
         Ok(())
     }
-}
-
-/// Helper method to start 'miner' that simulates blocks.
-pub fn run_miner(account: Address, w3: Arc<Web3<Http>>, interval: u64) -> thread::JoinHandle<()> {
-    thread::spawn(move || {
-        deploy_scripts::forward_blocks(&Arc::clone(&w3), interval, account).unwrap();
-    })
 }
 
 //////////////////////// TESTS  /////////////////////////////////////////
@@ -350,12 +346,13 @@ pub fn run_miner(account: Address, w3: Arc<Web3<Http>>, interval: u64) -> thread
 #[cfg(test)]
 mod test {
     extern crate tempfile;
-    use std::{env, path::Path, sync::Arc, thread, time};
+    use std::{env, path::Path, sync::Arc, time};
 
     use web3::{futures::{Future, stream::Stream}, types::FilterBuilder, };
-
+    use crossbeam_utils::thread;
     use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
     use epoch_u::epoch_types::{WorkersParameterizedEvent, WORKER_PARAMETERIZED_EVENT};
+    use boot_network::deploy_scripts;
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
@@ -424,35 +421,39 @@ mod test {
         let principal = init_no_deploy(eid).unwrap();
         let account = principal.get_account_address();
 
-        // run simulated miner
-        run_miner(account, Arc::clone(&principal.contract.web3), 1);
-
         let contract = Arc::clone(&principal.contract);
-        let child = thread::spawn(move || {
-            let event = WorkersParameterizedEvent::new();
-            let event_sig = event.0.signature();
-            let filter = FilterBuilder::default()
-                .address(vec![contract.address()])
-                .topics(Some(vec![event_sig.into()]), None, None, None)
-                .build();
+        thread::scope(|s| {
+            // run simulated miner
+            s.spawn(|_| {
+                let interval = 1;
+                deploy_scripts::forward_blocks(&Arc::clone(&principal.contract.web3), interval, account).unwrap();
+            });
+            s.spawn(|_| {
+                let event = WorkersParameterizedEvent::new();
+                let event_sig = event.0.signature();
+                let filter = FilterBuilder::default()
+                    .address(vec![contract.address()])
+                    .topics(Some(vec![event_sig.into()]), None, None, None)
+                    .build();
 
-            let event_future = contract
-                .web3
-                .eth_filter()
-                .create_logs_filter(filter)
-                .then(|filter| {
-                    filter.unwrap().stream(time::Duration::from_secs(1)).for_each(|log| {
-                        println!("Got {} log: {:?}", WORKER_PARAMETERIZED_EVENT, log);
-                        Ok(())
+                let event_future = contract
+                    .web3
+                    .eth_filter()
+                    .create_logs_filter(filter)
+                    .then(|filter| {
+                        filter.unwrap().stream(time::Duration::from_secs(1)).for_each(|log| {
+                            println!("Got {} log: {:?}", WORKER_PARAMETERIZED_EVENT, log);
+                            Ok(())
+                        })
                     })
-                })
-                .map_err(|err| eprintln!("Unable to process WorkersParameterized log: {:?}", err));
-            event_future.wait().unwrap();
+                    .map_err(|err| eprintln!("Unable to process WorkersParameterized log: {:?}", err));
+                event_future.wait().unwrap();
+            });
+            s.spawn(|_| {
+                // run principal
+                principal.run(tempdir.into_path(), true, GAS_LIMIT).unwrap();
+            });
         });
-
-        // run principal
-        principal.run(tempdir.into_path(), true, GAS_LIMIT).unwrap();
-        child.join().unwrap();
     }
 
     #[test]

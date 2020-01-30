@@ -472,6 +472,7 @@ name = "enigma-principal-app"
 version = "0.3.0"
 dependencies = [
  "colour 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "crossbeam-utils 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dirs 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "enigma-crypto 0.3.0",
  "enigma-tools-m 0.3.0",

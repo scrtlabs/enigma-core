@@ -33,7 +33,7 @@ extern crate web3;
 extern crate rmp_serde;
 extern crate envy;
 extern crate itertools;
-
+extern crate crossbeam_utils;
 extern crate secp256k1;
 
 
