@@ -13,15 +13,6 @@ extern "C" {
 extern "C" {
     fn ecall_sign_ethereum(eid: sgx_enclave_id_t, data: &[u8; 32], sig: &mut [u8; 65]) -> sgx_status_t;
 }
-// this struct is returned during the process registration back to the surface.
-// quote: the base64 encoded quote
-// address : the clear text public key for ecdsa signing and registration
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetRegisterResult {
-    pub errored: bool,
-    pub quote: String,
-    pub address: String,
-}
 
 // wrapper function for getting the enclave public sign key (the one attached with produce_quote())
 #[logfn(TRACE)]
