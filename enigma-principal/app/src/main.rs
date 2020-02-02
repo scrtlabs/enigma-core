@@ -17,7 +17,8 @@ extern crate jsonrpc_http_server;
 extern crate log;
 #[macro_use]
 extern crate log_derive;
-
+#[macro_use]
+extern crate lazy_static;
 extern crate rlp;
 extern crate rustc_hex;
 extern crate serde;

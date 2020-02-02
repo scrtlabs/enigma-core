@@ -20,6 +20,9 @@ use boot_network::principal_manager::KMConfig;
 use common_u::custom_errors::ReportManagerErr;
 use controller::verifier::EpochVerifier;
 
+lazy_static!{ pub static ref GAS_LIMIT: U256 = 5_999_999.into(); }
+
+
 pub struct KMController {
     pub contract: EnigmaContract,
     pub epoch_verifier: EpochVerifier,
@@ -94,7 +97,7 @@ impl KMController {
 
 
     #[logfn(DEBUG)]
-    fn register<G: Into<U256>>(&self, gas_limit: G) -> Result<H256, Error> {
+    fn register(&self) -> Result<H256, Error> {
         let signing_address = self.get_signing_address()?;
         let mode = option_env!("SGX_MODE").unwrap_or_default();
         let mut enc_quote = retry_quote(self.eid, &self.config.spid, 18).or(Err(ReportManagerErr::QuoteErr))?;
@@ -118,7 +121,7 @@ impl KMController {
             signing_address,
             enc_quote,
             signature,
-            gas_limit,
+            *GAS_LIMIT,
             self.config.confirmations as usize,
         )?;
         Ok(receipt.transaction_hash)
@@ -126,19 +129,15 @@ impl KMController {
 
     /// Verifies whether the worker is registered in the Enigma contract.
     /// If not, create a `register` transaction.
-    ///
-    /// # Arguments
-    ///
-    /// * `gas_limit` - The gas limit of the `register` transaction
     #[logfn(DEBUG)]
-    pub fn verify_identity_or_register<G: Into<U256>>(&self, gas_limit: G) -> Result<Option<H256>, Error> {
+    pub fn verify_identity_or_register(&self) -> Result<Option<H256>, Error> {
         let signing_address = self.get_signing_address()?;
         let registered_signing_address = self.contract.get_signing_address()?;
         if signing_address == registered_signing_address {
             debug!("Already registered with enigma signing address {:?}", registered_signing_address);
             Ok(None)
         } else {
-            let tx = self.register(gas_limit)?;
+            let tx = self.register()?;
             debug!("Registered by transaction {:?}", tx);
             Ok(Some(tx))
         }
@@ -160,31 +159,13 @@ impl KMController {
     /// # Arguments
     ///
     /// * `block_number` - The block number marking the active worker list
-    /// * `gas_limit` - The gas limit of the `setWorkersParams` transaction
     /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
-    pub fn set_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
-        self.set_worker_params_internal(block_number, gas_limit, confirmations, None)
-    }
-
-    /// Similar to `set_worker_params` but using the EpochState in storage
-    ///
-    /// # Arguments
-    ///
-    /// * `block_number` - The block number marking the active worker list
-    /// * `gas_limit` - The gas limit of the `setWorkersParams` transaction
-    /// * `confirmations` - The number of blocks required to confirm the `setWorkersParams` transaction
-    #[logfn(DEBUG)]
-    pub fn confirm_worker_params<G: Into<U256>>(&self, block_number: U256, gas_limit: G, confirmations: usize) -> Result<H256, Error> {
-        if !self.epoch_verifier.is_last_unconfirmed()? {
-            bail!("The last EpochState is already confirmed");
-        }
-        let epoch_state = self.epoch_verifier.last(false)?;
-        info!("Confirming EpochState by verifying with the enclave and calling setWorkerParams: {:?}", epoch_state);
-        self.set_worker_params_internal(block_number, gas_limit, confirmations, Some(epoch_state))
+    pub fn set_worker_params(&self, block_number: U256,  confirmations: usize) -> Result<H256, Error> {
+        self.set_worker_params_internal(block_number, confirmations, None)
     }
 
     #[logfn(DEBUG)]
-    fn set_worker_params_internal<G: Into<U256>>(&self, km_block_number: U256, gas_limit: G, confirmations: usize, epoch_state: Option<SignedEpoch>) -> Result<H256, Error> {
+    fn set_worker_params_internal(&self, km_block_number: U256, confirmations: usize, epoch_state: Option<SignedEpoch>) -> Result<H256, Error> {
         let (workers, stakes) = self.contract.get_active_workers(km_block_number)?;
         let worker_params = InputWorkerParams { km_block_number, workers, stakes };
         let mut epoch_state = set_or_verify_worker_params(self.eid, &worker_params, epoch_state)?;
@@ -193,7 +174,7 @@ impl KMController {
         self.epoch_verifier.append_unconfirmed(epoch_state.clone())?;
 
         debug!("Waiting for setWorkerParams({:?}, {:?}, {:?})", km_block_number, epoch_state.seed, epoch_state.sig);
-        let receipt = self.contract.set_workers_params(km_block_number, epoch_state.seed, epoch_state.sig.clone(), gas_limit, confirmations)?;
+        let receipt = self.contract.set_workers_params(km_block_number, epoch_state.seed, epoch_state.sig.clone(), *GAS_LIMIT, confirmations)?;
         debug!("Got the receipt: {:?}", receipt);
 
         let log = self.parse_worker_parameterized(&receipt)?;
@@ -256,7 +237,7 @@ pub mod test {
     }
    // new(eid: sgx_enclave_id_t, dir_path: PathBuf, contract: EnigmaContract, config: KMConfig)
     pub fn init_no_deploy(eid: u64) -> Result<KMController, Error> {
-        let mut config = get_config()?;
+        let config = get_config()?;
         let ethereum_signer = Box::new(SgxEthereumSigner::new(eid)) as Box<dyn EcdsaSign + Send + Sync>;
         let contract = EnigmaContract::from_deployed(
             &config.enigma_contract_address,
@@ -266,24 +247,21 @@ pub mod test {
             &config.url,
             ethereum_signer,
         )?;
-        let _gas_limit = 5_999_999;
-        config.max_epochs = None;
        let path = tempdir().unwrap().into_path();
-       KMController::new(eid, path, contract,config)
+       KMController::new(eid, path, contract, config)
     }
 
     #[test]
     #[ignore]
     fn test_set_worker_params() {
-        let gas_limit: U256 = 5999999.into();
         let enclave = init_enclave_wrapper().unwrap();
         let eid = enclave.geteid();
         let controller = init_no_deploy(eid).unwrap();
-        controller.verify_identity_or_register(gas_limit).unwrap();
+        controller.verify_identity_or_register().unwrap();
 
         let block_number = controller.contract.web3.eth().block_number().wait().unwrap();
         controller.epoch_verifier.reset().unwrap();
-        controller.set_worker_params(block_number, gas_limit, 0).unwrap();
+        controller.set_worker_params(block_number,  0).unwrap();
     }
 
     pub const WORKER_SIGN_ADDRESS: [u8; 20] =
@@ -307,7 +285,6 @@ pub mod test {
 //    #[test]
 //    #[ignore]
 //    fn test_full_principal_logic() {
-//        let _gas_limit: U256 = 5999999.into();
 //        let controller = init_no_deploy(eid).unwrap();
 //        let account = controller.get_account_address();
 //
@@ -341,7 +318,7 @@ pub mod test {
 //            });
 //            s.spawn(|_| {
 //                // run principal
-//                controller.run(tempdir.into_path(), true, GAS_LIMIT).unwrap();
+//                controller.run(tempdir.into_path(), true).unwrap();
 //            });
 //        });
 //    }

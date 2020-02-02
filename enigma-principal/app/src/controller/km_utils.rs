@@ -6,27 +6,14 @@ use controller::km_controller::KMController;
 
 // this trait should extend the EnigmaContract into Principal specific functions.
 pub trait Principal {
-    fn watch_blocks<G: Into<U256>>(
-        &self,
-        epoch_size: usize,
-        polling_interval: u64,
-        gas_limit: G,
-        confirmations: usize,
-    );
+    fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, confirmations: usize);
 }
 
 impl Principal for KMController {
     /// Watches the blocks for new epoch using the epoch size and the previous epoch block number.
     /// For each new epoch, set the worker parameters.
     #[logfn(INFO)]
-    fn watch_blocks<G: Into<U256>>(
-        &self,
-        epoch_size: usize,
-        polling_interval: u64,
-        gas_limit: G,
-        confirmations: usize,
-    ) {
-        let gas_limit: U256 = gas_limit.into();
+    fn watch_blocks(&self, epoch_size: usize, polling_interval: u64, confirmations: usize) {
         loop {
             let block_number = match self.contract.web3.eth().block_number().wait() {
                 Ok(block_number) => block_number,
@@ -44,7 +31,7 @@ impl Principal for KMController {
             let prev_block_ref = prev_block.low_u64() as usize;
             if prev_block_ref == 0 || curr_block >= (prev_block_ref + epoch_size) {
                 self
-                    .set_worker_params(block_number, gas_limit, confirmations)
+                    .set_worker_params(block_number, confirmations)
                     .expect("Unable to set worker params. Please recover manually.");
             }
             thread::sleep(time::Duration::from_secs(polling_interval));

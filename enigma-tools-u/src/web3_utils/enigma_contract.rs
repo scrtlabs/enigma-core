@@ -72,18 +72,18 @@ impl EnigmaContract {
     pub fn get_km_account(&self) -> Address {self.account}
 }
 
-pub trait ContractFuncs<G> {
-    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
+pub trait ContractFuncs {
+    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: U256, confirmations: usize) -> Result<TransactionReceipt, Error>;
 
-    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: U256, confirmations: usize) -> Result<TransactionReceipt, Error>;
 }
 
-impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
+impl ContractFuncs for EnigmaContract {
     #[logfn(DEBUG)]
-    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
+    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: U256, confirmations: usize) -> Result<TransactionReceipt, Error> {
         // register
         let mut opts = Options::default();
-        opts.gas = Some(gas.into());
+        opts.gas = Some(gas);
         // call the register function
         let report = report.as_bytes().to_vec();
         let signature = signature.from_hex()?;
@@ -107,9 +107,9 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
     }
 
     #[logfn(DEBUG)]
-    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: U256, confirmations: usize) -> Result<TransactionReceipt, Error> {
         let mut opts: Options = Options::default();
-        opts.gas = Some(gas.into());
+        opts.gas = Some(gas);
         let call = signed_call_with_confirmations(
             &self.web3,
             &self.ethabi_contract,

@@ -20,7 +20,6 @@ use structopt::StructOpt;
 use rustc_hex::{FromHex, ToHex};
 use common_u::custom_errors::ReportManagerErr;
 use crossbeam_utils::thread;
-use web3::types::U256;
 
 pub fn create_signer(eid: sgx_enclave_id_t, with_private_key: bool, private_key: &[u8]) -> Box<dyn EcdsaSign + Send + Sync> {
     if with_private_key {
@@ -86,20 +85,17 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             ethereum_signer,
         )?;
 
-        let gas_limit = 5_999_999;
-
         let controller = KMController::new(eid, path.clone(), enigma_contract, config)?;
         println!("Connected to the Enigma contract: {:?} with account: {:?}", &contract_address, controller.contract.get_km_account());
 
-        run(opt.reset_epoch_state, gas_limit, controller).unwrap();
+        run(opt.reset_epoch_state, controller).unwrap();
     }
     Ok(())
 }
 
 #[logfn(INFO)]
-fn run<G: Into<U256>>(reset_epoch: bool, gas_limit: G, controller: KMController) -> Result<(), Error> {
-    let gas_limit: U256 = gas_limit.into();
-    controller.verify_identity_or_register(gas_limit)?;
+fn run(reset_epoch: bool, controller: KMController) -> Result<(), Error> {
+    controller.verify_identity_or_register()?;
     if reset_epoch {
         controller.epoch_verifier.reset()?;
     }
@@ -117,7 +113,6 @@ fn run<G: Into<U256>>(reset_epoch: bool, gas_limit: G, controller: KMController)
             controller2.watch_blocks(
                 controller2.config.epoch_size,
                 controller2.config.polling_interval,
-                gas_limit,
                  controller2.config.confirmations as usize,
             );
         });
