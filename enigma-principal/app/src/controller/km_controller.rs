@@ -6,7 +6,7 @@ use ethabi::{Log, RawLog};
 use failure::Error;
 use sgx_types::sgx_enclave_id_t;
 use web3::types::{H256, TransactionReceipt, U256, H160};
-use rustc_hex::{ToHex, FromHex};
+use rustc_hex::ToHex;
 
 use common_u::errors::EpochStateTransitionErr;
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
@@ -85,12 +85,12 @@ impl KMController {
         Ok(equote::get_register_signing_address(self.eid)?.into())
     }
 
-    pub fn get_ethereum_address(&self) -> Result<H160, Error> {
-        if self.config.with_private_key {
-            return Ok(H160::from_slice(&self.config.account_address.clone().from_hex()?));
-        }
-        Ok(equote::get_ethereum_address(self.eid)?.into())
-    }
+//    pub fn get_ethereum_address(&self) -> Result<H160, Error> {
+//        if self.config.with_private_key {
+//            return Ok(H160::from_slice(&self.config.account_address.clone().from_hex()?));
+//        }
+//        Ok(equote::get_ethereum_address(self.eid)?.into())
+//    }
 
 
     #[logfn(DEBUG)]
@@ -247,10 +247,6 @@ pub mod test {
     use esgx::general::init_enclave_wrapper;
     use controller::epoch_types::ConfirmedEpochState;
     use super::*;
-
-
-
-    const GAS_LIMIT: usize = 5999999;
 
     #[logfn(DEBUG)]
     pub fn get_config() -> Result<KMConfig, Error> {

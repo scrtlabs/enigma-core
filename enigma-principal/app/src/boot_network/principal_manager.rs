@@ -268,14 +268,7 @@ impl KMConfig {
 #[cfg(test)]
 mod test {
     extern crate tempfile;
-    use std::{env, path::Path, sync::Arc, time};
-    use failure::Error;
-    use web3::{futures::{Future, stream::Stream}, types::FilterBuilder, };
-    use crossbeam_utils::thread;
-    use enigma_tools_u::web3_utils::enigma_contract::EnigmaContract;
-    use controller::epoch_types::{WorkersParameterizedEvent, WORKER_PARAMETERIZED_EVENT};
-    use boot_network::deploy_scripts;
-    use esgx::general::init_enclave_wrapper;
+    use std::env;
 
     use super::*;
 
