@@ -1,7 +1,6 @@
 #![feature(integer_atomics)]
 #![feature(arbitrary_self_types)]
 
-#[macro_use]
 extern crate colour;
 extern crate dirs;
 extern crate enigma_crypto;
@@ -22,7 +21,6 @@ extern crate log_derive;
 extern crate rlp;
 extern crate rustc_hex;
 extern crate serde;
-#[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 extern crate sgx_types;
@@ -50,7 +48,7 @@ use structopt::StructOpt;
 mod boot_network;
 mod cli;
 mod common_u;
-mod epoch_u;
+mod controller;
 mod esgx;
 
 fn main() {

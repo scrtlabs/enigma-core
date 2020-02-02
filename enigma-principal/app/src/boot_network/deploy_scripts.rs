@@ -1,7 +1,7 @@
 use enigma_tools_u::web3_utils::w3utils;
 use failure::Error;
 use rustc_hex::ToHex;
-use std::{str, sync::Arc, thread, time};
+use std::{str, thread, time};
 use web3::{
     contract::{Contract, Options},
     futures::Future,
@@ -27,7 +27,7 @@ fn deploy_dummy_miner(w3: &Web3<Http>, deployer: &str) -> Result<Contract<Http>,
 }
 
 /// TESTING: mimic block creation to test the watch blocks method of the principal node
-pub fn forward_blocks(w3: &Arc<Web3<Http>>, interval: u64, deployer: Address) -> Result<(), Error> {
+pub fn forward_blocks(w3: &Web3<Http>, interval: u64, deployer: Address) -> Result<(), Error> {
     let contract = deploy_dummy_miner(&w3, &deployer.to_fixed_bytes().to_hex())?;
     println!("deployed dummy contract at address = {:?}", contract.address());
     loop {

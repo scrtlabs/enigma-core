@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use enigma_crypto::KeyPair;
 use enigma_types::{ContractAddress, EnclaveReturn};
 use enigma_tools_u::web3_utils::enigma_contract::ContractQueries;
-use epoch_u::{epoch_provider::EpochProvider, epoch_types::EpochState};
+use controller::{km_controller::KMController, epoch_types::SignedEpoch};
 use esgx::keys_keeper_u::get_enc_state_keys;
 use esgx;
 use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
@@ -86,7 +86,7 @@ impl<H: ToHex> From<H> for StringWrapper {
 }
 
 pub struct PrincipalHttpServer {
-    epoch_provider: Arc<EpochProvider>,
+    controller: Arc<KMController>,
     pub port: u16,
 }
 
@@ -99,10 +99,10 @@ impl StateKeyRequest {
 }
 
 impl PrincipalHttpServer {
-    pub fn new(epoch_provider: Arc<EpochProvider>, port: u16) -> PrincipalHttpServer { PrincipalHttpServer { epoch_provider, port } }
+    pub fn new(controller: Arc<KMController>, port: u16) -> PrincipalHttpServer { PrincipalHttpServer { controller, port } }
 
     #[logfn(DEBUG)]
-    fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &EpochState) -> Result<Vec<ContractAddress>, Error> {
+    fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &SignedEpoch) -> Result<Vec<ContractAddress>, Error> {
         let image = msg.to_sign()?;
         let sig = request.get_sig()?;
         let worker = KeyPair::recover(&image, sig)?.address();
@@ -112,10 +112,10 @@ impl PrincipalHttpServer {
     }
 
     #[logfn(DEBUG)]
-    pub fn get_state_keys(epoch_provider: &EpochProvider, request: StateKeyRequest) -> Result<Value, Error> {
+    pub fn get_state_keys(&self, request: StateKeyRequest) -> Result<Value, Error> {
         let epoch_state = match request.block_number.clone() {
-            Some(block_number) => epoch_provider.find_epoch(block_number.try_into()?)?,
-            None => epoch_provider.find_last_epoch()?,
+            Some(block_number) => self.controller.find_epoch(block_number.try_into()?)?,
+            None => self.controller.find_last_epoch()?,
         };
         let addresses = &request.addresses;
         let addrs: Vec<ContractAddress> = {
@@ -128,7 +128,7 @@ impl PrincipalHttpServer {
                 Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?
             }
         };
-        let response = get_enc_state_keys(*epoch_provider.eid, request, epoch_state.nonce, &addrs)?;
+        let response = get_enc_state_keys(self.controller.eid, request, epoch_state.nonce, &addrs)?;
         let response_data = serde_json::to_value(&response)?;
         Ok(response_data)
     }
@@ -171,14 +171,14 @@ impl PrincipalHttpServer {
     /// This function is used to make sure the km is up and running.
     /// it can be requested via the jsonRPC server using the following command:
     /// curl -sb -o /dev/null -X POST -d '{"jsonrpc": "2.0", "id": "1", "method": "getHealthCheck", "params": []}' -H "Content-Type: application/json" 127.0.0.1:3040
-    pub fn health_check(epoch_provider: &EpochProvider) -> Value {
+    pub fn health_check(&self) -> Value {
         // Ethereum
-        let contract_signing_address = match epoch_provider.contract.get_signing_address() {
+        let contract_signing_address = match self.controller.contract.get_signing_address() {
             Ok(addr) => addr,
             Err(_) => return Value::Bool(false),
         };
         // Enclave
-        let enclave_signing_address: H160 = match esgx::equote::get_register_signing_address(*epoch_provider.eid) {
+        let enclave_signing_address: H160 = match esgx::equote::get_register_signing_address(self.controller.eid) {
             Ok(addr) => addr.into(),
             Err(_) => return Value::Bool(false),
         };
@@ -190,18 +190,18 @@ impl PrincipalHttpServer {
     /// Example:
     /// curl -X POST --data '{"jsonrpc": "2.0", "id": "1", "method": "getStateKeys", "params": ["84a46461746181a75265717565737493dc0020cca7cc937b64ccb8cccacca5cc8f03721bccb6ccbacccf5c78cccb235fccebcce0cce70b1bcc84cccdcc99541461cca0cc8edc002016367accacccb67a4a017ccc8dcca8ccabcc95682ccccb390863780f7114ccddcca0cca0cce0ccc55644ccc7ccc4dc0020ccb1cce9cc9324505bccd32dcca0cce1ccf85dcccf5e19cca0cc9dccb0481ecc8a15ccf62c41cceb320304cca8cce927a269649c1363ccb3301c101f33cce1cc9a0524a67072656669789e456e69676d61204d657373616765a67075626b6579dc0040cce5ccbe28cc9dcc9a2eccbd08ccc0457a5f16ccdfcc9fccdc256c5d5f6c3514cccdcc95ccb47c11ccc4cccd3e31ccf0cce4ccefccc83ccc80cce8121c3939ccbb2561cc80ccec48ccbecca8ccc569ccd2cca3ccda6bcce415ccfa20cc9bcc98ccda", "43f19586b0a0ae626b9418fe8355888013be1c9b4263a4b3a27953de641991e936ed6c4076a2a383b3b001936bf0eb6e23c78fbec1ee36f19c6a9d24d75e9e081c"]}' -H "Content-Type: application/json" http://127.0.0.1:3040/
     #[logfn(DEBUG)]
-    pub fn start(&self) {
+    pub fn start(self) {
+        let server1 = Arc::new(self);
+        let server2 = Arc::clone(&server1);
+        let port = server2.port;
         let mut io = IoHandler::default();
-        let epoch_provider = Arc::clone(&self.epoch_provider);
-        let port = self.port;
         io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
             let request = params.parse::<StateKeyRequest>()?;
-            let body = Self::get_state_keys(&epoch_provider, request).map_err(Self::handle_error)?; // Not sure that this is the best idiom
+            let body = server1.get_state_keys(request).map_err(Self::handle_error)?; // Not sure that this is the best idiom
             Ok(body)
         });
-        let hc_epoch_provider = Arc::clone(&self.epoch_provider);
-        io.add_method(METHOD_GET_HEALTH_CHECK, move |_| {
-            let body = Self::health_check(&hc_epoch_provider);
+            io.add_method(METHOD_GET_HEALTH_CHECK, move |_| {
+            let body = server2.health_check();
             Ok(body)
         });
         let server =
@@ -224,7 +224,7 @@ mod test {
     use web3::types::Bytes;
 
     use enigma_types::{ContractAddress, Hash256};
-    use epoch_u::epoch_types::ConfirmedEpochState;
+    use controller::epoch_types::ConfirmedEpochState;
     use esgx::epoch_keeper_u::set_or_verify_worker_params;
     use esgx::epoch_keeper_u::tests::get_worker_params;
     use esgx::general::init_enclave_wrapper;
@@ -279,7 +279,7 @@ mod test {
         let sig = Bytes::from(REF_SIG.from_hex().unwrap());
         let nonce = U256::from(0);
         let km_block_number = U256::from(1);
-        let epoch_state = EpochState { seed, sig, nonce, km_block_number, confirmed_state };
+        let epoch_state = SignedEpoch { seed, sig, nonce, km_block_number, confirmed_state };
         let msg = PrincipalMessage::from_message(&request.get_data().unwrap()).unwrap();
         let results = PrincipalHttpServer::find_epoch_contract_addresses(&request, &msg, &epoch_state).unwrap();
         assert_eq!(results, vec![address])

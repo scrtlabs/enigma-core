@@ -6,7 +6,7 @@ use web3::types::{Bytes, U256};
 
 use common_u::errors::EnclaveFailError;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
-use epoch_u::epoch_types::{encode, EpochState};
+use controller::epoch_types::{encode, SignedEpoch};
 
 extern "C" {
     fn ecall_set_worker_params(
@@ -33,7 +33,7 @@ extern "C" {
 /// let sig = set_worker_params(enclave.geteid(), worker_params, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<EpochState>) -> Result<EpochState, Error> {
+pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<SignedEpoch>) -> Result<SignedEpoch, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let (nonce_in, seed_in) = match epoch_state.clone() {
         Some(e) => (e.nonce.into(), e.seed.into()),
@@ -68,7 +68,7 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
             let seed = U256::from_big_endian(&rand_out);
             let sig = Bytes(sig_out.to_vec());
             let nonce = U256::from_big_endian(&nonce_out);
-            EpochState::new(seed, sig, nonce, worker_params.km_block_number)
+            SignedEpoch::new(seed, sig, nonce, worker_params.km_block_number)
         }
     };
     Ok(epoch_state_out)

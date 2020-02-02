@@ -24,7 +24,7 @@ pub struct ConfirmedEpochState {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct EpochState {
+pub struct SignedEpoch {
     pub seed: U256,
     pub sig: Bytes,
     pub nonce: U256,
@@ -35,7 +35,7 @@ pub struct EpochState {
     pub confirmed_state: Option<ConfirmedEpochState>,
 }
 
-impl EpochState {
+impl SignedEpoch {
     pub fn new(seed: U256, sig: Bytes, nonce: U256, km_block_number: U256) -> Self {
         Self { seed, sig, nonce, km_block_number, confirmed_state: None }
     }

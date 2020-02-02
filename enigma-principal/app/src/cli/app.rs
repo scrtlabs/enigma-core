@@ -1,11 +1,8 @@
+use std::sync::Arc;
 use boot_network::{
-    keys_provider_http::{PrincipalHttpServer, StateKeyRequest},
+    keys_provider_http::PrincipalHttpServer,
     principal_manager::{
-        self,
-        PrincipalManager,
-        ReportManager,
-        Sampler,
-        PrincipalConfig,
+        KMConfig,
         SgxEthereumSigner,
         PrivateKeyEthereumSigner
     },
@@ -13,13 +10,17 @@ use boot_network::{
 use cli;
 use enigma_crypto::EcdsaSign;
 use enigma_tools_u::{esgx::general::storage_dir, web3_utils::enigma_contract::EnigmaContract};
-use epoch_u::epoch_provider::EpochProvider;
+use controller::{km_controller::KMController, km_utils::Principal};
 use esgx::general::ENCLAVE_DIR;
+use esgx::equote;
 use failure::Error;
 use sgx_types::sgx_enclave_id_t;
-use std::{fs::File, io::prelude::*, path::Path, sync::Arc};
+use std::{fs::File, io::prelude::*, path::Path};
 use structopt::StructOpt;
-use rustc_hex::FromHex;
+use rustc_hex::{FromHex, ToHex};
+use common_u::custom_errors::ReportManagerErr;
+use crossbeam_utils::thread;
+use web3::types::U256;
 
 pub fn create_signer(eid: sgx_enclave_id_t, with_private_key: bool, private_key: &[u8]) -> Box<dyn EcdsaSign + Send + Sync> {
     if with_private_key {
@@ -33,95 +34,93 @@ pub fn create_signer(eid: sgx_enclave_id_t, with_private_key: bool, private_key:
     }
 }
 
+fn get_signing_address(eid: sgx_enclave_id_t) -> Result<String, ReportManagerErr> {
+    Ok(equote::get_register_signing_address(eid).or(Err(ReportManagerErr::GetRegisterAddrErr))?.to_hex())
+}
+
+fn get_ethereum_address(eid: sgx_enclave_id_t, config: KMConfig) -> Result<String, ReportManagerErr> {
+    if config.with_private_key {
+        return Ok(config.account_address.clone());
+    }
+    Ok(equote::get_ethereum_address(eid).or(Err(ReportManagerErr::GetEtherAddrErr))?.to_hex())
+}
+
 #[logfn(INFO)]
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     let opt = cli::options::Opt::from_args();
-    let mut principal_config = PrincipalConfig::load_config(opt.principal_config.as_str())?;
-    let report_manager = ReportManager::new(principal_config.clone(), eid);
-    let signing_address = report_manager.get_signing_address()?;
-    let ethereum_address = report_manager.get_ethereum_address()?;
+    let config = KMConfig::load_config(opt.principal_config.as_str())?;
+
     let mut path = storage_dir(ENCLAVE_DIR)?;
+    let ethereum_address = get_ethereum_address(eid, config.clone())?;
 
-    let private_key = principal_config.private_key.from_hex()?;
-
-    let ethereum_signer = create_signer(eid, principal_config.with_private_key, &private_key);
-
-    if opt.info {
-        cli::options::print_info(&signing_address, &ethereum_address);
-    } else if opt.sign_address {
+    if opt.sign_address {
         path.push("principal-sign-addr.txt");
         let mut file = File::create(&path)?;
+
+        let signing_address = get_signing_address(eid)?;
         let prefixed_signing_address = format!("0x{}", signing_address);
+
         file.write_all(prefixed_signing_address.as_bytes())?;
         println!("Wrote signing address: {:?} in file: {:?}", prefixed_signing_address, path);
 
         path.pop();
         path.push("ethereum-account-addr.txt");
         let mut file = File::create(&path)?;
+
         let prefixed_ethereum_address = format!("0x{}", ethereum_address);
+
         file.write_all(prefixed_ethereum_address.as_bytes())?;
         println!("Wrote ethereum address: {:?} in file: {:?}", prefixed_ethereum_address, path);
 
-    } else if opt.deploy {
-        unimplemented!("Self-deploy mode not yet implemented. Fix issues with linked libraries in the Enigma contract.");
     } else {
-        println!("[Mode:] run node NO DEPLOY.");
-        // step1 : build the config of the principal node
-        // optional : set time limit for the principal node
-        let contract_address = opt.contract_address.unwrap_or_else(|| principal_config.enigma_contract_address.clone());
-        let enigma_contract = Arc::new(EnigmaContract::from_deployed(
-            &contract_address,
-            Path::new(&principal_config.enigma_contract_path),
-            Some(&ethereum_address),
-            principal_config.chain_id,
-            &principal_config.url,
-            ethereum_signer,
-        )?);
+        let private_key = config.private_key.from_hex()?;
+        let ethereum_signer = create_signer(eid, config.with_private_key, &private_key);
 
-        principal_config.max_epochs = if opt.time_to_live > 0 { Some(opt.time_to_live) } else { None };
+        let contract_address = opt.contract_address.unwrap_or_else(|| config.enigma_contract_address.clone());
+        let enigma_contract = EnigmaContract::from_deployed(
+            &contract_address,
+            Path::new(&config.enigma_contract_path),
+            Some(&ethereum_address),
+            config.chain_id,
+            &config.url,
+            ethereum_signer,
+        )?;
 
         let gas_limit = 5_999_999;
 
-        let principal: PrincipalManager = PrincipalManager::new( enigma_contract, report_manager);
-        println!("Connected to the Enigma contract: {:?} with account: {:?}", &contract_address, principal.get_account_address());
+        let controller = KMController::new(eid, path.clone(), enigma_contract, config)?;
+        println!("Connected to the Enigma contract: {:?} with account: {:?}", &contract_address, controller.contract.get_km_account());
 
-//        // step 2 optional - run miner to simulate blocks
-//        let join_handle = if opt.mine > 0 {
-//            Some(principal_manager::run_miner(principal.get_account_address(), principal.get_web3(), opt.mine as u64))
-//        } else {
-//            None
-//        };
-
-        let eid_safe = Arc::new(eid);
-        //TODO: Ugly, refactor to instantiate only once, consider passing to the run method
-        let epoch_provider = EpochProvider::new(eid_safe, path.clone(), principal.contract.clone())?;
-        if opt.reset_epoch_state {
-            epoch_provider.epoch_state_manager.reset()?;
-        }
-        // step3 : run the principal manager
-        if opt.register {
-            match principal.verify_identity_or_register(gas_limit)? {
-                Some(tx) => println!("Registered Principal with tx: {:?}", tx),
-                None => println!("Principal already registered"),
-            };
-        } else if opt.set_worker_params {
-            let block_number = principal.get_block_number()?;
-            let tx = epoch_provider.set_worker_params(block_number, gas_limit, principal_config.confirmations as usize)?;
-            println!("The setWorkersParams tx: {:?}", tx);
-        } else if opt.confirm_worker_params {
-            let block_number = principal.get_block_number()?;
-            let tx = epoch_provider.confirm_worker_params(block_number, gas_limit, principal_config.confirmations as usize)?;
-            println!("The setWorkersParams tx: {:?}", tx);
-        } else if opt.get_state_keys.is_some() {
-            let request: StateKeyRequest = serde_json::from_str(&opt.get_state_keys.unwrap())?;
-            let response = PrincipalHttpServer::get_state_keys(&epoch_provider, request)?;
-            println!("The getStateKeys response: {}", serde_json::to_string(&response)?);
-        } else {
-            principal.run(path, false, gas_limit).unwrap();
-        }
-//        if let Some(t) = join_handle {
-//            t.join().unwrap();
-//        }
+        run(opt.reset_epoch_state, gas_limit, controller).unwrap();
     }
+    Ok(())
+}
+
+#[logfn(INFO)]
+fn run<G: Into<U256>>(reset_epoch: bool, gas_limit: G, controller: KMController) -> Result<(), Error> {
+    let gas_limit: U256 = gas_limit.into();
+    controller.verify_identity_or_register(gas_limit)?;
+    if reset_epoch {
+        controller.epoch_verifier.reset()?;
+    }
+
+    // Start the JSON-RPC Server
+    let port = controller.config.http_port;
+    let controller1 = Arc::new(controller);
+    let controller2 = Arc::clone(&controller1);
+    thread::scope(|s| {
+        s.spawn(|_| {
+            let server = PrincipalHttpServer::new(controller1, port);
+            server.start();
+        });
+        s.spawn(|_|{
+            controller2.watch_blocks(
+                controller2.config.epoch_size,
+                controller2.config.polling_interval,
+                gas_limit,
+                 controller2.config.confirmations as usize,
+            );
+        });
+    });
     Ok(())
 }

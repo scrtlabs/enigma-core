@@ -21,12 +21,13 @@ use super::contract_ext::signed_call_with_confirmations;
 // Creating another one means more threads and more things to handle.
 // Important!! When the eloop is dropped the Web3/Contract will stop to work!
 
+
 pub struct EnigmaContract {
-    pub web3: Arc<Web3<Http>>,
+    pub web3: Web3<Http>,
     pub eloop: EventLoopHandle,
     pub w3_contract: Contract<Http>,
     ethabi_contract: ethabi::Contract, // This should match the `ethabi::Contract` in `self.web3_contract`
-    pub account: Address,
+    account: Address,
     pub chain_id: u64,
     pub signer: Box<dyn EcdsaSign + Send + Sync>,
 }
@@ -63,10 +64,12 @@ impl EnigmaContract {
         let abi_json = w3utils::load_contract_abi(abi_path)?;
         let ethabi_contract = ethabi::Contract::load(abi_json.as_bytes()).map_err(|e| failure::err_msg(e.to_string()))?;
         let w3_contract = Contract::new(web3.eth(), contract_address.parse()?, ethabi_contract.clone());
-        Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, ethabi_contract, account, signer, chain_id })
+        Ok(EnigmaContract { web3: web3, eloop, w3_contract, ethabi_contract, account, signer, chain_id })
     }
 
     pub fn address(&self) -> Address { self.w3_contract.address() }
+
+    pub fn get_km_account(&self) -> Address {self.account}
 }
 
 pub trait ContractFuncs<G> {
