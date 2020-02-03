@@ -235,7 +235,7 @@ pub mod test {
         let config = KMConfig::load_config(config_path)?;
         Ok(config)
     }
-   // new(eid: sgx_enclave_id_t, dir_path: PathBuf, contract: EnigmaContract, config: KMConfig)
+
     pub fn init_no_deploy(eid: u64) -> Result<KMController, Error> {
         let config = get_config()?;
         let ethereum_signer = Box::new(SgxEthereumSigner::new(eid)) as Box<dyn EcdsaSign + Send + Sync>;

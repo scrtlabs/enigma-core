@@ -1,15 +1,12 @@
 {
     "enigma_contract_path": "../app/tests/principal_node/contracts/Enigma.json",
-    "enigma_contract_remote_path": "",
     "enigma_contract_address": "f25186B5081Ff5cE73482AD761DB0eB0d25abfBF",
     "account_address": "627306090abab3a6e1400e9345bc60c78a8bef57",
-    "test_net": true,
     "with_private_key": false,
     "private_key": "",
     "url": "http://localhost:8545",
     "epoch_size": 2,
     "polling_interval": 1,
-    "max_epochs": 10,
     "spid": "B0335FD3BC1CCA8F804EB98A6420592D",
     "attestation_service_url": "https://sgx.enigma.co/api"
 }
