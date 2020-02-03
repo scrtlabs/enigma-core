@@ -17,7 +17,8 @@ use enigma_tools_u::web3_utils::enigma_contract::ContractQueries;
 use controller::{km_controller::KMController, epoch_types::SignedEpoch};
 use esgx::keys_keeper_u::get_enc_state_keys;
 use esgx;
-use common_u::errors::{EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
+use common_u::errors::{EnclaveFailError, EpochStateTransitionErr,
+                       JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
 use web3::types::{U256, H160};
 
 
@@ -95,7 +96,7 @@ impl PrincipalHttpServer {
                 Self::find_epoch_contract_addresses(&request, &msg, &signed_epoch)?
             },
         };
-        let response = get_enc_state_keys(self.controller.eid, request, signed_epoch.nonce, &addrs)?;
+        let response = get_enc_state_keys(self.controller.eid, request, signed_epoch.get_nonce(), &addrs)?;
         let response_data = serde_json::to_value(&response)?;
         Ok(response_data)
     }
@@ -228,7 +229,7 @@ mod test {
                 let request = params.parse::<StateKeyRequest>().unwrap();
                 println!("Calling get_enc_state_keys");
                 let address = Hash256::from(REF_CONTRACT_ADDR);
-                let response = get_enc_state_keys(eid, request, epoch_state.nonce, &[address]).unwrap();
+                let response = get_enc_state_keys(eid, request, epoch_state.get_nonce(), &[address]).unwrap();
                 let response_data = serde_json::to_value(&response).unwrap();
                 Ok(response_data)
             });
@@ -254,9 +255,10 @@ mod test {
         let sig = Bytes::from(REF_SIG.from_hex().unwrap());
         let nonce = U256::from(0);
         let km_block_number = U256::from(1);
-        let epoch_state = SignedEpoch { seed, sig, nonce, km_block_number, confirmed_state };
+        let mut epoch = SignedEpoch::new(seed, sig, nonce, km_block_number);
+        epoch.confirmed_state = confirmed_state;
         let msg = PrincipalMessage::from_message(&request.get_data()).unwrap();
-        let results = PrincipalHttpServer::find_epoch_contract_addresses(&request, &msg, &epoch_state).unwrap();
+        let results = PrincipalHttpServer::find_epoch_contract_addresses(&request, &msg, &epoch).unwrap();
         assert_eq!(results, vec![address])
     }
 }

@@ -56,6 +56,11 @@ impl KMController {
 
     #[logfn(DEBUG)]
     fn parse_worker_parameterized(&self, receipt: &TransactionReceipt) -> Result<Log, Error> {
+        if receipt.logs.is_empty() {
+            return Err(Web3Error {
+                message: format!("A connection error occurred with the Smart Contract- workerParams did not return a log response" ),
+            }.into())
+        }
         let log = receipt.logs[0].clone();
         let raw_log = RawLog { topics: log.topics, data: log.data.0 };
         let event = WorkersParameterizedEvent::new();
@@ -75,7 +80,7 @@ impl KMController {
             // if the epoch is confirmed by the Enigma Contract
             if let Some(_) = &signed_epoch.confirmed_state {
                 // Get the km_block_number which indicates where to take the list of active workers from
-                let km_block_number = signed_epoch.km_block_number;
+                let km_block_number = signed_epoch.get_km_block_num();
                 let (workers, stakes) = self.contract.get_active_workers(km_block_number)?;
                 let worker_params = InputWorkerParams { km_block_number, workers, stakes };
                 set_or_verify_worker_params(self.eid, &worker_params, Some(signed_epoch.clone()))?;
@@ -173,8 +178,8 @@ impl KMController {
         debug!("Storing unconfirmed EpochState: {:?}", epoch_state);
         self.epoch_verifier.append_unconfirmed(epoch_state.clone())?;
 
-        debug!("Waiting for setWorkerParams({:?}, {:?}, {:?})", km_block_number, epoch_state.seed, epoch_state.sig);
-        let receipt = self.contract.set_workers_params(km_block_number, epoch_state.seed, epoch_state.sig.clone(), *GAS_LIMIT, confirmations)?;
+        debug!("Waiting for setWorkerParams({:?}, {:?}, {:?})", km_block_number, epoch_state.get_seed(), epoch_state.get_sig());
+        let receipt = self.contract.set_workers_params(km_block_number, epoch_state.get_seed(), epoch_state.get_sig(), *GAS_LIMIT, confirmations)?;
         debug!("Got the receipt: {:?}", receipt);
 
         let log = self.parse_worker_parameterized(&receipt)?;
@@ -340,11 +345,12 @@ pub mod test {
         let nonce = U256::from(0);
         let km_block_number = U256::from(2);
 
-        let epoch_state = SignedEpoch { seed, sig, nonce, km_block_number, confirmed_state };
-        epoch_manager_calculated.append_unconfirmed(epoch_state.clone()).unwrap();
+        let mut epoch = SignedEpoch::new(seed, sig, nonce, km_block_number);
+        epoch.confirmed_state = confirmed_state;
+        epoch_manager_calculated.append_unconfirmed(epoch.clone()).unwrap();
 
         let epoch_manager_accepted = EpochVerifier::new(path).unwrap();
-        assert_eq!(format!("{:?}", epoch_manager_accepted.epoch_list.lock().unwrap().iter().last().unwrap()), format!("{:?}", epoch_state));
+        assert_eq!(format!("{:?}", epoch_manager_accepted.epoch_list.lock().unwrap().iter().last().unwrap()), format!("{:?}", epoch));
     }
 
     #[test]
@@ -364,8 +370,9 @@ pub mod test {
         let nonce = U256::from(0);
         let km_block_number = U256::from(4);
 
-        let epoch_state = SignedEpoch { seed, sig, nonce, km_block_number, confirmed_state };
-        epoch_manager_calculated.append_unconfirmed(epoch_state.clone()).unwrap();
+        let mut epoch = SignedEpoch::new(seed, sig, nonce, km_block_number);
+        epoch.confirmed_state = confirmed_state;
+        epoch_manager_calculated.append_unconfirmed(epoch).unwrap();
 
         epoch_manager_calculated.reset().unwrap();
         let epoch_manager_accepted = EpochVerifier::new(path).unwrap();

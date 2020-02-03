@@ -33,10 +33,10 @@ extern "C" {
 /// let sig = set_worker_params(enclave.geteid(), worker_params, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<SignedEpoch>) -> Result<SignedEpoch, Error> {
+pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch: Option<SignedEpoch>) -> Result<SignedEpoch, Error> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
-    let (nonce_in, seed_in) = match epoch_state.clone() {
-        Some(e) => (e.nonce.into(), e.seed.into()),
+    let (nonce_in, seed_in) = match epoch.clone() {
+        Some(e) => (e.get_nonce().into(), e.get_seed().into()),
         None => ([0; 32], [0; 32])
     };
     debug!("Calling enclave set_worker_params with nonce/seed: {:?}/{:?}", nonce_in.to_vec().to_hex(), seed_in.to_vec().to_hex());
@@ -60,10 +60,10 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
         return Err(EnclaveFailError { err: retval, status }.into());
     }
-    // If an `EpochState` was given and the ecall succeeded, it is considered verified
-    // Otherwise, build a new `EpochState` from the parameters of the new epoch
-    let epoch_state_out = match epoch_state {
-        Some(epoch_state) => epoch_state,
+    // If an `Epoch` was given and the ecall succeeded, it is considered verified
+    // Otherwise, build a new `Epoch` from the parameters of the new epoch
+    let epoch_out = match epoch {
+        Some(epoch) => epoch,
         None => {
             let seed = U256::from_big_endian(&rand_out);
             let sig = Bytes(sig_out.to_vec());
@@ -71,7 +71,7 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
             SignedEpoch::new(seed, sig, nonce, worker_params.km_block_number)
         }
     };
-    Ok(epoch_state_out)
+    Ok(epoch_out)
 }
 
 #[cfg(test)]

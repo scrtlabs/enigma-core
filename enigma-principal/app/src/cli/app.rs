@@ -100,7 +100,6 @@ fn run(reset_epoch: bool, controller: KMController) -> Result<(), Error> {
         controller.epoch_verifier.reset()?;
     }
 
-    // Start the JSON-RPC Server
     let port = controller.config.http_port;
     let controller1 = Arc::new(controller);
     let controller2 = Arc::clone(&controller1);

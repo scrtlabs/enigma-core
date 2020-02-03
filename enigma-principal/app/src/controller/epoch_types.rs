@@ -24,13 +24,13 @@ pub struct ConfirmedEpochState {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct SignedEpoch {
-    pub seed: U256,
-    pub sig: Bytes,
-    pub nonce: U256,
+    seed: U256,
+    sig: Bytes,
+    nonce: U256,
     /// The km_block_number is the block in which the KM decided to start a new epoch and
     /// the active workers are concluded from for the epoch
     /// (It might differ from the ether_block_number due to latency in networks)
-    pub km_block_number: U256,
+    km_block_number: U256,
     pub confirmed_state: Option<ConfirmedEpochState>,
 }
 
@@ -38,6 +38,14 @@ impl SignedEpoch {
     pub fn new(seed: U256, sig: Bytes, nonce: U256, km_block_number: U256) -> Self {
         Self { seed, sig, nonce, km_block_number, confirmed_state: None }
     }
+
+    pub fn get_nonce(&self) -> U256 { self.nonce }
+
+    pub fn get_seed(&self) -> U256 { self.seed }
+
+    pub fn get_km_block_num(&self) -> U256 { self.km_block_number }
+
+    pub fn get_sig(&self) -> Bytes { self.sig.clone() }
 
     /// Build a local mapping of smart contract address => selected worker for the epoch
     ///

@@ -102,7 +102,7 @@ pub mod tests {
         let sig = "2535cfe1bcea215dc552acbca1a213354e055709f8e071c593bb9a8c1551b7791d6fd611ded1912065b3b518f6a75a1c78643b0a2e06397707b21768be637cb41b";
 
         let request = StateKeyRequest::new(msg.from_hex().unwrap(), sig.from_hex().unwrap(), None, None);
-        get_enc_state_keys(enclave.geteid(), request, signed_epoch.nonce, &[]).unwrap();
+        get_enc_state_keys(enclave.geteid(), request, signed_epoch.get_nonce(), &[]).unwrap();
 
         enclave.destroy();
     }
