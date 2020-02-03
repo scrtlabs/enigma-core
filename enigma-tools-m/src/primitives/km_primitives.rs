@@ -8,7 +8,7 @@ use crate::rmp_serde::{Deserializer, Serializer};
 use crate::serde::{Deserialize, Serialize};
 use crate::serde_json;
 use enigma_crypto::{rand, symmetric, CryptoError, Encryption, hash};
-use enigma_types::{ContractAddress, DhKey, PubKey, StateKey};
+use enigma_types::{Hash256, DhKey, PubKey, StateKey};
 
 /// A Message ID type, used to identify each message to the response.
 pub type MsgID = [u8; 12];
@@ -19,7 +19,7 @@ pub type MsgID = [u8; 12];
 #[serde(crate = "crate::serde")]
 pub enum PrincipalMessageType {
     /// A Response from the KM node, containing a list of (Address, Key) tuples.
-    Response(Vec<(ContractAddress, StateKey)>),
+    Response(Vec<(Hash256, StateKey)>),
     /// A Request for the KM node.
     // todo: split PrincipalMessage into PrincipalRequestMessage and PrincipalResponseMessage
     // todo: in order to remove redundant fields (data is not needed for ptt request)

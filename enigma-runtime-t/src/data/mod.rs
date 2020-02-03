@@ -22,7 +22,7 @@ pub mod tests {
     use crate::data::*;
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
-    use enigma_types::ContractAddress;
+    use enigma_types::Hash256;
     use json_patch;
     use serde_json::{self, Map, Value};
     use std::string::String;
@@ -105,7 +105,7 @@ pub mod tests {
 
     pub fn test_encrypt_patch() {
         let s = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
-        let contract_address: ContractAddress = [1u8; 32].into();
+        let contract_address: Hash256 = [1u8; 32].into();
         let index = 99;
         let patch = StatePatch { patch: serde_json::from_str(s).unwrap(), previous_hash: [0u8; 32].into(), contract_address, index };
 
@@ -120,7 +120,7 @@ pub mod tests {
 
     pub fn test_decrypt_patch() {
         let s = "[{\"op\":\"replace\",\"path\":\"/author/name2\",\"value\":\"Lennon\"},{\"op\":\"add\",\"path\":\"/tags/2\",\"value\":\"third\"},{\"op\":\"remove\",\"path\":\"/title\"}]";
-        let contract_address: ContractAddress = [1u8; 32].into();
+        let contract_address: Hash256 = [1u8; 32].into();
         let patch = StatePatch { patch: serde_json::from_str(s).unwrap(), previous_hash: [0u8; 32].into(), contract_address, index: 0 };
 
         let key = b"EnigmaMPC".sha256();

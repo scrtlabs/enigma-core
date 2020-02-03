@@ -221,7 +221,7 @@ pub mod test {
     use self::tempfile::tempdir;
     use web3::futures::Future;
     use web3::types::{Bytes, H160};
-    use enigma_types::ContractAddress;
+    use enigma_types::Hash256;
     use failure::Error;
     use boot_network::principal_manager::{SgxEthereumSigner};
     use enigma_crypto::EcdsaSign;
@@ -328,9 +328,9 @@ pub mod test {
         let path = setup_epoch_storage_dir();
         let epoch_manager_calculated = EpochVerifier::new(path.clone()).unwrap();
 
-        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        let mut selected_workers: HashMap<Hash256, H160> = HashMap::new();
         let mock_address = [1u8; 32];
-        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
+        selected_workers.insert(Hash256::from(mock_address), H160(WORKER_SIGN_ADDRESS));
         let ether_block_number = U256::from(3);
         let confirmed_state = Some(ConfirmedEpochState { selected_workers, ether_block_number });
 
@@ -352,9 +352,9 @@ pub mod test {
         let path = setup_epoch_storage_dir();
         let epoch_manager_calculated = EpochVerifier::new(path.clone()).unwrap();
 
-        let mut selected_workers: HashMap<ContractAddress, H160> = HashMap::new();
+        let mut selected_workers: HashMap<Hash256, H160> = HashMap::new();
         let mock_address = [1u8; 32];
-        selected_workers.insert(ContractAddress::from(mock_address), H160(WORKER_SIGN_ADDRESS));
+        selected_workers.insert(Hash256::from(mock_address), H160(WORKER_SIGN_ADDRESS));
         let ether_block_number = U256::from(4);
         let confirmed_state = Some(ConfirmedEpochState { selected_workers, ether_block_number });
 

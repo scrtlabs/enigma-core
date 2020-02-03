@@ -11,7 +11,7 @@ use web3::types::{Address, Bytes, H160, H256, TransactionReceipt, U256};
 use web3::Web3;
 
 use enigma_crypto::EcdsaSign;
-use enigma_types::ContractAddress;
+use enigma_types::Hash256;
 
 use crate::common_u::errors;
 use crate::web3_utils::w3utils;
@@ -143,10 +143,10 @@ pub trait ContractQueries {
 
     // getSecretContractAddresses
     // input: uint _start, uint _stop
-    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<ContractAddress>, Error>;
+    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<Hash256>, Error>;
 
     // getAllSecretContractAddresses
-    fn get_all_secret_contract_addresses(&self) -> Result<Vec<ContractAddress>, Error>;
+    fn get_all_secret_contract_addresses(&self) -> Result<Vec<Hash256>, Error>;
 }
 
 impl ContractQueries for EnigmaContract {
@@ -182,7 +182,7 @@ impl ContractQueries for EnigmaContract {
     }
 
     #[logfn(INFO)]
-    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<ContractAddress>, Error> {
+    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<Hash256>, Error> {
         let addrs: Vec<H256> =
             match self.w3_contract.query("getSecretContractAddresses", (start, stop), self.account, Options::default(), None).wait() {
                 Ok(addrs) => addrs,
@@ -190,15 +190,15 @@ impl ContractQueries for EnigmaContract {
                     return Err(errors::Web3Error { message: format!("Unable to query getSecretContractAddresses: {:?}", e) }.into())
                 }
             };
-        Ok(addrs.into_iter().map(|a|ContractAddress::from(a.0)).collect())
+        Ok(addrs.into_iter().map(|a| Hash256::from(a.0)).collect())
     }
 
     #[logfn(DEBUG)]
-    fn get_all_secret_contract_addresses(&self) -> Result<Vec<ContractAddress>, Error> {
+    fn get_all_secret_contract_addresses(&self) -> Result<Vec<Hash256>, Error> {
         self.w3_contract
             .query("getAllSecretContractAddresses", (),self.account, Options::default(), None)
             .wait()
-            .map(|addrs: Vec<H256>| addrs.into_iter().map(|a| ContractAddress::from(a.0 )).collect())
+            .map(|addrs: Vec<H256>| addrs.into_iter().map(|a| Hash256::from(a.0 )).collect())
             .map_err(|e| errors::Web3Error { message: format!("Unable to query getAllSecretContractAddresses: {:?}", e) }.into())
     }
 }

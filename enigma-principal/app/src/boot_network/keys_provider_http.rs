@@ -1,4 +1,4 @@
-use std::{convert::TryInto, sync::Arc};
+use std::sync::Arc;
 
 use enigma_tools_m::{
     primitives::km_primitives::PrincipalMessage,
@@ -9,80 +9,43 @@ use jsonrpc_http_server::{
     jsonrpc_core::{Error as ServerError, ErrorCode, IoHandler, Params, Value},
     ServerBuilder,
 };
-use rustc_hex::{FromHex, ToHex};
 use serde::{Deserialize, Serialize};
 
 use enigma_crypto::KeyPair;
-use enigma_types::{ContractAddress, EnclaveReturn};
+use enigma_types::{EnclaveReturn, Hash256};
 use enigma_tools_u::web3_utils::enigma_contract::ContractQueries;
 use controller::{km_controller::KMController, epoch_types::SignedEpoch};
 use esgx::keys_keeper_u::get_enc_state_keys;
 use esgx;
-use common_u::errors::{RequestValueErr, EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
+use common_u::errors::{EnclaveFailError, EpochStateTransitionErr, JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
 use web3::types::{U256, H160};
 
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
 const METHOD_GET_HEALTH_CHECK: &str = "getHealthCheck";
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StringWrapper(pub String);
-
-impl TryInto<Vec<u8>> for StringWrapper {
-    type Error = Error;
-
-    fn try_into(self) -> Result<Vec<u8>, Self::Error> { Ok(self.0.from_hex()?) }
-}
-
-impl TryInto<[u8; 65]> for StringWrapper {
-    type Error = Error;
-
-    fn try_into(self) -> Result<[u8; 65], Self::Error> {
-        let bytes = self.0.from_hex()?;
-        if bytes.len() != 65 {
-            return Err(RequestValueErr {
-                request: METHOD_GET_STATE_KEYS.to_string(),
-                message: format!("Cannot create a 65 bytes array from a {} size slice.", bytes.len()),
-            }.into());
-        }
-        let mut slice: [u8; 65] = [0; 65];
-        slice.copy_from_slice(&bytes);
-        Ok(slice)
-    }
-}
-
-impl TryInto<U256> for StringWrapper {
-    type Error = Error;
-
-    fn try_into(self) -> Result<U256, Self::Error> {
-        let result = U256::from_dec_str(&self.0);
-        if let Ok(v) = result {
-            Ok(v)
-        } else {
-            Err(RequestValueErr {
-                request: METHOD_GET_STATE_KEYS.to_string(),
-                message: "Cannot create a number.".to_string(),
-            }.into())
-        }
-    }
-}
-
 #[derive(Deserialize, Debug, Clone)]
 pub struct StateKeyRequest {
-    pub data: StringWrapper,
-    pub sig: StringWrapper,
-    pub block_number: Option<StringWrapper>,
-    pub addresses: Option<Vec<String>>,
+    #[serde(with = "hex_serde")]
+    data: Vec<u8>,
+    #[serde(with = "hex_serde")]
+    sig: Vec<u8>,
+    block_number: Option<U256>,
+    addresses: Option<Vec<Hash256>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct StateKeyResponse {
-    pub data: StringWrapper,
-    pub sig: StringWrapper,
+    #[serde(with = "hex_serde")]
+    data: Vec<u8>,
+    #[serde(with = "hex_serde")]
+    sig: Vec<u8>,
 }
 
-impl<H: ToHex> From<H> for StringWrapper {
-    fn from(bytes: H) -> Self { StringWrapper(bytes.to_hex()) }
+impl StateKeyResponse {
+    pub fn new(data: Vec<u8>, sig: Vec<u8>) -> Self {
+        StateKeyResponse{data, sig}
+    }
 }
 
 pub struct PrincipalHttpServer {
@@ -91,10 +54,19 @@ pub struct PrincipalHttpServer {
 }
 
 impl StateKeyRequest {
-    pub fn get_data(&self) -> Result<Vec<u8>, Error> { Ok(self.data.0.from_hex()?) }
+    pub fn new(data: Vec<u8>, sig: Vec<u8>, block_number: Option<U256>, addresses: Option<Vec<Hash256>>) -> Self {
+        StateKeyRequest{data, sig, block_number, addresses}
+    }
+
+    pub fn get_data(&self) -> Vec<u8> { self.data.clone() }
 
     pub fn get_sig(&self) -> Result<[u8; 65], Error> {
-        self.sig.clone().try_into()
+        let mut sig = [0u8; 65];
+        if sig.len() != self.sig.len() {
+            return Err(format_err!("sig not a right value"))
+        }
+        sig.copy_from_slice(&self.sig);
+        Ok(sig)
     }
 }
 
@@ -102,33 +74,28 @@ impl PrincipalHttpServer {
     pub fn new(controller: Arc<KMController>, port: u16) -> PrincipalHttpServer { PrincipalHttpServer { controller, port } }
 
     #[logfn(DEBUG)]
-    fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &SignedEpoch) -> Result<Vec<ContractAddress>, Error> {
+    fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &SignedEpoch) -> Result<Vec<Hash256>, Error> {
         let image = msg.to_sign()?;
         let sig = request.get_sig()?;
         let worker = KeyPair::recover(&image, sig)?.address();
         trace!("Searching contract addresses for recovered worker: {:?}", worker.to_vec());
-        let addrs = epoch_state.get_contract_addresses(&worker.into())?;
-        Ok(addrs)
+        epoch_state.get_contract_addresses(&worker.into())
     }
 
     #[logfn(DEBUG)]
     pub fn get_state_keys(&self, request: StateKeyRequest) -> Result<Value, Error> {
-        let epoch_state = match request.block_number.clone() {
-            Some(block_number) => self.controller.find_epoch(block_number.try_into()?)?,
+        let signed_epoch = match request.block_number {
+            Some(block_number) => self.controller.find_epoch(block_number)?,
             None => self.controller.find_last_epoch()?,
         };
-        let addresses = &request.addresses;
-        let addrs: Vec<ContractAddress> = {
-            if let Some(addrs) = addresses {
-                let res: Result<Vec<ContractAddress>, _>  = addrs.iter().map(|item| ContractAddress::from_hex(item)).collect();
-                res?
-            }
-            else{
-                let msg = PrincipalMessage::from_message(&request.get_data()?)?;
-                Self::find_epoch_contract_addresses(&request, &msg, &epoch_state)?
-            }
+        let addrs = match request.addresses.clone() {
+            Some(addrs) => addrs,
+            None => {
+                let msg = PrincipalMessage::from_message(&request.get_data())?;
+                Self::find_epoch_contract_addresses(&request, &msg, &signed_epoch)?
+            },
         };
-        let response = get_enc_state_keys(self.controller.eid, request, epoch_state.nonce, &addrs)?;
+        let response = get_enc_state_keys(self.controller.eid, request, signed_epoch.nonce, &addrs)?;
         let response_data = serde_json::to_value(&response)?;
         Ok(response_data)
     }
@@ -223,7 +190,7 @@ mod test {
     use web3::types::{H160, U256};
     use web3::types::Bytes;
 
-    use enigma_types::{ContractAddress, Hash256};
+    use enigma_types::{Hash256};
     use controller::epoch_types::ConfirmedEpochState;
     use esgx::epoch_keeper_u::set_or_verify_worker_params;
     use esgx::epoch_keeper_u::tests::get_worker_params;
@@ -239,6 +206,14 @@ mod test {
     const REF_CONTRACT_ADDR: [u8; 32] = [253, 20, 84, 186, 169, 51, 74, 146, 65, 95, 59, 133, 9, 25, 170, 193, 33, 159, 199, 204, 122, 116, 189, 122, 37, 132, 117, 188, 103, 120, 103, 137];
 
     #[test]
+    fn test_foo() -> failure::Fallible<()> {
+        let foo: StateKeyRequest = serde_json::from_str("{\"data\": \"1234fF\", \"sig\": \"5678\"}").map_err(|e| {println!("{:?}", e); e})?;
+        println!("{:?}, {:?}", foo.sig, foo.data);
+
+        Ok(())
+    }
+
+    #[test]
     pub fn test_jsonrpc_get_state_keys() {
         let enclave = init_enclave_wrapper().unwrap();
         let workers: Vec<[u8; 20]> = vec![REF_WORKER];
@@ -252,7 +227,7 @@ mod test {
             io.add_method(METHOD_GET_STATE_KEYS, move |params: Params| {
                 let request = params.parse::<StateKeyRequest>().unwrap();
                 println!("Calling get_enc_state_keys");
-                let address = ContractAddress::from(REF_CONTRACT_ADDR);
+                let address = Hash256::from(REF_CONTRACT_ADDR);
                 let response = get_enc_state_keys(eid, request, epoch_state.nonce, &[address]).unwrap();
                 let response_data = serde_json::to_value(&response).unwrap();
                 Ok(response_data)
@@ -268,8 +243,8 @@ mod test {
 
     #[test]
     pub fn test_find_epoch_contract_addresses() {
-        let msg = REF_MSG.from_hex().unwrap();
-        let request = StateKeyRequest { data: StringWrapper(msg.to_hex()), sig: StringWrapper(REF_SIG.to_string()), block_number: None, addresses: None };
+        let data = REF_MSG.from_hex().unwrap();
+        let request = StateKeyRequest { data, sig: REF_SIG.from_hex().unwrap(), block_number: None, addresses: None };
         let address = Hash256::from(REF_CONTRACT_ADDR);
         let mut selected_workers: HashMap<Hash256, H160> = HashMap::new();
         selected_workers.insert(address, H160(REF_WORKER));
@@ -280,7 +255,7 @@ mod test {
         let nonce = U256::from(0);
         let km_block_number = U256::from(1);
         let epoch_state = SignedEpoch { seed, sig, nonce, km_block_number, confirmed_state };
-        let msg = PrincipalMessage::from_message(&request.get_data().unwrap()).unwrap();
+        let msg = PrincipalMessage::from_message(&request.get_data()).unwrap();
         let results = PrincipalHttpServer::find_epoch_contract_addresses(&request, &msg, &epoch_state).unwrap();
         assert_eq!(results, vec![address])
     }

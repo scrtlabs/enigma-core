@@ -46,7 +46,7 @@ use enigma_tools_t::{
     quote_t, storage_t,
 };
 use enigma_types::{
-    ContractAddress, DhKey, EnclaveReturn, ExecuteResult, Hash256, PubKey, RawPointer, ResultStatus,
+    DhKey, EnclaveReturn, ExecuteResult, Hash256, PubKey, RawPointer, ResultStatus,
 };
 
 use sgx_types::*;
@@ -91,7 +91,7 @@ pub unsafe extern "C" fn ecall_execute(
     args: *const u8,
     args_len: usize,
     user_key: &[u8; 64],
-    contract_address: &ContractAddress,
+    contract_address: &Hash256,
     gas_limit: *const u64,
     db_ptr: *const RawPointer,
     result: &mut ExecuteResult,
@@ -147,7 +147,7 @@ pub unsafe extern "C" fn ecall_deploy(
     constructor_len: usize,
     args: *const u8,
     args_len: usize,
-    address: &ContractAddress,
+    address: &Hash256,
     user_key: &PubKey,
     gas_limit: *const u64,
     db_ptr: *const RawPointer,
@@ -320,7 +320,7 @@ unsafe fn ecall_execute_internal(
     args: &[u8],
     user_key: &PubKey,
     io_key: &DhKey,
-    address: ContractAddress,
+    address: Hash256,
     gas_limit: u64,
     db_ptr: *const RawPointer,
     result: &mut ExecuteResult,
@@ -374,7 +374,7 @@ unsafe fn ecall_deploy_internal(
     bytecode: &[u8],
     constructor: &[u8],
     args: &[u8],
-    address: ContractAddress,
+    address: Hash256,
     user_key: &PubKey,
     io_key: &DhKey,
     gas_limit: u64,

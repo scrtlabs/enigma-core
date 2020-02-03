@@ -1,4 +1,4 @@
-use enigma_types::ContractAddress;
+use enigma_types::Hash256;
 use failure::Error;
 use hex::{FromHex, ToHex};
 use std::str;
@@ -10,7 +10,7 @@ pub struct VecKey(pub Vec<u8>);
 
 #[derive(Clone, Copy, Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Default)]
 pub struct DeltaKey {
-    pub contract_address: ContractAddress,
+    pub contract_address: Hash256,
     pub key_type: Stype,
 }
 
@@ -56,7 +56,7 @@ impl Default for Stype {
 }
 
 impl DeltaKey {
-    pub fn new(contract_address: ContractAddress, key_type: Stype) -> DeltaKey { DeltaKey { contract_address, key_type } }
+    pub fn new(contract_address: Hash256, key_type: Stype) -> DeltaKey { DeltaKey { contract_address, key_type } }
 }
 
 impl SplitKey for DeltaKey {
@@ -88,7 +88,7 @@ impl SplitKey for DeltaKey {
             _ => bail!("Failed parsing the Key, key does not contain a correct index"),
         };
         // if the address is not a correct hex then it not a correct address.
-        let contract_address = ContractAddress::from_hex(&_hash)?;
+        let contract_address = Hash256::from_hex(&_hash)?;
         Ok(DeltaKey { contract_address, key_type })
     }
 }

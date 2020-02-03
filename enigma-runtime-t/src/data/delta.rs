@@ -1,7 +1,7 @@
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_crypto::hash::Keccak256;
 use enigma_crypto::{symmetric, Encryption};
-use enigma_types::{Hash256, ContractAddress, StateKey};
+use enigma_types::{Hash256, StateKey};
 use json_patch;
 use rmps::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -12,7 +12,7 @@ pub struct StatePatch {
     pub patch: json_patch::Patch,
     pub previous_hash: Hash256,
     #[serde(skip)]
-    pub contract_address: ContractAddress,
+    pub contract_address: Hash256,
     #[serde(skip)]
     pub index: u32,
 }
@@ -20,7 +20,7 @@ pub struct StatePatch {
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Default)]
 pub struct EncryptedPatch {
     pub data: Vec<u8>,
-    pub contract_address: ContractAddress,
+    pub contract_address: Hash256,
     pub index: u32,
 }
 

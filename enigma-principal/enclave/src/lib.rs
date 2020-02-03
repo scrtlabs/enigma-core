@@ -29,7 +29,7 @@ use std::{mem, slice};
 
 use enigma_crypto::asymmetric;
 use enigma_tools_t::{esgx::ocalls_t, quote_t, storage_t};
-use enigma_types::{ContractAddress, EnclaveReturn};
+use enigma_types::{Hash256, EnclaveReturn};
 
 use crate::{epoch_keeper_t::ecall_set_worker_params_internal, keys_keeper_t::ecall_get_enc_state_keys_internal};
 
@@ -110,7 +110,7 @@ pub unsafe extern "C" fn ecall_get_enc_state_keys(msg: *const u8, msg_len: usize
                                                   epoch_nonce: &[u8; 32], serialized_ptr: *mut u64,
                                                   sig_out: &mut [u8; 65]) -> EnclaveReturn {
     let msg_bytes = slice::from_raw_parts(msg, msg_len);
-    let addrs_bytes = slice::from_raw_parts(addrs as *const ContractAddress, addrs_len / mem::size_of::<ContractAddress>()).to_vec();
+    let addrs_bytes = slice::from_raw_parts(addrs as *const Hash256, addrs_len / mem::size_of::<Hash256>()).to_vec();
     let response = match ecall_get_enc_state_keys_internal(msg_bytes, addrs_bytes, *sig, *epoch_nonce, sig_out) {
         Ok(response) => response,
         Err(err) => {

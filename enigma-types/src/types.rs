@@ -20,8 +20,8 @@ pub type SymmetricKey = [u8; SYMMETRIC_KEY_SIZE];
 pub type StateKey = SymmetricKey;
 /// DHKey is the key that results from the ECDH [`enigma_crypto::KeyPair::derive_key`](../replace_me)
 pub type DhKey = SymmetricKey;
-/// ContractAddress is the address of contracts in the Enigma Network.
-pub type ContractAddress = Hash256;
+///// ContractAddress is the address of contracts in the Enigma Network.
+//pub type Hash256 = Hash256;
 /// PubKey is a public key that is used for ECDSA signing.
 pub type PubKey = [u8; 64];
 

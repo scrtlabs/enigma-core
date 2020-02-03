@@ -9,7 +9,7 @@ use enigma_runtime_t::ocalls_t as runtime_ocalls_t;
 use enigma_tools_t::common::errors_t::EnclaveError;
 use enigma_tools_m::utils::LockExpectMutex;
 use enigma_crypto::{Encryption, CryptoError};
-use enigma_types::{ContractAddress, RawPointer, StateKey};
+use enigma_types::{Hash256, RawPointer, StateKey};
 use std::collections::HashMap;
 use std::sync::SgxMutex;
 
@@ -17,7 +17,7 @@ lazy_static! {
     pub static ref STATE_KEYS: SgxMutex<HashMap<ContractAddress, StateKey>> = SgxMutex::new(HashMap::new());
 }
 
-pub fn get_state_key(address: ContractAddress) -> Result<StateKey, EnclaveError> {
+pub fn get_state_key(address: Hash256) -> Result<StateKey, EnclaveError> {
     let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
     statekeys_guard
         .get(&address)
@@ -33,7 +33,7 @@ pub fn encrypt_state(state: ContractState) -> Result<EncryptedContractState<u8>,
     state.encrypt(&key)
 }
 
-pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<ContractState, EnclaveError> {
+pub fn get_state(db_ptr: *const RawPointer, addr: Hash256) -> Result<ContractState, EnclaveError> {
     let guard = STATE_KEYS.lock_expect("State Keys");
     let key = guard.get(&addr).ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
 

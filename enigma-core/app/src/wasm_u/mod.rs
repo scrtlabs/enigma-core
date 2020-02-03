@@ -3,7 +3,7 @@ pub mod wasm;
 use crate::common_u::errors::EnclaveFailError;
 use crate::db::{Delta, DeltaKey, Stype};
 use std::{fmt, convert::TryFrom};
-use enigma_types::{EnclaveReturn, ExecuteResult, ContractAddress};
+use enigma_types::{EnclaveReturn, ExecuteResult, Hash256};
 use failure::Error;
 use sgx_types::*;
 
@@ -78,9 +78,9 @@ impl fmt::Debug for WasmTaskFailure{
     }
 }
 
-impl TryFrom<(ExecuteResult, ContractAddress, EnclaveReturn, sgx_status_t)> for WasmResult {
+impl TryFrom<(ExecuteResult, Hash256, EnclaveReturn, sgx_status_t)> for WasmResult {
     type Error = Error;
-    fn try_from(exec: (ExecuteResult, ContractAddress, EnclaveReturn, sgx_status_t)) -> Result<Self, Self::Error> {
+    fn try_from(exec: (ExecuteResult, Hash256, EnclaveReturn, sgx_status_t)) -> Result<Self, Self::Error> {
         let get_output  = |exec_result: ExecuteResult| -> Result<Box<[u8]>, Self::Error> {
             if exec_result.output.is_null() {
                 bail!("The 'output' pointer in ExecuteResult is null: {:?}", exec_result);

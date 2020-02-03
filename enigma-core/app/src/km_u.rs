@@ -3,7 +3,7 @@
 use crate::common_u::errors::EnclaveFailError;
 use crate::db::DB;
 use enigma_types::traits::SliceCPtr;
-use enigma_types::{EnclaveReturn, ContractAddress, PubKey, RawPointer};
+use enigma_types::{EnclaveReturn, Hash256, PubKey, RawPointer};
 use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use crate::auto_ffi::{ecall_ptt_req, ecall_ptt_res, ecall_build_state, ecall_get_user_key};
@@ -11,7 +11,7 @@ use crate::auto_ffi::{ecall_ptt_req, ecall_ptt_res, ecall_build_state, ecall_get
 /// This function builds the states that it received in ptt_req and ptt_res
 /// It returns a Vec of the failed contract addresses
 #[logfn(TRACE)]
-pub fn ptt_build_state(db: &mut DB, eid: sgx_enclave_id_t) -> Result<Vec<ContractAddress>, Error> {
+pub fn ptt_build_state(db: &mut DB, eid: sgx_enclave_id_t) -> Result<Vec<Hash256>, Error> {
     let mut ret = EnclaveReturn::Success;
     let mut failed_ptr = 0u64;
 
@@ -28,10 +28,10 @@ pub fn ptt_build_state(db: &mut DB, eid: sgx_enclave_id_t) -> Result<Vec<Contrac
     }
     let box_ptr = failed_ptr as *mut Box<[u8]>;
     let part = unsafe { Box::from_raw(box_ptr) };
-    let part: Vec<ContractAddress> = part
+    let part: Vec<Hash256> = part
         .chunks(32)
         .map(|s| {
-            let mut arr = ContractAddress::default();
+            let mut arr = Hash256::default();
             arr.copy_from_slice(s);
             arr
         })
@@ -95,7 +95,7 @@ pub mod tests {
                     Stype::{Delta, State}, tests::create_test_db};
     use crate::esgx::{general::init_enclave_wrapper, equote};
     use self::cross_test_utils::*;
-    use enigma_types::{ContractAddress, DhKey};
+    use enigma_types::{Hash256, DhKey};
     use enigma_crypto::{KeyPair, symmetric, hash::{self, Sha256, Keccak256}};
     use rmp_serde::{Deserializer, Serializer};
     use serde::{Deserialize, Serialize};
@@ -171,7 +171,7 @@ pub mod tests {
         assert_ne!(sig.to_vec(), vec![0u8; 64]);
     }
 
-    pub fn instantiate_encryption_key(addresses: Vec<ContractAddress>, eid: sgx_enclave_id_t) {
+    pub fn instantiate_encryption_key(addresses: Vec<Hash256>, eid: sgx_enclave_id_t) {
         let req = ptt_req(eid).unwrap();
 
         let mut des = Deserializer::new(&req.0[..]);
@@ -223,7 +223,7 @@ pub mod tests {
 //        assert!(address_result.iter().all(|x| address_set.contains(x)));
     }
 
-    fn fill_the_db(db: &mut DB) -> (Vec<ContractAddress>, Vec<StateKey>) {
+    fn fill_the_db(db: &mut DB) -> (Vec<Hash256>, Vec<StateKey>) {
         let addresses = vec![b"first".sha256(), b"second".sha256(), b"third".sha256()];
         let mut stuff = vec![
             (DeltaKey { contract_address: addresses[2], key_type: State }, vec![8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]),

@@ -104,7 +104,7 @@ fn run(reset_epoch: bool, controller: KMController) -> Result<(), Error> {
     let port = controller.config.http_port;
     let controller1 = Arc::new(controller);
     let controller2 = Arc::clone(&controller1);
-    thread::scope(|s| {
+    let _ = thread::scope(|s| {
         s.spawn(|_| {
             let server = PrincipalHttpServer::new(controller1, port);
             server.start();

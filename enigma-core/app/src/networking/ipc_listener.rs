@@ -72,7 +72,7 @@ pub(self) mod handling {
     use enigma_crypto::hash::Keccak256;
     use enigma_tools_u::esgx::equote as equote_tools;
     use enigma_tools_u::attestation_service::{service::AttestationService, constants::ATTESTATION_SERVICE_URL};
-    use enigma_types::ContractAddress;
+    use enigma_types::Hash256;
     use failure::Error;
     use hex::{FromHex, ToHex};
     use rmp_serde::Deserializer;
@@ -152,7 +152,7 @@ pub(self) mod handling {
 
     #[logfn(TRACE)]
     pub fn get_tip(db: &DB, input: &str) -> ResponseResult {
-        let address = ContractAddress::from_hex(&input)?;
+        let address = Hash256::from_hex(&input)?;
         let (tip_key, tip_data) = db.get_tip::<DeltaKey>(&address)?;
 
         let key = tip_key.key_type.unwrap_delta();
@@ -163,7 +163,7 @@ pub(self) mod handling {
     #[logfn(TRACE)]
     pub fn get_tips(db: &DB, input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
-        let addresses : Vec<ContractAddress> = input.iter().map(|data| ContractAddress::from_hex(&data).unwrap()).collect();
+        let addresses : Vec<Hash256> = input.iter().map(|data| Hash256::from_hex(&data).unwrap()).collect();
         let tips = db.get_tips::<DeltaKey>(&addresses)?;
         for (key, data) in tips {
             let delta = IpcDelta::from_delta_key(key, &data)?;
@@ -192,7 +192,7 @@ pub(self) mod handling {
     #[logfn(TRACE)]
     pub fn get_delta(db: &DB, input: IpcDelta) -> ResponseResult {
         let address = input.contract_address.ok_or(P2PErr { cmd: "GetDelta".to_string(), msg: "Address Missing".to_string() })?;
-        let address = ContractAddress::from_hex(&address)?;
+        let address = Hash256::from_hex(&address)?;
         let delta_key = DeltaKey::new(address, Stype::Delta(input.key));
         let delta = db.get_delta(delta_key)?;
         Ok(IpcResponse::GetDelta { result: IpcResults::Delta(delta.to_hex()) })
@@ -202,7 +202,7 @@ pub(self) mod handling {
     pub fn get_deltas(db: &DB, input: &[IpcDeltasRange]) -> ResponseResult {
         let mut results = Vec::with_capacity(input.len());
         for data in input {
-            let address = ContractAddress::from_hex(&data.address)?;
+            let address = Hash256::from_hex(&data.address)?;
             let from = DeltaKey::new(address, Stype::Delta(data.from));
             let to = DeltaKey::new(address, Stype::Delta(data.to));
 
@@ -222,14 +222,14 @@ pub(self) mod handling {
 
     #[logfn(TRACE)]
     pub fn get_contract(db: &DB, input: &str) -> ResponseResult {
-        let address = ContractAddress::from_hex(&input)?;
+        let address = Hash256::from_hex(&input)?;
         let data = db.get_contract(address).unwrap_or_default();
         Ok(IpcResponse::GetContract { result: IpcResults::GetContract{address: address.to_hex(), bytecode: data} })
     }
 
     #[logfn(TRACE)]
     pub fn update_new_contract(db: &mut DB, address: String, bytecode: &[u8]) -> ResponseResult {
-        let address_arr = ContractAddress::from_hex(&address)?;
+        let address_arr = Hash256::from_hex(&address)?;
         let delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
         db.force_update(&delta_key, bytecode)?;
         Ok(IpcResponse::UpdateNewContract { address, result: IpcResults::Status(Status::Passed) })
@@ -238,7 +238,7 @@ pub(self) mod handling {
     #[logfn(TRACE)]
     pub fn update_new_contract_on_deployment(db: &mut DB, address: String, bytecode: &str, delta: IpcDelta) -> ResponseResult {
         let mut tuples = Vec::with_capacity(DEPLOYMENT_VALS_LEN);
-        let address_arr = ContractAddress::from_hex(&address)?;
+        let address_arr = Hash256::from_hex(&address)?;
 
         let bytecode = bytecode.from_hex()?;
         let bytecode_delta_key = DeltaKey::new(address_arr, Stype::ByteCode);
@@ -261,7 +261,7 @@ pub(self) mod handling {
 
     #[logfn(TRACE)]
     pub fn remove_contract(db: &mut DB, address: String) -> ResponseResult {
-        let addr_arr = ContractAddress::from_hex(&address)?;
+        let addr_arr = Hash256::from_hex(&address)?;
         // the key_type of dk is irrelevant since we are removing all the contract data
         let dk = DeltaKey::new(addr_arr, Stype::ByteCode);
         let result = match db.delete_contract(&dk) {
@@ -283,7 +283,7 @@ pub(self) mod handling {
 
         for delta in deltas.into_iter() {
             let address = delta.contract_address.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Address Missing".to_string() })?;
-            let address = ContractAddress::from_hex(&address)?;
+            let address = Hash256::from_hex(&address)?;
             let data =
                 delta.data.ok_or(P2PErr { cmd: "UpdateDeltas".to_string(), msg: "Delta Data Missing".to_string() })?;
             let delta_key = DeltaKey::new(address, Stype::Delta(delta.key));
@@ -311,7 +311,7 @@ pub(self) mod handling {
     }
 
     fn delete_data_from_db(db: &mut DB, addr: &str, key_type: Stype) -> Result<IpcResults, Error> {
-        let addr_arr = ContractAddress::from_hex(addr)?;
+        let addr_arr = Hash256::from_hex(addr)?;
         let dk = DeltaKey::new(addr_arr, key_type);
         match db.delete(&dk) {
             Ok(_) => Ok(IpcResults::Status(Status::Passed)),
@@ -390,7 +390,7 @@ pub(self) mod handling {
 
     pub fn deploy_contract(db: &mut DB, input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let bytecode = input.pre_code.expect("Bytecode Missing");
-        let contract_address = ContractAddress::from_hex(&input.address)?;
+        let contract_address = Hash256::from_hex(&input.address)?;
         let enc_args = input.encrypted_args.from_hex()?;
         let constructor = input.encrypted_fn.from_hex()?;
         let mut user_pubkey = [0u8; 64];
@@ -425,7 +425,7 @@ pub(self) mod handling {
     #[logfn(DEBUG)]
     pub fn compute_task(db: &mut DB, input: IpcTask, eid: sgx_enclave_id_t) -> ResponseResult {
         let enc_args = input.encrypted_args.from_hex()?;
-        let address = ContractAddress::from_hex(&input.address)?;
+        let address = Hash256::from_hex(&input.address)?;
         let callable = input.encrypted_fn.from_hex()?;
         let mut user_pubkey = [0u8; 64];
         user_pubkey.clone_from_slice(&input.user_dhkey.from_hex()?);
@@ -460,7 +460,7 @@ mod test {
     use super::*;
     use crate::db::{DeltaKey, P2PCalls, Stype, tests::create_test_db};
     use serde_json::Value;
-    use enigma_types::ContractAddress;
+    use enigma_types::Hash256;
 
     pub const SPID: &str = "B0335FD3BC1CCA8F804EB98A6420592D";
     pub const RETRIES: u32 = 10;
@@ -495,7 +495,7 @@ mod test {
         let data: Vec<(DeltaKey, Vec<u8>)> = data
             .into_iter()
             .map(|tip| {
-                let contract_address: ContractAddress = serde_json::from_value(tip["address"].clone()).unwrap();
+                let contract_address: Hash256 = serde_json::from_value(tip["address"].clone()).unwrap();
                 let key: u32 = serde_json::from_value(tip["key"].clone()).unwrap();
                 let delta_key = DeltaKey { contract_address, key_type: Stype::Delta(key) };
                 let data: Vec<u8> = serde_json::from_value(tip["delta"].clone()).unwrap();

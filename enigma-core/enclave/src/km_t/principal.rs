@@ -8,7 +8,7 @@ use enigma_crypto::asymmetric::KeyPair;
 use enigma_crypto::{Encryption, CryptoError};
 use enigma_tools_m::primitives::km_primitives::MsgID;
 use enigma_tools_m::primitives::km_primitives::{PrincipalMessage, PrincipalMessageType};
-use enigma_types::{ContractAddress, StateKey, RawPointer};
+use enigma_types::{Hash256, StateKey, RawPointer};
 use std::collections::HashMap;
 use std::sync::SgxMutex;
 use std::u32;
@@ -51,7 +51,7 @@ pub(crate) fn ecall_ptt_res_internal(msg_slice: &[u8]) -> Result<(), EnclaveErro
     Ok(())
 }
 
-pub(crate) unsafe fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Vec<ContractAddress>, EnclaveError> {
+pub(crate) unsafe fn ecall_build_state_internal(db_ptr: *const RawPointer) -> Result<Vec<Hash256>, EnclaveError> {
     let guard = STATE_KEYS.lock_expect("State Keys");
     let mut failed_contracts = Vec::with_capacity(guard.len());
     debug_println!("building state for {} contracts", guard.len());
@@ -140,7 +140,7 @@ pub mod tests {
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::asymmetric::KeyPair;
     use enigma_tools_m::primitives::km_primitives::{PrincipalMessage, PrincipalMessageType};
-    use enigma_types::{ContractAddress, RawPointer};
+    use enigma_types::{Hash256, RawPointer};
     use std::string::ToString;
 
 
@@ -165,7 +165,7 @@ pub mod tests {
 
         // Mimicking the Principal/KM Node
         let km_node_keys = KeyPair::new().unwrap();
-        let restype: Vec<(ContractAddress, StateKey)> = address.clone().into_iter().zip(state_keys.into_iter()).collect();
+        let restype: Vec<(Hash256, StateKey)> = address.clone().into_iter().zip(state_keys.into_iter()).collect();
 
         let res_obj = PrincipalMessage::new_id(PrincipalMessageType::Response(restype), req_obj.get_id(), km_node_keys.get_pubkey());
         let dh_key = km_node_keys.derive_key(&req_obj.get_pubkey()).unwrap();
@@ -180,7 +180,7 @@ pub mod tests {
         assert_eq!(ecall_build_state_internal(db_ptr).unwrap(), vec![address[2]])
     }
 
-    fn get_states_deltas(address: &[ContractAddress], keys: &[StateKey]) -> Vec<Vec<EncryptedPatch>> {
+    fn get_states_deltas(address: &[Hash256], keys: &[StateKey]) -> Vec<Vec<EncryptedPatch>> {
         let jsons: Vec<serde_json::Value> = vec![
             json!({"widget":{"debug":"on","window":{"title":"Sample Konfabulator Widget","name":"main_window","width":500,"height":500},"image":{"src":"Images/Sun.png","name":"sun1","hOffset":250,"vOffset":250,"alignment":"center"},"text":{"data":"Click Here","size":36,"style":"bold","name":"text1","hOffset":250,"vOffset":100,"alignment":"center","onMouseUp":"sun1.opacity = (sun1.opacity / 100) * 90;"}}}),
             serde_json::from_str(r#"{ "name": "John Doe", "age": 43, "phones": [ "+44 1234567", "+44 2345678" ] }"#).unwrap(),

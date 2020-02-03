@@ -18,7 +18,7 @@ use enigma_tools_t::{
     },
     document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
-use enigma_types::{ContractAddress, Hash256};
+use enigma_types::{Hash256};
 use epoch_keeper_t::epoch_t::{Epoch, EpochMarker, EpochNonce};
 use ocalls_t;
 
@@ -177,7 +177,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     Ok(())
 }
 
-pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, nonce: U256) -> Result<[u8; 20], EnclaveError> {
+pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: Hash256, nonce: U256) -> Result<[u8; 20], EnclaveError> {
     let guard = EPOCH.lock_expect("Epoch");
     let epoch = get_epoch_from_cache(&guard, nonce)?;
     debug_println!("Running worker selection using Epoch: {:?}", epoch);
@@ -202,7 +202,7 @@ pub mod tests {
             stakes: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
         };
         let epoch = Epoch { nonce: U256::from(0), seed: U256::from(1), worker_params };
-        let sc_addr = ContractAddress::from([1u8; 32]);
+        let sc_addr = Hash256::from([1u8; 32]);
         let worker = epoch.get_selected_worker(sc_addr).unwrap();
     }
 

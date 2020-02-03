@@ -1,4 +1,4 @@
-use enigma_types::{ContractAddress, EnclaveReturn, ExecuteResult, PubKey, RawPointer, traits::SliceCPtr};
+use enigma_types::{Hash256, EnclaveReturn, ExecuteResult, PubKey, RawPointer, traits::SliceCPtr};
 use super::WasmResult;
 use crate::db::DB;
 use std::convert::TryInto;
@@ -7,8 +7,8 @@ use sgx_types::*;
 use crate::auto_ffi::{ecall_deploy, ecall_execute};
 
 #[logfn(TRACE)]
-pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor: &[u8], args: &[u8],
-              contract_address: &ContractAddress, user_pubkey: &PubKey, gas_limit: u64)-> Result<WasmResult, Error> {
+pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t, bytecode: &[u8], constructor: &[u8], args: &[u8],
+              contract_address: &Hash256, user_pubkey: &PubKey, gas_limit: u64) -> Result<WasmResult, Error> {
     let mut retval = EnclaveReturn::Success;
     let mut result = ExecuteResult::default();
     let db_ptr = unsafe { RawPointer::new_mut(db) };
@@ -32,8 +32,8 @@ pub fn deploy(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], constructor:
 }
 
 #[logfn(TRACE)]
-pub fn execute(db: &mut DB, eid: sgx_enclave_id_t,  bytecode: &[u8], callable: &[u8], args: &[u8],
-               user_pubkey: &PubKey, contract_address: &ContractAddress, gas_limit: u64)-> Result<WasmResult,Error> {
+pub fn execute(db: &mut DB, eid: sgx_enclave_id_t, bytecode: &[u8], callable: &[u8], args: &[u8],
+               user_pubkey: &PubKey, contract_address: &Hash256, gas_limit: u64) -> Result<WasmResult,Error> {
     let mut retval = EnclaveReturn::Success;
     let mut result = ExecuteResult::default();
     let db_ptr = unsafe { RawPointer::new_mut(db) };
@@ -69,7 +69,7 @@ mod tests {
     use crate::db::{DB, tests::create_test_db};
     use crate::wasm_u::wasm;
     use self::ethabi::{Contract, Token, token::{LenientTokenizer, Tokenizer}};
-    use enigma_types::{ContractAddress, DhKey, PubKey};
+    use enigma_types::{Hash256, DhKey, PubKey};
     use enigma_crypto::symmetric;
     use hex::FromHex;
     use sgx_types::*;
@@ -88,7 +88,7 @@ mod tests {
         }
     }
 
-    fn compile_and_deploy_wasm_contract(db: &mut DB, eid: sgx_enclave_id_t, test_path: &str, contract_address: ContractAddress, constructor: &[u8], args: &[u8],  user_pubkey: &PubKey) -> WasmResult {
+    fn compile_and_deploy_wasm_contract(db: &mut DB, eid: sgx_enclave_id_t, test_path: &str, contract_address: Hash256, constructor: &[u8], args: &[u8], user_pubkey: &PubKey) -> WasmResult {
         let wasm_code = get_bytecode_from_path(test_path);
         println!("Bytecode size: {}KB\n", wasm_code.len() / 1024);
 
@@ -97,7 +97,7 @@ mod tests {
 
     fn compile_deploy_execute(db: &mut DB,
                               test_path: &str,
-                              contract_address: ContractAddress,
+                              contract_address: Hash256,
                               constructor: &str,
                               constructor_arguments: &[Token],
                               func: &str,
@@ -300,10 +300,10 @@ mod tests {
     }
 
     fn compile_deploy_contract_execute(db: &mut DB,
-                              test_path: &str,
-                              contract_address: ContractAddress,
-                              constructor: &str,
-                              constructor_arguments: &[Token]) -> (sgx_urts::SgxEnclave, WasmTaskResult) {
+                                       test_path: &str,
+                                       contract_address: Hash256,
+                                       constructor: &str,
+                                       constructor_arguments: &[Token]) -> (sgx_urts::SgxEnclave, WasmTaskResult) {
         let enclave = init_enclave_wrapper().unwrap();
         instantiate_encryption_key(vec![contract_address], enclave.geteid());
 
@@ -329,12 +329,12 @@ mod tests {
     }
 
     fn compile_compute_task_execute(db: &mut DB,
-                              enclave: &sgx_urts::SgxEnclave,
-                              deploy_res: &WasmTaskResult,
-                              func: &str,
-                              func_args: &[Token],
-                              contract_address: ContractAddress) -> (WasmTaskResult,
-                                                                     DhKey) {
+                                    enclave: &sgx_urts::SgxEnclave,
+                                    deploy_res: &WasmTaskResult,
+                                    func: &str,
+                                    func_args: &[Token],
+                                    contract_address: Hash256) -> (WasmTaskResult,
+                                                                   DhKey) {
         let exe_code = &deploy_res.output;
         let (keys, shared_key, _, _) = exchange_keys(enclave.geteid());
         let encrypted_callable = symmetric::encrypt(func.as_bytes(), &shared_key).unwrap();

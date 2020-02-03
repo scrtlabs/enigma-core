@@ -21,6 +21,7 @@ extern crate log_derive;
 extern crate lazy_static;
 extern crate rlp;
 extern crate rustc_hex;
+extern crate hex_serde;
 extern crate serde;
 extern crate serde_derive;
 extern crate serde_json;
