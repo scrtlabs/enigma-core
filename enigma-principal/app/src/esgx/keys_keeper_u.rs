@@ -4,7 +4,7 @@ use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::U256;
 
-use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse};
+use boot_network::km_http_server::{StateKeyRequest, StateKeyResponse};
 use common_u::errors::EnclaveFailError;
 use enigma_types::{Hash256, EnclaveReturn, traits::SliceCPtr};
 

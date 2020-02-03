@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use boot_network::{
-    keys_provider_http::PrincipalHttpServer,
+    km_http_server::PrincipalHttpServer,
     principal_manager::{
         KMConfig,
         SgxEthereumSigner,

@@ -279,6 +279,25 @@ pub mod test {
         temp_path
     }
 
+    // TODO: The two tests below require the Enigma contract to be deployed
+    /// Not a standalone unit test, must be coordinated with the Enigma Contract tests
+//    #[test]
+//    #[ignore]
+//    fn test_set_worker_params() {
+//        let tempdir = tempfile::tempdir().unwrap();
+//        let gas_limit: U256 = 5999999.into();
+//        let enclave = init_enclave_wrapper().unwrap();
+//        let eid = enclave.geteid();
+//        let principal = init_no_deploy(eid).unwrap();
+//        principal.verify_identity_or_register(gas_limit).unwrap();
+//
+//        let block_number = principal.get_block_number().unwrap();
+//        let eid_safe = eid;
+//        let epoch_provider = KMController::new(eid_safe, tempdir.into_path(), principal.contract.clone()).unwrap();
+//        epoch_provider.epoch_state_manager.reset().unwrap();
+//        epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();
+//    }
+
     /// This test is more like a system-test than a unit-test.
     /// It is only dependent on an ethereum node running under the NODE_URL evn var or the default localhost:8545
     /// First it deploys all the contracts related (EnigmaToken, Enigma) and runs miner to simulate blocks.

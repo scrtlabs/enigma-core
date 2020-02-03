@@ -17,10 +17,6 @@ pub struct Opt {
     #[structopt(short = "s", long = "reset-epoch-state")]
     pub reset_epoch_state: bool,
 
-    /// Optional: Deploy the Enigma contract related infrastructure
-    #[structopt(short = "d", long = "deploy")]
-    pub deploy: bool,
-
     /// Optional currently ignored: Deploy to a different network (not the localhost:port)
     #[structopt(short = "n", long = "network", default_value = "http://.c")]
     pub network: Url,

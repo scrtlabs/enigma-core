@@ -25,7 +25,7 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<[u8; 20], E
     }
 }
 
-// wrapper function for getting the enclave public sign key (the one attached with produce_quote())
+// wrapper function for getting the Ethereum account address
 pub fn get_ethereum_address(eid: sgx_enclave_id_t) -> Result<[u8; 20], Error> {
     let mut address = [0u8; 20];
     let status = unsafe { ecall_get_ethereum_address(eid, &mut address) };

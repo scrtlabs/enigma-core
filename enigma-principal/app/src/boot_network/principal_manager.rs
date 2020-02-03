@@ -13,6 +13,51 @@ use secp256k1::Message;
 use secp256k1::Secp256k1;
 use common_u::custom_errors::ConfigError;
 
+pub struct SgxEthereumSigner {
+    eid: sgx_enclave_id_t,
+}
+
+impl SgxEthereumSigner {
+    pub fn new(eid: sgx_enclave_id_t) -> SgxEthereumSigner {
+        SgxEthereumSigner{ eid }
+    }
+}
+
+impl EcdsaSign for SgxEthereumSigner {
+    fn sign_hashed(&self, to_sign: &[u8; 32]) -> [u8; 65] {
+        match esgx::equote::sign_ethereum(self.eid, to_sign) {
+            Ok(sig) => sig,
+            Err(err) => {
+                panic!("Error signing data: {:?}", err);
+            }
+        }
+    }
+}
+
+pub struct PrivateKeyEthereumSigner {
+    private_key: [u8; 32]
+}
+
+impl PrivateKeyEthereumSigner {
+    pub fn new(private_key: [u8; 32]) -> PrivateKeyEthereumSigner {
+        PrivateKeyEthereumSigner{ private_key }
+    }
+}
+
+impl EcdsaSign for PrivateKeyEthereumSigner {
+    fn sign_hashed(&self, to_sign: &[u8; 32]) -> [u8; 65] {
+        let s = Secp256k1::signing_only();
+        let msg = Message::from_slice(to_sign).unwrap();
+        let key = SecretKey::from_slice(&self.private_key).unwrap();
+        let (v, sig_bytes) = s.sign_recoverable(&msg, &key).serialize_compact();
+
+        let mut sig_recoverable: [u8; 65] = [0u8; 65];
+        sig_recoverable[0..64].copy_from_slice(&sig_bytes);
+        sig_recoverable[64] = (v.to_i32() + 27) as u8;
+        sig_recoverable
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct KMConfig {
     // Path to IEnigma.Json ** probably a good place to document that IEnigma.Json is used because parsing the entire Enigma.json will fail to due missing types
@@ -45,52 +90,6 @@ pub struct KMConfig {
     pub confirmations: u64,
 }
 
-pub struct SgxEthereumSigner {
-    eid: sgx_enclave_id_t,
-}
-
-impl SgxEthereumSigner {
-    pub fn new(eid: sgx_enclave_id_t) -> SgxEthereumSigner {
-        SgxEthereumSigner{ eid }
-    }
-}
-
-impl EcdsaSign for SgxEthereumSigner {
-    fn sign_hashed(&self, to_sign: &[u8; 32]) -> [u8; 65] {
-        match esgx::equote::sign_ethereum(self.eid, to_sign) {
-            Ok(sig) => sig,
-            Err(err) => {
-                panic!("Error signing data: {:?}", err);
-            }
-            // println!("Signed data: {:?}", sig.to_vec().to_hex());
-        }
-    }
-}
-
-pub struct PrivateKeyEthereumSigner {
-    private_key: [u8; 32]
-}
-
-impl PrivateKeyEthereumSigner {
-    pub fn new(private_key: [u8; 32]) -> PrivateKeyEthereumSigner {
-        PrivateKeyEthereumSigner{ private_key }
-    }
-}
-
-impl EcdsaSign for PrivateKeyEthereumSigner {
-    fn sign_hashed(&self, to_sign: &[u8; 32]) -> [u8; 65] {
-        let s = Secp256k1::signing_only();
-        let msg = Message::from_slice(to_sign).unwrap();
-        let key = SecretKey::from_slice(&self.private_key).unwrap();
-        let (v, sig_bytes) = s.sign_recoverable(&msg, &key).serialize_compact();
-
-        let mut sig_recoverable: [u8; 65] = [0u8; 65];
-        sig_recoverable[0..64].copy_from_slice(&sig_bytes);
-        sig_recoverable[64] = (v.to_i32() + 27) as u8;
-        sig_recoverable
-    }
-}
-
 impl KMConfig {
     // load json config into the struct
     #[logfn(DEBUG)]
@@ -121,25 +120,6 @@ mod test {
     use std::env;
 
     use super::*;
-
-    // TODO: The two tests below require the Enigma contract to be deployed
-    /// Not a standalone unit test, must be coordinated with the Enigma Contract tests
-//    #[test]
-//    #[ignore]
-//    fn test_set_worker_params() {
-//        let tempdir = tempfile::tempdir().unwrap();
-//        let gas_limit: U256 = 5999999.into();
-//        let enclave = init_enclave_wrapper().unwrap();
-//        let eid = enclave.geteid();
-//        let principal = init_no_deploy(eid).unwrap();
-//        principal.verify_identity_or_register(gas_limit).unwrap();
-//
-//        let block_number = principal.get_block_number().unwrap();
-//        let eid_safe = eid;
-//        let epoch_provider = KMController::new(eid_safe, tempdir.into_path(), principal.contract.clone()).unwrap();
-//        epoch_provider.epoch_state_manager.reset().unwrap();
-//        epoch_provider.set_worker_params(block_number, gas_limit, 0).unwrap();
-//    }
 
     #[test]
     fn test_load_config_from_env() {
