@@ -5,11 +5,11 @@ use web3::{futures::Future, types::U256};
 use controller::km_controller::KMController;
 
 // this trait should extend the EnigmaContract into Principal specific functions.
-pub trait Principal {
+pub trait EthereumTracker {
     fn epoch_trigger(&self, epoch_size: usize, polling_interval: u64, confirmations: usize);
 }
 
-impl Principal for KMController {
+impl EthereumTracker for KMController {
     /// Watches the blocks for new epoch using the epoch size and the previous epoch block number.
     /// For each new epoch, set the worker parameters.
     #[logfn(INFO)]

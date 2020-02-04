@@ -22,7 +22,7 @@ use controller;
 use enigma_crypto::EcdsaSign;
 use enigma_tools_u::{esgx::general::storage_dir, web3_utils::enigma_contract::EnigmaContract};
 use controller::km_controller::KMController;
-use epochs::epoch_trigger::Principal;
+use epochs::epoch_trigger::EthereumTracker;
 
 pub fn create_signer(eid: sgx_enclave_id_t, with_private_key: bool, private_key: &[u8]) -> Box<dyn EcdsaSign + Send + Sync> {
     if with_private_key {

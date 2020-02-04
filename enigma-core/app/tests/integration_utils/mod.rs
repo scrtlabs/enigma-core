@@ -29,7 +29,6 @@ use self::regex::Regex;
 use self::hex::{ToHex, FromHex};
 use self::ethabi::{Token};
 use self::enigma_crypto::{asymmetric::KeyPair, symmetric};
-use self::enigma_types::Hash256;
 use self::rand::{thread_rng, Rng};
 use app::db::DB;
 use self::tempfile::TempDir;

@@ -14,7 +14,7 @@ use std::collections::HashMap;
 use std::sync::SgxMutex;
 
 lazy_static! {
-    pub static ref STATE_KEYS: SgxMutex<HashMap<ContractAddress, StateKey>> = SgxMutex::new(HashMap::new());
+    pub static ref STATE_KEYS: SgxMutex<HashMap<Hash256, StateKey>> = SgxMutex::new(HashMap::new());
 }
 
 pub fn get_state_key(address: Hash256) -> Result<StateKey, EnclaveError> {
