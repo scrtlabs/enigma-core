@@ -39,7 +39,7 @@ extern crate secp256k1;
 
 use std::str::FromStr;
 
-use cli::options::Opt;
+use controller::options::Opt;
 use enigma_tools_u::common_u::logging;
 use enigma_tools_u::common_u::os;
 
@@ -47,8 +47,8 @@ pub use enigma_tools_u::esgx::ocalls_u::{ocall_get_home, ocall_save_to_memory};
 use structopt::StructOpt;
 
 // enigma modules
-mod boot_network;
-mod cli;
+mod epochs;
+mod state_keys;
 mod common_u;
 mod controller;
 mod esgx;
@@ -66,7 +66,7 @@ fn main() {
 
     let enclave = esgx::general::init_enclave_wrapper().expect("[-] Init Enclave Failed");
     let eid = enclave.geteid();
-    cli::app::start(eid).unwrap();
+    controller::boot_network::start(eid).unwrap();
     info!("[+] Init Enclave Successful {}!", eid);
 
     // drop enclave when done

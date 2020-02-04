@@ -1,6 +1,7 @@
-use common_u::errors;
 use failure::Error;
 use sgx_types::*;
+
+use common_u::errors;
 
 extern "C" {
     fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 20]) -> sgx_status_t;

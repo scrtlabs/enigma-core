@@ -1,25 +1,27 @@
 use std::sync::Arc;
 
-use enigma_tools_m::{
-    primitives::km_primitives::PrincipalMessage,
-    utils::EthereumAddress,
-};
 use failure::Error;
 use jsonrpc_http_server::{
     jsonrpc_core::{Error as ServerError, ErrorCode, IoHandler, Params, Value},
     ServerBuilder,
 };
 use serde::{Deserialize, Serialize};
+use web3::types::{U256, H160};
 
+use enigma_tools_m::{
+    primitives::km_primitives::PrincipalMessage,
+    utils::EthereumAddress,
+};
 use enigma_crypto::KeyPair;
 use enigma_types::{EnclaveReturn, Hash256};
 use enigma_tools_u::web3_utils::enigma_contract::ContractQueries;
-use controller::{km_controller::KMController, epoch_types::SignedEpoch};
-use esgx::keys_keeper_u::get_enc_state_keys;
+
+use controller::km_controller::KMController;
+use epochs::epoch_types::SignedEpoch;
+use state_keys::keys_keeper_u::get_enc_state_keys;
 use esgx;
 use common_u::errors::{EnclaveFailError, EpochStateTransitionErr,
                        JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
-use web3::types::{U256, H160};
 
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
@@ -49,7 +51,7 @@ impl StateKeyResponse {
     }
 }
 
-pub struct PrincipalHttpServer {
+pub struct KMHttpServer {
     controller: Arc<KMController>,
     pub port: u16,
 }
@@ -71,8 +73,8 @@ impl StateKeyRequest {
     }
 }
 
-impl PrincipalHttpServer {
-    pub fn new(controller: Arc<KMController>, port: u16) -> PrincipalHttpServer { PrincipalHttpServer { controller, port } }
+impl KMHttpServer {
+    pub fn new(controller: Arc<KMController>, port: u16) -> KMHttpServer { KMHttpServer { controller, port } }
 
     #[logfn(DEBUG)]
     fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &SignedEpoch) -> Result<Vec<Hash256>, Error> {
@@ -192,9 +194,9 @@ mod test {
     use web3::types::Bytes;
 
     use enigma_types::{Hash256};
-    use controller::epoch_types::ConfirmedEpochState;
-    use esgx::epoch_keeper_u::set_or_verify_worker_params;
-    use esgx::epoch_keeper_u::tests::get_worker_params;
+    use epochs::epoch_types::ConfirmedEpochState;
+    use epochs::epoch_keeper_u::set_or_verify_worker_params;
+    use epochs::epoch_keeper_u::tests::get_worker_params;
     use esgx::general::init_enclave_wrapper;
 
     use super::*;
@@ -258,7 +260,7 @@ mod test {
         let mut epoch = SignedEpoch::new(seed, sig, nonce, km_block_number);
         epoch.confirmed_state = confirmed_state;
         let msg = PrincipalMessage::from_message(&request.get_data()).unwrap();
-        let results = PrincipalHttpServer::find_epoch_contract_addresses(&request, &msg, &epoch).unwrap();
+        let results = KMHttpServer::find_epoch_contract_addresses(&request, &msg, &epoch).unwrap();
         assert_eq!(results, vec![address])
     }
 }

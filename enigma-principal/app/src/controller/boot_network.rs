@@ -1,25 +1,28 @@
 use std::sync::Arc;
-use boot_network::{
-    km_http_server::PrincipalHttpServer,
-    principal_manager::{
+use std::{fs::File, io::prelude::*, path::Path};
+
+use failure::Error;
+use sgx_types::sgx_enclave_id_t;
+use structopt::StructOpt;
+use rustc_hex::{FromHex, ToHex};
+use crossbeam_utils::thread;
+
+use controller::{
+    km_http_server::KMHttpServer,
+    km_utils::{
         KMConfig,
         SgxEthereumSigner,
         PrivateKeyEthereumSigner
     },
 };
-use cli;
-use enigma_crypto::EcdsaSign;
-use enigma_tools_u::{esgx::general::storage_dir, web3_utils::enigma_contract::EnigmaContract};
-use controller::{km_controller::KMController, km_utils::Principal};
+use common_u::custom_errors::ReportManagerErr;
 use esgx::general::ENCLAVE_DIR;
 use esgx::equote;
-use failure::Error;
-use sgx_types::sgx_enclave_id_t;
-use std::{fs::File, io::prelude::*, path::Path};
-use structopt::StructOpt;
-use rustc_hex::{FromHex, ToHex};
-use common_u::custom_errors::ReportManagerErr;
-use crossbeam_utils::thread;
+use controller;
+use enigma_crypto::EcdsaSign;
+use enigma_tools_u::{esgx::general::storage_dir, web3_utils::enigma_contract::EnigmaContract};
+use controller::km_controller::KMController;
+use epochs::epoch_trigger::Principal;
 
 pub fn create_signer(eid: sgx_enclave_id_t, with_private_key: bool, private_key: &[u8]) -> Box<dyn EcdsaSign + Send + Sync> {
     if with_private_key {
@@ -46,7 +49,7 @@ fn get_ethereum_address(eid: sgx_enclave_id_t, config: KMConfig) -> Result<Strin
 
 #[logfn(INFO)]
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
-    let opt = cli::options::Opt::from_args();
+    let opt = controller::options::Opt::from_args();
     let config = KMConfig::load_config(opt.principal_config.as_str())?;
 
     let mut path = storage_dir(ENCLAVE_DIR)?;
@@ -105,11 +108,11 @@ fn run(reset_epoch: bool, controller: KMController) -> Result<(), Error> {
     let controller2 = Arc::clone(&controller1);
     let _ = thread::scope(|s| {
         s.spawn(|_| {
-            let server = PrincipalHttpServer::new(controller1, port);
+            let server = KMHttpServer::new(controller1, port);
             server.start();
         });
         s.spawn(|_|{
-            controller2.watch_blocks(
+            controller2.epoch_trigger(
                 controller2.config.epoch_size,
                 controller2.config.polling_interval,
                  controller2.config.confirmations as usize,

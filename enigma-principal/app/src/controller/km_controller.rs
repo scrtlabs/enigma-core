@@ -1,24 +1,25 @@
 use std::path::PathBuf;
 use std::clone::Clone;
 
-use enigma_tools_m::keeper_types::InputWorkerParams;
 use ethabi::{Log, RawLog};
 use failure::Error;
 use sgx_types::sgx_enclave_id_t;
 use web3::types::{H256, TransactionReceipt, U256, H160};
 use rustc_hex::ToHex;
 
-use common_u::errors::EpochStateTransitionErr;
+use enigma_tools_m::keeper_types::InputWorkerParams;
 use enigma_tools_u::web3_utils::enigma_contract::{ContractFuncs, ContractQueries, EnigmaContract};
 use enigma_tools_u::common_u::errors::Web3Error;
 use enigma_tools_u::esgx::equote::retry_quote;
 use enigma_tools_u::attestation_service::service::AttestationService;
-use controller::epoch_types::{EPOCH_STATE_UNCONFIRMED, SignedEpoch, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
-use esgx::epoch_keeper_u::set_or_verify_worker_params;
+
+use controller::km_utils::KMConfig;
+use epochs::epoch_keeper_u::set_or_verify_worker_params;
 use esgx::equote;
-use boot_network::principal_manager::KMConfig;
+use common_u::errors::EpochStateTransitionErr;
 use common_u::custom_errors::ReportManagerErr;
-use controller::verifier::EpochVerifier;
+use epochs::verifier::EpochVerifier;
+use epochs::epoch_types::{EPOCH_STATE_UNCONFIRMED, SignedEpoch, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
 
 lazy_static!{ pub static ref GAS_LIMIT: U256 = 5_999_999.into(); }
 
@@ -228,10 +229,10 @@ pub mod test {
     use web3::types::{Bytes, H160};
     use enigma_types::Hash256;
     use failure::Error;
-    use boot_network::principal_manager::{SgxEthereumSigner};
+    use controller::km_utils::{SgxEthereumSigner};
     use enigma_crypto::EcdsaSign;
     use esgx::general::init_enclave_wrapper;
-    use controller::epoch_types::ConfirmedEpochState;
+    use epochs::epoch_types::ConfirmedEpochState;
     use super::*;
 
     #[logfn(DEBUG)]
