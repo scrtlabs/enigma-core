@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::clone::Clone;
 
 use ethabi::{Log, RawLog};
-use failure::Error;
 use sgx_types::sgx_enclave_id_t;
 use web3::types::{H256, TransactionReceipt, U256, H160};
 use rustc_hex::ToHex;
@@ -16,10 +15,9 @@ use enigma_tools_u::attestation_service::service::AttestationService;
 use controller::km_utils::KMConfig;
 use epochs::epoch_keeper_u::set_or_verify_worker_params;
 use esgx::equote;
-use common_u::errors::EpochStateTransitionErr;
-use common_u::custom_errors::{ControllerError, VerifierError, EnclaveError, EpochError};
+use common_u::custom_errors::{ControllerError, EnclaveError, EpochError};
 use epochs::verifier::EpochVerifier;
-use epochs::epoch_types::{EPOCH_STATE_UNCONFIRMED, SignedEpoch, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
+use epochs::epoch_types::{SignedEpoch, WORKER_PARAMETERIZED_EVENT, WorkersParameterizedEvent};
 
 lazy_static!{ pub static ref GAS_LIMIT: U256 = 5_999_999.into(); }
 
@@ -95,7 +93,7 @@ impl KMController {
 
     pub fn get_signing_address(&self) -> Result<H160, ControllerError> {
         Ok(equote::get_register_signing_address(self.eid).
-            map_err(|e| ControllerError::EnclaveError(EnclaveError::UnDetailedEnclaveErr))?.into())
+            map_err(|_| ControllerError::EnclaveError(EnclaveError::UnDetailedEnclaveErr))?.into())
     }
 
 //    pub fn get_ethereum_address(&self) -> Result<H160, Error> {
@@ -234,7 +232,6 @@ pub mod test {
     use web3::futures::Future;
     use web3::types::{Bytes, H160};
     use enigma_types::Hash256;
-    use failure::Error;
     use controller::km_utils::{SgxEthereumSigner};
     use enigma_crypto::EcdsaSign;
     use esgx::general::init_enclave_wrapper;
@@ -260,7 +257,7 @@ pub mod test {
             config.chain_id,
             &config.url,
             ethereum_signer,
-        ).map_err(|e| ControllerError::ContractError(
+        ).map_err(|_| ControllerError::ContractError(
             Web3Error{message: String::from("An error occurred while trying to deploy the contract")}))?;
        let path = tempdir().unwrap().into_path();
        KMController::new(eid, path, contract, config)

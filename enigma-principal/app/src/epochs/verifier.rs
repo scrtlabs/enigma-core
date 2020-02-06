@@ -9,15 +9,13 @@ use std::clone::Clone;
 use std::sync::MutexGuard;
 use std::mem::replace;
 
-use failure::Error;
 use rmp_serde::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
 use web3::types::U256;
 
 use enigma_tools_m::keeper_types::EPOCH_CAP;
 
-use common_u::errors::{EpochStateIOErr, EpochStateTransitionErr, EpochStateUndefinedErr};
-use epochs::epoch_types::{ConfirmedEpochState, EPOCH_STATE_UNCONFIRMED, SignedEpoch};
+use epochs::epoch_types::{ConfirmedEpochState, SignedEpoch};
 use esgx::general::{EPOCH_DIR, EPOCH_FILE};
 use common_u::custom_errors::{VerifierError, EpochError};
 

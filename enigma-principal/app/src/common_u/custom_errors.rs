@@ -1,12 +1,10 @@
-use std::sync::PoisonError;
-
 use thiserror::Error;
 use failure::Error as GenericErr;
 use sgx_types::sgx_status_t;
 
 use enigma_types;
 use enigma_tools_u::common_u::errors::Web3Error;
-use enigma_tools_m::ToolsError;
+
 #[derive(Error, Debug)]
 pub enum ControllerError {
     #[error(transparent)]
@@ -45,8 +43,6 @@ pub enum HTTPServerError {
     EpochError(#[from] EpochError),
     #[error("an error occurred in the pubkey recovery")]
     CryptoErr,
-    #[error("received the following error: {0}")]
-    GenericErr(GenericErr),
     #[error("error while trying to parse the message received")]
     MessagingErr,
 }

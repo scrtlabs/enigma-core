@@ -1,6 +1,5 @@
 use std::path::Path;
 use std::str;
-use std::sync::Arc;
 
 use failure::Error;
 use hex::{FromHex};

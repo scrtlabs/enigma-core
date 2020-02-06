@@ -6,7 +6,6 @@ use sgx_trts::trts::rsgx_read_rand;
 use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec, string::String};
 
 use enigma_crypto::{asymmetric::KeyPair, Encryption};
-use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::{
     common::errors_t::{
             EnclaveError::{self, *},
@@ -22,7 +21,6 @@ use ethereum_types::U256;
 use rustc_hex::ToHex;
 
 use crate::SIGNING_KEY;
-use sgx_types::uint8_t;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 

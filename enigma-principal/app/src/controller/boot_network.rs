@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::{fs::File, io::prelude::*, path::Path};
 
-use failure::Error;
 use sgx_types::sgx_enclave_id_t;
 use structopt::StructOpt;
 use rustc_hex::{FromHex, ToHex};

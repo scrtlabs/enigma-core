@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use rustc_hex::ToHex;
 use ethabi::{Event, EventParam, ParamType};
-use failure::Error;
 pub use rlp::{decode, Encodable, encode, RlpStream};
 use serde::{Deserialize, Serialize};
 use web3::types::{Address, Bytes, H160, U256};
@@ -10,10 +9,8 @@ use web3::types::{Address, Bytes, H160, U256};
 use enigma_tools_m::keeper_types::InputWorkerParams;
 use enigma_types::Hash256;
 
-use common_u::errors::EpochStateTransitionErr;
 use common_u::custom_errors::EpochError;
 
-pub const EPOCH_STATE_UNCONFIRMED: &str = "UNCONFIRMED";
 pub const WORKER_PARAMETERIZED_EVENT: &str = "WorkersParameterized";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

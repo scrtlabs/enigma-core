@@ -1,6 +1,5 @@
 use std::mem;
 
-use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::U256;
 

@@ -24,7 +24,7 @@ extern crate sgx_types;
 extern crate rustc_hex;
 
 use enigma_tools_m::utils::EthereumAddress;
-use sgx_types::{sgx_report_t, sgx_status_t, sgx_target_info_t, uint8_t};
+use sgx_types::{sgx_report_t, sgx_status_t, sgx_target_info_t};
 use std::{mem, slice};
 
 use enigma_crypto::asymmetric;

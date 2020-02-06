@@ -1,6 +1,6 @@
 use core::clone::Clone;
 
-use enigma_tools_m::keeper_types::{decode, EPOCH_CAP, InputWorkerParams, RawEncodable};
+use enigma_tools_m::keeper_types::{decode, EPOCH_CAP, InputWorkerParams};
 use enigma_tools_m::utils::LockExpectMutex;
 use ethereum_types::{H256, U256, BigEndianHash};
 use rustc_hex::ToHex;
@@ -168,7 +168,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     }
     // Add the `Epoch` to the epoch cache regardless of weather it was created or recovered from a sealed marker
     match guard.insert(epoch.nonce.clone(), epoch.clone()) {
-        Some(prev) => debug_println!("New epoch stored successfully"),
+        Some(_) => debug_println!("New epoch stored successfully"),
         None => debug_println!("Initial epoch stored successfully"),
     }
     let msg = epoch.encode_for_hashing();
@@ -188,9 +188,7 @@ pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: Hash256, nonce: U256) -> 
 
 pub mod tests {
     use ethereum_types::{H160, U256};
-    use rustc_hex::FromHex;
     use std::prelude::v1::Vec;
-    use std::string::String;
 
     use super::*;
 
@@ -203,7 +201,7 @@ pub mod tests {
         };
         let epoch = Epoch { nonce: U256::from(0), seed: U256::from(1), worker_params };
         let sc_addr = Hash256::from([1u8; 32]);
-        let worker = epoch.get_selected_worker(sc_addr).unwrap();
+        let _worker = epoch.get_selected_worker(sc_addr).unwrap();
     }
 
     pub fn test_create_epoch_image() {

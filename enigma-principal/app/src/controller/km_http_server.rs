@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use failure::Error;
 use jsonrpc_http_server::{
     jsonrpc_core::{Error as ServerError, ErrorCode, IoHandler, Params, Value},
     ServerBuilder,
@@ -20,8 +19,7 @@ use controller::km_controller::KMController;
 use epochs::epoch_types::SignedEpoch;
 use state_keys::keys_keeper_u::get_enc_state_keys;
 use esgx;
-use common_u::errors::{EnclaveFailError, EpochStateTransitionErr,
-                       JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
+use common_u::errors::JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED;
 use common_u::custom_errors::{HTTPServerError, ControllerError, EnclaveError};
 
 
@@ -79,7 +77,7 @@ impl KMHttpServer {
 
     #[logfn(DEBUG)]
     fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &SignedEpoch) -> Result<Vec<Hash256>, HTTPServerError> {
-        let image = msg.to_sign().map_err(|e| HTTPServerError::MessagingErr)?;
+        let image = msg.to_sign().map_err(|_| HTTPServerError::MessagingErr)?;
         let sig = request.get_sig()?;
         let worker = KeyPair::recover(&image, sig).map_err(|_| HTTPServerError::CryptoErr)?.address();
         trace!("Searching contract addresses for recovered worker: {:?}", worker.to_vec());
@@ -113,7 +111,7 @@ impl KMHttpServer {
             ControllerError::EnclaveError(e) => {
                 error!("{:?}", e);
                 match e {
-                    EnclaveError::EnclaveFailErr{err: e, status: s} => {
+                    EnclaveError::EnclaveFailErr{err: e, status: _} => {
                         match &e {
                             EnclaveReturn::WorkerAuthError => {
                                 ServerError {

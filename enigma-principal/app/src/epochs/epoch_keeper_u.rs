@@ -1,4 +1,3 @@
-use failure::Error;
 use rustc_hex::ToHex;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, U256};
