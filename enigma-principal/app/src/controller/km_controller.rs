@@ -38,8 +38,8 @@ impl KMController {
     }
 
     /// Find confirmed `EpochState` by block number
-    /// # Arguments
     ///
+    /// # Arguments
     /// * `block_number` - A block number in the desired epoch
     pub fn find_epoch(&self, block_number: U256) -> Result<SignedEpoch, ControllerError> {
         self.epoch_verifier.get_confirmed_by_block_number(block_number).map_err(ControllerError::VerifierError)
@@ -55,39 +55,36 @@ impl KMController {
 
     #[logfn(DEBUG)]
     fn parse_worker_parameterized(&self, receipt: &TransactionReceipt) -> Result<Log, ControllerError> {
-        if receipt.logs.is_empty() {
-            // todo: change the web3error to a proper custom error
-            Err(Web3Error {
-                message: format!("A connection error occurred with the Smart Contract- workerParams did not return a log response" ),
-            })?
-        }
-        let log = receipt.logs[0].clone();
+        let log = receipt.logs.get(0).ok_or(Web3Error {
+            message: format!("A connection error occurred with the Smart Contract- workerParams did not return a log response" ),
+        })?.clone();
         let raw_log = RawLog { topics: log.topics, data: log.data.0 };
         let event = WorkersParameterizedEvent::new();
-        let result = match event.0.parse_log(raw_log) {
-            Ok(result) => result,
-            Err(err) => Err(Web3Error {
+        let result = match event.0.parse_log(raw_log).map_err(|err|
+            Web3Error {
                 message: format!("Unable to parse {} event: {:?}", WORKER_PARAMETERIZED_EVENT, err),
-            })?,
-        };
+            })?;
         debug!("Parsed the {} event: {:?}", WORKER_PARAMETERIZED_EVENT, result);
         Ok(result)
     }
 
     #[logfn(DEBUG)]
     fn verify_worker_params(&self) -> Result<(), ControllerError> {
-        for signed_epoch in self.epoch_verifier.get_all_confirmed().
-            map_err(ControllerError::VerifierError)?.iter() {
-            // if the epoch is confirmed by the Enigma Contract
-            if let Some(_) = &signed_epoch.confirmed_state {
-                // Get the km_block_number which indicates where to take the list of active workers from
-                let km_block_number = signed_epoch.get_km_block_num();
-                let (workers, stakes) = self.contract.get_active_workers(km_block_number).map_err(ControllerError::Other)?;
-                let worker_params = InputWorkerParams { km_block_number, workers, stakes };
-                set_or_verify_worker_params(self.eid, &worker_params, Some(signed_epoch.clone())).
-                    map_err(ControllerError::EnclaveError)?;
+        for signed_epoch in self.epoch_verifier
+            .get_all_confirmed()
+            .map_err(ControllerError::VerifierError)?
+            .iter()
+            {
+                // if the epoch is confirmed by the Enigma Contract
+                if signed_epoch.confirmed_state.is_some() {
+                    // Get the km_block_number which indicates where to take the list of active workers from
+                    let km_block_number = signed_epoch.get_km_block_num();
+                    let (workers, stakes) = self.contract.get_active_workers(km_block_number).map_err(ControllerError::Other)?;
+                    let worker_params = InputWorkerParams { km_block_number, workers, stakes };
+                    set_or_verify_worker_params(self.eid, &worker_params, Some(signed_epoch.clone())).
+                        map_err(ControllerError::EnclaveError)?;
+                }
             }
-        }
         Ok(())
     }
 
@@ -182,8 +179,9 @@ impl KMController {
         self.epoch_verifier.append_unconfirmed(epoch.clone()).map_err(ControllerError::VerifierError)?;
 
         debug!("Waiting for setWorkerParams({:?}, {:?}, {:?})", km_block_number, epoch.get_seed(), epoch.get_sig());
-        let receipt = self.contract.set_workers_params(km_block_number, epoch.get_seed(), epoch.get_sig(), *GAS_LIMIT, confirmations).
-            map_err(ControllerError::Other)?;
+        let receipt = self.contract
+            .set_workers_params(km_block_number, epoch.get_seed(), epoch.get_sig(), *GAS_LIMIT, confirmations)
+            .map_err(ControllerError::Other)?;
         debug!("Got the receipt: {:?}", receipt);
 
         let log = self.parse_worker_parameterized(&receipt)?;
@@ -211,8 +209,8 @@ impl KMController {
     /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
     #[logfn(DEBUG)]
     pub fn confirm_epoch(&self, epoch_state: &mut SignedEpoch, ether_block_number: U256, worker_params: InputWorkerParams) -> Result<(), ControllerError> {
-        let sc_addresses = self.contract.get_all_secret_contract_addresses().
-            map_err(ControllerError::Other)?;
+        let sc_addresses = self.contract.get_all_secret_contract_addresses()
+            .map_err(ControllerError::Other)?;
 
         debug!("The secret contract addresses: {:?}",
                sc_addresses.iter().map(|item| {item.to_hex()}).collect::<Vec<String>>());

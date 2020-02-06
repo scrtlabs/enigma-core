@@ -95,7 +95,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), ControllerError> {
     Ok(())
 }
 
-//#[logfn(INFO)]
+#[logfn(INFO)]
 fn run(reset_epoch: bool, controller: KMController) -> Result<(), ControllerError> {
     controller.verify_identity_or_register()?;
     if reset_epoch {

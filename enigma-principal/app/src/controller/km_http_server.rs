@@ -81,7 +81,7 @@ impl KMHttpServer {
         let sig = request.get_sig()?;
         let worker = KeyPair::recover(&image, sig).or( Err(HTTPServerError::KeyRecoveryErr))?.address();
         trace!("Searching contract addresses for recovered worker: {:?}", worker.to_vec());
-        Ok(epoch_state.get_contract_addresses(&worker.into())?)
+        epoch_state.get_contract_addresses(&worker.into()).into()
     }
 
     #[logfn(DEBUG)]
@@ -93,59 +93,48 @@ impl KMHttpServer {
         let addrs = match request.addresses.clone() {
             Some(addrs) => addrs,
             None => {
-                let msg = PrincipalMessage::from_message(&request.get_data()).
-                    or( Err(ControllerError::HTTPServerError(HTTPServerError::InvalidMessage)))?;
+                let msg = PrincipalMessage::from_message(&request.get_data())
+                    .or( Err(ControllerError::HTTPServerError(HTTPServerError::InvalidMessage)))?;
                 Self::find_epoch_contract_addresses(&request, &msg, &signed_epoch)?
             },
         };
         let response =
-            get_enc_state_keys(self.controller.eid, request, signed_epoch.get_nonce(), &addrs).
-            map_err(ControllerError::EnclaveError)?;
-        let response_data = serde_json::to_value(&response).
-            or( Err(ControllerError::HTTPServerError(HTTPServerError::InvalidMessage)))?;
+            get_enc_state_keys(self.controller.eid, request, signed_epoch.get_nonce(), &addrs)
+                .map_err(ControllerError::EnclaveError)?;
+        let response_data = serde_json::to_value(&response)
+            .or( Err(ControllerError::HTTPServerError(HTTPServerError::InvalidMessage)))?;
         Ok(response_data)
     }
 
     fn handle_error(internal_err: ControllerError) -> ServerError {
         match internal_err {
-            ControllerError::EnclaveError(e) => {
-                error!("{:?}", e);
-                match e {
-                    EnclaveError::Failure {err: e, status: _} => {
-                        match &e {
-                            EnclaveReturn::WorkerAuthError => {
-                                ServerError {
-                                    code: ErrorCode::ServerError(JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED),
-                                    message: format!("Worker not authorized to request the keys: {:?}.", e),
-                                    data: None,
-                                }
-                            },
-                            _ => {
-                                ServerError {
-                                    code: ErrorCode::InternalError,
-                                    message: format!("Internal error in enclave: {:?}", e),
-                                    data: None,
-                                }
-                            },
-                        }
-                    },
-                    _ => {
-                        ServerError {
-                            code: ErrorCode::InternalError,
-                            message: format!("Internal error: {:?}", e),
-                            data: None,
-                        }
-                    },
+            ControllerError::EnclaveError(
+                EnclaveError::EnclaveFailErr {
+                    err: e @ EnclaveReturn::WorkerAuthError,
+                    ..
                 }
-
+            ) => ServerError {
+                code: ErrorCode::ServerError(JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED),
+                message: format!("Worker not authorized to request the keys: {:?}.", e),
+                data: None,
             },
-            _ => {
-                ServerError {
-                    code: ErrorCode::InternalError,
-                    message: format!("Internal error: {:?}", internal_err),
-                    data: None,
-                }
+            ControllerError::EnclaveError(
+                EnclaveError::EnclaveFailErr { err: e @ _, .. }
+            ) => ServerError {
+                code: ErrorCode::InternalError,
+                message: format!("Internal error in enclave: {:?}", e),
+                data: None,
             },
+            ControllerError::EnclaveError(e @ _) => ServerError {
+                code: ErrorCode::InternalError,
+                message: format!("Internal error: {:?}", e),
+                data: None,
+            },
+            _ => ServerError {
+                code: ErrorCode::InternalError,
+                message: format!("Internal error: {:?}", internal_err),
+                data: None,
+            }
         }
     }
 
@@ -218,14 +207,6 @@ mod test {
     const REF_RESPONSE: &str = "83a46461746181b1456e6372";
     const REF_WORKER: [u8; 20] = [161, 186, 144, 238, 40, 242, 102, 161, 178, 93, 177, 83, 107, 128, 189, 132, 112, 8, 163, 252];
     const REF_CONTRACT_ADDR: [u8; 32] = [253, 20, 84, 186, 169, 51, 74, 146, 65, 95, 59, 133, 9, 25, 170, 193, 33, 159, 199, 204, 122, 116, 189, 122, 37, 132, 117, 188, 103, 120, 103, 137];
-
-    #[test]
-    fn test_foo() -> failure::Fallible<()> {
-        let foo: StateKeyRequest = serde_json::from_str("{\"data\": \"1234fF\", \"sig\": \"5678\"}").map_err(|e| {println!("{:?}", e); e})?;
-        println!("{:?}, {:?}", foo.sig, foo.data);
-
-        Ok(())
-    }
 
     #[test]
     pub fn test_jsonrpc_get_state_keys() {
