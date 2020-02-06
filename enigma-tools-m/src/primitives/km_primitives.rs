@@ -13,6 +13,18 @@ use enigma_types::{ContractAddress, DhKey, PubKey, StateKey};
 /// A Message ID type, used to identify each message to the response.
 pub type MsgID = [u8; 12];
 
+/// the size of the publicKey in the network.
+pub const PUB_KEY_SIZE: usize = 64;
+
+/// verifies if the publicKey is in the expected size.
+/// inputs: pubkey: &[u8]
+pub fn verify_key_size(pubkey: &[u8]) -> Result<(), ToolsError> {
+    if pubkey.len() != PUB_KEY_SIZE {
+        return Err(MessagingError { err: "the pub key is not of the right length" })
+    }
+    Ok(())
+}
+
 /// An enum used to differentiate between `Request` and `Response`.
 /// and between Response before and after encryption
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
@@ -90,9 +102,7 @@ impl PrincipalMessage {
         let res: serde_json::Value =
             Deserialize::deserialize(&mut des).map_err(|_| MessagingError { err: "can't deserialize the message" })?;
         let msg: Self = serde_json::from_value(res).map_err(|_| MessagingError { err: "can't deserialize the message" })?;
-        if msg.pubkey.len() != 64 {
-            return Err(MessagingError { err: "the pub key is not in the right length" })
-        }
+        verify_key_size(&msg.pubkey)?;
         Ok(msg)
     }
 
@@ -201,9 +211,7 @@ impl UserMessage {
             .map_err(|_| MessagingError { err: "Couldn't Deserialize UserMesssage"})?;;
         let msg: Self = serde_json::from_value(res)
             .map_err(|_| MessagingError { err: "Couldn't convert Value to UserMesssage"})?;
-        if msg.pubkey.len() != 64 {
-           return Err(MessagingError { err: "the pub key is not in the right length" })
-        }
+        verify_key_size(&msg.pubkey)?;
         Ok(msg)
     }
 
