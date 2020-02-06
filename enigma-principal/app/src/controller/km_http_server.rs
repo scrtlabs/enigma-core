@@ -81,7 +81,7 @@ impl KMHttpServer {
         let sig = request.get_sig()?;
         let worker = KeyPair::recover(&image, sig).or( Err(HTTPServerError::KeyRecoveryErr))?.address();
         trace!("Searching contract addresses for recovered worker: {:?}", worker.to_vec());
-        epoch_state.get_contract_addresses(&worker.into()).into()
+        Ok(epoch_state.get_contract_addresses(&worker.into())?)
     }
 
     #[logfn(DEBUG)]
@@ -109,7 +109,7 @@ impl KMHttpServer {
     fn handle_error(internal_err: ControllerError) -> ServerError {
         match internal_err {
             ControllerError::EnclaveError(
-                EnclaveError::EnclaveFailErr {
+                EnclaveError::Failure {
                     err: e @ EnclaveReturn::WorkerAuthError,
                     ..
                 }
@@ -119,7 +119,7 @@ impl KMHttpServer {
                 data: None,
             },
             ControllerError::EnclaveError(
-                EnclaveError::EnclaveFailErr { err: e @ _, .. }
+                EnclaveError::Failure { err: e @ _, .. }
             ) => ServerError {
                 code: ErrorCode::InternalError,
                 message: format!("Internal error in enclave: {:?}", e),

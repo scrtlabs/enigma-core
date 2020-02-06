@@ -60,7 +60,7 @@ impl KMController {
         })?.clone();
         let raw_log = RawLog { topics: log.topics, data: log.data.0 };
         let event = WorkersParameterizedEvent::new();
-        let result = match event.0.parse_log(raw_log).map_err(|err|
+        let result = event.0.parse_log(raw_log).map_err(|err|
             Web3Error {
                 message: format!("Unable to parse {} event: {:?}", WORKER_PARAMETERIZED_EVENT, err),
             })?;
