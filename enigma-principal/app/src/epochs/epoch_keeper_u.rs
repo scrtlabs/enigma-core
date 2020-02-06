@@ -6,7 +6,7 @@ use web3::types::{Bytes, U256};
 use enigma_tools_m::keeper_types::InputWorkerParams;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
 
-use common_u::errors::EnclaveFailError;
+use common_u::custom_errors::EnclaveError;
 use epochs::epoch_types::{encode, SignedEpoch};
 
 extern "C" {
@@ -34,7 +34,7 @@ extern "C" {
 /// let sig = set_worker_params(enclave.geteid(), worker_params, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch: Option<SignedEpoch>) -> Result<SignedEpoch, Error> {
+pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch: Option<SignedEpoch>) -> Result<SignedEpoch, EnclaveError> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let (nonce_in, seed_in) = match epoch.clone() {
         Some(e) => (e.get_nonce().into(), e.get_seed().into()),
@@ -59,7 +59,7 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: retval, status }.into());
+        return Err(EnclaveError::EnclaveFailErr { err: retval, status });
     }
     // If an `Epoch` was given and the ecall succeeded, it is considered verified
     // Otherwise, build a new `Epoch` from the parameters of the new epoch

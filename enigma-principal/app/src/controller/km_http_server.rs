@@ -22,6 +22,7 @@ use state_keys::keys_keeper_u::get_enc_state_keys;
 use esgx;
 use common_u::errors::{EnclaveFailError, EpochStateTransitionErr,
                        JSON_RPC_ERROR_ILLEGAL_STATE, JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED};
+use common_u::custom_errors::{HTTPServerError, ControllerError, EnclaveError};
 
 
 const METHOD_GET_STATE_KEYS: &str = "getStateKeys";
@@ -63,10 +64,10 @@ impl StateKeyRequest {
 
     pub fn get_data(&self) -> Vec<u8> { self.data.clone() }
 
-    pub fn get_sig(&self) -> Result<[u8; 65], Error> {
+    pub fn get_sig(&self) -> Result<[u8; 65], HTTPServerError> {
         let mut sig = [0u8; 65];
         if sig.len() != self.sig.len() {
-            return Err(format_err!("sig not a right value"))
+            return Err(HTTPServerError::SigErr(self.sig.len()))
         }
         sig.copy_from_slice(&self.sig);
         Ok(sig)
@@ -77,16 +78,16 @@ impl KMHttpServer {
     pub fn new(controller: Arc<KMController>, port: u16) -> KMHttpServer { KMHttpServer { controller, port } }
 
     #[logfn(DEBUG)]
-    fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &SignedEpoch) -> Result<Vec<Hash256>, Error> {
-        let image = msg.to_sign()?;
+    fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &SignedEpoch) -> Result<Vec<Hash256>, HTTPServerError> {
+        let image = msg.to_sign().map_err(|e| HTTPServerError::MessagingErr)?;
         let sig = request.get_sig()?;
-        let worker = KeyPair::recover(&image, sig)?.address();
+        let worker = KeyPair::recover(&image, sig).map_err(|_| HTTPServerError::CryptoErr)?.address();
         trace!("Searching contract addresses for recovered worker: {:?}", worker.to_vec());
-        epoch_state.get_contract_addresses(&worker.into())
+        Ok(epoch_state.get_contract_addresses(&worker.into())?)
     }
 
     #[logfn(DEBUG)]
-    pub fn get_state_keys(&self, request: StateKeyRequest) -> Result<Value, Error> {
+    pub fn get_state_keys(&self, request: StateKeyRequest) -> Result<Value, ControllerError> {
         let signed_epoch = match request.block_number {
             Some(block_number) => self.controller.find_epoch(block_number)?,
             None => self.controller.find_last_epoch()?,
@@ -94,48 +95,60 @@ impl KMHttpServer {
         let addrs = match request.addresses.clone() {
             Some(addrs) => addrs,
             None => {
-                let msg = PrincipalMessage::from_message(&request.get_data())?;
+                let msg = PrincipalMessage::from_message(&request.get_data()).
+                    map_err(|_| ControllerError::HTTPServerError(HTTPServerError::MessagingErr))?;
                 Self::find_epoch_contract_addresses(&request, &msg, &signed_epoch)?
             },
         };
-        let response = get_enc_state_keys(self.controller.eid, request, signed_epoch.get_nonce(), &addrs)?;
-        let response_data = serde_json::to_value(&response)?;
+        let response =
+            get_enc_state_keys(self.controller.eid, request, signed_epoch.get_nonce(), &addrs).
+            map_err(ControllerError::EnclaveError)?;
+        let response_data = serde_json::to_value(&response).
+            map_err(|_| ControllerError::HTTPServerError(HTTPServerError::MessagingErr))?;
         Ok(response_data)
     }
 
-    fn handle_error(internal_err: Error) -> ServerError {
-        if let Some(err) = internal_err.downcast_ref::<EnclaveFailError>() {
-            error!("{:?}", internal_err.as_fail());
-            let server_err = match &err.err {
-                EnclaveReturn::WorkerAuthError => {
-                    ServerError {
-                        code: ErrorCode::ServerError(JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED),
-                        message: format!("Worker not authorized to request the keys: {:?}.", err),
-                        data: None,
-                    }
+    fn handle_error(internal_err: ControllerError) -> ServerError {
+        match internal_err {
+            ControllerError::EnclaveError(e) => {
+                error!("{:?}", e);
+                match e {
+                    EnclaveError::EnclaveFailErr{err: e, status: s} => {
+                        match &e {
+                            EnclaveReturn::WorkerAuthError => {
+                                ServerError {
+                                    code: ErrorCode::ServerError(JSON_RPC_ERROR_WORKER_NOT_AUTHORIZED),
+                                    message: format!("Worker not authorized to request the keys: {:?}.", e),
+                                    data: None,
+                                }
+                            },
+                            _ => {
+                                ServerError {
+                                    code: ErrorCode::InternalError,
+                                    message: format!("Internal error in enclave: {:?}", e),
+                                    data: None,
+                                }
+                            },
+                        }
+                    },
+                    _ => {
+                        ServerError {
+                            code: ErrorCode::InternalError,
+                            message: format!("Internal error: {:?}", e),
+                            data: None,
+                        }
+                    },
                 }
-                _ => {
-                    ServerError {
-                        code: ErrorCode::InternalError,
-                        message: format!("Internal error in enclave: {:?}", err),
-                        data: None,
-                    }
+
+            },
+            _ => {
+                ServerError {
+                    code: ErrorCode::InternalError,
+                    message: format!("Internal error: {:?}", internal_err),
+                    data: None,
                 }
-            };
-            return server_err;
+            },
         }
-        if let Some(err) = internal_err.downcast_ref::<EpochStateTransitionErr>() {
-            return ServerError {
-                code: ErrorCode::ServerError(JSON_RPC_ERROR_ILLEGAL_STATE),
-                message: format!("Illegal state: {} for this request. Try again later.", err.current_state),
-                data: None,
-            };
-        }
-        return ServerError {
-            code: ErrorCode::InternalError,
-            message: format!("Internal error: {:?}", internal_err),
-            data: None,
-        };
     }
 
     /// This function is used to make sure the km is up and running.

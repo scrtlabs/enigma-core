@@ -21,6 +21,7 @@ extern crate sgx_urts;
 #[macro_use]
 extern crate log;
 extern crate log4rs;
+extern crate thiserror;
 
 #[macro_use]
 extern crate log_derive;

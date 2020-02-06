@@ -7,7 +7,7 @@ use web3::types::U256;
 use enigma_types::{Hash256, EnclaveReturn, traits::SliceCPtr};
 
 use controller::km_http_server::{StateKeyRequest, StateKeyResponse};
-use common_u::errors::EnclaveFailError;
+use common_u::custom_errors::EnclaveError;
 
 extern "C" {
     fn ecall_get_enc_state_keys(
@@ -34,7 +34,7 @@ extern "C" {
 /// let response = get_enc_state_keys(enclave.geteid(), request, nonce, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_nonce: U256, sc_addrs: &[Hash256]) -> Result<StateKeyResponse, Error> {
+pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_nonce: U256, sc_addrs: &[Hash256]) -> Result<StateKeyResponse, EnclaveError> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
     let mut response_ptr = 0u64;
@@ -55,7 +55,7 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: retval, status }.into());
+        return Err(EnclaveError::EnclaveFailErr { err: retval, status });
     }
     let box_ptr = response_ptr as *mut Box<[u8]>;
     let response = unsafe { Box::from_raw(box_ptr) };

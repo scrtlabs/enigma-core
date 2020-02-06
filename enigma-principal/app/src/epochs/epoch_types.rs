@@ -11,6 +11,7 @@ use enigma_tools_m::keeper_types::InputWorkerParams;
 use enigma_types::Hash256;
 
 use common_u::errors::EpochStateTransitionErr;
+use common_u::custom_errors::EpochError;
 
 pub const EPOCH_STATE_UNCONFIRMED: &str = "UNCONFIRMED";
 pub const WORKER_PARAMETERIZED_EVENT: &str = "WorkersParameterized";
@@ -55,9 +56,7 @@ impl SignedEpoch {
     /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
     /// * `sc_addresses` - The Secret Contract addresses for which to retrieve the selected worker
     #[logfn(DEBUG)]
-    pub fn confirm(
-        &mut self, ether_block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<Hash256>,
-    ) -> Result<(), Error> {
+    pub fn confirm(&mut self, ether_block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<Hash256>) {
         info!("Confirmed epoch with worker params: {:?}", worker_params);
         let mut selected_workers: HashMap<Hash256, Address> = HashMap::new();
         for sc_address in sc_addresses {
@@ -75,7 +74,6 @@ impl SignedEpoch {
             }
         }
         self.confirmed_state = Some(ConfirmedEpochState { selected_workers, ether_block_number });
-        Ok(())
     }
 
     /// Returns the contract address that the worker is selected to work on during this epoch
@@ -84,7 +82,7 @@ impl SignedEpoch {
     ///
     /// * `worker` - The worker signing address
     #[logfn(DEBUG)]
-    pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<Hash256>, Error> {
+    pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<Hash256>, EpochError> {
         let addrs = match &self.confirmed_state {
             Some(state) => {
                 let mut addrs: Vec<Hash256> = Vec::new();
@@ -95,7 +93,7 @@ impl SignedEpoch {
                 }
                 addrs
             }
-            None => return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into()),
+            None => return Err(EpochError::UnconfirmedState),
         };
         Ok(addrs)
     }
