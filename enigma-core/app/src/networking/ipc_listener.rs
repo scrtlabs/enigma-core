@@ -163,7 +163,8 @@ pub(self) mod handling {
     #[logfn(TRACE)]
     pub fn get_tips(db: &DB, input: &[String]) -> ResponseResult {
         let mut tips_results = Vec::with_capacity(input.len());
-        let addresses : Vec<Hash256> = input.iter().map(|data| Hash256::from_hex(&data).unwrap()).collect();
+        let addresses : Result<Vec<Hash256>, Error> = input.iter().
+            map(|data| Hash256::from_hex(&data)).collect::<Result<Vec<Hash256>,Error>>()?;
         let tips = db.get_tips::<DeltaKey>(&addresses)?;
         for (key, data) in tips {
             let delta = IpcDelta::from_delta_key(key, &data)?;

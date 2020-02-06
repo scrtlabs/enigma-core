@@ -65,7 +65,7 @@ impl StateKeyRequest {
     pub fn get_sig(&self) -> Result<[u8; 65], HTTPServerError> {
         let mut sig = [0u8; 65];
         if sig.len() != self.sig.len() {
-            return Err(HTTPServerError::SigErr(self.sig.len()))
+            return Err(HTTPServerError::BadSigLen(self.sig.len()))
         }
         sig.copy_from_slice(&self.sig);
         Ok(sig)
@@ -77,9 +77,9 @@ impl KMHttpServer {
 
     #[logfn(DEBUG)]
     fn find_epoch_contract_addresses(request: &StateKeyRequest, msg: &PrincipalMessage, epoch_state: &SignedEpoch) -> Result<Vec<Hash256>, HTTPServerError> {
-        let image = msg.to_sign().map_err(|_| HTTPServerError::MessagingErr)?;
+        let image = msg.to_sign().or( Err(HTTPServerError::InvalidMessage))?;
         let sig = request.get_sig()?;
-        let worker = KeyPair::recover(&image, sig).map_err(|_| HTTPServerError::CryptoErr)?.address();
+        let worker = KeyPair::recover(&image, sig).or( Err(HTTPServerError::KeyRecoveryErr))?.address();
         trace!("Searching contract addresses for recovered worker: {:?}", worker.to_vec());
         Ok(epoch_state.get_contract_addresses(&worker.into())?)
     }
@@ -94,7 +94,7 @@ impl KMHttpServer {
             Some(addrs) => addrs,
             None => {
                 let msg = PrincipalMessage::from_message(&request.get_data()).
-                    map_err(|_| ControllerError::HTTPServerError(HTTPServerError::MessagingErr))?;
+                    or( Err(ControllerError::HTTPServerError(HTTPServerError::InvalidMessage)))?;
                 Self::find_epoch_contract_addresses(&request, &msg, &signed_epoch)?
             },
         };
@@ -102,7 +102,7 @@ impl KMHttpServer {
             get_enc_state_keys(self.controller.eid, request, signed_epoch.get_nonce(), &addrs).
             map_err(ControllerError::EnclaveError)?;
         let response_data = serde_json::to_value(&response).
-            map_err(|_| ControllerError::HTTPServerError(HTTPServerError::MessagingErr))?;
+            or( Err(ControllerError::HTTPServerError(HTTPServerError::InvalidMessage)))?;
         Ok(response_data)
     }
 
@@ -111,7 +111,7 @@ impl KMHttpServer {
             ControllerError::EnclaveError(e) => {
                 error!("{:?}", e);
                 match e {
-                    EnclaveError::EnclaveFailErr{err: e, status: _} => {
+                    EnclaveError::Failure {err: e, status: _} => {
                         match &e {
                             EnclaveReturn::WorkerAuthError => {
                                 ServerError {

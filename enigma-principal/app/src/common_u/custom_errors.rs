@@ -22,7 +22,7 @@ pub enum ControllerError {
     #[error("Error while trying to produce quote")]
     QuoteErr,
     #[error("the error received is: {0}")]
-    GenericError(GenericErr)
+    Other(GenericErr)
 }
 
 #[derive(Error, Debug)]
@@ -32,19 +32,19 @@ pub enum ConfigError {
     #[error("Unable to convert file content to string")]
     NotAString,
     #[error("Cannot parse data")]
-    Parsing,
+    CouldntParse,
 }
 
 #[derive(Error, Debug)]
 pub enum HTTPServerError {
-    #[error("input signature got an unexpected size (65 bytes): {0} bytes")]
-    SigErr(usize),
+    #[error("Input signature got an unexpected size: {0} bytes. Expected 65 bytes.")]
+    BadSigLen(usize),
     #[error(transparent)]
     EpochError(#[from] EpochError),
     #[error("an error occurred in the pubkey recovery")]
-    CryptoErr,
+    KeyRecoveryErr,
     #[error("error while trying to parse the message received")]
-    MessagingErr,
+    InvalidMessage,
 }
 
 #[derive(Error, Debug)]
@@ -56,12 +56,12 @@ pub enum EpochError {
 #[derive(Error, Debug)]
 pub enum EnclaveError {
     #[error("Error inside the enclave: {err:?} with status: {status:?}")]
-    EnclaveFailErr {
+    Failure {
         err: enigma_types::EnclaveReturn,
         status: sgx_status_t
     },
     #[error("Error returned from inside the enclave")]
-    UnDetailedEnclaveErr,
+    Unspecified,
     #[error(transparent)]
     HTTPServerError(#[from] HTTPServerError),
 }
@@ -88,13 +88,3 @@ pub enum VerifierError {
     Undefined(String),
 
 }
-
-//#[derive(Error, Debug)]
-//pub enum ReportManagerErr {
-//    #[error("An error occurred while trying to get the registration signing address from inside the enclave")]
-//    GetRegisterAddrErr,
-//    #[error("An error occurred while trying to get the Ethereum address from inside the enclave")]
-//    GetEtherAddrErr,
-//    #[error("Error while trying to produce quote")]
-//    QuoteErr,
-//}

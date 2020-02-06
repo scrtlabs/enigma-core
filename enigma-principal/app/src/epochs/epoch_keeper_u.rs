@@ -58,7 +58,7 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveError::EnclaveFailErr { err: retval, status });
+        return Err(EnclaveError::Failure { err: retval, status });
     }
     // If an `Epoch` was given and the ecall succeeded, it is considered verified
     // Otherwise, build a new `Epoch` from the parameters of the new epoch

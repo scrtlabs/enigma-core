@@ -31,7 +31,7 @@ pub struct KMController {
 
 impl KMController {
     pub fn new(eid: sgx_enclave_id_t, dir_path: PathBuf, contract: EnigmaContract, config: KMConfig) -> Result<KMController, ControllerError> {
-        let epoch_verifier = EpochVerifier::new(dir_path).map_err(|e| ControllerError::VerifierError(e))?;
+        let epoch_verifier = EpochVerifier::new(dir_path).map_err(ControllerError::VerifierError)?;
         let controller = Self { contract, epoch_verifier, eid, config };
         controller.verify_worker_params()?;
         Ok(controller)
@@ -42,15 +42,15 @@ impl KMController {
     ///
     /// * `block_number` - A block number in the desired epoch
     pub fn find_epoch(&self, block_number: U256) -> Result<SignedEpoch, ControllerError> {
-        self.epoch_verifier.get_confirmed_by_block_number(block_number).map_err(|e| ControllerError::VerifierError(e))
+        self.epoch_verifier.get_confirmed_by_block_number(block_number).map_err(ControllerError::VerifierError)
     }
 
     /// Find the last confirmed `EpochState`
     pub fn find_last_epoch(&self) -> Result<SignedEpoch, ControllerError> {
-        if self.epoch_verifier.is_last_unconfirmed().map_err(|e| ControllerError::VerifierError(e))? {
+        if self.epoch_verifier.is_last_unconfirmed().map_err(ControllerError::VerifierError)? {
             return Err(ControllerError::EpochError(EpochError::UnconfirmedState));
         }
-        self.epoch_verifier.last(true).map_err(|e| ControllerError::VerifierError(e))
+        self.epoch_verifier.last(true).map_err(ControllerError::VerifierError)
     }
 
     #[logfn(DEBUG)]
@@ -77,15 +77,15 @@ impl KMController {
     #[logfn(DEBUG)]
     fn verify_worker_params(&self) -> Result<(), ControllerError> {
         for signed_epoch in self.epoch_verifier.get_all_confirmed().
-            map_err(|e| ControllerError::VerifierError(e))?.iter() {
+            map_err(ControllerError::VerifierError)?.iter() {
             // if the epoch is confirmed by the Enigma Contract
             if let Some(_) = &signed_epoch.confirmed_state {
                 // Get the km_block_number which indicates where to take the list of active workers from
                 let km_block_number = signed_epoch.get_km_block_num();
-                let (workers, stakes) = self.contract.get_active_workers(km_block_number).map_err(ControllerError::GenericError)?;
+                let (workers, stakes) = self.contract.get_active_workers(km_block_number).map_err(ControllerError::Other)?;
                 let worker_params = InputWorkerParams { km_block_number, workers, stakes };
                 set_or_verify_worker_params(self.eid, &worker_params, Some(signed_epoch.clone())).
-                    map_err(|e| ControllerError::EnclaveError(e))?;
+                    map_err(ControllerError::EnclaveError)?;
             }
         }
         Ok(())
@@ -93,7 +93,7 @@ impl KMController {
 
     pub fn get_signing_address(&self) -> Result<H160, ControllerError> {
         Ok(equote::get_register_signing_address(self.eid).
-            map_err(|_| ControllerError::EnclaveError(EnclaveError::UnDetailedEnclaveErr))?.into())
+            or( Err(ControllerError::EnclaveError(EnclaveError::Unspecified)))?.into())
     }
 
 //    pub fn get_ethereum_address(&self) -> Result<H160, Error> {
@@ -131,7 +131,7 @@ impl KMController {
             signature,
             *GAS_LIMIT,
             self.config.confirmations as usize,
-        ).map_err(|e| {ControllerError::GenericError(e)})?;
+        ).map_err(ControllerError::Other)?;
         Ok(receipt.transaction_hash)
     }
 
@@ -140,7 +140,7 @@ impl KMController {
     #[logfn(DEBUG)]
     pub fn verify_identity_or_register(&self) -> Result<Option<H256>, ControllerError> {
         let signing_address = self.get_signing_address()?;
-        let registered_signing_address = self.contract.get_signing_address().map_err(|e| {ControllerError::GenericError(e)})?;
+        let registered_signing_address = self.contract.get_signing_address().map_err(ControllerError::Other)?;
         if signing_address == registered_signing_address {
             debug!("Already registered with enigma signing address {:?}", registered_signing_address);
             Ok(None)
@@ -174,16 +174,16 @@ impl KMController {
 
     #[logfn(DEBUG)]
     fn set_worker_params_internal(&self, km_block_number: U256, confirmations: usize, epoch_state: Option<SignedEpoch>) -> Result<H256, ControllerError> {
-        let (workers, stakes) = self.contract.get_active_workers(km_block_number).map_err(|e| ControllerError::GenericError(e))?;
+        let (workers, stakes) = self.contract.get_active_workers(km_block_number).map_err(ControllerError::Other)?;
         let worker_params = InputWorkerParams { km_block_number, workers, stakes };
-        let mut epoch = set_or_verify_worker_params(self.eid, &worker_params, epoch_state).map_err(|e| ControllerError::EnclaveError(e))?;
+        let mut epoch = set_or_verify_worker_params(self.eid, &worker_params, epoch_state).map_err(ControllerError::EnclaveError)?;
 
         debug!("Storing unconfirmed EpochState: {:?}", epoch);
-        self.epoch_verifier.append_unconfirmed(epoch.clone()).map_err(|e| ControllerError::VerifierError(e))?;
+        self.epoch_verifier.append_unconfirmed(epoch.clone()).map_err(ControllerError::VerifierError)?;
 
         debug!("Waiting for setWorkerParams({:?}, {:?}, {:?})", km_block_number, epoch.get_seed(), epoch.get_sig());
         let receipt = self.contract.set_workers_params(km_block_number, epoch.get_seed(), epoch.get_sig(), *GAS_LIMIT, confirmations).
-            map_err(|e| ControllerError::GenericError(e))?;
+            map_err(ControllerError::Other)?;
         debug!("Got the receipt: {:?}", receipt);
 
         let log = self.parse_worker_parameterized(&receipt)?;
@@ -196,7 +196,7 @@ impl KMController {
                 self.confirm_epoch(&mut epoch, ether_block_number, worker_params)?;
                 debug!("Storing confirmed epoch state: {:?}", epoch);
 
-                self.epoch_verifier.confirm_last(epoch).map_err(|e| ControllerError::VerifierError(e))?;
+                self.epoch_verifier.confirm_last(epoch).map_err(ControllerError::VerifierError)?;
                 Ok(receipt.transaction_hash)
             }
             None => Err(Web3Error { message: "firstBlockNumber not found in receipt log".to_string() })?,
@@ -212,7 +212,7 @@ impl KMController {
     #[logfn(DEBUG)]
     pub fn confirm_epoch(&self, epoch_state: &mut SignedEpoch, ether_block_number: U256, worker_params: InputWorkerParams) -> Result<(), ControllerError> {
         let sc_addresses = self.contract.get_all_secret_contract_addresses().
-            map_err(|e| ControllerError::GenericError(e))?;
+            map_err(ControllerError::Other)?;
 
         debug!("The secret contract addresses: {:?}",
                sc_addresses.iter().map(|item| {item.to_hex()}).collect::<Vec<String>>());
@@ -257,8 +257,8 @@ pub mod test {
             config.chain_id,
             &config.url,
             ethereum_signer,
-        ).map_err(|_| ControllerError::ContractError(
-            Web3Error{message: String::from("An error occurred while trying to deploy the contract")}))?;
+        ).or( Err(ControllerError::ContractError(
+            Web3Error{message: String::from("An error occurred while trying to deploy the contract")})))?;
        let path = tempdir().unwrap().into_path();
        KMController::new(eid, path, contract, config)
     }

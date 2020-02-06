@@ -152,10 +152,10 @@ impl EpochVerifier {
         if epoch_list.is_empty() {
             return Ok(fs::remove_file(&self.state_path).or(Err(VerifierError::EpochsDontExistErr))?);
         }
-        let mut file = File::create(&self.state_path).map_err(|_| VerifierError::CreateErr)?;
+        let mut file = File::create(&self.state_path).or( Err(VerifierError::CreateErr))?;
         let mut buf = Vec::new();
-        epoch_list.serialize(&mut Serializer::new(&mut buf)).map_err(|_| VerifierError::WriteErr)?;
-        file.write_all(&buf).map_err(|_| VerifierError::WriteErr)?;
+        epoch_list.serialize(&mut Serializer::new(&mut buf)).or( Err(VerifierError::WriteErr))?;
+        file.write_all(&buf).or( Err(VerifierError::WriteErr))?;
         trace!("Saved epoch state list {:?} to {:?}", epoch_list, &self.state_path);
         Ok(())
     }

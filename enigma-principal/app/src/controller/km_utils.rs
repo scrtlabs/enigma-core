@@ -106,7 +106,7 @@ impl KMConfig {
                 let mut contents = String::new();
                 f.read_to_string(&mut contents).or(Err(ConfigError::NotAString))?;
 
-                serde_json::from_str(&contents).or(Err(ConfigError::Parsing))
+                serde_json::from_str(&contents).or(Err(ConfigError::CouldntParse))
             }
         }
     }
