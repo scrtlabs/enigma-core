@@ -1,7 +1,6 @@
 #![feature(integer_atomics)]
 #![feature(arbitrary_self_types)]
 
-extern crate colour;
 extern crate dirs;
 extern crate enigma_crypto;
 extern crate enigma_tools_m;
