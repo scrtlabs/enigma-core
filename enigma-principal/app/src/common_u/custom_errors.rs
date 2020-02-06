@@ -85,6 +85,6 @@ pub enum VerifierError {
     #[error(transparent)]
     EpochErr(#[from] EpochError),
     #[error("{0}")]
-    Undefined(String),
+    Other(String),
 
 }

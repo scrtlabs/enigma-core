@@ -114,7 +114,8 @@ impl EpochVerifier {
         let epochs = self.get_all_confirmed()?;
         for epoch in epochs.iter() {
             let confirmed: &ConfirmedEpochState = epoch.confirmed_state.as_ref().
-                ok_or(VerifierError::Undefined("Undefined behaviour in get_all_confirmed".to_string()))?;
+                ok_or(VerifierError::Other("Unexpected behaviour in get_all_confirmed. \
+                All epochs should be with a value in confirmed_state".to_string()))?;
             if confirmed.ether_block_number <= block_number {
                 result = Some(epoch);
             }
