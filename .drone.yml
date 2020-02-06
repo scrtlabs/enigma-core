@@ -117,10 +117,7 @@ steps:
         declare -A PROJECT_BRANCH_FOUND=([contract]=$MATCHING_BRANCH_CONTRACT [client]=$MATCHING_BRANCH_INTEGRATION)
         for project in $${PROJECTS[@]}; do
           DOCKER_IMAGE="enigmampc/$${DOCKER_IMAGES[$project]}"
-          if [[ "$DRONE_BRANCH" == "master" ]]; then
-            docker pull "$DOCKER_IMAGE:latest"
-            docker tag "$DOCKER_IMAGE:latest" "$DOCKER_IMAGE:$DOCKER_TAG"
-          elif [ "$${PROJECT_BRANCH_FOUND[$project]}" -eq 0 ]; then
+          if [ "$${PROJECT_BRANCH_FOUND[$project]}" -eq 0 ]; then
             docker pull "$DOCKER_IMAGE:develop"
             docker tag "$DOCKER_IMAGE:develop" "$DOCKER_IMAGE:$DOCKER_TAG"
           else
