@@ -75,16 +75,15 @@ impl KMController {
             .map_err(ControllerError::VerifierError)?
             .iter()
             {
-                // if the epoch is confirmed by the Enigma Contract
-                if signed_epoch.confirmed_state.is_some() {
-                    // Get the km_block_number which indicates where to take the list of active workers from
-                    let km_block_number = signed_epoch.get_km_block_num();
-                    let (workers, stakes) = self.contract.get_active_workers(km_block_number).map_err(ControllerError::Other)?;
-                    let worker_params = InputWorkerParams { km_block_number, workers, stakes };
-                    set_or_verify_worker_params(self.eid, &worker_params, Some(signed_epoch.clone())).
-                        map_err(ControllerError::EnclaveError)?;
-                }
+            // if the epoch is confirmed by the Enigma Contract
+            if signed_epoch.confirmed_state.is_some() {
+                // Get the km_block_number which indicates where to take the list of active workers from
+                let km_block_number = signed_epoch.get_km_block_num();
+                let (workers, stakes) = self.contract.get_active_workers(km_block_number).map_err(ControllerError::Other)?;
+                let worker_params = InputWorkerParams { km_block_number, workers, stakes };
+                set_or_verify_worker_params(self.eid, &worker_params, Some(signed_epoch.clone())).map_err(ControllerError::EnclaveError)?;
             }
+        }
         Ok(())
     }
 

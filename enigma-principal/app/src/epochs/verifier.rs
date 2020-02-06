@@ -96,13 +96,7 @@ impl EpochVerifier {
     /// Return a list of all confirmed `SignedEpoch`s
     pub fn get_all_confirmed(&self) -> Result<Vec<SignedEpoch>, VerifierError> {
         let guard = self.lock_guard_or_wait()?;
-        let mut result: Vec<SignedEpoch> = vec![];
-        for epoch in guard.iter() {
-            if epoch.confirmed_state.is_some() {
-                result.push(epoch.clone());
-            }
-        }
-        Ok(result)
+        Ok(guard.iter().filter(|epoch| epoch.confirmed_state.is_some()).cloned().collect())
     }
 
     /// Returns the confirmed `SignedEpoch` for the epoch of the given block number

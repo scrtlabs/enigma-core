@@ -5,7 +5,7 @@ use web3::{futures::Future, types::U256};
 use controller::km_controller::KMController;
 use common_u::custom_errors::VerifierError;
 
-// this trait should extend the EnigmaContract into Principal specific functions.
+/// this trait should extend the EnigmaContract into Principal specific functions.
 pub trait EthereumTracker {
     fn epoch_trigger(&self, epoch_size: usize, polling_interval: u64, confirmations: usize) -> Result<(), VerifierError>;
 }

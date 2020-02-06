@@ -63,7 +63,7 @@ impl EnigmaContract {
         let abi_json = w3utils::load_contract_abi(abi_path)?;
         let ethabi_contract = ethabi::Contract::load(abi_json.as_bytes()).map_err(|e| failure::err_msg(e.to_string()))?;
         let w3_contract = Contract::new(web3.eth(), contract_address.parse()?, ethabi_contract.clone());
-        Ok(EnigmaContract { web3: web3, eloop, w3_contract, ethabi_contract, account, signer, chain_id })
+        Ok(EnigmaContract { web3, eloop, w3_contract, ethabi_contract, account, signer, chain_id })
     }
 
     pub fn address(&self) -> Address { self.w3_contract.address() }
