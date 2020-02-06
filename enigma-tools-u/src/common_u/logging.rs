@@ -86,25 +86,3 @@ pub fn init_logger<P: AsRef<Path>>(level: log::LevelFilter, data_dir: P, name: S
     let handle = log4rs::init_config(config).unwrap();
     Ok(handle)
 }
-
-
-#[cfg(test)]
-mod test {
-    use super::*;
-    use log::LevelFilter;
-
-    // a test to check the logfiles and how they are archived.
-    // in order to check it properly, change the FixedWindowRoller trigger size to 5KB or something in that area.
-    #[test]
-    #[ignore]
-    fn test_the_rolling_logger() {
-        let log_level = LevelFilter::Debug;
-        let datadir = dirs::home_dir().unwrap().join(".enigma");
-        init_logger(log_level, datadir, "what".to_string()).unwrap();
-        let mut n = 1;
-        while n < 250 {
-            info!("{:?}_83a464617461a752657175657374a269649cccd763674174cc9b3f300dccd2ccb0cc8ba67075626b6579dc0040ccc90b2205ccf9cc9358661320ccffccb763ccb57614ccf8ccaa1fccb86d6a087869ccd81acce5ccf16fcc9206cc98344136cca4ccefccb105ccbbccca1c5057ccba25067eccc101cc82ccee21445cccf91e79ccb176447239", n);
-            n += 1;
-        }
-    }
-}
