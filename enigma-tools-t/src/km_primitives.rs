@@ -68,8 +68,12 @@ impl PrincipalMessage {
 
     pub fn from_message(msg: &[u8]) -> Result<Self, EnclaveError> {
         let mut des = Deserializer::new(msg);
-        let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
-        let msg: Self = serde_json::from_value(res).unwrap();
+        let res: serde_json::Value =
+            Deserialize::deserialize(&mut des).map_err(|_| MessagingError { err: "can't deserialize the message" })?;
+        let msg: Self = serde_json::from_value(res).map_err(|_| MessagingError { err: "can't deserialize the message" })?;
+        if msg.pubkey.len() != 64 {
+            return Err(essagingError { err: "the pub key is not in the right length" })
+        }
         Ok(msg)
     }
 
@@ -163,9 +167,13 @@ impl UserMessage {
 
     pub fn from_message(msg: &[u8]) -> Result<Self, EnclaveError> {
         let mut des = Deserializer::new(&msg[..]);
-        let res: serde_json::Value = Deserialize::deserialize(&mut des)?;
+        let res: serde_json::Value = Deserialize::deserialize(&mut des)
+            .map_err(|_| MessagingError { err: "Couldn't Deserialize UserMesssage"})?;;
         let msg: Self = serde_json::from_value(res)
-            .map_err(|_| SystemError(MessagingError {err: "Couldn't convert Value to UserMesssage".to_string()}))?;
+            .map_err(|_| MessagingError { err: "Couldn't convert Value to UserMesssage"})?;
+        if msg.pubkey.len() != 64 {
+            return Err(MessagingError { err: "the pub key is not in the right length" })
+        }
         Ok(msg)
     }
 
