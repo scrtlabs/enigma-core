@@ -48,8 +48,7 @@ fn main() -> Fallible<()> {
 
     server
         .run(move |multi| ipc_listener::handle_message(&mut db, multi, &opt.spid, eid, opt.retries))
-        .wait()
-        ?;
+        .wait()?;
 
     Ok(())
 }
