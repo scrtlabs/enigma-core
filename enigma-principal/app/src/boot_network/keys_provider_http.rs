@@ -221,7 +221,6 @@ mod test {
     use std::thread;
 
     use rustc_hex::FromHex;
-    use serde_json::error::ErrorCode::EofWhileParsingObject;
     use web3::types::{H160, U256};
     use web3::types::Bytes;
 

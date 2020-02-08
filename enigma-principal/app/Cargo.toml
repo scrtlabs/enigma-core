@@ -29,8 +29,8 @@ log-derive = "0.3"
 envy = "0.3.2"
 itertools = "0.8.1"
 secp256k1 = "0.12"
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.0" }
+sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.0" }
 
 [dev-dependencies]
 ethereum-types = "0.6"

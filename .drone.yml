@@ -6,7 +6,7 @@ steps:
     detach: true
 
   - name: core
-    image: enigmampc/enigma-core:0.0.10
+    image: enigmampc/enigma-core:0.0.11
     privileged: true
     depends_on: [clone]
     commands:
@@ -20,7 +20,7 @@ steps:
         path: /dev/isgx
 
   - name: principal
-    image: enigmampc/enigma-core:0.0.10
+    image: enigmampc/enigma-core:0.0.11
     privileged: true
     depends_on: [clone]
     commands:
@@ -34,7 +34,7 @@ steps:
         path: /dev/isgx
 
   - name: tools_u
-    image: enigmampc/enigma-core:0.0.10
+    image: enigmampc/enigma-core:0.0.11
     depends_on: [clone]
     commands:
       - . /root/.cargo/env
@@ -43,7 +43,7 @@ steps:
       - RUSTFLAGS=-Awarnings cargo test
 
   - name: enigma_crypto
-    image: enigmampc/enigma-core:0.0.10
+    image: enigmampc/enigma-core:0.0.11
     depends_on: [clone]
     commands:
       - LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
@@ -53,7 +53,7 @@ steps:
       - RUSTFLAGS=-Awarnings cargo build --no-default-features --features=sgx
 
   - name: tools_m
-    image: enigmampc/enigma-core:0.0.10
+    image: enigmampc/enigma-core:0.0.11
     depends_on: [clone]
     commands:
       - LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
@@ -63,7 +63,7 @@ steps:
       - RUSTFLAGS=-Awarnings cargo check --no-default-features --features=sgx
 
   - name: eng_wasm
-    image: enigmampc/enigma-core:0.0.10
+    image: enigmampc/enigma-core:0.0.11
     depends_on: [clone]
     commands:
       - . /root/.cargo/env
@@ -71,7 +71,7 @@ steps:
       - cargo test
 
   - name: enigma_types
-    image: enigmampc/enigma-core:0.0.10
+    image: enigmampc/enigma-core:0.0.11
     depends_on: [clone]
     commands:
       - LD_LIBRARY_PATH=/opt/intel/libsgx-enclave-common/aesm /opt/intel/libsgx-enclave-common/aesm/aesm_service
@@ -201,6 +201,7 @@ steps:
       - docker-compose -f docker-compose.yml -f docker-compose.hw.yml down -v --rmi all --remove-orphans
       - docker rmi -f enigmampc/core-artifact-hw:$DOCKER_TAG
 
+type: docker
 volumes:
   - name: isgx
     host:

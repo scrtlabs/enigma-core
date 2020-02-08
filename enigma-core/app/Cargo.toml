@@ -28,8 +28,8 @@ log-derive = "0.3"
 log4rs = { version = "0.9.0", features=["all_components"]}
 structopt = "0.2"
 
-sgx_types = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
-sgx_urts = { git = "https://github.com/baidu/rust-sgx-sdk.git", rev = "v1.0.9" }
+sgx_types = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.0" }
+sgx_urts = { git = "https://github.com/apache/teaclave-sgx-sdk.git", rev = "v1.1.0" }
 
 [dev-dependencies]
 ethabi = "8.0.1"
