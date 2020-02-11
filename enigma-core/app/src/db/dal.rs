@@ -290,7 +290,7 @@ mod test {
 
     use crate::db::{tests::create_test_db, dal::CRUDInterface, primitives::{Array32u8, DeltaKey, Stype}};
     use hex::ToHex;
-    use enigma_types::ContractAddress;
+    use enigma_types::Hash256;
 
     #[test]
     fn test_new_db() {
@@ -383,7 +383,7 @@ mod test {
     #[should_panic]
     fn test_delete_contract_dk() {
         let (mut db, _dir) = create_test_db();
-        let addr: ContractAddress = [2u8; 32].into();
+        let addr: Hash256 = [2u8; 32].into();
         let dk_code = DeltaKey::new(addr, Stype::ByteCode);
         let dk_delta = DeltaKey::new(addr, Stype::Delta(0));
         let v_code = b"This is a Contract";

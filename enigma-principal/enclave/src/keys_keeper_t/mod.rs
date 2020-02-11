@@ -6,7 +6,6 @@ use sgx_trts::trts::rsgx_read_rand;
 use std::{collections::HashMap, path, sync::SgxMutex, vec::Vec, string::String};
 
 use enigma_crypto::{asymmetric::KeyPair, Encryption};
-use enigma_crypto::hash::Keccak256;
 use enigma_tools_t::{
     common::errors_t::{
             EnclaveError::{self, *},
@@ -15,19 +14,18 @@ use enigma_tools_t::{
     document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
 use enigma_tools_m::utils::LockExpectMutex;
-use enigma_types::{ContractAddress, Hash256, StateKey};
+use enigma_types::{Hash256, StateKey};
 use epoch_keeper_t::ecall_get_epoch_worker_internal;
 use ocalls_t;
 use ethereum_types::U256;
 use rustc_hex::ToHex;
 
 use crate::SIGNING_KEY;
-use sgx_types::uint8_t;
 
 const STATE_KEYS_DIR: &str = "state-keys";
 
 lazy_static! {
-    pub static ref STATE_KEY_STORE: SgxMutex<HashMap<ContractAddress, StateKey>> = SgxMutex::new(HashMap::new());
+    pub static ref STATE_KEY_STORE: SgxMutex<HashMap<Hash256, StateKey>> = SgxMutex::new(HashMap::new());
 }
 
 /// The state keys root path is guaranteed to exist of the enclave was initialized
@@ -37,14 +35,14 @@ fn get_state_keys_root_path() -> path::PathBuf {
     path_buf
 }
 
-fn get_document_path(sc_addr: &ContractAddress) -> path::PathBuf {
+fn get_document_path(sc_addr: &Hash256) -> path::PathBuf {
     get_state_keys_root_path().join(format!("{}.{}", sc_addr.to_hex::<String>(), "sealed"))
 }
 
 /// Read state keys from the cache and sealed documents.
 /// Adds keys to the cache after unsealing.
-fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
-                  sc_addrs: &[ContractAddress]) -> Result<Vec<Option<StateKey>>, EnclaveError> {
+fn get_state_keys(keys_map: &mut HashMap<Hash256, StateKey>,
+                  sc_addrs: &[Hash256]) -> Result<Vec<Option<StateKey>>, EnclaveError> {
     let mut results: Vec<Option<StateKey>> = Vec::new();
     for &addr in sc_addrs {
         let key = match keys_map.get(&addr) {
@@ -79,8 +77,8 @@ fn get_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
 }
 
 /// Creates new state keys both in the cache and as sealed documents
-fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
-                  sc_addrs: &[ContractAddress]) -> Result<Vec<StateKey>, EnclaveError> {
+fn new_state_keys(keys_map: &mut HashMap<Hash256, StateKey>,
+                  sc_addrs: &[Hash256]) -> Result<Vec<StateKey>, EnclaveError> {
     let mut results: Vec<StateKey> = Vec::new();
     for &addr in sc_addrs {
         let mut doc: SealedDocumentStorage<StateKey> = SealedDocumentStorage {
@@ -104,15 +102,15 @@ fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
     Ok(results)
 }
 
-fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(ContractAddress, StateKey)>, EnclaveError> {
-    let mut response_data: Vec<(ContractAddress, StateKey)> = Vec::new();
+fn build_get_state_keys_response(sc_addrs: Vec<Hash256>) -> Result<Vec<(Hash256, StateKey)>, EnclaveError> {
+    let mut response_data: Vec<(Hash256, StateKey)> = Vec::new();
     if sc_addrs.is_empty() {
         return Ok(response_data);
     }
     let mut guard = STATE_KEY_STORE.lock_expect("State Key Store");
     let keys = get_state_keys(&mut guard, &sc_addrs)?;
     // Create the state keys not found in storage
-    let mut new_addrs: Vec<ContractAddress> = Vec::new();
+    let mut new_addrs: Vec<Hash256> = Vec::new();
     for (i, key) in keys.iter().enumerate() {
         if key.is_none() {
             new_addrs.push(sc_addrs[i]);
@@ -133,15 +131,19 @@ fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(
 
 /// Get encrypted state keys
 pub(crate) fn ecall_get_enc_state_keys_internal(
-    msg_bytes: &[u8], sc_addrs: Vec<ContractAddress>, sig: [u8; 65], epoch_nonce: [u8; 32],
-    sig_out: &mut [u8; 65]) -> Result<Vec<u8>, EnclaveError> {
+    msg_bytes: &[u8],
+    sc_addrs: Vec<Hash256>,
+    sig: [u8; 65],
+    epoch_nonce: [u8; 32],
+    sig_out: &mut [u8; 65]
+) -> Result<Vec<u8>, EnclaveError> {
     let msg = PrincipalMessage::from_message(msg_bytes)?;
     let user_pubkey = msg.get_pubkey();
     let msg_id = msg.get_id();
     // Create the request image before the worker selection guard to avoid cloning the message data
     let image = msg.to_sign()?;
     let recovered_addr = KeyPair::recover(&image, sig)?.address();
-    let nonce = U256::from(epoch_nonce.as_ref());
+    let nonce = U256::from(&epoch_nonce);
     for sc_addr in sc_addrs.clone() {
         let worker_addr = ecall_get_epoch_worker_internal(sc_addr, nonce)?;
         if worker_addr != recovered_addr {
@@ -181,7 +183,7 @@ pub mod tests {
             "9F86D081884C7D659A2FEAA0C55AD015A3BF4F1B2B0B822CD15D6C15B0F00A08".from_hex().unwrap(),
             "60303AE22B998861BCE3B28F33EEC1BE758A213C86C93C076DBE9F558C11C752".from_hex().unwrap(),
         ];
-        let mut sc_addrs: Vec<ContractAddress> = Vec::new();
+        let mut sc_addrs: Vec<Hash256> = Vec::new();
         for (_i, addr) in data.iter().enumerate() {
             let mut a: Hash256 = [0u8; 32].into();
             a.copy_from_slice(addr);

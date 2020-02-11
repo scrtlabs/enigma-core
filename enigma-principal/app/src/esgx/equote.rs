@@ -1,7 +1,7 @@
-use common_u::errors;
 use failure::Error;
 use sgx_types::*;
-use std::str;
+
+use common_u::errors;
 
 extern "C" {
     fn ecall_get_signing_address(eid: sgx_enclave_id_t, pubkey: &mut [u8; 20]) -> sgx_status_t;
@@ -12,15 +12,6 @@ extern "C" {
 
 extern "C" {
     fn ecall_sign_ethereum(eid: sgx_enclave_id_t, data: &[u8; 32], sig: &mut [u8; 65]) -> sgx_status_t;
-}
-// this struct is returned during the process registration back to the surface.
-// quote: the base64 encoded quote
-// address : the clear text public key for ecdsa signing and registration
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GetRegisterResult {
-    pub errored: bool,
-    pub quote: String,
-    pub address: String,
 }
 
 // wrapper function for getting the enclave public sign key (the one attached with produce_quote())
@@ -35,7 +26,7 @@ pub fn get_register_signing_address(eid: sgx_enclave_id_t) -> Result<[u8; 20], E
     }
 }
 
-// wrapper function for getting the enclave public sign key (the one attached with produce_quote())
+// wrapper function for getting the Ethereum account address
 pub fn get_ethereum_address(eid: sgx_enclave_id_t) -> Result<[u8; 20], Error> {
     let mut address = [0u8; 20];
     let status = unsafe { ecall_get_ethereum_address(eid, &mut address) };

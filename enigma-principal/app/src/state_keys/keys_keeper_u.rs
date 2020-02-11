@@ -1,12 +1,12 @@
-use std::{convert::TryInto, mem};
+use std::mem;
 
-use failure::Error;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::U256;
 
-use boot_network::keys_provider_http::{StateKeyRequest, StateKeyResponse, StringWrapper};
-use common_u::errors::EnclaveFailError;
-use enigma_types::{ContractAddress, EnclaveReturn, traits::SliceCPtr};
+use enigma_types::{Hash256, EnclaveReturn, traits::SliceCPtr};
+
+use controller::km_http_server::{StateKeyRequest, StateKeyResponse};
+use common_u::custom_errors::EnclaveError;
 
 extern "C" {
     fn ecall_get_enc_state_keys(
@@ -33,13 +33,12 @@ extern "C" {
 /// let response = get_enc_state_keys(enclave.geteid(), request, nonce, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_nonce: U256, sc_addrs: &[ContractAddress]) -> Result<StateKeyResponse, Error> {
+pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch_nonce: U256, sc_addrs: &[Hash256]) -> Result<StateKeyResponse, EnclaveError> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
     let mut sig_out: [u8; 65] = [0; 65];
     let mut response_ptr = 0u64;
     let epoch_nonce: [u8; 32] = epoch_nonce.into();
-
-    let msg_bytes: Vec<u8> = request.data.try_into()?;
+    let msg_bytes = request.get_data();
     let status = unsafe {
         ecall_get_enc_state_keys(
             eid,
@@ -48,29 +47,30 @@ pub fn get_enc_state_keys(eid: sgx_enclave_id_t, request: StateKeyRequest, epoch
             msg_bytes.len(),
             sc_addrs.as_c_ptr() as *const u8,
             mem::size_of_val(sc_addrs),
-            &request.sig.try_into()?,
+            &request.get_sig()?,
             &epoch_nonce,
             &mut response_ptr as *mut u64,
             &mut sig_out,
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: retval, status }.into());
+        return Err(EnclaveError::Failure { err: retval, status });
     }
     let box_ptr = response_ptr as *mut Box<[u8]>;
     let response = unsafe { Box::from_raw(box_ptr) };
-    Ok(StateKeyResponse { data: StringWrapper::from(&response[..]), sig: StringWrapper::from(&sig_out[..]) })
+    Ok(StateKeyResponse::new( response.to_vec(), sig_out.to_vec()))
 }
 
 #[cfg(test)]
 pub mod tests {
-    use sgx_urts::SgxEnclave;
-
-    use esgx::epoch_keeper_u::set_or_verify_worker_params;
-    use esgx::epoch_keeper_u::tests::get_worker_params;
-    use esgx::general::init_enclave_wrapper;
-
     use super::*;
+
+    use sgx_urts::SgxEnclave;
+    use rustc_hex::FromHex;
+
+    use epochs::epoch_keeper_u::set_or_verify_worker_params;
+    use epochs::epoch_keeper_u::tests::get_worker_params;
+    use esgx::general::init_enclave_wrapper;
 
     fn init_enclave() -> SgxEnclave {
         let enclave = match init_enclave_wrapper() {
@@ -96,14 +96,14 @@ pub mod tests {
         let stakes: Vec<u64> = vec![10000000000];
         let km_block_number = 1;
         let worker_params = get_worker_params(km_block_number, workers, stakes);
-        let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
+        let signed_epoch = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
 
         // From the km_primitives uint tests
-        let msg = StringWrapper("83a464617461a752657175657374a269649cccd763674174cc9b3f300dccd2ccb0cc8ba67075626b6579dc0040ccc90b2205ccf9cc9358661320ccffccb763ccb57614ccf8ccaa1fccb86d6a087869ccd81acce5ccf16fcc9206cc98344136cca4ccefccb105ccbbccca1c5057ccba25067eccc101cc82ccee21445cccf91e79ccb176447239".to_string());
-        let sig = StringWrapper("2535cfe1bcea215dc552acbca1a213354e055709f8e071c593bb9a8c1551b7791d6fd611ded1912065b3b518f6a75a1c78643b0a2e06397707b21768be637cb41b".to_string());
+        let msg = "83a464617461a752657175657374a269649cccd763674174cc9b3f300dccd2ccb0cc8ba67075626b6579dc0040ccc90b2205ccf9cc9358661320ccffccb763ccb57614ccf8ccaa1fccb86d6a087869ccd81acce5ccf16fcc9206cc98344136cca4ccefccb105ccbbccca1c5057ccba25067eccc101cc82ccee21445cccf91e79ccb176447239";
+        let sig = "2535cfe1bcea215dc552acbca1a213354e055709f8e071c593bb9a8c1551b7791d6fd611ded1912065b3b518f6a75a1c78643b0a2e06397707b21768be637cb41b";
 
-        let request = StateKeyRequest { data: msg, sig, block_number: None, addresses: None };
-        let response = get_enc_state_keys(enclave.geteid(), request, epoch_state.nonce, &[]).unwrap();
+        let request = StateKeyRequest::new(msg.from_hex().unwrap(), sig.from_hex().unwrap(), None, None);
+        get_enc_state_keys(enclave.geteid(), request, signed_epoch.get_nonce(), &[]).unwrap();
 
         enclave.destroy();
     }

@@ -1,6 +1,6 @@
-use enigma_tools_m::keeper_types::{InputWorkerParams, RawEncodable};
+use enigma_tools_m::keeper_types::{InputWorkerParams};
 use ethabi::Bytes;
-use ethereum_types::{H160, H256, U256, BigEndianHash};
+use ethereum_types::{H160, U256};
 use std::string::ToString;
 use std::vec::Vec;
 
@@ -8,7 +8,7 @@ use enigma_tools_t::common::errors_t::{
     EnclaveError::{self, SystemError},
     EnclaveSystemError,
 };
-use enigma_types::ContractAddress;
+use enigma_types::Hash256;
 use super::nested_encoding::NestedSerialization;
 
 pub type EpochNonce = [u8; 32];
@@ -22,7 +22,7 @@ pub struct Epoch {
 }
 
 impl Epoch {
-    pub fn get_selected_worker(&self, sc_addr: ContractAddress) -> Result<H160, EnclaveError> {
+    pub fn get_selected_worker(&self, sc_addr: Hash256) -> Result<H160, EnclaveError> {
         self.worker_params
             .get_selected_worker(sc_addr, self.seed)
             .ok_or_else(|| SystemError(EnclaveSystemError::WorkerAuthError { err: "Worker selection returns nothing.".to_string() }))

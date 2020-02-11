@@ -15,7 +15,7 @@ extern crate rand;
 extern crate tempfile;
 
 use self::cross_test_utils::{generate_contract_address, generate_user_address, make_encrypted_response,
-                             get_fake_state_key, get_bytecode_from_path, ContractAddress,
+                             get_fake_state_key, get_bytecode_from_path, Hash256,
                              ERC20UserAddress, sign_message};
 use self::app::*;
 use self::futures::Future;
@@ -29,7 +29,6 @@ use self::regex::Regex;
 use self::hex::{ToHex, FromHex};
 use self::ethabi::{Token};
 use self::enigma_crypto::{asymmetric::KeyPair, symmetric};
-use self::enigma_types::Hash256;
 use self::rand::{thread_rng, Rng};
 use app::db::DB;
 use self::tempfile::TempDir;
@@ -149,7 +148,7 @@ pub fn parse_packed_msg(msg: &str) -> Value {
     Deserialize::deserialize(&mut Deserializer::new(&msg_bytes[..])).unwrap()
 }
 
-pub fn mock_principal_res(msg: &str, addrs: Vec<ContractAddress>) -> Vec<u8> {
+pub fn mock_principal_res(msg: &str, addrs: Vec<Hash256>) -> Vec<u8> {
     let unpacked_msg: Value = parse_packed_msg(msg);
     let enc_response: Value = make_encrypted_response(&unpacked_msg, addrs, None);
 
@@ -158,7 +157,7 @@ pub fn mock_principal_res(msg: &str, addrs: Vec<ContractAddress>) -> Vec<u8> {
     serialized_enc_response
 }
 
-pub fn run_ptt_round(port: &'static str, addrs: Vec<ContractAddress>) -> Value {
+pub fn run_ptt_round(port: &'static str, addrs: Vec<Hash256>) -> Value {
 
     // set encrypted request message to send to the principal node
     let msg_req = get_ptt_req_msg();

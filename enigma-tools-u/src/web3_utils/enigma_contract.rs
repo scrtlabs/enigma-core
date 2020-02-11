@@ -1,6 +1,5 @@
 use std::path::Path;
 use std::str;
-use std::sync::Arc;
 
 use failure::Error;
 use hex::{FromHex};
@@ -11,7 +10,7 @@ use web3::types::{Address, Bytes, H160, H256, TransactionReceipt, U256};
 use web3::Web3;
 
 use enigma_crypto::EcdsaSign;
-use enigma_types::ContractAddress;
+use enigma_types::Hash256;
 
 use crate::common_u::errors;
 use crate::web3_utils::w3utils;
@@ -21,12 +20,13 @@ use super::contract_ext::signed_call_with_confirmations;
 // Creating another one means more threads and more things to handle.
 // Important!! When the eloop is dropped the Web3/Contract will stop to work!
 
+
 pub struct EnigmaContract {
-    pub web3: Arc<Web3<Http>>,
+    pub web3: Web3<Http>,
     pub eloop: EventLoopHandle,
     pub w3_contract: Contract<Http>,
     ethabi_contract: ethabi::Contract, // This should match the `ethabi::Contract` in `self.web3_contract`
-    pub account: Address,
+    account: Address,
     pub chain_id: u64,
     pub signer: Box<dyn EcdsaSign + Send + Sync>,
 }
@@ -63,24 +63,26 @@ impl EnigmaContract {
         let abi_json = w3utils::load_contract_abi(abi_path)?;
         let ethabi_contract = ethabi::Contract::load(abi_json.as_bytes()).map_err(|e| failure::err_msg(e.to_string()))?;
         let w3_contract = Contract::new(web3.eth(), contract_address.parse()?, ethabi_contract.clone());
-        Ok(EnigmaContract { web3: Arc::new(web3), eloop, w3_contract, ethabi_contract, account, signer, chain_id })
+        Ok(EnigmaContract { web3, eloop, w3_contract, ethabi_contract, account, signer, chain_id })
     }
 
     pub fn address(&self) -> Address { self.w3_contract.address() }
+
+    pub fn get_km_account(&self) -> Address {self.account}
 }
 
-pub trait ContractFuncs<G> {
-    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
+pub trait ContractFuncs {
+    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: U256, confirmations: usize) -> Result<TransactionReceipt, Error>;
 
-    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error>;
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: U256, confirmations: usize) -> Result<TransactionReceipt, Error>;
 }
 
-impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
+impl ContractFuncs for EnigmaContract {
     #[logfn(DEBUG)]
-    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
+    fn register(&self, staking_address: H160, signing_address: H160, report: String, signature: String, gas: U256, confirmations: usize) -> Result<TransactionReceipt, Error> {
         // register
         let mut opts = Options::default();
-        opts.gas = Some(gas.into());
+        opts.gas = Some(gas);
         // call the register function
         let report = report.as_bytes().to_vec();
         let signature = signature.from_hex()?;
@@ -104,9 +106,9 @@ impl<G: Into<U256>> ContractFuncs<G> for EnigmaContract {
     }
 
     #[logfn(DEBUG)]
-    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: G, confirmations: usize) -> Result<TransactionReceipt, Error> {
+    fn set_workers_params(&self, block_number: U256, seed: U256, sig: Bytes, gas: U256, confirmations: usize) -> Result<TransactionReceipt, Error> {
         let mut opts: Options = Options::default();
-        opts.gas = Some(gas.into());
+        opts.gas = Some(gas);
         let call = signed_call_with_confirmations(
             &self.web3,
             &self.ethabi_contract,
@@ -140,10 +142,10 @@ pub trait ContractQueries {
 
     // getSecretContractAddresses
     // input: uint _start, uint _stop
-    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<ContractAddress>, Error>;
+    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<Hash256>, Error>;
 
     // getAllSecretContractAddresses
-    fn get_all_secret_contract_addresses(&self) -> Result<Vec<ContractAddress>, Error>;
+    fn get_all_secret_contract_addresses(&self) -> Result<Vec<Hash256>, Error>;
 }
 
 impl ContractQueries for EnigmaContract {
@@ -179,7 +181,7 @@ impl ContractQueries for EnigmaContract {
     }
 
     #[logfn(INFO)]
-    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<ContractAddress>, Error> {
+    fn get_secret_contract_addresses(&self, start: U256, stop: U256) -> Result<Vec<Hash256>, Error> {
         let addrs: Vec<H256> =
             match self.w3_contract.query("getSecretContractAddresses", (start, stop), self.account, Options::default(), None).wait() {
                 Ok(addrs) => addrs,
@@ -187,15 +189,15 @@ impl ContractQueries for EnigmaContract {
                     return Err(errors::Web3Error { message: format!("Unable to query getSecretContractAddresses: {:?}", e) }.into())
                 }
             };
-        Ok(addrs.into_iter().map(|a|ContractAddress::from(a.0)).collect())
+        Ok(addrs.into_iter().map(|a| Hash256::from(a.0)).collect())
     }
 
     #[logfn(DEBUG)]
-    fn get_all_secret_contract_addresses(&self) -> Result<Vec<ContractAddress>, Error> {
+    fn get_all_secret_contract_addresses(&self) -> Result<Vec<Hash256>, Error> {
         self.w3_contract
             .query("getAllSecretContractAddresses", (),self.account, Options::default(), None)
             .wait()
-            .map(|addrs: Vec<H256>| addrs.into_iter().map(|a| ContractAddress::from(a.0 )).collect())
+            .map(|addrs: Vec<H256>| addrs.into_iter().map(|a| Hash256::from(a.0 )).collect())
             .map_err(|e| errors::Web3Error { message: format!("Unable to query getAllSecretContractAddresses: {:?}", e) }.into())
     }
 }

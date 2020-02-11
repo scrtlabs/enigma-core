@@ -12,15 +12,15 @@ use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::Command;
-pub use enigma_types::{ContractAddress, StateKey, Hash256};
+pub use enigma_types::{StateKey, Hash256};
 use enigma_crypto::{KeyPair, symmetric, rand};
 use enigma_crypto::hash::{Sha256, Keccak256};
 use serde_json::{*, Value};
 use rmp_serde::{Serializer};
 use serde::{Serialize};
 
-pub fn generate_contract_address() -> ContractAddress {
-    let mut address = ContractAddress::default();
+pub fn generate_contract_address() -> Hash256 {
+    let mut address = Hash256::default();
     rand::random(address.as_mut()).unwrap();
     address
 }
@@ -56,17 +56,17 @@ pub fn get_bytecode_from_path(contract_path: &str) -> Vec<u8> {
 }
 
 // creates a non trivial reproducible stateKey from the contract address
-pub fn get_fake_state_key(contract_address: ContractAddress) -> [u8; 32] {
+pub fn get_fake_state_key(contract_address: Hash256) -> [u8; 32] {
     contract_address.keccak256().sha256().into()
 }
 
-pub fn make_encrypted_response(req: &Value, addresses: Vec<ContractAddress>, keys: Option<Vec<StateKey>>) -> Value {
+pub fn make_encrypted_response(req: &Value, addresses: Vec<Hash256>, keys: Option<Vec<StateKey>>) -> Value {
     // Making the response
     if !req["data"]["Request"].is_null() { // Just makes sure that {data:{Request}} Exists.
-        assert_eq!(serde_json::from_value::<Vec<ContractAddress>>(req["data"]["Request"].clone()).unwrap(), addresses);
+        assert_eq!(serde_json::from_value::<Vec<Hash256>>(req["data"]["Request"].clone()).unwrap(), addresses);
     }
 
-    let _response_data: Vec<(ContractAddress, StateKey)> = if let Some(keys) = keys {
+    let _response_data: Vec<(Hash256, StateKey)> = if let Some(keys) = keys {
         addresses.into_iter().zip(keys.into_iter()).collect()
     } else {
         addresses.into_iter().map(|addr| (addr, get_fake_state_key(addr))).collect()

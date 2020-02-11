@@ -1,6 +1,6 @@
 use core::clone::Clone;
 
-use enigma_tools_m::keeper_types::{decode, EPOCH_CAP, InputWorkerParams, RawEncodable};
+use enigma_tools_m::keeper_types::{decode, EPOCH_CAP, InputWorkerParams};
 use enigma_tools_m::utils::LockExpectMutex;
 use ethereum_types::{H256, U256, BigEndianHash};
 use rustc_hex::ToHex;
@@ -18,7 +18,7 @@ use enigma_tools_t::{
     },
     document_storage_t::{is_document, load_sealed_document, save_sealed_document, SEAL_LOG_SIZE, SealedDocumentStorage},
 };
-use enigma_types::{ContractAddress, Hash256};
+use enigma_types::{Hash256};
 use epoch_keeper_t::epoch_t::{Epoch, EpochMarker, EpochNonce};
 use ocalls_t;
 
@@ -168,7 +168,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     }
     // Add the `Epoch` to the epoch cache regardless of weather it was created or recovered from a sealed marker
     match guard.insert(epoch.nonce.clone(), epoch.clone()) {
-        Some(prev) => debug_println!("New epoch stored successfully"),
+        Some(_) => debug_println!("New epoch stored successfully"),
         None => debug_println!("Initial epoch stored successfully"),
     }
     let msg = epoch.encode_for_hashing();
@@ -177,7 +177,7 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
     Ok(())
 }
 
-pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, nonce: U256) -> Result<[u8; 20], EnclaveError> {
+pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: Hash256, nonce: U256) -> Result<[u8; 20], EnclaveError> {
     let guard = EPOCH.lock_expect("Epoch");
     let epoch = get_epoch_from_cache(&guard, nonce)?;
     debug_println!("Running worker selection using Epoch: {:?}", epoch);
@@ -188,9 +188,7 @@ pub(crate) fn ecall_get_epoch_worker_internal(sc_addr: ContractAddress, nonce: U
 
 pub mod tests {
     use ethereum_types::{H160, U256};
-    use rustc_hex::FromHex;
     use std::prelude::v1::Vec;
-    use std::string::String;
 
     use super::*;
 
@@ -202,8 +200,8 @@ pub mod tests {
             stakes: vec![U256::from(1), U256::from(1), U256::from(1), U256::from(1)],
         };
         let epoch = Epoch { nonce: U256::from(0), seed: U256::from(1), worker_params };
-        let sc_addr = ContractAddress::from([1u8; 32]);
-        let worker = epoch.get_selected_worker(sc_addr).unwrap();
+        let sc_addr = Hash256::from([1u8; 32]);
+        let _worker = epoch.get_selected_worker(sc_addr).unwrap();
     }
 
     pub fn test_create_epoch_image() {

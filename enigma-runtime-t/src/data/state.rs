@@ -1,8 +1,7 @@
 use crate::data::{DeltasInterface, IOInterface, StatePatch};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
-use enigma_types::{ContractAddress, StateKey};
+use enigma_types::{Hash256, StateKey};
 use enigma_crypto::{symmetric, Encryption};
-use enigma_types::Hash256;
 use json_patch;
 use rmps::{Deserializer, Serializer};
 use serde::{Deserialize, Serialize};
@@ -14,7 +13,7 @@ use data::EncryptedPatch;
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize, Default)]
 pub struct ContractState {
     #[serde(skip)]
-    pub contract_address: ContractAddress,
+    pub contract_address: Hash256,
     pub json: Value,
     pub delta_hash: Hash256,
     pub delta_index: u32,
@@ -22,12 +21,12 @@ pub struct ContractState {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct EncryptedContractState<T> {
-    pub contract_address: ContractAddress,
+    pub contract_address: Hash256,
     pub json: Vec<T>,
 }
 
 impl ContractState {
-    pub fn new(contract_address: ContractAddress) -> ContractState {
+    pub fn new(contract_address: Hash256) -> ContractState {
         let json = serde_json::from_str("{}").unwrap();
         ContractState { contract_address, json,.. Default::default() }
     }

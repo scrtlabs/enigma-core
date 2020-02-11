@@ -23,6 +23,7 @@ log = "0.4"
 log4rs = {version = "0.9.0", features = ["rolling_file_appender"] }
 log-derive = "0.3"
 dirs = "1.0.4"
+thiserror = "1.0.10"
 tiny-keccak = { version = "1.5.0", features = ["keccak"] }
 # TODO: Change after a new version is released.
 # Add more transport layers via features if needed.

@@ -1,18 +1,16 @@
 use std::collections::HashMap;
-use rustc_hex::ToHex;
 
-use enigma_tools_m::keeper_types::InputWorkerParams;
+use rustc_hex::ToHex;
 use ethabi::{Event, EventParam, ParamType};
-use failure::Error;
 pub use rlp::{decode, Encodable, encode, RlpStream};
 use serde::{Deserialize, Serialize};
 use web3::types::{Address, Bytes, H160, U256};
 
-use enigma_types::ContractAddress;
+use enigma_tools_m::keeper_types::InputWorkerParams;
 use enigma_types::Hash256;
-use common_u::errors::EpochStateTransitionErr;
 
-pub const EPOCH_STATE_UNCONFIRMED: &str = "UNCONFIRMED";
+use common_u::custom_errors::EpochError;
+
 pub const WORKER_PARAMETERIZED_EVENT: &str = "WorkersParameterized";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,21 +22,29 @@ pub struct ConfirmedEpochState {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct EpochState {
-    pub seed: U256,
-    pub sig: Bytes,
-    pub nonce: U256,
+pub struct SignedEpoch {
+    seed: U256,
+    sig: Bytes,
+    nonce: U256,
     /// The km_block_number is the block in which the KM decided to start a new epoch and
     /// the active workers are concluded from for the epoch
     /// (It might differ from the ether_block_number due to latency in networks)
-    pub km_block_number: U256,
+    km_block_number: U256,
     pub confirmed_state: Option<ConfirmedEpochState>,
 }
 
-impl EpochState {
+impl SignedEpoch {
     pub fn new(seed: U256, sig: Bytes, nonce: U256, km_block_number: U256) -> Self {
         Self { seed, sig, nonce, km_block_number, confirmed_state: None }
     }
+
+    pub fn get_nonce(&self) -> U256 { self.nonce }
+
+    pub fn get_seed(&self) -> U256 { self.seed }
+
+    pub fn get_km_block_num(&self) -> U256 { self.km_block_number }
+
+    pub fn get_sig(&self) -> Bytes { self.sig.clone() }
 
     /// Build a local mapping of smart contract address => selected worker for the epoch
     ///
@@ -47,11 +53,9 @@ impl EpochState {
     /// * `worker_params` - The `InputWorkerParams` used to run the worker selection algorithm
     /// * `sc_addresses` - The Secret Contract addresses for which to retrieve the selected worker
     #[logfn(DEBUG)]
-    pub fn confirm(
-        &mut self, ether_block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<ContractAddress>,
-    ) -> Result<(), Error> {
+    pub fn confirm(&mut self, ether_block_number: U256, worker_params: &InputWorkerParams, sc_addresses: Vec<Hash256>) {
         info!("Confirmed epoch with worker params: {:?}", worker_params);
-        let mut selected_workers: HashMap<ContractAddress, Address> = HashMap::new();
+        let mut selected_workers: HashMap<Hash256, Address> = HashMap::new();
         for sc_address in sc_addresses {
             match worker_params.get_selected_worker(sc_address, self.seed) {
                 Some(worker) => {
@@ -67,7 +71,6 @@ impl EpochState {
             }
         }
         self.confirmed_state = Some(ConfirmedEpochState { selected_workers, ether_block_number });
-        Ok(())
     }
 
     /// Returns the contract address that the worker is selected to work on during this epoch
@@ -76,10 +79,10 @@ impl EpochState {
     ///
     /// * `worker` - The worker signing address
     #[logfn(DEBUG)]
-    pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<ContractAddress>, Error> {
+    pub fn get_contract_addresses(&self, worker: &H160) -> Result<Vec<Hash256>, EpochError> {
         let addrs = match &self.confirmed_state {
             Some(state) => {
-                let mut addrs: Vec<ContractAddress> = Vec::new();
+                let mut addrs: Vec<Hash256> = Vec::new();
                 for (&addr, account) in &state.selected_workers {
                     if account == worker {
                         addrs.push(addr);
@@ -87,7 +90,7 @@ impl EpochState {
                 }
                 addrs
             }
-            None => return Err(EpochStateTransitionErr { current_state: EPOCH_STATE_UNCONFIRMED.to_string() }.into()),
+            None => return Err(EpochError::UnconfirmedState),
         };
         Ok(addrs)
     }

@@ -1,12 +1,12 @@
-use enigma_tools_m::keeper_types::InputWorkerParams;
-use failure::Error;
 use rustc_hex::ToHex;
 use sgx_types::{sgx_enclave_id_t, sgx_status_t};
 use web3::types::{Bytes, U256};
 
-use common_u::errors::EnclaveFailError;
+use enigma_tools_m::keeper_types::InputWorkerParams;
 use enigma_types::{EnclaveReturn, traits::SliceCPtr};
-use epoch_u::epoch_types::{encode, EpochState};
+
+use common_u::custom_errors::EnclaveError;
+use epochs::epoch_types::{encode, SignedEpoch};
 
 extern "C" {
     fn ecall_set_worker_params(
@@ -33,10 +33,10 @@ extern "C" {
 /// let sig = set_worker_params(enclave.geteid(), worker_params, None).unwrap();
 /// ```
 #[logfn(DEBUG)]
-pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch_state: Option<EpochState>) -> Result<EpochState, Error> {
+pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputWorkerParams, epoch: Option<SignedEpoch>) -> Result<SignedEpoch, EnclaveError> {
     let mut retval: EnclaveReturn = EnclaveReturn::Success;
-    let (nonce_in, seed_in) = match epoch_state.clone() {
-        Some(e) => (e.nonce.into(), e.seed.into()),
+    let (nonce_in, seed_in) = match epoch.clone() {
+        Some(e) => (e.get_nonce().into(), e.get_seed().into()),
         None => ([0; 32], [0; 32])
     };
     debug!("Calling enclave set_worker_params with nonce/seed: {:?}/{:?}", nonce_in.to_vec().to_hex(), seed_in.to_vec().to_hex());
@@ -58,26 +58,25 @@ pub fn set_or_verify_worker_params(eid: sgx_enclave_id_t, worker_params: &InputW
         )
     };
     if retval != EnclaveReturn::Success || status != sgx_status_t::SGX_SUCCESS {
-        return Err(EnclaveFailError { err: retval, status }.into());
+        return Err(EnclaveError::Failure { err: retval, status });
     }
-    // If an `EpochState` was given and the ecall succeeded, it is considered verified
-    // Otherwise, build a new `EpochState` from the parameters of the new epoch
-    let epoch_state_out = match epoch_state {
-        Some(epoch_state) => epoch_state,
+    // If an `Epoch` was given and the ecall succeeded, it is considered verified
+    // Otherwise, build a new `Epoch` from the parameters of the new epoch
+    let epoch_out = match epoch {
+        Some(epoch) => epoch,
         None => {
             let seed = U256::from_big_endian(&rand_out);
             let sig = Bytes(sig_out.to_vec());
             let nonce = U256::from_big_endian(&nonce_out);
-            EpochState::new(seed, sig, nonce, worker_params.km_block_number)
+            SignedEpoch::new(seed, sig, nonce, worker_params.km_block_number)
         }
     };
-    Ok(epoch_state_out)
+    Ok(epoch_out)
 }
 
 #[cfg(test)]
 pub mod tests {
-    use rustc_hex::{FromHex, ToHex};
-    use web3::types::{Address, H160, H256};
+    use web3::types::H160;
 
     use esgx::general::init_enclave_wrapper;
 
@@ -116,7 +115,7 @@ pub mod tests {
         let stakes: Vec<u64> = vec![90000000000];
         let km_block_number = 1;
         let worker_params = get_worker_params(km_block_number, workers, stakes);
-        for i in 0..5 {
+        for _ in 0..5 {
             let epoch_state = set_or_verify_worker_params(enclave.geteid(), &worker_params, None).unwrap();
             assert!(epoch_state.confirmed_state.is_none());
         }

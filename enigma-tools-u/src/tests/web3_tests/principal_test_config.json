@@ -1,9 +1,7 @@
 {
     "ENIGMA_CONTRACT_PATH" : "../app/tests/principal_node/contracts/Enigma.json",
-    "ENIGMA_CONTRACT_REMOTE_PATH" : "",
     "ENIGMA_CONTRACT_ADDRESS" : "f25186B5081Ff5cE73482AD761DB0eB0d25abfBF",
     "ACCOUNT_ADDRESS" : "627306090abab3a6e1400e9345bc60c78a8bef57",
-    "TEST_NET" : true,
     "WITH_PRIVATE_KEY" : false,
     "PRIVATE_KEY" : "",
     "URL" : "http://localhost:8545",

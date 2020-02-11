@@ -8,7 +8,7 @@ use bigint;
 use crate::ethabi::{encode, Address, Bytes, Token};
 use crate::ethereum_types::{H160, U256};
 use enigma_crypto::hash::Keccak256;
-use enigma_types::ContractAddress;
+use enigma_types::Hash256;
 pub use rlp::{decode, encode as rlpEncode, Encodable, Decodable, DecoderError, UntrustedRlp, RlpStream};
 
 pub const EPOCH_CAP: usize = 2;
@@ -32,7 +32,7 @@ pub trait RawEncodable {
 #[derive(Clone)]
 struct WorkerSelectionToken {
     pub seed: U256,
-    pub sc_addr: ContractAddress,
+    pub sc_addr: Hash256,
     pub nonce: U256,
 }
 
@@ -60,7 +60,7 @@ impl InputWorkerParams {
     /// * `seed` - The random seed for the selected epoch
     ///
     #[logfn(DEBUG)]
-    pub fn get_selected_worker(&self, sc_addr: ContractAddress, seed: U256) -> Option<Address> {
+    pub fn get_selected_worker(&self, sc_addr: Hash256, seed: U256) -> Option<Address> {
         debug!("Finding selected worker for sc_addr: {:?} and seed: {:?}", sc_addr, seed);
         let workers = self.get_selected_workers(sc_addr, seed, None);
         if workers.is_empty() {
@@ -71,7 +71,7 @@ impl InputWorkerParams {
     }
 
     #[logfn(DEBUG)]
-    fn get_selected_workers(&self, sc_addr: ContractAddress, seed: U256, group_size: Option<u64>) -> Vec<Address> {
+    fn get_selected_workers(&self, sc_addr: Hash256, seed: U256, group_size: Option<u64>) -> Vec<Address> {
         let mut selected_workers = Vec::new();
         if self.workers.is_empty() || self.workers.len() != self.stakes.len() {
             debug!("Invalid worker selection parameters {:?}", self);

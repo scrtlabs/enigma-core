@@ -2,7 +2,7 @@
 use crate::db::{CRUDInterface, DeltaKey, P2PCalls, ResultType, ResultTypeVec, Stype, DB};
 use enigma_tools_m::utils::LockExpectMutex;
 use enigma_crypto::hash::Sha256;
-use enigma_types::{ContractAddress, EnclaveReturn, Hash256, RawPointer};
+use enigma_types::{EnclaveReturn, Hash256, RawPointer};
 use lru_cache::LruCache;
 use std::sync::Mutex;
 use std::{ptr, slice};
@@ -12,7 +12,7 @@ lazy_static! { static ref DELTAS_CACHE: Mutex<LruCache<Hash256, Vec<Vec<u8>>>> =
 
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &ContractAddress, enc_state: *const u8, state_len: usize) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &Hash256, enc_state: *const u8, state_len: usize) -> EnclaveReturn {
     let encrypted_state = slice::from_raw_parts(enc_state, state_len);
     let key = DeltaKey::new(*id, Stype::State);
 
@@ -36,7 +36,7 @@ pub unsafe extern "C" fn ocall_update_state(db_ptr: *const RawPointer, id: &Cont
 #[no_mangle]
 pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
                                          enc_delta: *const u8, delta_len: usize,
-                                         contract_address: &ContractAddress, delta_index_: *const u32) -> EnclaveReturn {
+                                         contract_address: &Hash256, delta_index_: *const u32) -> EnclaveReturn {
     let delta_index = ptr::read(delta_index_);
     let encrypted_delta = slice::from_raw_parts(enc_delta, delta_len);
     let key = DeltaKey::new(*contract_address, Stype::Delta(delta_index));
@@ -58,7 +58,7 @@ pub unsafe extern "C" fn ocall_new_delta(db_ptr: *const RawPointer,
 
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &ContractAddress, state_size: *mut usize) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &Hash256, state_size: *mut usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
     let _state_key = DeltaKey::new(*addr, Stype::State);
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
@@ -82,7 +82,7 @@ pub unsafe extern "C" fn ocall_get_state_size(db_ptr: *const RawPointer, addr: &
 
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_state(db_ptr: *const RawPointer, addr: &ContractAddress, state_ptr: *mut u8, state_size: usize) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_get_state(db_ptr: *const RawPointer, addr: &Hash256, state_ptr: *mut u8, state_size: usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
     cache_id.extend_from_slice(&state_size.to_be_bytes());
 
@@ -115,7 +115,7 @@ pub unsafe extern "C" fn ocall_get_state(db_ptr: *const RawPointer, addr: &Contr
 
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_deltas_sizes(db_ptr: *const RawPointer, addr: &ContractAddress,
+pub unsafe extern "C" fn ocall_get_deltas_sizes(db_ptr: *const RawPointer, addr: &Hash256,
                                                 start: *const u32, end: *const u32,
                                                 res_ptr: *mut usize, res_len: usize) -> EnclaveReturn {
 
@@ -156,9 +156,9 @@ pub unsafe extern "C" fn ocall_get_deltas_sizes(db_ptr: *const RawPointer, addr:
 
 
 #[no_mangle]
-pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &ContractAddress,
-                                             start: *const u32, end: *const u32,
-                                             res_ptr: *mut u8, res_len: usize) -> EnclaveReturn {
+pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &Hash256,
+                                          start: *const u32, end: *const u32,
+                                          res_ptr: *mut u8, res_len: usize) -> EnclaveReturn {
     let mut cache_id = addr.to_vec();
     cache_id.extend_from_slice(&(*start).to_be_bytes());
     cache_id.extend_from_slice(&(*end).to_be_bytes());
@@ -199,7 +199,7 @@ pub unsafe extern "C" fn ocall_get_deltas(db_ptr: *const RawPointer, addr: &Cont
 
 #[no_mangle]
 pub unsafe extern "C" fn ocall_remove_delta(db_ptr: *const RawPointer,
-                                            contract_address: &ContractAddress, delta_index_: *const u32) -> EnclaveReturn {
+                                            contract_address: &Hash256, delta_index_: *const u32) -> EnclaveReturn {
     let delta_index = ptr::read(delta_index_);
     let key = DeltaKey::new(*contract_address, Stype::Delta(delta_index));
     let db: &mut DB = match (*db_ptr).get_mut_ref() {
@@ -223,7 +223,7 @@ pub unsafe extern "C" fn ocall_remove_delta(db_ptr: *const RawPointer,
     }
 }
 
-fn get_deltas(db: &mut DB, addr: ContractAddress, start: u32, end: u32) -> ResultTypeVec<(DeltaKey, Vec<u8>)> {
+fn get_deltas(db: &mut DB, addr: Hash256, start: u32, end: u32) -> ResultTypeVec<(DeltaKey, Vec<u8>)> {
     let key_start = DeltaKey::new(addr, Stype::Delta(start));
     let key_end = DeltaKey::new(addr, Stype::Delta(end));
 

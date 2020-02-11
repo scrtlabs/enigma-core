@@ -1,26 +1,26 @@
 use crate::data::{EncryptedContractState, EncryptedPatch};
 use enigma_tools_t::common::errors_t::{EnclaveError, EnclaveError::*, EnclaveSystemError::*};
-use enigma_types::{ContractAddress, EnclaveReturn, traits::SliceCPtr, RawPointer};
+use enigma_types::{Hash256, EnclaveReturn, traits::SliceCPtr, RawPointer};
 use sgx_types::sgx_status_t;
 use std::string::ToString;
 use std::vec::Vec;
 
 extern "C" {
-    fn ocall_get_deltas_sizes(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &ContractAddress,
+    fn ocall_get_deltas_sizes(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &Hash256,
                               start: *const u32, end: *const u32,
                               res_ptr: *mut usize, res_len: usize) -> sgx_status_t;
-    fn ocall_get_deltas(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &ContractAddress,
+    fn ocall_get_deltas(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &Hash256,
                         start: *const u32, end: *const u32,
                         res_ptr: *mut u8, res_len: usize) -> sgx_status_t;
     fn ocall_new_delta(retval: *mut EnclaveReturn, db_ptr: *const RawPointer,
                        enc_delta: *const u8, delta_len: usize,
-                       contract_address: &ContractAddress, delta_index_: *const u32) -> sgx_status_t;
+                       contract_address: &Hash256, delta_index_: *const u32) -> sgx_status_t;
     fn ocall_remove_delta(retval: *mut EnclaveReturn, db_ptr: *const RawPointer,
-                       contract_address: &ContractAddress, delta_index_: *const u32) -> sgx_status_t;
+                          contract_address: &Hash256, delta_index_: *const u32) -> sgx_status_t;
 
-    fn ocall_get_state_size(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &ContractAddress, state_len: *mut usize) -> sgx_status_t;
-    fn ocall_get_state(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &ContractAddress, state_ptr: *mut u8, state_len: usize) -> sgx_status_t;
-    fn ocall_update_state(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, id: &ContractAddress, enc_delta: *const u8, delta_len: usize) -> sgx_status_t;
+    fn ocall_get_state_size(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &Hash256, state_len: *mut usize) -> sgx_status_t;
+    fn ocall_get_state(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, addr: &Hash256, state_ptr: *mut u8, state_len: usize) -> sgx_status_t;
+    fn ocall_update_state(retval: *mut EnclaveReturn, db_ptr: *const RawPointer, id: &Hash256, enc_delta: *const u8, delta_len: usize) -> sgx_status_t;
 }
 
 pub unsafe fn save_state(db_ptr: *const RawPointer, enc: &EncryptedContractState<u8>) -> Result<(), EnclaveError> {
@@ -74,7 +74,7 @@ pub fn remove_delta(db_ptr: *const RawPointer, enc: &EncryptedPatch) -> Result<(
     }
 }
 
-pub fn get_state(db_ptr: *const RawPointer, contract_address: ContractAddress) -> Result<EncryptedContractState<u8>, EnclaveError> {
+pub fn get_state(db_ptr: *const RawPointer, contract_address: Hash256) -> Result<EncryptedContractState<u8>, EnclaveError> {
     let mut retval = EnclaveReturn::default();
     let mut state_len = 0usize;
     let status = unsafe { ocall_get_state_size(&mut retval, db_ptr, &contract_address, &mut state_len) };
@@ -96,7 +96,7 @@ pub fn get_state(db_ptr: *const RawPointer, contract_address: ContractAddress) -
     Ok(EncryptedContractState { contract_address, json: state })
 }
 
-pub fn get_deltas(db_ptr: *const RawPointer, contract_address: ContractAddress, start: u32, end: u32) -> Result<Vec<EncryptedPatch>, EnclaveError> {
+pub fn get_deltas(db_ptr: *const RawPointer, contract_address: Hash256, start: u32, end: u32) -> Result<Vec<EncryptedPatch>, EnclaveError> {
     let len = (end - start) as usize;
     let mut deltas_buff = vec![0usize; len];
     let mut retval = EnclaveReturn::default();
@@ -137,7 +137,7 @@ pub fn get_deltas(db_ptr: *const RawPointer, contract_address: ContractAddress, 
 pub mod tests {
     use super::{get_deltas, get_state, save_delta, save_state, EncryptedContractState, EncryptedPatch};
     use crate::data::ContractState;
-    use enigma_types::{ContractAddress, RawPointer};
+    use enigma_types::{Hash256, RawPointer};
     use enigma_crypto::hash::Sha256;
     use enigma_crypto::Encryption;
     use serde_json::Value;
@@ -193,7 +193,7 @@ pub mod tests {
         assert!(res.is_ok());
     }
 
-    unsafe fn save_deltas(db_ptr: *const RawPointer, start: u32, end: u32, contract_address: &ContractAddress) -> Vec<EncryptedPatch> {
+    unsafe fn save_deltas(db_ptr: *const RawPointer, start: u32, end: u32, contract_address: &Hash256) -> Vec<EncryptedPatch> {
         let mut deltas = Vec::new();
         for i in start..end {
             let mut delta_data = b"data".sha256().to_vec();

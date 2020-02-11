@@ -1,7 +1,9 @@
-use enigma_tools_u::{self, esgx::general::storage_dir};
+use std::fs;
+
 use sgx_types::*;
 use sgx_urts::SgxEnclave;
-use std::{fs, path};
+
+use enigma_tools_u::{self, esgx::general::storage_dir};
 
 static ENCLAVE_FILE: &'static str = "../bin/enclave.signed.so";
 pub static ENCLAVE_DIR: &'static str = ".enigma";
