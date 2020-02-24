@@ -28,6 +28,8 @@ impl Epoch {
             .ok_or_else(|| SystemError(EnclaveSystemError::WorkerAuthError { err: "Worker selection returns nothing.".to_string() }))
     }
 
+    /// creates the encoding agreed upon and which is aligned on both ends in order to encrypt/decrypt
+    /// the data while making sure it cannot be compromised in the process.
     pub fn encode_for_hashing(&self) -> Bytes {
         let mut encoding: Vec<u8> = Vec::new();
 

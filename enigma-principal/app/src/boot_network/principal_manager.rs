@@ -309,6 +309,7 @@ impl Sampler for PrincipalManager {
     #[logfn(INFO)]
     fn run<G: Into<U256>>(&self, path: PathBuf, reset_epoch: bool, gas_limit: G) -> Result<(), Error> {
         let gas_limit: U256 = gas_limit.into();
+        // make sure the KM was registered
         self.verify_identity_or_register(gas_limit)?;
         // get enigma contract
         // Start the WorkerParameterized Web3 log filter
@@ -322,11 +323,12 @@ impl Sampler for PrincipalManager {
         let port = self.config.http_port;
         let server_ep = Arc::clone(&epoch_provider);
         thread::spawn(move || {
+            // brings up the JSON rpc server in a separate thread
             let server = PrincipalHttpServer::new(server_ep, port);
             server.start();
         });
 
-        // watch blocks
+        // watch blocks in order to decide when to create a new epoch.
         let polling_interval = self.config.polling_interval;
         let epoch_size = self.config.epoch_size;
         self.contract.watch_blocks(

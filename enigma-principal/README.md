@@ -1,6 +1,15 @@
 # Enigma Key Management Node
 
-The Key Management node is part of the Enigma node software stack. The Key Management component is responsible for emitting random numbers from within an enclave into the Enigma contract. Currently, it uses a centralized design in order to maintain simplicity while testing and developing Core, but it will eventually move to a decentralized design matching the rest of the network.
+The Key Management node is part of the Enigma node software stack. 
+The Key Management component is responsible for emitting random numbers from within 
+an enclave into the Enigma contract, which defines the seed for each epoch. 
+In addition, it handles the state keys, which encrypt the state of each secret contract 
+stored on each of the nodes and supplies the acquired keys to the chosen worker/node in 
+the epoch (according to the seed that defines the epoch and a worker selection algorithm) 
+for each of the secret contracts, on demand through the jsonRPC server. 
+Currently, it uses a centralized design in order to maintain simplicity while 
+testing and developing Core, but it will eventually move to a decentralized design 
+matching the rest of the network.
 
 <img src="https://drone.enigma.co/api/badges/enigmampc/enigma-core/status.svg?branch=develop" />
 
@@ -32,7 +41,7 @@ The encryption method relies on a DH key exchange between the Principal node and
 
 ```sh
 // Request
-curl -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "id":1, "method":"get_state_keys", "params": {"data": "84a46461746181a75265717565737493dc0020cca7cc937b64ccb8cccacca5cc8f03721bccb6ccbacccf5c78cccb235fccebcce0cce70b1bcc84cccdcc99541461cca0cc8edc002016367accacccb67a4a017ccc8dcca8ccabcc95682ccccb390863780f7114ccddcca0cca0cce0ccc55644ccc7ccc4dc0020ccb1cce9cc9324505bccd32dcca0cce1ccf85dcccf5e19cca0cc9dccb0481ecc8a15ccf62c41cceb320304cca8cce927a269649c1363ccb3301c101f33cce1cc9a0524a67072656669789e456e69676d61204d657373616765a67075626b6579dc0040cce5ccbe28cc9dcc9a2eccbd08ccc0457a5f16ccdfcc9fccdc256c5d5f6c3514cccdcc95ccb47c11ccc4cccd3e31ccf0cce4ccefccc83ccc80cce8121c3939ccbb2561cc80ccec48ccbecca8ccc569ccd2cca3ccda6bcce415ccfa20cc9bcc98ccda", "workerSig": "43f19586b0a0ae626b9418fe8355888013be1c9b4263a4b3a27953de641991e936ed6c4076a2a383b3b001936bf0eb6e23c78fbec1ee36f19c6a9d24d75e9e081c"}}'
+curl -X POST --data '{"jsonrpc": "2.0", "id": "1", "method": "getStateKeys", "params": ["84a46461746181a75265717565737493dc0020cca7cc937b64ccb8cccacca5cc8f03721bccb6ccbacccf5c78cccb235fccebcce0cce70b1bcc84cccdcc99541461cca0cc8edc002016367accacccb67a4a017ccc8dcca8ccabcc95682ccccb390863780f7114ccddcca0cca0cce0ccc55644ccc7ccc4dc0020ccb1cce9cc9324505bccd32dcca0cce1ccf85dcccf5e19cca0cc9dccb0481ecc8a15ccf62c41cceb320304cca8cce927a269649c1363ccb3301c101f33cce1cc9a0524a67072656669789e456e69676d61204d657373616765a67075626b6579dc0040cce5ccbe28cc9dcc9a2eccbd08ccc0457a5f16ccdfcc9fccdc256c5d5f6c3514cccdcc95ccb47c11ccc4cccd3e31ccf0cce4ccefccc83ccc80cce8121c3939ccbb2561cc80ccec48ccbecca8ccc569ccd2cca3ccda6bcce415ccfa20cc9bcc98ccda", "43f19586b0a0ae626b9418fe8355888013be1c9b4263a4b3a27953de641991e936ed6c4076a2a383b3b001936bf0eb6e23c78fbec1ee36f19c6a9d24d75e9e081c"]}' -H "Content-Type: application/json" http://127.0.0.1:3040/
 
 // Result
 {
@@ -44,6 +53,22 @@ curl -H "Content-Type: application/json" -d '{"jsonrpc": "2.0", "id":1, "method"
 	}
 }
 ```
+
+##  getHealthCheck
+
+Requests a health check to be done on the Key management node. needed by the kubernetes cluster to check that all components are alive and 
+returning reasonable data. 
+the method, checks if the connection with the enclave and the enigma contract on ethereum are alive and return the same data.
+
+**Returns**
+
+bool: True, if the registration key is the same in both components. 
+False, if either we weren't able to connect to one of the components or if the keys were different.
+
+An example for a request will look like this:
+```sh
+curl -sb -o /dev/null -X POST -d '{"jsonrpc": "2.0", "id": "1", "method": "getHealthCheck", "params": []}' -H "Content-Type: application/json" 127.0.0.1:3040
+``` 
  
 ## To see all of the options available once compiled cd into /bin and type
 ```

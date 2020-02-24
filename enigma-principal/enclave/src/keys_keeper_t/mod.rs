@@ -104,6 +104,7 @@ fn new_state_keys(keys_map: &mut HashMap<ContractAddress, StateKey>,
     Ok(results)
 }
 
+/// builds the key response in the way agreed upon in the ipc documents on the p2p repository
 fn build_get_state_keys_response(sc_addrs: Vec<ContractAddress>) -> Result<Vec<(ContractAddress, StateKey)>, EnclaveError> {
     let mut response_data: Vec<(ContractAddress, StateKey)> = Vec::new();
     if sc_addrs.is_empty() {
