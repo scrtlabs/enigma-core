@@ -93,7 +93,7 @@ fn store_epoch(epoch: Epoch) -> Result<(), EnclaveError> {
     let mut data = H256::from_uint(&nonce).0.to_vec();
     data.extend(hash.to_vec());
     let mut marker_doc: SealedDocumentStorage<EpochMarker> = SealedDocumentStorage {
-        version: 0x1234, // TODO: what's this?
+        version: 0x1234, // TODO: remove. not needed.
         data: [0; 64],
     };
     // Length of the slice guaranteed to be 64
@@ -150,9 +150,11 @@ pub(crate) fn ecall_set_worker_params_internal(worker_params_rlp: &[u8], seed_in
             };
             *nonce_out = EpochNonce::from(nonce);
             rsgx_read_rand(&mut rand_out[..])?;
+            // create a random seed
             let seed = U256::from(rand_out.as_ref());
             let epoch = Epoch { nonce, seed, worker_params };
             debug_println!("Creating new epoch with nonce {:?} and seed: {:?}", nonce, seed);
+
             store_epoch(epoch.clone())?;
             epoch
         }

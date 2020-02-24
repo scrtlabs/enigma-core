@@ -33,6 +33,7 @@ pub fn create_signer(eid: sgx_enclave_id_t, with_private_key: bool, private_key:
     }
 }
 
+/// the starting point of the KM. called by main and is in charge of all functionality called by the cli app.
 #[logfn(INFO)]
 pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     let opt = cli::options::Opt::from_args();
@@ -49,6 +50,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
     if opt.info {
         cli::options::print_info(&signing_address, &ethereum_address);
     } else if opt.sign_address {
+        // store the KM addresses and close the KM. needed for the integration tests.
         path.push("principal-sign-addr.txt");
         let mut file = File::create(&path)?;
         let prefixed_signing_address = format!("0x{}", signing_address);
@@ -117,6 +119,7 @@ pub fn start(eid: sgx_enclave_id_t) -> Result<(), Error> {
             let response = PrincipalHttpServer::get_state_keys(&epoch_provider, request)?;
             println!("The getStateKeys response: {}", serde_json::to_string(&response)?);
         } else {
+            // the actual functionality of the KM node
             principal.run(path, false, gas_limit).unwrap();
         }
         if let Some(t) = join_handle {
