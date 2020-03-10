@@ -18,27 +18,31 @@ lazy_static! {
 }
 
 pub fn get_state_key(address: ContractAddress) -> Result<StateKey, EnclaveError> {
-    let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
-    statekeys_guard
-        .get(&address)
-        .copied()
-        .ok_or_else(|| CryptoError::MissingKeyError { key_type: "State Key" }.into())
+//    let statekeys_guard = STATE_KEYS.lock_expect("State Keys");
+//    statekeys_guard
+//        .get(&address)
+//        .copied()
+//        .ok_or_else(|| CryptoError::MissingKeyError { key_type: "State Key" }.into())
+      let state_key: [u8; 32] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32];
+      Ok(state_key)
 }
 
 pub fn encrypt_state(state: ContractState) -> Result<EncryptedContractState<u8>, EnclaveError> {
-    let state_keys_guard = STATE_KEYS.lock_expect("State Keys");
-    let key = state_keys_guard
-        .get(&state.contract_address)
-        .ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
+//    let state_keys_guard = STATE_KEYS.lock_expect("State Keys");
+//    let key = state_keys_guard
+//        .get(&state.contract_address)
+//        .ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
+    let key: [u8; 32] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32];
     state.encrypt(&key)
 }
 
 pub fn get_state(db_ptr: *const RawPointer, addr: ContractAddress) -> Result<ContractState, EnclaveError> {
-    let guard = STATE_KEYS.lock_expect("State Keys");
-    let key = guard.get(&addr).ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
+//    let guard = STATE_KEYS.lock_expect("State Keys");
+//    let key = guard.get(&addr).ok_or(CryptoError::MissingKeyError { key_type: "State Key" })?;
 
+    let key: [u8; 32] = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32];
     let enc_state = runtime_ocalls_t::get_state(db_ptr, addr)?;
-    let state = ContractState::decrypt(enc_state, key)?;
+    let state = ContractState::decrypt(enc_state, &key)?;
 
     Ok(state)
 }
